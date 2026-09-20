@@ -1,0 +1,102 @@
+import re
+from datetime import UTC, datetime
+from html.parser import HTMLParser
+
+from openpyxl import load_workbook
+
+from qpcr_assay_check.config import load_config
+from qpcr_assay_check.pipeline import evaluate
+from qpcr_assay_check.report.html import render_report
+from qpcr_assay_check.report.xlsx import write_workbook
+
+from .conftest import make_assay
+
+NOW = datetime(2026, 9, 20, 12, 0, 0, tzinfo=UTC)
+
+
+def render(assay, charts=False, qc_only=True):
+    cfg = load_config()
+    cfg.report.include_charts = charts
+    return render_report(evaluate(assay, cfg, qc_only=qc_only, now=NOW), cfg)
+
+
+def test_report_states_the_required_disclaimers(n1):
+    html = render(n1)
+    assert "does not replace experimental validation" in html
+    assert "responsible for verifying this software within its own quality system" in html
+    assert "no data was sent to NCBI" in html
+
+
+def test_report_is_a_timestamped_version_stamped_record(n1):
+    html = render(n1)
+    assert "2026-09-20T12:00:00Z" in html
+    assert "qpcr-assay-check v" in html
+    assert re.search(r"[0-9a-f]{64}", html)  # full inputs hash
+
+
+def test_full_run_report_says_incomplete_is_not_a_pass(n1):
+    html = render(n1, qc_only=False)
+    assert 'class="word">INCOMPLETE<' in html
+    assert "not a pass" in html
+    assert "Not evaluated" in html
+
+
+def test_user_supplied_text_is_html_escaped():
+    html = render(
+        make_assay(assay_name="<script>alert(1)</script> & co", notes="<img src=x onerror=1>")
+    )
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "<img src=x" not in html
+
+
+class _RefCollector(HTMLParser):
+    """Collect attributes of real HTML tags that would make the browser fetch something."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.refs: list[tuple[str, str, str]] = []
+
+    def handle_starttag(self, tag, attrs):
+        for key, value in attrs:
+            if key in {"src", "href", "action", "data", "poster", "srcset"} and value:
+                self.refs.append((tag, key, value))
+
+
+def test_report_with_charts_is_self_contained(n1):
+    """No tag may reference another file or host.
+
+    The inlined Plotly bundle contains URL *strings* (map tile servers, logo link) that are
+    only used by map traces and the modebar logo; this report uses neither, so the test inspects
+    real tags instead of grepping the JavaScript text.
+    """
+    html = render(n1, charts=True)
+    assert "Plotly.newPlot" in html
+    parser = _RefCollector()
+    parser.feed(html)
+    assert parser.refs == []
+    assert "<link " not in html
+    assert "displaylogo" in html and '"displaylogo":false' in html.replace(" ", "")
+
+
+def test_three_prime_end_is_marked(n1):
+    assert '<b class="tail">' in render(n1)
+
+
+def test_degenerate_and_modified_probe_are_explained():
+    html = render(make_assay(forward="GACCCCAAAATCAGCGAAAW", probe_modifications=["MGB"]))
+    assert "2 variants" in html
+    assert "Tm reliability" in html
+
+
+def test_workbook_has_expected_sheets(n1, tmp_path):
+    cfg = load_config()
+    result = evaluate(n1, cfg, qc_only=True, now=NOW)
+    path = tmp_path / "r.xlsx"
+    write_workbook(result, path)
+    wb = load_workbook(path)
+    assert wb.sheetnames == ["Summary", "Inputs", "Oligo QC", "Structures", "Sections"]
+    summary = {row[0].value: row[1].value for row in wb["Summary"].iter_rows(min_row=2)}
+    assert summary["Assay"] == "CDC N1"
+    assert summary["Overall verdict"] == "WARN"
+    assert wb["Oligo QC"].max_row == len(result.oligo_qc.checks) + 1

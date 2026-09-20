@@ -1,0 +1,6 @@
+# Example configuration override: only the keys listed here change; all others keep the defaults.
+# The CDC 2019-nCoV protocol cycles at 95 C for 3 s and 55 C for 30 s (CDC-006-00019 Rev. 08),
+# so structures are evaluated at 55 C instead of the default 60 C.
+# Primer/probe concentrations are NOT changed: they remain the tool defaults, not the CDC's.
+reaction:
+  annealing_temp_C: 55.0

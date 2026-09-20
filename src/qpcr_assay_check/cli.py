@@ -1,0 +1,234 @@
+"""Command-line interface."""
+
+from __future__ import annotations
+
+import logging
+import sys
+from pathlib import Path
+from typing import Annotated, Any
+
+import typer
+import yaml
+from pydantic import ValidationError
+
+from . import __version__
+from .config import default_config_text, format_validation_error, load_config
+from .errors import InputError, QpcrAssayCheckError
+from .models import Assay
+from .pipeline import evaluate, write_outputs
+from .verdict import EXIT_INPUT_ERROR
+
+app = typer.Typer(
+    name="qpcr-assay-check",
+    help=(
+        "Evaluate one real-time PCR (TaqMan) assay in silico and write a versioned evaluation "
+        "record. In silico analysis does not replace experimental validation."
+    ),
+    no_args_is_help=True,
+    add_completion=False,
+    pretty_exceptions_enable=False,
+)
+log = logging.getLogger("qpcr_assay_check")
+
+_TEMPLATE_ASSAY = """\
+# qpcr-assay-check assay definition (template). Fill in every field marked REQUIRED.
+# Oligos are written 5'->3' as DNA (T, not U), also for RNA targets. IUPAC codes are allowed.
+assay_name: ""            # REQUIRED
+forward: ""               # REQUIRED
+reverse: ""               # REQUIRED
+probe: ""                 # REQUIRED  (sequence only; dye and quencher go below)
+probe_reporter: FAM
+probe_quencher: BHQ1
+probe_modifications: []   # e.g. [MGB] or [ZEN]; any entry triggers a Tm-reliability warning
+template_type: DNA        # DNA | RNA
+target:                   # REQUIRED: give a taxonomy ID and/or a reference accession
+  taxid:
+  accession:
+  gene:
+# reference_amplicon: ""  # optional sense-strand amplicon (enables amplicon checks)
+oligo_source: ""          # where these sequences come from (publication, vendor, in-house)
+"""
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"qpcr-assay-check {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: Annotated[
+        bool,
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version."),
+    ] = False,
+) -> None:
+    """qpcr-assay-check."""
+
+
+def _setup_logging(verbose: int) -> None:
+    level = logging.WARNING if verbose == 0 else logging.INFO if verbose == 1 else logging.DEBUG
+    logging.basicConfig(
+        level=level, format="%(levelname)s %(name)s: %(message)s", stream=sys.stderr
+    )
+
+
+def _fail(message: str, code: int = EXIT_INPUT_ERROR) -> None:
+    typer.echo(f"Error: {message}", err=True)
+    raise typer.Exit(code)
+
+
+def _read_assay_file(path: Path) -> dict[str, Any]:
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        raise InputError(f"Cannot read assay file {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise InputError(f"Assay file {path} must contain a YAML mapping")
+    return data
+
+
+def build_assay(path: Path | None, overrides: dict[str, Any]) -> Assay:
+    """Assemble an assay from an optional YAML file plus command-line overrides."""
+    data = _read_assay_file(path) if path else {}
+    target = dict(data.get("target") or {})
+    for key in ("taxid", "accession", "gene"):
+        if overrides.get(f"target_{key}") is not None:
+            target[key] = overrides[f"target_{key}"]
+    for key, value in overrides.items():
+        if value is not None and not key.startswith("target_") and value != []:
+            data[key] = value
+    data["target"] = {k: v for k, v in target.items() if v not in (None, "")}
+    try:
+        return Assay.model_validate(data)
+    except ValidationError as exc:
+        raise InputError(f"Invalid assay definition:\n{format_validation_error(exc)}") from exc
+
+
+@app.command()
+def validate(
+    assay_file: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Assay YAML file.")
+    ],
+    config: Annotated[
+        Path | None, typer.Option("--config", "-c", help="Configuration YAML.")
+    ] = None,
+) -> None:
+    """Check an assay file and configuration without running any analysis."""
+    try:
+        cfg = load_config(config)
+        assay = build_assay(assay_file, {})
+    except QpcrAssayCheckError as exc:
+        _fail(str(exc))
+        return
+    typer.echo(f"OK: '{assay.assay_name}' ({assay.template_type.value}) is valid.")
+    for role, seq in assay.oligos.items():
+        typer.echo(f"  {role:8} {seq} ({len(seq)} nt)")
+    typer.echo(f"  configuration: annealing {cfg.reaction.annealing_temp_C:g} °C")
+
+
+@app.command()
+def run(
+    assay_file: Annotated[
+        Path | None, typer.Argument(exists=True, dir_okay=False, help="Assay YAML file.")
+    ] = None,
+    config: Annotated[
+        Path | None, typer.Option("--config", "-c", help="Configuration YAML.")
+    ] = None,
+    outdir: Annotated[Path, typer.Option("--outdir", "-o", help="Base output directory.")] = Path(
+        "results"
+    ),
+    qc_only: Annotated[
+        bool, typer.Option("--qc-only", help="Only oligo QC; the verdict then covers QC alone.")
+    ] = False,
+    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="More logging.")] = 0,
+    name: Annotated[str | None, typer.Option(help="Assay name.")] = None,
+    forward: Annotated[str | None, typer.Option(help="Forward primer, 5'->3'.")] = None,
+    reverse: Annotated[str | None, typer.Option(help="Reverse primer, 5'->3'.")] = None,
+    probe: Annotated[str | None, typer.Option(help="Probe, 5'->3'.")] = None,
+    probe_reporter: Annotated[str | None, typer.Option(help="Reporter dye, e.g. FAM.")] = None,
+    probe_quencher: Annotated[str | None, typer.Option(help="Quencher, e.g. BHQ1.")] = None,
+    probe_modification: Annotated[
+        list[str] | None, typer.Option(help="Probe modification (repeatable), e.g. MGB.")
+    ] = None,
+    template_type: Annotated[str | None, typer.Option(help="DNA or RNA.")] = None,
+    target_taxid: Annotated[
+        int | None, typer.Option(help="NCBI taxonomy ID of the target.")
+    ] = None,
+    target_accession: Annotated[str | None, typer.Option(help="Reference accession.")] = None,
+    target_gene: Annotated[str | None, typer.Option(help="Target gene name.")] = None,
+    reference_amplicon: Annotated[
+        str | None, typer.Option(help="Sense-strand reference amplicon (optional).")
+    ] = None,
+) -> None:
+    """Evaluate one assay and write results.json, report.html and results.xlsx.
+
+    Command-line options override values in the assay file. The exit code reflects the
+    verdict: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input.
+    """
+    _setup_logging(verbose)
+    overrides: dict[str, Any] = {
+        "assay_name": name,
+        "forward": forward,
+        "reverse": reverse,
+        "probe": probe,
+        "probe_reporter": probe_reporter,
+        "probe_quencher": probe_quencher,
+        "probe_modifications": probe_modification or [],
+        "template_type": template_type.upper() if template_type else None,
+        "target_taxid": target_taxid,
+        "target_accession": target_accession,
+        "target_gene": target_gene,
+        "reference_amplicon": reference_amplicon,
+    }
+    if assay_file is None and not any(v for v in overrides.values()):
+        _fail("give an assay file or at least --name, --forward, --reverse, --probe and a target.")
+    try:
+        cfg = load_config(config)
+        assay = build_assay(assay_file, overrides)
+        result = evaluate(assay, cfg, qc_only=qc_only)
+        run_dir = write_outputs(result, outdir, cfg)
+    except QpcrAssayCheckError as exc:
+        _fail(str(exc))
+        return
+
+    if not qc_only:
+        typer.echo(
+            "Note: this version evaluates oligo QC only; remote analyses are not yet available, "
+            "so a full run cannot be conclusive (INCOMPLETE). Use --qc-only for a QC verdict.",
+            err=True,
+        )
+    typer.echo(f"Verdict: {result.overall.verdict.value}")
+    for line in result.overall.rationale:
+        typer.echo(f"  - {line}")
+    typer.echo(f"Record written to {run_dir}")
+    raise typer.Exit(result.overall.exit_code)
+
+
+@app.command()
+def init(
+    directory: Annotated[Path, typer.Argument(help="Directory to write into.")] = Path("."),
+    example: Annotated[
+        bool,
+        typer.Option(
+            "--example", help="Write the verified CDC N1 example instead of a blank template."
+        ),
+    ] = False,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite existing files.")] = False,
+) -> None:
+    """Write a starter assay.yaml and a fully commented config.yaml."""
+    from importlib import resources
+
+    directory.mkdir(parents=True, exist_ok=True)
+    if example:
+        assay_text = (
+            resources.files("qpcr_assay_check") / "data" / "examples" / "cdc_2019-nCoV_N1.yaml"
+        ).read_text(encoding="utf-8")
+    else:
+        assay_text = _TEMPLATE_ASSAY
+    for filename, text in (("assay.yaml", assay_text), ("config.yaml", default_config_text())):
+        target = directory / filename
+        if target.exists() and not force:
+            _fail(f"{target} already exists (use --force to overwrite).", 1)
+        target.write_text(text, encoding="utf-8")
+        typer.echo(f"Wrote {target}")

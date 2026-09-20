@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="qpcr-assay-check {{ r.tool.version }}">
+<title>{{ assay.assay_name }} – assay evaluation record ({{ r.overall.verdict.value }})</title>
+<style>
+:root {
+  --ink: #17222D; --muted: #55636F; --paper: #F4F6F8; --panel: #FFFFFF; --rule: #D3DBE2;
+  --pass: #1F7A5A; --pass-bg: #DDF0E7;
+  --warn: #9A5F00; --warn-bg: #FBEBC8;
+  --fail: #B23B3B; --fail-bg: #F6D9D9;
+  --incomplete: #46566B; --incomplete-bg: #DCE2EA;
+  --info: #55636F; --info-bg: #E6EAEE;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; color: var(--ink); font-family: var(--serif); font-size: 17px; line-height: 1.55; }
+main { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+h1, h2, h3, table, .chip, .meta, .rec { font-family: var(--sans); }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .35rem; }
+h2 { font-size: 1.25rem; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+h3 { font-size: 1rem; margin: 1.75rem 0 .5rem; }
+p { margin: .6rem 0; max-width: 46rem; }
+.meta { color: var(--muted); font-size: .85rem; }
+.meta code { font-family: var(--mono); font-size: .8rem; word-break: break-all; }
+
+.verdict { display: grid; grid-template-columns: auto 1fr; gap: 0 2rem; margin: 1.75rem 0 0;
+  background: var(--panel); border: 1px solid var(--rule); border-left-width: 10px; padding: 1.4rem 1.6rem; }
+.verdict.v-PASS { border-left-color: var(--pass); }
+.verdict.v-WARN { border-left-color: var(--warn); }
+.verdict.v-FAIL { border-left-color: var(--fail); }
+.verdict.v-INCOMPLETE { border-left-color: var(--incomplete); }
+.verdict .word { font-family: var(--sans); font-size: 2.6rem; font-weight: 700; line-height: 1; letter-spacing: -.01em; }
+.v-PASS .word { color: var(--pass); } .v-WARN .word { color: var(--warn); }
+.v-FAIL .word { color: var(--fail); } .v-INCOMPLETE .word { color: var(--incomplete); }
+.verdict .label { font-family: var(--sans); font-size: .8rem; color: var(--muted); margin-bottom: .25rem; }
+.verdict ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+.verdict li { margin: .2rem 0; }
+@media (max-width: 40rem) { .verdict { grid-template-columns: 1fr; gap: 1rem 0; } }
+
+.chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 3px; white-space: nowrap; }
+.s-PASS, .s-evaluated-PASS { background: var(--pass-bg); color: var(--pass); }
+.s-WARN { background: var(--warn-bg); color: var(--warn); }
+.s-FAIL { background: var(--fail-bg); color: var(--fail); }
+.s-INFO, .s-none { background: var(--info-bg); color: var(--info); }
+.s-INCOMPLETE { background: var(--incomplete-bg); color: var(--incomplete); }
+
+table { border-collapse: collapse; width: 100%; font-size: .88rem; background: var(--panel); border: 1px solid var(--rule); }
+th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th { background: #EAEFF3; font-weight: 600; }
+tr.group th { background: #F1F4F7; font-size: .8rem; color: var(--muted); font-weight: 600; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.note { color: var(--muted); }
+.scroll { overflow-x: auto; }
+.seq { font-family: var(--mono); font-size: .92rem; letter-spacing: .04em; word-break: break-all; }
+.seq .tail { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+pre { font-family: var(--mono); font-size: .78rem; background: var(--panel); border: 1px solid var(--rule);
+  padding: .75rem 1rem; overflow-x: auto; line-height: 1.35; }
+details { margin: .75rem 0; }
+summary { cursor: pointer; font-family: var(--sans); font-size: .9rem; }
+summary:focus-visible, a:focus-visible { outline: 3px solid #3B5B7A; outline-offset: 2px; }
+figure { margin: 1rem 0; } figcaption { font-size: .85rem; color: var(--muted); font-family: var(--sans); }
+.notice { background: var(--panel); border: 1px solid var(--rule); padding: .9rem 1.1rem; }
+.notice p { margin: .35rem 0; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+
+@media print {
+  html { background: #fff; } main { max-width: none; padding: 0; }
+  .verdict, table, pre, figure, .notice { break-inside: avoid; }
+  h2 { break-after: avoid; } details:not([open]) > *:not(summary) { display: block; }
+}
+</style>
+{% if plotly_js %}<script>{{ plotly_js }}</script>{% endif %}
+</head>
+<body>
+<main>
+{% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
+
+<header>
+  <h1>{{ assay.assay_name }}</h1>
+  <p class="meta">
+    Assay evaluation record · generated {{ r.generated_at }} · qpcr-assay-check v{{ r.tool.version }} ·
+    run <code>{{ r.run_id }}</code><br>
+    Inputs hash (SHA-256): <code>{{ r.inputs_hash }}</code>
+  </p>
+</header>
+
+<section class="verdict v-{{ r.overall.verdict.value }}" aria-labelledby="verdict-h">
+  <div>
+    <div class="label" id="verdict-h">Overall verdict{% if r.mode == 'qc-only' %} (oligo QC only){% endif %}</div>
+    <div class="word">{{ r.overall.verdict.value }}</div>
+  </div>
+  <div>
+    <p>{{ verdict_meaning }}</p>
+    {% if r.overall.rationale %}
+    <ul>
+      {% for line in r.overall.rationale %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</section>
+
+<h2>Sections evaluated</h2>
+<div class="scroll"><table>
+  <thead><tr><th>Section</th><th>Result</th><th>Detail</th></tr></thead>
+  <tbody>
+  {% for s in r.sections %}
+  <tr>
+    <td>{{ s.title }}</td>
+    <td>{% if s.verdict %}{{ chip(s.verdict.value) }}{% else %}<span class="chip s-none">Not evaluated</span>{% endif %}</td>
+    <td class="note">{{ s.note }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h2>Assay as evaluated</h2>
+<div class="scroll"><table>
+  <tbody>
+    <tr><th scope="row">Forward primer</th><td>{{ assay.forward | seq_html }} <span class="meta">{{ assay.forward | length }} nt</span></td></tr>
+    <tr><th scope="row">Reverse primer</th><td>{{ assay.reverse | seq_html }} <span class="meta">{{ assay.reverse | length }} nt</span></td></tr>
+    <tr><th scope="row">Probe</th><td>{{ assay.probe | seq_html }} <span class="meta">{{ assay.probe | length }} nt</span></td></tr>
+    <tr><th scope="row">Reporter / quencher</th><td>{{ assay.probe_reporter or 'not specified' }} / {{ assay.probe_quencher or 'not specified' }}</td></tr>
+    <tr><th scope="row">Probe modifications</th><td>{{ assay.probe_modifications | join(', ') or 'none declared' }}</td></tr>
+    <tr><th scope="row">Template</th><td>{{ assay.template_type.value }}{% if assay.template_type.value == 'RNA' %} (reverse transcription step assumed){% endif %}</td></tr>
+    <tr><th scope="row">Intended target</th><td>
+      {% if assay.target.taxid %}taxonomy ID {{ assay.target.taxid }}{% endif %}
+      {% if assay.target.accession %}{% if assay.target.taxid %}; {% endif %}reference {{ assay.target.accession }}{% endif %}
+      {% if assay.target.gene %}; gene {{ assay.target.gene }}{% endif %}</td></tr>
+    {% if assay.oligo_source %}<tr><th scope="row">Oligo source</th><td>{{ assay.oligo_source }}</td></tr>{% endif %}
+    {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes }}</td></tr>{% endif %}
+  </tbody>
+</table></div>
+<p class="meta">The last five nucleotides of each sequence, the 3′ end, are underlined.</p>
+{% set degenerate = qc.oligos | selectattr('degenerate') | list %}
+{% if degenerate %}
+<p>Degenerate oligos were expanded and every variant was evaluated; the worst variant decides each status:
+  {% for o in degenerate %}{{ o.role }} → {{ o.n_variants }} variants{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% endif %}
+
+<h2>Oligo quality control</h2>
+{% if qc.tm_unreliable_reasons %}
+<div class="notice"><p><strong>Tm reliability.</strong> The probe carries {{ qc.tm_unreliable_reasons | join(', ') }}.
+  Nearest-neighbour Tm and dimer estimates do not model these modifications; use vendor-specific values.</p></div>
+{% endif %}
+{% for c in charts %}
+<figure>
+  {{ c.html }}
+  <figcaption>{{ c.caption }}</figcaption>
+</figure>
+{% endfor %}
+<div class="scroll"><table>
+  <thead><tr><th>Check</th><th>Value</th><th>Result</th><th>Rule applied</th></tr></thead>
+  <tbody>
+  {% for title, items in groups %}
+    <tr class="group"><th colspan="4">{{ title }}</th></tr>
+    {% for c in items %}
+    <tr>
+      <td>{{ c.name }}{% if c.message %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
+      <td class="num">{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td>
+      <td>{{ chip(c.status.value) }}</td>
+      <td class="note">{{ c.rule }}</td>
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if qc.amplicon_note %}<p class="meta">{{ qc.amplicon_note }}</p>{% endif %}
+
+<h2>Hairpins and dimers</h2>
+<p>Calculated at the annealing temperature of {{ r.config.reaction.annealing_temp_C }} °C
+  (Na⁺ {{ r.config.reaction.na_mM }} mM, Mg²⁺ {{ r.config.reaction.mg_mM }} mM, dNTP {{ r.config.reaction.dntp_mM }} mM).
+  A structure is flagged when its melting temperature reaches
+  {{ r.config.thresholds.structures.warn_tm_c }} °C (WARN) or the
+  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (FAIL).
+  “3′ end” rows test whether the 3′ end of the first oligo can anneal to the second and be extended.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Structure</th><th>Tm (°C)</th><th>ΔG (kcal/mol)</th><th>Result</th></tr></thead>
+  <tbody>
+  {% for s in qc.structures %}
+  <tr>
+    <td>{{ s.label }}{% if s.n_total > s.n_evaluated %}<br><span class="meta">{{ s.n_evaluated }} of {{ s.n_total }} variant combinations evaluated</span>{% endif %}
+      {% if s.variant %}<br><span class="meta">worst case: {{ s.variant }}</span>{% endif %}</td>
+    <td class="num">{{ s.tm_c | tm }}</td>
+    <td class="num">{{ s.dg_kcal | dg }}</td>
+    <td>{{ chip(s.status.value) }}</td>
+  </tr>
+  {% if s.ascii_lines %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">Tm “none” means no structure was found; “&lt; 0” means the only structure is far too weak to matter.
+  Thermodynamic values are estimates from primer3 nearest-neighbour parameters.</p>
+
+{% if qc.amplicon %}
+<h2>Amplicon</h2>
+{% set a = qc.amplicon %}
+<div class="scroll"><table><tbody>
+  <tr><th scope="row">Reference amplicon</th><td>{{ a.input_length_nt }} nt</td></tr>
+  {% if a.product_length_nt %}<tr><th scope="row">Primer-defined product</th><td>{{ a.product_length_nt }} bp, {{ '%.1f' % a.product_gc_percent }}% GC</td></tr>{% endif %}
+  {% for site in [a.forward_site, a.reverse_site, a.probe_site] if site %}
+  <tr><th scope="row">{{ site.oligo | capitalize }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
+  {% endfor %}
+</tbody></table></div>
+{% endif %}
+
+<h2>Not yet evaluated</h2>
+<div class="notice">
+  <p>This version of qpcr-assay-check evaluates oligo quality only. Specificity against public sequence
+    data, off-target amplicons, exclusivity, inclusivity and comparison with earlier runs arrive in later releases
+    (see the sections table). <strong>No sequence has been searched against any database in this record</strong>,
+    and no data was sent to NCBI{% if r.network_used %} (this run used the network){% endif %}.</p>
+</div>
+
+<h2>Methods</h2>
+<div class="scroll"><table><tbody>
+  <tr><th scope="row">Software</th><td>qpcr-assay-check {{ r.tool.version }}; Python {{ r.environment.python }}; primer3-py {{ r.environment['primer3-py'] }}</td></tr>
+  <tr><th scope="row">Platform</th><td>{{ r.environment.platform }}</td></tr>
+  <tr><th scope="row">Melting temperature</th><td>{{ r.config.reaction.tm_method }} nearest-neighbour model, {{ r.config.reaction.salt_correction }} salt correction;
+    primers {{ r.config.reaction.primer_nM }} nM, probe {{ r.config.reaction.probe_nM }} nM</td></tr>
+  <tr><th scope="row">Structures</th><td>primer3 thermodynamic alignment (hairpin, homodimer, heterodimer, 3′-end) at {{ r.config.reaction.annealing_temp_C }} °C</td></tr>
+  <tr><th scope="row">3′ end stability</th><td>Sum of SantaLucia (1998) nearest-neighbour ΔG°37 over the last five nucleotides (informational)</td></tr>
+  <tr><th scope="row">Run mode</th><td>{{ r.mode }}</td></tr>
+  <tr><th scope="row">Database, BLAST parameters, RIDs</th><td>Not applicable: no database search was performed</td></tr>
+</tbody></table></div>
+<details>
+  <summary>Effective configuration (thresholds and conditions applied)</summary>
+  <pre>{{ config_yaml }}</pre>
+</details>
+
+<h2>Limitations</h2>
+<p>Default thresholds are starting points drawn from common TaqMan design guidance; they are not acceptance
+  criteria and must be reviewed by the laboratory. Melting temperatures and dimer energies are computational
+  estimates and depend on the reaction conditions entered. Structures are searched at the annealing temperature, so a
+  hairpin or dimer that forms only at lower temperatures (for example during reaction set-up) may not be reported, and
+  the same oligo can be flagged at one annealing temperature and not at another. Modified probes (MGB, LNA, ZEN and
+  similar) are not modelled. These results describe the oligo sequences only: nothing here says how the assay behaves
+  against real specimens or real off-target sequences.</p>
+
+<h2>Required statements</h2>
+<div class="notice">
+  <p><strong>In silico analysis does not replace experimental validation.</strong> The outcome of this evaluation
+    must be interpreted together with wet-laboratory verification of the assay.</p>
+  <p><strong>The laboratory is responsible for verifying this software within its own quality system</strong>
+    before relying on its output. qpcr-assay-check is provided without warranty (Apache License 2.0).</p>
+</div>
+
+<footer class="meta">
+  Record {{ r.run_id }} · generated {{ r.generated_at }} (UTC) · qpcr-assay-check v{{ r.tool.version }} ·
+  inputs hash {{ r.inputs_hash[:16] }}… · schema {{ r.schema_version }}
+</footer>
+</main>
+</body>
+</html>

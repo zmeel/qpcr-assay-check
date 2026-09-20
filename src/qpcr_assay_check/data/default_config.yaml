@@ -1,0 +1,60 @@
+# qpcr-assay-check: default configuration (schema_version 1)
+#
+# Every value below is a STARTING POINT taken from common TaqMan design guidance,
+# not an acceptance criterion. Each laboratory must review the thresholds against its own
+# quality system. Override any value by passing your own YAML file with --config; only the
+# keys you give are changed, everything else keeps the defaults shown here.
+#
+# NCBI credentials are NEVER read from this file: use the NCBI_EMAIL and NCBI_API_KEY
+# environment variables (introduced in v0.2.0).
+
+schema_version: 1
+
+reaction:
+  # Conditions used for melting temperatures and structure calculations (primer3 conventions).
+  na_mM: 50.0            # monovalent cations
+  mg_mM: 3.0             # free Mg2+
+  dntp_mM: 0.8
+  primer_nM: 400.0
+  probe_nM: 200.0
+  annealing_temp_C: 60.0 # annealing/extension temperature of the cycling protocol
+  tm_method: santalucia          # santalucia | breslauer
+  salt_correction: santalucia    # santalucia | owczarzy | schildkraut
+
+oligo:
+  max_degenerate_expansions: 64  # per oligo; larger degenerate oligos are rejected
+  max_pair_combinations: 256     # variant combinations evaluated per oligo pair (dimers)
+
+thresholds:
+  # Bands: PASS inside pass_range, FAIL outside fail_range, WARN in between.
+  primer:
+    length_nt: {pass_range: [18, 30], fail_range: [15, 40]}
+    gc_percent: {pass_range: [40, 60], fail_range: [30, 70]}
+    # Tm from primer3 (SantaLucia) runs a few degrees higher than vendor calculators.
+    tm_c: {pass_range: [58.0, 66.0], fail_range: [54.0, 70.0]}
+    gc_in_last5: {min: 1, max: 3}            # G/C among the last 5 nt at the 3' end; else WARN
+    max_run: {warn_at: 5, fail_at: 7}        # longest single-base run (nt)
+    max_g_run: {warn_at: 4, fail_at: 6}      # longest run of G (nt)
+  probe:
+    length_nt: {pass_range: [15, 30], fail_range: [12, 40]}
+    gc_percent: {pass_range: [30, 80], fail_range: [20, 90]}
+    tm_minus_mean_primer_c: {pass_range: [5.0, 12.0], fail_range: [0.0, 15.0]}
+    max_run: {warn_at: 5, fail_at: 7}
+    max_g_run: {warn_at: 4, fail_at: 6}
+    warn_if_more_g_than_c: true
+    g_sensitive_reporters: [FAM, FITC]       # a 5' G next to these dyes quenches the signal
+  pair:
+    primer_tm_diff_c: {warn_above: 3.0, fail_above: 6.0}
+  structures:
+    # Structure melting temperature, evaluated against the annealing temperature.
+    # 47 C is the default limit Primer3 uses for hairpins and dimers.
+    warn_tm_c: 47.0
+    fail_tm_c: null                          # null = the annealing temperature
+  amplicon:
+    length_bp: {pass_range: [50, 150], fail_range: [40, 300]}
+    gc_percent: {pass_range: [35, 65], fail_range: [25, 75]}
+    allow_probe_primer_overlap: false
+    max_site_mismatches: 2                   # tolerated when locating oligos in the amplicon
+
+report:
+  include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)

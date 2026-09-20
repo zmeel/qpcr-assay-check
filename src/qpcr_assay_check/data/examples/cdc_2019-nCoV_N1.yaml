@@ -1,0 +1,32 @@
+# Example assay: CDC 2019-nCoV N1 (SARS-CoV-2, N gene), a published assay.
+#
+# SEQUENCE VERIFICATION (checked 2026-09-20 by the tool's author, not by a laboratory):
+#   * Forward, reverse and probe sequences were cross-checked against two independent
+#     open-access papers that quote the CDC N1 set as ordered from IDT:
+#       - PMC9115073 (forward, reverse, probe, with FAM and BHQ1 labels)
+#       - PMC9758783 (reverse and probe, with FAM and BHQ1 labels)
+#   * The CDC/FDA Instructions for Use (CDC-006-00019 Rev. 08, FDA EUA) confirm the N1 set and
+#     its FAM reporter but do NOT print the oligo sequences, and the CDC package insert was not
+#     accessible. If your laboratory relies on this example, verify the sequences against your own
+#     supplier documentation.
+#   * The N1 amplicon is 72 bp (Lee et al. 2021, PLoS ONE 16:e0260487, doi:10.1371/journal.pone.0260487).
+#   * NCBI Taxonomy ID 2697049 = Severe acute respiratory syndrome coronavirus 2 (checked on the
+#     NCBI Taxonomy Browser). NC_045512.2 is the SARS-CoV-2 reference genome cited in that paper.
+#
+# No reference_amplicon is included on purpose: it was not verified against the sequence record.
+# From v0.4.0 the amplicon is derived automatically from the reference accession.
+assay_name: CDC 2019-nCoV N1
+forward: GACCCCAAAATCAGCGAAAT
+reverse: TCTGGTTACTGCCAGTTGAATCTG
+probe: ACCCCGCATTACGTTTGGTGGACC
+probe_reporter: FAM
+probe_quencher: BHQ1
+probe_modifications: []
+template_type: RNA
+target:
+  taxid: 2697049
+  accession: NC_045512.2
+  gene: N
+oligo_source: >-
+  US CDC 2019-nCoV Real-Time RT-PCR Diagnostic Panel, N1 primer/probe set
+  (2019-nCoV_N1-F, 2019-nCoV_N1-R, 2019-nCoV_N1-P).
