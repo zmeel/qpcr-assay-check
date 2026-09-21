@@ -141,19 +141,15 @@ def _description(raw: dict[str, Any]) -> HitDescription:
 
 
 def _label_for(title: str, query_id: str, labels: list[str]) -> str:
-    """Match a BLAST query to a submitted oligo, by its echoed title.
+    """Match a BLAST query to a submitted oligo by the title NCBI echoes back.
 
-    Position (``Query_N``) is used only when BLAST echoed no title at all. A title that does not
-    match any submitted label is an error: guessing by position could silently swap primers.
+    Real reports number queries with a global counter (``Query_1830923``), never 1, 2, 3, so
+    position is not a usable fallback; guessing could silently swap primers. No match is an error.
     """
     words = title.split()
     first = words[0].removeprefix("lcl|") if words else ""
     if first in labels:
         return first
-    if not first:
-        m = re.fullmatch(r"Query_(\d+)", query_id)
-        if m and 1 <= int(m.group(1)) <= len(labels):
-            return labels[int(m.group(1)) - 1]
     raise ParseError(
         f"Cannot match BLAST query '{query_id}' ({title!r}) to the submitted oligos {labels}."
     )

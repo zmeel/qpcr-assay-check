@@ -81,7 +81,7 @@ def blast_json(
                     "search_target": {"db": "core_nt"},
                     "results": {
                         "search": {
-                            "query_id": f"Query_{i}",
+                            "query_id": f"Query_{1830922 + i}",
                             "query_title": label if by_title else "",
                             "query_len": 24,
                             "hits": rep_hits,

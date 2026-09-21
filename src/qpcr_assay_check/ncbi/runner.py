@@ -35,7 +35,7 @@ class BlastRunner:
         settings: NcbiSettings,
         result_format: str,
         *,
-        now: Callable[[], datetime] = _now,
+        now: Callable[[], datetime] | None = None,
         sleep: Callable[[float], None] | None = None,
     ) -> None:
         self.api = api
@@ -43,7 +43,7 @@ class BlastRunner:
         self.store = store
         self.s = settings
         self.result_format = result_format
-        self._now = now
+        self._now = now or (lambda: _now())
         self._sleep = sleep or (lambda s: time.sleep(s))
 
     def cached(self, job: Job) -> str | None:
@@ -85,7 +85,18 @@ class BlastRunner:
                 self._sleep(min(max(job.rtoe_s or 0, 0), self.s.poll_interval_s))
                 first = False
             status, _hits = self.api.status(job.rid)
-            log.info("Job %s: RID %s is %s", job.label, job.rid, status)
+            waited = (
+                (self._now() - datetime.fromisoformat(job.submitted_at)).total_seconds() / 60
+                if job.submitted_at
+                else 0.0
+            )
+            log.info(
+                "Job %s: RID %s is %s (%.0f min since submission)",
+                job.label,
+                job.rid,
+                status,
+                waited,
+            )
             if status == "READY":
                 break
             if status == "FAILED":

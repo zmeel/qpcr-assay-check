@@ -67,7 +67,7 @@ ncbi:
   backoff_base_s: 2.0              # exponential: 2, 4, 8, ... seconds (plus jitter)
   blast_min_interval_s: 10         # NCBI: contact the BLAST server at most once per 10 s
   poll_interval_s: 60              # NCBI: poll a given RID at most once per minute
-  max_wait_minutes: 120            # give up waiting (the job stays resumable)
+  max_wait_minutes: 240            # give up waiting (the job stays resumable); a human search took 61 min
   rid_lifetime_hours: 36           # NCBI keeps results for about 36 h; older jobs are resubmitted
   blast_cache_ttl_days: 7          # BLAST results are only reused within a run / a resume
   taxonomy_cache_ttl_days: 30

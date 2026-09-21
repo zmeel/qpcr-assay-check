@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -71,10 +72,11 @@ def test_parse_maps_queries_by_title_and_reads_hit_details():
     assert parsed.queries["probe"].hits[0].best_identity == 15
 
 
-def test_parse_falls_back_to_query_number_when_titles_are_missing():
+def test_queries_are_never_matched_by_position():
+    """Real query ids are global counters (Query_1830923); a missing title must be an error."""
     text = blast_json({"a": [hit()], "b": [hit()], "c": [hit()]}, by_title=False)
-    parsed = parse_blast_json(text, LABELS)
-    assert parsed.queries["reverse"].query_id == "Query_2"
+    with pytest.raises(ParseError, match="Cannot match"):
+        parse_blast_json(text, LABELS)
 
 
 def test_parse_accepts_a_single_report_object():
@@ -115,3 +117,36 @@ def test_parse_reports_missing_queries_and_unmatched_labels():
         parse_blast_json(blast_json({"forward": [hit()]}), ["forward", "reverse"])
     with pytest.raises(ParseError, match="Cannot match"):
         parse_blast_json(blast_json({"weird": [hit()]}, by_title=True), ["forward"])
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def test_parser_reads_real_ncbi_output_for_the_target_search():
+    """Verbatim hit from the live SARS-CoV-2 search (see tests/fixtures/README.md)."""
+    text = (FIXTURES / "real_hit_sars2_forward.json").read_text()
+    parsed = parse_blast_json(text, ["forward"])
+    assert parsed.program == "blastn" and parsed.version == "BLASTN 2.17.0+"
+    assert parsed.database == "core_nt"
+    q = parsed.queries["forward"]
+    assert q.query_id == "Query_1830923" and q.query_len == 20
+    h = q.hits[0]
+    d = h.descriptions[0]
+    assert d.id == "gi|2438938980|emb|OX417460.1|" and d.accession == "OX417460"
+    assert d.accession_version == "OX417460.1"  # the version is only in the id, not in accession
+    assert (d.taxid, d.sciname) == (2697049, "Severe acute respiratory syndrome coronavirus 2")
+    s = h.hsps[0]
+    assert (s.identity, s.align_len, s.gaps, s.evalue) == (20, 20, 0, 0.397639)
+    assert (s.hit_from, s.hit_to, s.hit_strand, s.query_strand) == (28269, 28288, "Plus", "Plus")
+    assert s.qseq == s.hseq == "GACCCCAAAATCAGCGAAAT" and s.midline == "|" * 20
+    assert h.best_identity == 20 and h.length == 29850
+
+
+def test_parser_reads_real_ncbi_output_for_a_partial_off_target_hit():
+    text = (FIXTURES / "real_hit_human_forward.json").read_text()
+    h = parse_blast_json(text, ["forward"]).queries["forward"].hits[0]
+    assert h.descriptions[0].accession_version == "Z95331.2"
+    assert (h.descriptions[0].taxid, h.descriptions[0].sciname) == (9606, "Homo sapiens")
+    s = h.hsps[0]
+    assert (s.identity, s.align_len, s.query_from, s.query_to) == (15, 15, 1, 15)
+    assert s.qseq == "GACCCCAAAATCAGC" and s.evalue == 20.8199

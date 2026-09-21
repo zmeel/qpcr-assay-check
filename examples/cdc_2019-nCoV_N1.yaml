@@ -1,20 +1,20 @@
 # Example assay: CDC 2019-nCoV N1 (SARS-CoV-2, N gene), a published assay.
 #
-# SEQUENCE VERIFICATION (checked 2026-09-20 by the tool's author, not by a laboratory):
-#   * Forward, reverse and probe sequences were cross-checked against two independent
-#     open-access papers that quote the CDC N1 set as ordered from IDT:
-#       - PMC9115073 (forward, reverse, probe, with FAM and BHQ1 labels)
-#       - PMC9758783 (reverse and probe, with FAM and BHQ1 labels)
-#   * The CDC/FDA Instructions for Use (CDC-006-00019 Rev. 08, FDA EUA) confirm the N1 set and
-#     its FAM reporter but do NOT print the oligo sequences, and the CDC package insert was not
-#     accessible. If your laboratory relies on this example, verify the sequences against your own
-#     supplier documentation.
-#   * The N1 amplicon is 72 bp (Lee et al. 2021, PLoS ONE 16:e0260487, doi:10.1371/journal.pone.0260487).
-#   * NCBI Taxonomy ID 2697049 = Severe acute respiratory syndrome coronavirus 2 (checked on the
-#     NCBI Taxonomy Browser). NC_045512.2 is the SARS-CoV-2 reference genome cited in that paper.
-#
-# No reference_amplicon is included on purpose: it was not verified against the sequence record.
-# From v0.4.0 the amplicon is derived automatically from the reference accession.
+# SEQUENCE VERIFICATION
+#   * Oligo provenance (checked 2026-09-20): the forward, reverse and probe sequences were
+#     cross-checked against two independent open-access papers that quote the CDC N1 set as
+#     ordered from IDT: PMC9115073 (forward, reverse, probe, with FAM and BHQ1 labels) and
+#     PMC9758783 (reverse and probe). The CDC/FDA Instructions for Use (CDC-006-00019 Rev. 08) do
+#     not print the oligo sequences, and the CDC package insert was not accessible.
+#   * Match against the NCBI record (checked 2026-09-21 by scripts/smoke_test.py, live): all three
+#     oligos match NC_045512.2 (Wuhan-Hu-1) exactly. Forward 28287-28306, probe 28309-28332 (same
+#     strand as the forward primer), reverse primer binding site 28335-28358; the primer-defined
+#     product is 28287-28358 = 72 bp, matching the published amplicon size (Lee et al. 2021,
+#     PLoS ONE 16:e0260487). reference_amplicon below is that product, fetched from the record.
+#     This shows the sequences occur in the reference genome; it does not show they are the ones
+#     your laboratory orders. Verify against your own supplier documentation.
+#   * NCBI Taxonomy ID 2697049 = Severe acute respiratory syndrome coronavirus 2 (NCBI Taxonomy
+#     Browser, and the live E-utilities response of the same smoke test).
 assay_name: CDC 2019-nCoV N1
 forward: GACCCCAAAATCAGCGAAAT
 reverse: TCTGGTTACTGCCAGTTGAATCTG
@@ -27,6 +27,7 @@ target:
   taxid: 2697049
   accession: NC_045512.2
   gene: N
+reference_amplicon: GACCCCAAAATCAGCGAAATGCACCCCGCATTACGTTTGGTGGACCCTCAGATTCAACTGGCAGTAACCAGA
 oligo_source: >-
   US CDC 2019-nCoV Real-Time RT-PCR Diagnostic Panel, N1 primer/probe set
   (2019-nCoV_N1-F, 2019-nCoV_N1-R, 2019-nCoV_N1-P).

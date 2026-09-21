@@ -1,0 +1,56 @@
+{
+  "_provenance": "REAL NCBI output, captured by scripts/smoke_test.py on 2026-09-21 (RID B1P7CV1H016, BLASTN 2.17.0+, database core_nt). The hit object is copied verbatim; the surrounding report is reduced to the fields the parser reads.",
+  "BlastOutput2": [
+    {
+      "report": {
+        "program": "blastn",
+        "version": "BLASTN 2.17.0+",
+        "search_target": {
+          "db": "core_nt"
+        },
+        "results": {
+          "search": {
+            "query_id": "Query_1830923",
+            "query_title": "forward",
+            "query_len": 20,
+            "hits": [
+              {
+                "num": 1,
+                "description": [
+                  {
+                    "id": "gi|2438938980|emb|OX417460.1|",
+                    "accession": "OX417460",
+                    "title": "Severe acute respiratory syndrome coronavirus 2 genome assembly, chromosome: 1",
+                    "taxid": 2697049,
+                    "sciname": "Severe acute respiratory syndrome coronavirus 2"
+                  }
+                ],
+                "len": 29850,
+                "hsps": [
+                  {
+                    "num": 1,
+                    "bit_score": 40.14,
+                    "score": 20,
+                    "evalue": 0.397639,
+                    "identity": 20,
+                    "query_from": 1,
+                    "query_to": 20,
+                    "query_strand": "Plus",
+                    "hit_from": 28269,
+                    "hit_to": 28288,
+                    "hit_strand": "Plus",
+                    "align_len": 20,
+                    "gaps": 0,
+                    "qseq": "GACCCCAAAATCAGCGAAAT",
+                    "hseq": "GACCCCAAAATCAGCGAAAT",
+                    "midline": "||||||||||||||||||||"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

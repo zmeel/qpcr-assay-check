@@ -86,14 +86,53 @@ design for later releases.
 - Result format `JSON2_S`, parsed defensively; the layout is taken from the documented BLAST
   JSON2 format and has not been validated against real output.
 
-### Not yet verified (checked by `scripts/smoke_test.py`)
+### Verified in the first live smoke run (2026-09-21, one lab network, BLASTN 2.17.0+)
 
-Whether `ENTREZ_QUERY` is still honoured; the number of taxa an Entrez query can hold; the maximum
-`HITLIST_SIZE` via the URL API; valid `GAPCOSTS` for reward/penalty 1,-3; the semantics of the `_S`
-formats; the ESearch UID cap for nuccore; the behaviour of `[PDAT]` for nuccore.
+Accepted by the BLAST URL API: `WORD_SIZE` 7, `EXPECT` 1000, `FILTER` F, reward 1 / penalty -3,
+`GAPCOSTS` "5 2", `HITLIST_SIZE` 5000, `ENTREZ_QUERY` with `txid<ID>[ORGN]`, `DATABASE` core_nt.
 
-Also unverified: that `HITLIST_SIZE` counts the same units as the hits in a JSON2 report (merged
-identical sequences may make the list look shorter than requested).
+Report format:
+- `JSON2_S` is one JSON document: `BlastOutput2` is a list with one `report` per query.
+  `JSON2` and `XML2` (without `_S`) return ZIP archives; `XML2_S`, legacy `XML` and `Text` also work.
+- Query ids are global counters (`Query_1830923`); the FASTA label is echoed in `query_title` and is
+  the only reliable way to map a report back to an oligo.
+- Every checked hit description has `id` (like `gi|2438938980|emb|OX417460.1|`), `accession`
+  (**without** version), `title`, `taxid` and `sciname`; the version must be read from `id`.
+  core_nt merges identical sequences: one hit can carry up to ~39 descriptions.
+- HSPs carry `identity`, `align_len`, `gaps`, `evalue`, `bit_score`, `qseq`, `hseq`, `midline`,
+  `hit_strand` ("Plus"/"Minus"). `HITLIST_SIZE` counts hits (merged groups): 5000 requested,
+  exactly 5000 returned.
+
+Behaviour:
+- Taxon restriction through `ENTREZ_QUERY` is effective: SARS-CoV-2 search 16,992 of 16,992
+  descriptions SARS-CoV-2; human search 3,714 of 3,715 *Homo sapiens*, plus one "synthetic
+  construct" record (the filter uses the record's organism index, which includes secondary source
+  features). It is effective, not airtight.
+- Timing: the SARS-CoV-2 search took ~49 s from submission to a parsed result; the human-restricted
+  core_nt search took 61 minutes (RTOE said 30 s). Plan for hours, not minutes, when a human tier
+  is included. A DNS failure during polling was recovered by the retry logic.
+- Human off-target hits with these settings: forward 1,482 hits (best 17 of 20 identical bases),
+  reverse 1,976 (best 19 of 24), probe 219 (best 16 of 24); no list was full.
+- The SARS-CoV-2 target search returned full lists (5,000 hits) for all three oligos, so target
+  tier saturation is expected; inclusivity needs time windows.
+
+E-utilities:
+- ESearch `[PDAT]` date filters work (SARS-CoV-2 in nuccore: 9,217,970 records in total,
+  3,571,941 in 2022, 33 in January 2020). `retstart` up to 100,000 still returned identifiers.
+- `efetch` with `seq_start`/`seq_stop` is 1-based inclusive; `strand=2` returns the reverse
+  complement. The CDC N1 oligos match NC_045512.2 exactly at 28287-28358 (72 bp).
+- Entrez Taxonomy: 12 of 13 names resolved uniquely with `[Scientific Name]`; "Mycoplasma
+  pneumoniae" returned nothing, most likely because the scientific name changed. The organism list
+  must be resolved with synonyms and every non-exact resolution flagged (v0.4.0).
+- Requests spaced exactly at 3/s still drew HTTP 429 twice.
+
+### Still unverified (checked by the next smoke run, needed before v0.4.0)
+
+How many taxa an Entrez query can hold (13, 40 and 100 are probed); whether `[PDAT]` date windows
+restrict a BLAST search the way they restrict an ESearch; whether alternative databases
+(`human_genomic`, `refseq_genomic`, `refseq_rna`) are accepted by the URL API and faster for the
+human background; the coordinate convention for minus-strand hits (`hit_from` vs `hit_to`), for
+which a real minus-strand example is needed.
 
 The NCBI Taxonomy page announces that the legacy Taxonomy Browser will be replaced by the NCBI
 Datasets Taxonomy Browser in Fall 2026. That concerns the web interface; whether the Entrez

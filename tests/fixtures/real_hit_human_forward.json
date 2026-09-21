@@ -1,0 +1,56 @@
+{
+  "_provenance": "REAL NCBI output, captured by scripts/smoke_test.py on 2026-09-21 (RID B1P8ZN5S014, BLASTN 2.17.0+, database core_nt). The hit object is copied verbatim; the surrounding report is reduced to the fields the parser reads.",
+  "BlastOutput2": [
+    {
+      "report": {
+        "program": "blastn",
+        "version": "BLASTN 2.17.0+",
+        "search_target": {
+          "db": "core_nt"
+        },
+        "results": {
+          "search": {
+            "query_id": "Query_1953443",
+            "query_title": "forward",
+            "query_len": 20,
+            "hits": [
+              {
+                "num": 1,
+                "description": [
+                  {
+                    "id": "gi|6572282|emb|Z95331.2|",
+                    "accession": "Z95331",
+                    "title": "Human DNA sequence from clone CTA-941F9 on chromosome 22q13, complete sequence",
+                    "taxid": 9606,
+                    "sciname": "Homo sapiens"
+                  }
+                ],
+                "len": 127587,
+                "hsps": [
+                  {
+                    "num": 1,
+                    "bit_score": 30.2282,
+                    "score": 15,
+                    "evalue": 20.8199,
+                    "identity": 15,
+                    "query_from": 1,
+                    "query_to": 15,
+                    "query_strand": "Plus",
+                    "hit_from": 61108,
+                    "hit_to": 61122,
+                    "hit_strand": "Plus",
+                    "align_len": 15,
+                    "gaps": 0,
+                    "qseq": "GACCCCAAAATCAGC",
+                    "hseq": "GACCCCAAAATCAGC",
+                    "midline": "|||||||||||||||"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

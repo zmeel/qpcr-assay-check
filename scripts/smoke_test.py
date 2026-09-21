@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live smoke test for qpcr-assay-check's NCBI assumptions.  (v0.2.0)
+"""Live smoke test for qpcr-assay-check's NCBI assumptions.  (v0.2.1)
 
 WHY THIS EXISTS
     The developer of this tool could not reach NCBI while writing the BLAST client. Several
@@ -16,13 +16,26 @@ WHAT IT SENDS TO NCBI
 HOW TO RUN (from the repository root, after `pip install -e .`)
     export NCBI_EMAIL="your.name@example.org"
     export NCBI_API_KEY="..."            # optional
-    python scripts/smoke_test.py --quick     # ~10-30 min, 2 BLAST searches
-    python scripts/smoke_test.py             # ~30-90 min, 6 BLAST searches
+    mkdir -p smoke_out
+    nohup python scripts/smoke_test.py > smoke_out/run.log 2>&1 &
+    tail -f smoke_out/run.log
 
-    Interrupted? Run the same command again: finished searches come from the cache and running
-    ones are resumed (this also exercises the resume logic).
-    NCBI asks for bulk BLAST usage at off-peak times; this script is small, but running it in
-    the evening (Dutch time) is the polite choice.
+    Options:
+      --quick               only the core searches (SARS-CoV-2 control + a restriction check)
+      --max-wait-minutes N  give up on one search after N minutes (default 30); it stays
+                            resumable, and the next step still runs
+      --human               also run the human-background search with the default settings
+                            (this one is SLOW; see below)
+      --probe-databases     try alternative databases for a faster human background search
+
+    The report smoke_out/smoke_report.json is rewritten after EVERY step, so you can paste it
+    back at any time, even while the script is still running or after you stopped it.
+    Interrupted or stopped? Run the same command again: finished searches come from the cache and
+    running ones are resumed (RIDs are valid for about 36 hours).
+
+    Why the human search is opt-in: in a first live run, a human-restricted search with the
+    default settings (database core_nt, word size 7, E-value 1000) was still WAITING after
+    45+ minutes. That is a finding about the design, not necessarily a bug.
 
 WHAT TO PASTE BACK
     The contents of smoke_out/smoke_report.json (typically < 100 KB). Nothing else is needed.
@@ -85,16 +98,21 @@ NAMES_TO_RESOLVE = [
     "Bordetella pertussis",
     "Streptococcus pneumoniae",
     "Human immunodeficiency virus 1",
+    "Influenza A virus",
 ]
 
 
 # ------------------------------------------------------------------ helpers
 class Report:
-    """Collects the outcome of every step plus the headline findings."""
+    """Collects the outcome of every step plus the headline findings.
 
-    def __init__(self) -> None:
+    ``sink`` is called after every step so that a partial report always exists on disk.
+    """
+
+    def __init__(self, sink: Callable[[], None] | None = None) -> None:
         self.steps: dict[str, dict[str, Any]] = {}
         self.findings: dict[str, Any] = {}
+        self._sink = sink
 
     def step(self, name: str) -> Callable[[Callable[[], dict[str, Any]]], None]:
         def run(fn: Callable[[], dict[str, Any]]) -> None:
@@ -115,6 +133,8 @@ class Report:
                     "error": f"{type(exc).__name__}: {exc}",
                     "traceback_tail": traceback.format_exc().splitlines()[-4:],
                 }
+            if self._sink:
+                self._sink()
 
         return run
 
@@ -167,6 +187,50 @@ def esearch(http: NcbiHttp, base: str, db: str, term: str, **extra: Any) -> dict
     if err:
         out["error"] = err
     return out
+
+
+def lineage_check(
+    http: NcbiHttp, base: str, results: list[Any], requested: list[int], *, cap: int = 300
+) -> dict[str, Any]:
+    """Strict check of a taxon restriction: is every hit's taxon inside the requested subtree?
+
+    Hit taxa are often strains (descendants) of the requested taxon, so comparing taxon IDs is not
+    enough; the lineage of each distinct hit taxon is fetched from Entrez Taxonomy instead.
+    """
+    taxids = sorted(
+        {d.taxid for q in results for h in q.hits for d in h.descriptions if d.taxid is not None}
+    )[:cap]
+    want = {str(t) for t in requested}
+    inside, outside = 0, []
+    for i in range(0, len(taxids), 100):
+        chunk = taxids[i : i + 100]
+        resp = http.request(
+            "GET",
+            f"{base}/efetch.fcgi",
+            service="eutils",
+            params={"db": "taxonomy", "id": ",".join(map(str, chunk)), "retmode": "xml"},
+        )
+        try:
+            root = ET.fromstring(resp.text)
+        except ET.ParseError:
+            return {"error": "unparseable taxonomy response", "head": resp.text[:200]}
+        for tax in root.findall("Taxon"):
+            tid = tax.findtext("TaxId")
+            ids = {tid} | {t.findtext("TaxId") for t in tax.findall("LineageEx/Taxon")}
+            if ids & want:
+                inside += 1
+            else:
+                outside.append({"taxid": tid, "name": tax.findtext("ScientificName")})
+    return {
+        "n_checked": inside + len(outside),
+        "fraction_in_requested_subtree": (inside / (inside + len(outside)))
+        if (inside + len(outside))
+        else None,
+        "n_in_requested_subtree": inside,
+        "n_outside": len(outside),
+        "outside_examples": outside[:5],
+        "capped_at": cap if len(taxids) >= cap else None,
+    }
 
 
 def run_blast(
@@ -252,7 +316,14 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--out", type=Path, default=Path("smoke_out"), help="output directory")
-    ap.add_argument("--quick", action="store_true", help="only the two core BLAST searches")
+    ap.add_argument("--quick", action="store_true", help="only the core BLAST searches")
+    ap.add_argument("--human", action="store_true", help="also run the (slow) human search")
+    ap.add_argument(
+        "--probe-databases", action="store_true", help="try alternative databases for human"
+    )
+    ap.add_argument(
+        "--max-wait-minutes", type=float, default=30.0, help="per-search wait limit (default 30)"
+    )
     args = ap.parse_args()
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S", stream=sys.stdout
@@ -268,14 +339,34 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     cfg = load_config()
     cfg.ncbi.cache_dir = str(out / "cache")
+    cfg.ncbi.max_wait_minutes = args.max_wait_minutes
     http = NcbiHttp(cfg.ncbi, creds)
     eu, api = Eutils(http, cfg.ncbi.eutils_url), BlastApi(http, cfg.ncbi.blast_url)
     store = JobStore(out / "jobs.json")
     runner = BlastRunner(api, Cache(cfg.ncbi.cache_dir), store, cfg.ncbi, cfg.search.result_format)
     base = cfg.ncbi.eutils_url
-    rep = Report()
     started = datetime.now(UTC).isoformat()
     ctx: dict[str, Any] = {}
+
+    def write_report(complete: bool) -> None:
+        report = {
+            "smoke_test_version": "0.2.1",
+            "started": started,
+            "updated": datetime.now(UTC).isoformat(),
+            "complete": complete,
+            "options": {
+                "quick": args.quick,
+                "human": args.human,
+                "probe_databases": args.probe_databases,
+                "max_wait_minutes": args.max_wait_minutes,
+            },
+            "findings": rep.findings,
+            "steps": rep.steps,
+        }
+        text = creds.redact(json.dumps(report, indent=2, default=str))
+        (out / "smoke_report.json").write_text(text, encoding="utf-8")
+
+    rep = Report(lambda: write_report(False))
 
     @rep.step("00_environment")
     def _env() -> dict[str, Any]:
@@ -332,6 +423,7 @@ def main() -> int:
             r = esearch(http, base, "taxonomy", f"{name}[Scientific Name]")
             table[name] = {"count": r.get("count"), "ids": r.get("ids", [])[:5]}
         ctx["resolved"] = [int(v["ids"][0]) for v in table.values() if v["count"] == 1]
+        ctx["by_name"] = {k: int(v["ids"][0]) for k, v in table.items() if v["count"] == 1}
         rep.findings["taxonomy_names_resolved_uniquely"] = f"{len(ctx['resolved'])}/{len(table)}"
         resp = http.request(
             "GET", f"{base}/efetch.fcgi", service="eutils",
@@ -403,6 +495,11 @@ def main() -> int:
             runner, store, "target", "smoke target", ps.taxids, ps.entrez_query, ps.params, labels
         )
         info = analyse_search(raw, labels, cfg, ps.taxids, out, "t1_sars2")
+        results = list(parse_blast_json(raw, labels).queries.values())
+        info["lineage_check"] = lineage_check(http, base, results, ps.taxids)
+        frac = info["lineage_check"].get("fraction_in_requested_subtree")
+        rep.findings["sars2_search_fraction_of_hit_taxa_inside_subtree"] = frac
+        rep.findings["sars2_search_restriction_effective"] = bool(frac is not None and frac >= 0.99)
         info.update(
             rid=job.rid,
             seconds_total=round(time.monotonic() - t0),
@@ -420,29 +517,27 @@ def main() -> int:
         }
         return info
 
-    @rep.step("06_blast_negative_control_human_and_formats")
+    @rep.step("06_blast_restriction_check_influenza_A_and_formats")
     def _t2() -> dict[str, Any]:
-        ps = by_tier["background"]
+        flu = ctx.get("by_name", {}).get("Influenza A virus")
+        if not flu:
+            return {"skipped": "Influenza A virus did not resolve to one taxonomy ID (step 03)"}
+        q = blast.build_entrez_query([flu])
+        params = blast.build_put_params(cfg, by_tier["target"].fasta, q)
         t0 = time.monotonic()
         job, raw = run_blast(
-            runner,
-            store,
-            "background",
-            "smoke human",
-            ps.taxids,
-            ps.entrez_query,
-            ps.params,
-            labels,
+            runner, store, "restriction", "smoke influenza", [flu], q, params, labels
         )
-        info = analyse_search(raw, labels, cfg, ps.taxids, out, "t2_human")
-        info.update(rid=job.rid, seconds_total=round(time.monotonic() - t0))
-        r = info.get("restriction", {})
-        rep.findings["entrez_query_restriction_honoured_for_human"] = bool(
-            r.get("n_descriptions")
-            and r.get("n_taxid_other") == 0
-            and r.get("n_without_taxid") == 0
-        )
-        # Report-format probes on the finished human search (cheap GETs, no new search).
+        info = analyse_search(raw, labels, cfg, [flu], out, "t2_influenza")
+        results = list(parse_blast_json(raw, labels).queries.values())
+        lin = lineage_check(http, base, results, [flu])
+        info.update(rid=job.rid, seconds_total=round(time.monotonic() - t0), lineage_check=lin)
+        frac = lin.get("fraction_in_requested_subtree")
+        rep.findings["entrez_query_restriction_effective"] = bool(frac is not None and frac >= 0.99)
+        rep.findings["entrez_query_restriction_fraction_inside"] = frac
+        rep.findings["entrez_query_restriction_outside_examples"] = lin.get("outside_examples")
+        rep.findings["restriction_check_taxa_checked"] = lin.get("n_checked")
+        # Report-format probes on the finished search (cheap GETs, no new search).
         fmts: dict[str, Any] = {}
         for fmt in ("JSON2", "XML2_S", "XML2", "XML", "Text"):
             try:
@@ -457,7 +552,10 @@ def main() -> int:
 
         @rep.step("07_blast_multi_taxa_lists")
         def _multi() -> dict[str, Any]:
-            resolved = ctx.get("resolved") or [SARS2, HUMAN]
+            # Human and mouse are left out: this step tests taxon-LIST handling, not genome size,
+            # and a human-restricted search was still waiting after 45+ minutes in the first run.
+            heavy = {HUMAN, ctx.get("by_name", {}).get("Mus musculus")}
+            resolved = [t for t in (ctx.get("resolved") or [SARS2]) if t not in heavy]
             extra = esearch(
                 http, base, "taxonomy", "Bacteria[Organism] AND species[Rank]", retmax=100
             )
@@ -489,7 +587,10 @@ def main() -> int:
                         )
                         counts = {k: v["n_hits"] for k, v in info["per_query"].items()}
                         top = info["restriction"]["top_organisms"]
-                        entry.update(accepted=True, top_organisms=top, n_hits=counts)
+                        hit_results = list(parse_blast_json(raw, labels).queries.values())
+                        lin = lineage_check(http, base, hit_results, sorted(set(taxa)))
+                        rep.findings["multi_taxa_lineage_check"] = lin
+                        entry.update(accepted=True, top_organisms=top, n_hits=counts, lineage=lin)
                     else:
                         rid, rtoe = api.submit(params)
                         time.sleep(min(rtoe, 60))
@@ -545,19 +646,76 @@ def main() -> int:
             info["window_check"] = check
             return info
 
-    finished = datetime.now(UTC).isoformat()
-    report = {
-        "smoke_test_version": "0.2.0",
-        "started": started,
-        "finished": finished,
-        "findings": rep.findings,
-        "steps": rep.steps,
-    }
-    text = json.dumps(report, indent=2, default=str)
-    for secret in filter(None, (creds.api_key, creds.email)):
-        text = text.replace(secret, "<redacted>")
-    (out / "smoke_report.json").write_text(text, encoding="utf-8")
-    failed = [n for n, s in rep.steps.items() if not s.get("ok")]
+    if args.human:
+
+        @rep.step("09_blast_human_background_core_nt")
+        def _human() -> dict[str, Any]:
+            ps = by_tier["background"]
+            job, raw = run_blast(
+                runner,
+                store,
+                "background",
+                "smoke human",
+                ps.taxids,
+                ps.entrez_query,
+                ps.params,
+                labels,
+            )
+            info = analyse_search(raw, labels, cfg, ps.taxids, out, "t9_human")
+            results = list(parse_blast_json(raw, labels).queries.values())
+            info["lineage_check"] = lineage_check(http, base, results, ps.taxids)
+            minutes = None
+            if job.submitted_at:
+                minutes = round(
+                    (datetime.now(UTC) - datetime.fromisoformat(job.submitted_at)).total_seconds()
+                    / 60
+                )
+            info.update(rid=job.rid, minutes_since_submission=minutes)
+            rep.findings["human_core_nt_search_minutes_since_submission"] = minutes
+            return info
+
+    if args.probe_databases:
+
+        @rep.step("10_blast_database_probes_human")
+        def _dbs() -> dict[str, Any]:
+            found: dict[str, Any] = {}
+            for db in ("human_genomic", "refseq_genomic", "refseq_rna"):
+                params = blast.build_put_params(cfg, by_tier["background"].fasta, "txid9606[ORGN]")
+                params["DATABASE"] = db
+                t0 = time.monotonic()
+                try:
+                    job, raw = run_blast(
+                        runner,
+                        store,
+                        "dbprobe",
+                        f"smoke {db}",
+                        [HUMAN],
+                        "txid9606[ORGN]",
+                        params,
+                        labels,
+                    )
+                    info = analyse_search(raw, labels, cfg, [HUMAN], out, f"t10_{db}")
+                    found[db] = {
+                        "ok": True,
+                        "seconds": round(time.monotonic() - t0),
+                        "rid": job.rid,
+                        "database_reported": info.get("database"),
+                        "n_hits": {k: v["n_hits"] for k, v in info["per_query"].items()},
+                        "max_identity": {
+                            k: v["max_identity"] for k, v in info["per_query"].items()
+                        },
+                    }
+                except NcbiError as exc:
+                    found[db] = {
+                        "ok": False,
+                        "seconds": round(time.monotonic() - t0),
+                        "error": str(exc)[:400],
+                    }
+            rep.findings["database_probe_results"] = {k: v["ok"] for k, v in found.items()}
+            return {"databases": found}
+
+    write_report(True)
+    failed = [n for n, st in rep.steps.items() if not st.get("ok")]
     sys.stdout.write(
         f"\nDone. Report: {out / 'smoke_report.json'}\n"
         f"Steps failed: {failed or 'none'}\nPaste the contents of smoke_report.json back.\n"

@@ -8,8 +8,8 @@ in; a detailed, reproducible, version-stamped evaluation record comes out (HTML,
 > probe rules, optional amplicon geometry). New in this release: the `search` command runs tiered,
 > taxon-restricted **remote BLAST searches** and writes the raw hits (`hits.tsv`, `search.json`).
 > Those hits are **not yet assessed** (re-alignment and off-target verdicts arrive in v0.3.0), so a
-> full `run` still ends as `INCOMPLETE`, never as `PASS`. The BLAST client has been tested against
-> a simulated NCBI only; run `scripts/smoke_test.py` once against the real servers (see below).
+> full `run` still ends as `INCOMPLETE`, never as `PASS`. The BLAST client was validated once
+> against the live NCBI servers (2026-09-21); see `docs/ARCHITECTURE.md` for what was verified.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -134,11 +134,12 @@ Notes:
 
 ### The example assay
 
-`examples/cdc_2019-nCoV_N1.yaml` is the CDC 2019-nCoV N1 assay. Its file header documents how the
-sequences were checked: they were cross-checked against two open-access papers that quote the CDC
-set, **not** against the CDC package insert, which was not accessible. Verify against your own
-supplier documentation before relying on it. No reference amplicon is shipped because none was
-verified against a sequence record.
+`examples/cdc_2019-nCoV_N1.yaml` is the CDC 2019-nCoV N1 assay. Its file header documents the
+verification: the oligos match two open-access papers that quote the CDC set, and a live check
+showed that all three occur exactly in the SARS-CoV-2 reference genome NC_045512.2 (positions
+28287-28358, a 72 bp product, which is also the shipped `reference_amplicon`). That shows the
+sequences are real and consistent with the reference; it does not show they are what your
+laboratory orders, so verify against your own supplier documentation.
 
 ## Configuration
 
@@ -179,16 +180,29 @@ sends nothing and needs no credentials). `run` and `validate` never use the netw
 
 The BLAST client was written without access to NCBI, so several behaviours are still unverified
 (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). `scripts/smoke_test.py` checks them against the
-real servers and writes `smoke_out/smoke_report.json` without secrets:
+real servers and writes `smoke_out/smoke_report.json` (without secrets, rewritten after every step):
 
 ```bash
 pip install -e .
-python scripts/smoke_test.py --quick     # 2 BLAST searches, roughly 10-30 minutes
-python scripts/smoke_test.py             # 6 BLAST searches, roughly 30-90 minutes
+mkdir -p smoke_out
+nohup python scripts/smoke_test.py > smoke_out/run.log 2>&1 &
+tail -f smoke_out/run.log
 ```
 
-It sends only the published CDC N1 oligos. It also verifies those oligos against the
-SARS-CoV-2 reference genome record, which closes the verification gap noted in the example file.
+| Option | Effect |
+|---|---|
+| `--quick` | Only the core searches (SARS-CoV-2 control and an influenza A restriction check) |
+| `--max-wait-minutes N` | Give up on one search after N minutes (default 30); it stays resumable |
+| `--human` | Also run the human-background search with the default settings (slow, see below) |
+| `--probe-databases` | Try alternative databases for a faster human background search |
+
+It sends only the published CDC N1 oligos. It also verifies those oligos against the SARS-CoV-2
+reference genome record, which closes the verification gap noted in the example file.
+
+**Timing to expect** (one measurement, 2026-09-21): a SARS-CoV-2-restricted search took about
+one minute; a human-restricted search against `core_nt` took **61 minutes**. A `search` with the
+default human background tier therefore takes roughly an hour or more. The default wait limit is
+240 minutes and interrupted searches resume.
 
 ## Limitations
 
@@ -203,7 +217,8 @@ SARS-CoV-2 reference genome record, which closes the verification gap noted in t
   makes no external requests. A test checks that no HTML tag references another file or host.
 - BLAST is a heuristic (exact 7-base seed): heavily mismatched binding sites can be missed, so "no
   hit" is not "no binding". Primer-BLAST and IDT OligoAnalyzer remain useful manual cross-checks.
-- The remote client has not yet been validated against real NCBI responses (smoke test pending).
+- The remote client was validated against live NCBI once, for one assay; NCBI can change formats
+  or behaviour, and a parse failure ends the run as an error rather than guessing.
 - Hits are collected but not yet assessed: re-alignment, off-target amplicons and taxonomy come
   in later releases (see the roadmap).
 

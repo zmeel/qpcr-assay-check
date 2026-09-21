@@ -60,8 +60,13 @@ class SearchOutcome(BaseModel):
 
     @property
     def saturated(self) -> bool:
-        """True if any query's hit list is saturated."""
-        return any(s.saturated for r in self.searches for s in r.saturation)
+        """True if a hit list is saturated in any tier except the intended target.
+
+        A well-sequenced target (SARS-CoV-2 has more than 9 million records) always fills the hit
+        list with perfect matches; that is expected and says nothing about specificity. Inclusivity
+        is assessed with time windows instead.
+        """
+        return any(s.saturated for r in self.searches if r.tier != "target" for s in r.saturation)
 
 
 def _rows(tier: str, parsed: ParsedSearch) -> list[list[Any]]:
@@ -140,9 +145,15 @@ def run_search(
         writer.writerows(all_rows)
 
     warnings = list(plan.warnings)
+    notes = list(plan.notes)
     for r in records:
         for s in r.saturation:
-            if s.saturated:
+            if s.saturated and r.tier == "target":
+                notes.append(
+                    f"[{r.label}] {s.label}: hit list full of relevant hits. Expected for a "
+                    "well-sequenced target; inclusivity uses time windows instead."
+                )
+            elif s.saturated:
                 warnings.append(f"[{r.label}] {s.label}: {s.note}")
         if r.restriction and not r.restriction.verifiable and r.n_hits and sum(r.n_hits.values()):
             warnings.append(
@@ -161,7 +172,7 @@ def run_search(
             "blast_versions": sorted(versions),
         },
         searches=records,
-        notes=list(plan.notes),
+        notes=notes,
         warnings=warnings,
     )
     (out_dir / "search.json").write_text(outcome.model_dump_json(indent=2), encoding="utf-8")

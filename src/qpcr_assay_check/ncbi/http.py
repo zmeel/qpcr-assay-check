@@ -18,8 +18,10 @@ from .settings import Credentials
 log = logging.getLogger(__name__)
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
-EUTILS_INTERVAL_NO_KEY = 1 / 3 + 0.02  # NCBI: 3 requests/second without an API key
-EUTILS_INTERVAL_KEY = 1 / 10 + 0.01  # NCBI: 10 requests/second with an API key
+# NCBI allows 3 requests/second without an API key and 10 with one. Spacing requests exactly at
+# that limit still produced HTTP 429 in a live run (bursts on the server side), so stay well below.
+EUTILS_INTERVAL_NO_KEY = 0.5  # about 2 requests/second
+EUTILS_INTERVAL_KEY = 0.15  # about 6-7 requests/second
 
 
 class NcbiError(QpcrAssayCheckError):

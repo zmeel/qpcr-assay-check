@@ -51,8 +51,9 @@ def test_eutils_spacing_depends_on_the_api_key(cfg):
     with_key, _, fc2 = make(cfg, [FakeResponse(200, "a")] * 2, key="SECRETKEY")
     for _ in range(2):
         with_key.request("GET", EUTILS, service="eutils", params={"db": "nuccore"})
-    assert 0.3 < sum(fc1.slept) < 0.4  # ~3 requests/second
-    assert 0.1 <= sum(fc2.slept) < 0.15  # ~10 requests/second
+    assert sum(fc1.slept) >= 0.5  # at most ~2 requests/second without a key
+    assert 0.15 <= sum(fc2.slept) < 0.25  # at most ~6-7 requests/second with a key
+    assert sum(fc1.slept) > sum(fc2.slept)
 
 
 def test_requests_identify_the_tool_and_only_eutils_carry_the_api_key(cfg):
@@ -123,3 +124,40 @@ def test_redact_hides_key_and_email():
 
 def test_requests_module_is_the_real_one():
     assert hasattr(requests, "Session")
+
+
+def test_redaction_covers_url_encoded_addresses_and_query_parameters():
+    """Field bug: the e-mail appeared as %40 in an error message and was not masked."""
+    from qpcr_assay_check.ncbi.settings import scrub
+
+    c = Credentials("dummy.person@example.org", "KEY123")
+    url = "/Blast.cgi?CMD=Get&RID=X&tool=t&email=dummy.person%40example.org&api_key=KEY123"
+    out = c.redact(f"ConnectionError: Max retries exceeded with url: {url} (Caused by ...)")
+    assert "dummy.person" not in out and "%40" not in out and "KEY123" not in out
+    assert "CMD=Get" in out and "RID=X" in out  # the rest of the message stays useful
+    assert "dummy.person" not in c.redact(
+        "plain dummy.person@example.org, encoded dummy.person%40example.org"
+    )
+    assert "dummy.person" not in c.redact(
+        "plus form dummy.person%40EXAMPLE.org".replace("EXAMPLE", "example")
+    )
+    assert scrub("email=a%40b.org&x=1") == "email=<redacted>&x=1"
+    assert c.redact("nothing secret here") == "nothing secret here"
+
+
+def test_errors_and_logs_never_contain_the_address(cfg, caplog):
+    import logging
+
+    err = connection_error()
+    err.args = (
+        "HTTPSConnectionPool(host='blast.example', port=443): Max retries exceeded with url: "
+        "/Blast.cgi?CMD=Get&tool=qpcr-assay-check&email=lab%40example.org "
+        "(Caused by NameResolutionError)",
+    )
+    n = cfg.ncbi.max_retries + 1
+    http, _, _ = make(cfg, [err] * n)
+    with caplog.at_level(logging.DEBUG), pytest.raises(NcbiError) as exc:
+        http.request("GET", BLAST, service="blast", params={})
+    everything = str(exc.value) + caplog.text
+    assert "lab%40example.org" not in everything and "lab@example.org" not in everything
+    assert "NameResolutionError" in everything  # still diagnosable

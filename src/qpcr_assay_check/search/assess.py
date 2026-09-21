@@ -62,7 +62,10 @@ class RestrictionSummary(BaseModel):
     """What a taxon-restricted search actually returned.
 
     Hit taxa can legitimately be *descendants* (strains) of the requested taxa, so membership in
-    the requested set is only a partial check. A strict lineage-based check arrives in v0.4.0.
+    the requested set is only a partial check; a lineage-based check arrives in v0.4.0. Also,
+    ``ENTREZ_QUERY`` filters on the organism *index* of the whole record: in a live human search
+    one of 3,715 hits was a "synthetic construct" record that carries a human source feature.
+    The restriction is effective, not airtight.
     """
 
     requested_taxids: list[int]
@@ -70,6 +73,7 @@ class RestrictionSummary(BaseModel):
     n_without_taxid: int
     n_taxid_in_requested: int
     n_taxid_other: int
+    fraction_in_requested: float | None
     top_organisms: list[tuple[str, int]]
     verifiable: bool
 
@@ -98,6 +102,7 @@ def summarise_restriction(
         n_without_taxid=without,
         n_taxid_in_requested=inside,
         n_taxid_other=other,
+        fraction_in_requested=(inside / total) if total else None,
         top_organisms=names.most_common(top),
         verifiable=total > 0 and without < total,
     )

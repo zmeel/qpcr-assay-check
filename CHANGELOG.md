@@ -9,6 +9,50 @@ All notable changes to this project are documented here. The format follows
 Planned: v0.3.0 re-alignment and amplicon pairing; v0.4.0 taxonomy,
 organism list, inclusivity and exclusivity; v1.0.0 run history, yearly diff, Docker, documentation.
 
+## [0.2.1] - 2026-09-21
+
+Fixes from the first live run of `scripts/smoke_test.py` (results reviewed 2026-09-21).
+
+### Security / privacy
+- **Fixed: the e-mail address could appear in logs and error messages.** HTTP-library errors
+  quote the request URL, in which the address is URL-encoded (`%40`); the old redaction only
+  matched the plain address, so it leaked into a log line during a transient DNS failure. Redaction
+  now masks the `email=` and `api_key=` parameters whatever the encoding, and also every encoded
+  form of the address and key. If you ran v0.2.0, check your saved logs for `email=`.
+
+### Verified against the live NCBI servers (first run, one assay)
+- The BLAST URL API accepted the configured parameters, and the real `JSON2_S` report parsed
+  without changes. Details in `docs/ARCHITECTURE.md`.
+- The CDC N1 oligos match NC_045512.2 exactly (72 bp product, positions 28287-28358).
+
+### Fixed
+- E-utilities requests were spaced at NCBI's documented limit and still drew HTTP 429 (recovered by
+  retry); they are now spaced at about 2 requests/s without an API key and 6-7 with one.
+- The parser no longer falls back to matching queries by position. Real reports number queries
+  with a global counter (`Query_1830923`), so position was never usable; titles are always
+  echoed.
+- `search.json` restriction summaries include `fraction_in_requested`; documented that
+  `ENTREZ_QUERY` filters on the record's organism index (1 of 3,715 human hits was a "synthetic
+  construct" carrying a human source feature): effective, not airtight.
+- A saturated hit list in the intended-target tier is now informational (a note, exit code 0): a
+  well-sequenced target always fills the list with perfect hits. Saturation elsewhere still warns.
+- Default `ncbi.max_wait_minutes` raised from 120 to 240: a human-restricted `core_nt` search took
+  61 minutes.
+- Poll log lines show the minutes since submission; the runner's clock is resolved at call time.
+
+### Added
+- The example assay now ships its verified 72 bp `reference_amplicon` (fetched from the record).
+- Real NCBI hit objects as test fixtures (`tests/fixtures/real_hit_*.json`).
+
+### Changed (smoke test only)
+- The report is written after every step, so it exists even if the run is interrupted.
+- `--max-wait-minutes` (default 30) makes a stuck search fail its step without blocking the rest.
+- The human search is opt-in (`--human`); `--probe-databases` tries alternative databases.
+- Restriction is judged as "effective" (at least 99 % of hit taxa inside the requested subtree,
+  lineages fetched from Entrez Taxonomy) instead of an all-or-nothing test.
+- An influenza A restriction check replaces the human negative control; the heavy genomes (human,
+  mouse) are kept out of the multi-taxa list test.
+
 ## [0.2.0] - 2026-09-21
 
 Remote BLAST backend. **The client is tested against a simulated NCBI only; the live smoke test

@@ -127,6 +127,7 @@ def test_restriction_summary_counts_taxa_and_flags_missing_taxonomy():
         1,
     )
     assert r.verifiable and r.top_organisms[0] == ("Homo sapiens", 1)
+    assert r.fraction_in_requested == pytest.approx(1 / 3)
     none = summarise_restriction(
         list(
             parse_blast_json(blast_json({"forward": [{"acc": "A1"}]}), ["forward"]).queries.values()
@@ -230,3 +231,21 @@ def test_interrupted_search_resumes_with_the_same_command(cli_env):
     assert r.exit_code == 0, r.output
     assert fake.n_put == 2  # first search resumed (no resubmission), second search submitted
     assert re.search(r"Done: 2 search", r.output)
+
+
+def test_target_tier_saturation_is_informational_not_a_warning(cli_env, tmp_path):
+    """Live finding: SARS-CoV-2 (9 million records) always fills the hit list with perfect hits."""
+    conf = tmp_path / "small_target.yaml"
+    conf.write_text(
+        f"ncbi:\n  cache_dir: {tmp_path / 'c3'}\n"
+        "search:\n  hitlist_size: 3\n  background_taxids: []\n"
+    )
+    r = runner.invoke(
+        app, ["search", str(ROOT_EXAMPLE), "-c", str(conf), "-o", str(cli_env.out), "--yes"]
+    )
+    assert r.exit_code == 0, r.output  # only the target tier exists, and it is saturated
+    (search_dir,) = list((cli_env.out / "cdc-2019-ncov-n1").glob("search-*"))
+    doc = json.loads((search_dir / "search.json").read_text())
+    assert doc["warnings"] == []
+    assert any("Expected for a well-sequenced target" in n for n in doc["notes"])
+    assert doc["searches"][0]["saturation"][0]["saturated"] is True  # still recorded
