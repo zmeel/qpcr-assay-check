@@ -276,6 +276,87 @@ class SearchSettings(_Strict):
         return self
 
 
+class AlignScores(_Strict):
+    """Scores for re-alignment (a gap of length k costs gap_open + k * gap_extend)."""
+
+    match: int
+    mismatch: int
+    gap_open: int
+    gap_extend: int
+
+    @model_validator(mode="after")
+    def _signs(self) -> AlignScores:
+        if self.match <= 0 or self.mismatch >= 0 or self.gap_open < 0 or self.gap_extend <= 0:
+            raise ValueError("match > 0, mismatch < 0, gap_open >= 0 and gap_extend > 0 required")
+        return self
+
+
+class SiteCriteria(_Strict):
+    """Limits a binding site must respect to reach a level."""
+
+    max_mismatches: int
+    max_gaps: int
+    min_clean_3prime_nt: int
+
+
+class SiteRules(_Strict):
+    """Critical and warning limits for one kind of oligo."""
+
+    critical: SiteCriteria
+    warning: SiteCriteria
+
+    @model_validator(mode="after")
+    def _warning_is_looser(self) -> SiteRules:
+        c, w = self.critical, self.warning
+        if (
+            w.max_mismatches < c.max_mismatches
+            or w.max_gaps < c.max_gaps
+            or w.min_clean_3prime_nt > c.min_clean_3prime_nt
+        ):
+            raise ValueError("warning limits must be at least as permissive as critical limits")
+        return self
+
+
+Severity = Literal["FAIL", "WARN", "INFO"]
+
+
+class SeverityMap(_Strict):
+    """How each finding contributes to the specificity verdict."""
+
+    primer_site_critical: Severity
+    primer_site_warning: Severity
+    probe_site_critical: Severity
+    amplicon_likely_detected: Severity
+    amplicon_not_detected: Severity
+
+
+class SpecificitySettings(_Strict):
+    """Assessment of BLAST hits."""
+
+    off_target_tiers: list[str]
+    max_sites_per_query: int
+    window_padding_nt: int
+    max_amplicon_size: int
+    max_amplicons: int
+    report_top_sites: int
+    alignment: AlignScores
+    primer_site: SiteRules
+    probe_site: SiteRules
+    probe_binds_if: Literal["critical", "warning"]
+    severity: SeverityMap
+    eukaryote_taxids: list[int]
+
+    @model_validator(mode="after")
+    def _positive(self) -> SpecificitySettings:
+        if min(self.max_sites_per_query, self.max_amplicon_size, self.max_amplicons) < 1:
+            raise ValueError(
+                "max_sites_per_query, max_amplicon_size and max_amplicons must be >= 1"
+            )
+        if self.window_padding_nt < 0:
+            raise ValueError("window_padding_nt must be >= 0")
+        return self
+
+
 class ReportSettings(_Strict):
     """Report rendering options."""
 
@@ -291,6 +372,7 @@ class Config(_Strict):
     thresholds: Thresholds
     ncbi: NcbiSettings
     search: SearchSettings
+    specificity: SpecificitySettings
     report: ReportSettings
 
     @property

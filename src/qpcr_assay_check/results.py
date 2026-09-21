@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from .models import Assay, Status
+from .specificity.models import SpecificityResult
 from .verdict import Verdict
 
 RESULTS_SCHEMA_VERSION = 1
@@ -135,5 +136,9 @@ class RunResult(BaseModel):
     assay: Assay
     config: dict[str, Any]
     oligo_qc: QCReport
+    specificity: SpecificityResult | None = None
+    search: dict[str, Any] | None = Field(
+        default=None, description="Parameters, versions, RIDs and hit counts of the remote searches"
+    )
     sections: list[SectionResult]
     overall: OverallResult

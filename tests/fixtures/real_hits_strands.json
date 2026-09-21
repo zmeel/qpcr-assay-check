@@ -1,0 +1,221 @@
+{
+ "_provenance": "REAL NCBI output (BLASTN 2.17.0+, core_nt) pasted from scripts/smoke_test.py raw results on 2026-09-21. Hit objects are verbatim; the wrapper keeps only what the parser reads. Shows the coordinate convention: for a Minus hit hit_from > hit_to, query_strand is always Plus, and hseq is in the oligo's orientation.",
+ "hits": {
+  "sars2_reverse_minus": {
+   "label": "reverse",
+   "hit": {
+    "num": 1,
+    "description": [
+     {
+      "id": "gi|2438938980|emb|OX417460.1|",
+      "accession": "OX417460",
+      "title": "Severe acute respiratory syndrome coronavirus 2 genome assembly, chromosome: 1",
+      "taxid": 2697049,
+      "sciname": "Severe acute respiratory syndrome coronavirus 2"
+     }
+    ],
+    "len": 29850,
+    "hsps": [
+     {
+      "num": 1,
+      "bit_score": 48.0694,
+      "score": 24,
+      "evalue": 0.0032623,
+      "identity": 24,
+      "query_from": 1,
+      "query_to": 24,
+      "query_strand": "Plus",
+      "hit_from": 28340,
+      "hit_to": 28317,
+      "hit_strand": "Minus",
+      "align_len": 24,
+      "gaps": 0,
+      "qseq": "TCTGGTTACTGCCAGTTGAATCTG",
+      "hseq": "TCTGGTTACTGCCAGTTGAATCTG",
+      "midline": "||||||||||||||||||||||||"
+     }
+    ]
+   }
+  },
+  "sars2_probe_three_hsps": {
+   "label": "probe",
+   "hit": {
+    "num": 1700,
+    "description": [
+     {
+      "id": "gi|2046855718|emb|OU086730.1|",
+      "accession": "OU086730",
+      "title": "Severe acute respiratory syndrome coronavirus 2 genome assembly, chromosome: 1",
+      "taxid": 2697049,
+      "sciname": "Severe acute respiratory syndrome coronavirus 2"
+     }
+    ],
+    "len": 30371,
+    "hsps": [
+     {
+      "num": 1,
+      "bit_score": 48.0694,
+      "score": 24,
+      "evalue": 0.0032623,
+      "identity": 24,
+      "query_from": 1,
+      "query_to": 24,
+      "query_strand": "Plus",
+      "hit_from": 88,
+      "hit_to": 65,
+      "hit_strand": "Minus",
+      "align_len": 24,
+      "gaps": 0,
+      "qseq": "ACCCCGCATTACGTTTGGTGGACC",
+      "hseq": "ACCCCGCATTACGTTTGGTGGACC",
+      "midline": "||||||||||||||||||||||||"
+     },
+     {
+      "num": 2,
+      "bit_score": 48.0694,
+      "score": 24,
+      "evalue": 0.0032623,
+      "identity": 24,
+      "query_from": 1,
+      "query_to": 24,
+      "query_strand": "Plus",
+      "hit_from": 28452,
+      "hit_to": 28475,
+      "hit_strand": "Plus",
+      "align_len": 24,
+      "gaps": 0,
+      "qseq": "ACCCCGCATTACGTTTGGTGGACC",
+      "hseq": "ACCCCGCATTACGTTTGGTGGACC",
+      "midline": "||||||||||||||||||||||||"
+     },
+     {
+      "num": 3,
+      "bit_score": 48.0694,
+      "score": 24,
+      "evalue": 0.0032623,
+      "identity": 24,
+      "query_from": 1,
+      "query_to": 24,
+      "query_strand": "Plus",
+      "hit_from": 28693,
+      "hit_to": 28716,
+      "hit_strand": "Plus",
+      "align_len": 24,
+      "gaps": 0,
+      "qseq": "ACCCCGCATTACGTTTGGTGGACC",
+      "hseq": "ACCCCGCATTACGTTTGGTGGACC",
+      "midline": "||||||||||||||||||||||||"
+     }
+    ]
+   }
+  },
+  "human_forward_partial_minus": {
+   "label": "forward",
+   "hit": {
+    "num": 3,
+    "description": [
+     {
+      "id": "gi|2310184223|ref|NG_050601.2|",
+      "accession": "NG_050601",
+      "title": "Homo sapiens zinc finger CCCH-type containing 14 (ZC3H14), RefSeqGene on chromosome 14",
+      "taxid": 9606,
+      "sciname": "Homo sapiens"
+     }
+    ],
+    "len": 71560,
+    "hsps": [
+     {
+      "num": 1,
+      "bit_score": 30.2282,
+      "score": 15,
+      "evalue": 20.8199,
+      "identity": 15,
+      "query_from": 1,
+      "query_to": 15,
+      "query_strand": "Plus",
+      "hit_from": 3318,
+      "hit_to": 3304,
+      "hit_strand": "Minus",
+      "align_len": 15,
+      "gaps": 0,
+      "qseq": "GACCCCAAAATCAGC",
+      "hseq": "GACCCCAAAATCAGC",
+      "midline": "|||||||||||||||"
+     }
+    ]
+   }
+  },
+  "human_reverse_partial_minus": {
+   "label": "reverse",
+   "hit": {
+    "num": 2,
+    "description": [
+     {
+      "id": "gi|2301839630|ref|NG_011518.2|",
+      "accession": "NG_011518",
+      "title": "Homo sapiens mitotic arrest deficient 1 like 1 (MAD1L1), RefSeqGene on chromosome 7; nuclear gene for mitochondrial product",
+      "taxid": 9606,
+      "sciname": "Homo sapiens"
+     }
+    ],
+    "len": 424151,
+    "hsps": [
+     {
+      "num": 1,
+      "bit_score": 34.1929,
+      "score": 17,
+      "evalue": 2.66694,
+      "identity": 17,
+      "query_from": 8,
+      "query_to": 24,
+      "query_strand": "Plus",
+      "hit_from": 147667,
+      "hit_to": 147651,
+      "hit_strand": "Minus",
+      "align_len": 17,
+      "gaps": 0,
+      "qseq": "ACTGCCAGTTGAATCTG",
+      "hseq": "ACTGCCAGTTGAATCTG",
+      "midline": "|||||||||||||||||"
+     }
+    ]
+   }
+  },
+  "human_probe_partial_minus": {
+   "label": "probe",
+   "hit": {
+    "num": 2,
+    "description": [
+     {
+      "id": "gi|15868108|emb|AJ323729.1|",
+      "accession": "AJ323729",
+      "title": "Homo sapiens genomic sequence surrounding NotI site, clone HSJ41-846",
+      "taxid": 9606,
+      "sciname": "Homo sapiens"
+     }
+    ],
+    "len": 962,
+    "hsps": [
+     {
+      "num": 1,
+      "bit_score": 30.2282,
+      "score": 15,
+      "evalue": 41.6398,
+      "identity": 15,
+      "query_from": 3,
+      "query_to": 17,
+      "query_strand": "Plus",
+      "hit_from": 681,
+      "hit_to": 667,
+      "hit_strand": "Minus",
+      "align_len": 15,
+      "gaps": 0,
+      "qseq": "CCCGCATTACGTTTG",
+      "hseq": "CCCGCATTACGTTTG",
+      "midline": "|||||||||||||||"
+     }
+    ]
+   }
+  }
+ }
+}

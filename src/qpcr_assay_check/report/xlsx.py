@@ -122,6 +122,52 @@ def write_workbook(result: RunResult, path: Path) -> None:
         ],
         6,
     )
+    spec = result.specificity
+    if spec is not None:
+        _sheet(
+            wb,
+            "Off-target sites",
+            ["Tier", "Query", "Accession", "Organism", "Strand", "Start", "End", "Level", "Source",
+             "Mismatches", "Gaps", "Clean 3' nt", "Duplex Tm (°C)", "ΔTm (°C)", "Oligo", "Subject"],
+            [
+                [s.tier, s.query, s.accession, s.organism or "", s.orientation, s.subject_start,
+                 s.subject_end, s.level, s.source, s.n_mismatch, s.n_gap, s.clean_3prime_nt,
+                 None if s.tm_c is None else round(s.tm_c, 1),
+                 None if s.delta_tm_c is None else round(s.delta_tm_c, 1), s.q_aln, s.s_aln]
+                for s in spec.sites
+            ],
+            None,
+        )  # fmt: skip
+        _sheet(
+            wb,
+            "Predicted products",
+            ["ID", "Tier", "Accession", "Organism", "Start", "End", "Length (bp)", "Primers",
+             "Class", "Probe site", "Record", "Note"],
+            [
+                [a.id, a.tier, a.accession, a.organism or "", a.start, a.end, a.length, a.roles,
+                 a.classification, a.probe_site or "", a.record_type, a.note]
+                for a in spec.amplicons
+            ],
+            None,
+        )  # fmt: skip
+        _sheet(
+            wb,
+            "Searches",
+            ["Tier", "Search", "Taxa", "RID", "Hits (per query)", "Perfect full-length hits"],
+            [
+                [r["tier"], r["label"], ", ".join(map(str, r["taxids"])), r.get("rid") or "",
+                 str(r["n_hits"]), str(r.get("perfect_full_length", ""))]
+                for r in spec.searches
+            ],
+            None,
+        )  # fmt: skip
+        _sheet(
+            wb,
+            "Findings",
+            ["Severity", "Topic", "Message"],
+            [[f.severity, f.topic, f.message] for f in spec.findings],
+            0,
+        )
     _sheet(
         wb,
         "Sections",

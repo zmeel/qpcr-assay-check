@@ -12,10 +12,10 @@ import yaml
 from pydantic import ValidationError
 
 from . import __version__
-from .config import default_config_text, format_validation_error, load_config
+from .config import Config, default_config_text, format_validation_error, load_config
 from .errors import InputError, QpcrAssayCheckError
 from .models import Assay
-from .pipeline import evaluate, inputs_hash, write_outputs
+from .pipeline import evaluate, write_outputs
 from .verdict import EXIT_CODES, EXIT_INPUT_ERROR, EXIT_NCBI_ERROR, Verdict
 
 app = typer.Typer(
@@ -141,6 +141,12 @@ def run(
     qc_only: Annotated[
         bool, typer.Option("--qc-only", help="Only oligo QC; the verdict then covers QC alone.")
     ] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Show what would be sent to NCBI; send nothing.")
+    ] = False,
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Do not ask before sending oligos to NCBI.")
+    ] = False,
     verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="More logging.")] = 0,
     name: Annotated[str | None, typer.Option(help="Assay name.")] = None,
     forward: Annotated[str | None, typer.Option(help="Forward primer, 5'->3'.")] = None,
@@ -161,10 +167,13 @@ def run(
         str | None, typer.Option(help="Sense-strand reference amplicon (optional).")
     ] = None,
 ) -> None:
-    """Evaluate one assay and write results.json, report.html and results.xlsx.
+    """Evaluate one assay and write results.json, report.html, hits.tsv and results.xlsx.
 
+    Without --qc-only this runs the tiered remote BLAST searches (the oligo sequences are sent to
+    NCBI; you are asked first), re-aligns the hits over the full oligo length, predicts products
+    and judges specificity. Interrupted runs resume when you run the same command again.
     Command-line options override values in the assay file. The exit code reflects the
-    verdict: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input.
+    verdict: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input, 70 NCBI problem.
     """
     _setup_logging(verbose)
     overrides: dict[str, Any] = {
@@ -183,21 +192,25 @@ def run(
     }
     if assay_file is None and not any(v for v in overrides.values()):
         _fail("give an assay file or at least --name, --forward, --reverse, --probe and a target.")
+    from .ncbi.http import NcbiError
+
     try:
         cfg = load_config(config)
         assay = build_assay(assay_file, overrides)
-        result = evaluate(assay, cfg, qc_only=qc_only)
+        if qc_only:
+            result = evaluate(assay, cfg, qc_only=True)
+        else:
+            result = _evaluate_with_search(assay, cfg, outdir, dry_run=dry_run, yes=yes)
+            if result is None:  # dry run
+                return
         run_dir = write_outputs(result, outdir, cfg)
+    except NcbiError as exc:
+        typer.echo(f"NCBI problem: {exc}", err=True)
+        raise typer.Exit(EXIT_NCBI_ERROR) from exc
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return
 
-    if not qc_only:
-        typer.echo(
-            "Note: this version evaluates oligo QC only; remote analyses are not yet available, "
-            "so a full run cannot be conclusive (INCOMPLETE). Use --qc-only for a QC verdict.",
-            err=True,
-        )
     typer.echo(f"Verdict: {result.overall.verdict.value}")
     for line in result.overall.rationale:
         typer.echo(f"  - {line}")
@@ -232,6 +245,54 @@ def init(
             _fail(f"{target} already exists (use --force to overwrite).", 1)
         target.write_text(text, encoding="utf-8")
         typer.echo(f"Wrote {target}")
+
+
+def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: bool, yes: bool):
+    """Full evaluation: remote searches, full-length assessment, verdicts."""
+    from .ncbi.eutils import Eutils
+    from .search.execute import run_remote_search
+    from .search.planner import plan_searches
+    from .specificity.assess import assess_specificity
+    from .specificity.fetch import WindowFetcher
+
+    plan = plan_searches(assay, cfg)
+    for line in _describe_plan(plan):
+        typer.echo(line)
+    if not plan.searches:
+        raise InputError("Nothing to search: give the assay a target taxid or background taxa.")
+    if dry_run:
+        typer.echo("Dry run: nothing was sent to NCBI.")
+        return None
+    remote = run_remote_search(
+        assay,
+        cfg,
+        outdir,
+        confirm=_make_confirm(yes),
+        keep_tiers=set(cfg.specificity.off_target_tiers),
+    )
+    fetcher = WindowFetcher(Eutils(remote.http, cfg.ncbi.eutils_url), remote.cache)
+    specificity = assess_specificity(
+        assay, cfg, remote.plan, remote.parsed, remote.outcome, fetcher
+    )
+    return evaluate(assay, cfg, specificity=specificity, search_outcome=remote.outcome)
+
+
+def _make_confirm(yes: bool) -> Any:
+    """Confirmation callback: sequences are only sent to NCBI after the user agrees."""
+
+    def confirm(fresh: list[Any], plan: Any) -> bool:
+        if yes:
+            return True
+        typer.echo(
+            f"{len(fresh)} search(es) will send the sequences above to NCBI's public servers."
+        )
+        try:
+            typer.confirm("Continue?", abort=True)
+        except typer.Abort:
+            return False
+        return True
+
+    return confirm
 
 
 def _describe_plan(plan: Any) -> list[str]:
@@ -272,14 +333,8 @@ def search(
     0 complete, 10 complete but a hit list is saturated, 64 invalid input, 70 NCBI problem
     (resumable).
     """
-    from .ncbi.blast import BlastApi
-    from .ncbi.cache import Cache
-    from .ncbi.eutils import Eutils  # noqa: F401 - imported to fail early if broken
-    from .ncbi.http import NcbiError, NcbiHttp
-    from .ncbi.jobs import JobStore
-    from .ncbi.runner import BlastRunner
-    from .ncbi.settings import credentials_from_env
-    from .search.orchestrate import run_search
+    from .ncbi.http import NcbiError
+    from .search.execute import run_remote_search
     from .search.planner import plan_searches
 
     _setup_logging(verbose)
@@ -298,49 +353,15 @@ def search(
     if dry_run:
         typer.echo("Dry run: nothing was sent to NCBI.")
         return
-
-    digest = inputs_hash(assay, cfg)
-    search_dir = outdir / assay.slug / f"search-{digest[:8]}"
     try:
-        creds = credentials_from_env()
-        store = JobStore(search_dir / "jobs.json")
-        http = NcbiHttp(cfg.ncbi, creds)
-        runner = BlastRunner(
-            BlastApi(http, cfg.ncbi.blast_url),
-            Cache(cfg.ncbi.cache_dir),
-            store,
-            cfg.ncbi,
-            cfg.search.result_format,
-        )
-        from .ncbi.jobs import Job
-
-        fresh = [
-            ps
-            for ps in plan.searches
-            if runner.needs_submission(
-                store.jobs.get(ps.key)
-                or Job(
-                    key=ps.key, tier=ps.tier, label=ps.label, taxids=ps.taxids,
-                    entrez_query=ps.entrez_query, params={}, query_labels=ps.labels,
-                )
-            )
-        ]  # fmt: skip
-        if fresh and not yes:
-            typer.echo(
-                f"{len(fresh)} search(es) will send the sequences above to NCBI's public servers."
-            )
-            try:
-                typer.confirm("Continue?", abort=True)
-            except typer.Abort:
-                _fail("Aborted. Nothing was sent to NCBI (use --yes to skip this question).")
-                return
-        outcome = run_search(plan, cfg, runner, store, search_dir, inputs_hash=digest)
+        remote = run_remote_search(assay, cfg, outdir, confirm=_make_confirm(yes))
     except NcbiError as exc:
         typer.echo(f"NCBI problem: {exc}", err=True)
         raise typer.Exit(EXIT_NCBI_ERROR) from exc
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return
+    outcome, search_dir = remote.outcome, remote.search_dir
 
     total = sum(sum(r.n_hits.values()) for r in outcome.searches)
     typer.echo(f"Done: {len(outcome.searches)} search(es), {total} hits in total.")

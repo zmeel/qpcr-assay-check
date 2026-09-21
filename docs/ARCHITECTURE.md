@@ -1,8 +1,9 @@
 # Architecture
 
-Status: v0.2.0 implements steps 1, 2, the remote client and search planning of steps 3-5 (BLAST
-submission, polling, fetching, parsing, saturation). Everything else in this document is the agreed
-design for later releases.
+Status: v0.3.0 implements steps 1, 2, 5, 6 (from v0.2.0) plus 7 and 8: full-length re-alignment of
+every relevant hit and amplicon pairing, feeding a real specificity verdict. Steps 3, 4, 9 and 10
+(taxonomy, the clinical organism list, inclusivity, exclusivity) and 11's history comparison are
+still the agreed design for later releases, not implemented.
 
 ## Data flow
 
@@ -40,7 +41,7 @@ design for later releases.
 |---|---|
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
-| 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing |
+| **0.3.0** | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
 | 0.4.0 | Taxonomy, organism list, inclusivity, exclusivity |
 | 1.0.0 | Run history, yearly diff, complete report, Docker, documentation |
 
@@ -58,6 +59,22 @@ design for later releases.
   reference, so truncation biases towards reference-like sequences).
 - **Missing evidence is never a PASS** (verdict INCOMPLETE).
 - **History as files**: one directory per run plus a small index; easy to audit and diff.
+- **Three site sources, most to least certain** (`specificity/sites.py`): `blast_full` when BLAST's
+  own alignment already spans the whole oligo (nothing to fetch); `realigned` when a partial hit's
+  subject window was fetched and the whole oligo re-aligned semi-globally; `blast_partial_worst_case`
+  for a partial hit that was *not* re-aligned, either because it provably cannot reach a reportable
+  level or because the fetch failed — its unaligned bases are assumed to match as well as BLAST's own
+  scoring allows, the risk-conservative assumption for a diagnostic assay.
+- **Pruning without fetching every hit**: BLAST reports a locally maximal alignment (extending it
+  over a matching base would have raised the score). Two derived, paper-only bounds decide whether a
+  partial hit can be skipped without an `efetch` call: a lower bound on its full-length mismatch count
+  from the unaligned base counts, and a cap on clean 3' nucleotides from the fact that the first
+  unaligned base must itself be a mismatch. `scripts/validate_assessment.py` checks both bounds
+  against real hits before they are trusted (see "Still unverified" below).
+- **A target tier without a perfect full-length hit is a WARN**, not silence: it is the assay's own
+  positive control, so its absence is itself informative.
+- **Saturation, site-cap truncation and failed fetches are never silently dropped**: they make the
+  specificity verdict INCOMPLETE rather than a false PASS.
 
 ## NCBI facts checked against current documentation (2026-09-20)
 
@@ -126,14 +143,31 @@ E-utilities:
   must be resolved with synonyms and every non-exact resolution flagged (v0.4.0).
 - Requests spaced exactly at 3/s still drew HTTP 429 twice.
 
+### Verified in a second live run (2026-09-21), used to build v0.3.0
+
+For a Minus-strand hit, `hit_from > hit_to`, `query_strand` is always `Plus`, and `hseq` is written
+in the oligo's own orientation (not the subject's forward strand) — confirmed on a real SARS-CoV-2
+reverse-primer hit, kept verbatim in `tests/fixtures/real_hits_strands.json`. Duplex Tm/ΔG for a
+mismatch at the very 3' terminal base, computed by treating it as an unpaired overhang, was checked
+against primer3 directly (61.6 vs 61.2 °C) rather than against a BLAST hit.
+
 ### Still unverified (checked by the next smoke run, needed before v0.4.0)
 
 How many taxa an Entrez query can hold (13, 40 and 100 are probed); whether `[PDAT]` date windows
 restrict a BLAST search the way they restrict an ESearch; whether alternative databases
 (`human_genomic`, `refseq_genomic`, `refseq_rna`) are accepted by the URL API and faster for the
-human background; the coordinate convention for minus-strand hits (`hit_from` vs `hit_to`), for
-which a real minus-strand example is needed.
+human background.
 
 The NCBI Taxonomy page announces that the legacy Taxonomy Browser will be replaced by the NCBI
 Datasets Taxonomy Browser in Fall 2026. That concerns the web interface; whether the Entrez
 Taxonomy E-utilities used in v0.4.0 are affected has not been checked and will be verified then.
+
+### Still unverified for v0.3.0 (run `scripts/validate_assessment.py`, never yet run live)
+
+The two pruning bounds described above (mismatch lower bound, clean-3'-nt cap) were derived on
+paper from BLAST's documented scoring, not observed. The script re-aligns a sample of real partial
+hits over their full oligo length — including hits the assessment would otherwise skip — and reports
+every case where reality contradicts a bound; a contradiction means the pruning is unsafe and must
+not be trusted until fixed. It also counts how many `efetch` calls a real run actually makes; an
+earlier "about 1,500" figure mentioned in development chat was an unverified guess and should be
+disregarded in favour of the script's own count.

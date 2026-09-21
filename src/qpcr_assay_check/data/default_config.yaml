@@ -92,5 +92,32 @@ search:
   relevance:
     min_identical_bases: 14        # a hit with fewer identical bases is not a relevant off-target
 
+specificity:
+  # Assessment of BLAST hits: full-length re-alignment, site classification, amplicon pairing.
+  # ALL of these are starting points, not acceptance criteria: review them for your laboratory.
+  off_target_tiers: [near_neighbours, background]  # hits from these tiers are off-target by construction
+  max_sites_per_query: 2000        # strongest hits first; beyond this the assessment is INCOMPLETE
+  window_padding_nt: 10            # subject bases fetched beyond a partial hit, to allow gaps
+  max_amplicon_size: 2000          # predicted products longer than this are ignored
+  max_amplicons: 500               # safety cap for repetitive regions
+  report_top_sites: 25             # alignments shown in the HTML report
+  alignment: {match: 1, mismatch: -3, gap_open: 5, gap_extend: 2}
+  # A primer site is CRITICAL when it has at most this many mismatches AND gaps and this many
+  # clean (perfectly matching) nucleotides at the 3' end; WARNING with the looser limits.
+  primer_site:
+    critical: {max_mismatches: 3, max_gaps: 0, min_clean_3prime_nt: 5}
+    warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 3}
+  probe_site:
+    critical: {max_mismatches: 3, max_gaps: 0, min_clean_3prime_nt: 0}
+    warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
+  probe_binds_if: critical         # site level the probe needs for an amplicon to be 'likely detected'
+  severity:                        # verdict contribution of each finding: FAIL | WARN | INFO
+    primer_site_critical: FAIL
+    primer_site_warning: WARN
+    probe_site_critical: WARN      # a probe site alone cannot make a product
+    amplicon_likely_detected: FAIL
+    amplicon_not_detected: WARN
+  eukaryote_taxids: [9606]         # organisms for which genomic-DNA hits matter to RNA assays
+
 report:
   include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)

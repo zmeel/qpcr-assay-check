@@ -16,14 +16,14 @@ from .config import Config
 from .models import Assay, Status
 from .oligo.qc import run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
+from .search.orchestrate import SearchOutcome
+from .specificity.models import SpecificityResult
 from .verdict import Verdict, combine, exit_code, verdict_from_status
 
 log = logging.getLogger(__name__)
 
 #: (key, title, version in which the section becomes available)
 PLANNED_SECTIONS: list[tuple[str, str, str]] = [
-    ("specificity", "Specificity assessment of off-target hits", "0.3.0"),
-    ("amplicon_prediction", "Off-target amplicon prediction", "0.3.0"),
     ("exclusivity", "Exclusivity against the clinical organism list", "0.4.0"),
     ("inclusivity", "Inclusivity across the intended target (sampled)", "0.4.0"),
     ("history", "Comparison with the previous run", "1.0.0"),
@@ -55,6 +55,8 @@ def evaluate(
     *,
     qc_only: bool = False,
     now: datetime | None = None,
+    specificity: SpecificityResult | None = None,
+    search_outcome: SearchOutcome | None = None,
 ) -> RunResult:
     """Run every analysis that exists in this version and assemble the evaluation record."""
     now = (now or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
@@ -87,6 +89,44 @@ def evaluate(
             ),
         )
     ]
+    if specificity is not None:
+        n = specificity.n_sites
+        sections.append(
+            SectionResult(
+                key="specificity",
+                title="Specificity: off-target primer and probe sites",
+                state="evaluated",
+                verdict=specificity.verdict_sites,
+                note=(
+                    f"{n.get('critical', 0)} critical and {n.get('warning', 0)} warning sites; "
+                    f"{specificity.n_fetched} sequence windows used, "
+                    f"{specificity.n_fetch_failed} could not be fetched."
+                ),
+            )
+        )
+        sections.append(
+            SectionResult(
+                key="amplicon_prediction",
+                title="Predicted off-target products",
+                state="evaluated",
+                verdict=specificity.verdict_amplicons,
+                note=f"{len(specificity.amplicons)} predicted product(s).",
+            )
+        )
+    else:
+        for key, title in (
+            ("specificity", "Specificity: off-target primer and probe sites"),
+            ("amplicon_prediction", "Predicted off-target products"),
+        ):
+            sections.append(
+                SectionResult(
+                    key=key,
+                    title=title,
+                    state="skipped",
+                    verdict=None,
+                    note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
+                )
+            )
     for key, title, since in PLANNED_SECTIONS:
         sections.append(
             SectionResult(
@@ -108,6 +148,12 @@ def evaluate(
     verdict = combine(by_key, required)
     not_evaluated = [s.title for s in sections if s.key in required and s.verdict is None]
 
+    if specificity is not None:
+        findings += [
+            f"Specificity: {f.message}"
+            for f in specificity.findings
+            if f.severity in ("FAIL", "INCOMPLETE", "WARN")
+        ]
     if not findings and verdict is Verdict.PASS:
         findings = ["No oligo QC check raised a WARN or FAIL."]
     overall = OverallResult(
@@ -123,7 +169,7 @@ def evaluate(
         generated_at=now.isoformat().replace("+00:00", "Z"),
         inputs_hash=digest,
         mode="qc-only" if qc_only else "full",
-        network_used=False,
+        network_used=search_outcome is not None,
         environment={
             "python": platform.python_version(),
             "platform": platform.platform(),
@@ -132,6 +178,8 @@ def evaluate(
         assay=assay,
         config=cfg.model_dump(mode="json"),
         oligo_qc=qc,
+        specificity=specificity,
+        search=search_outcome.model_dump(mode="json") if search_outcome else None,
         sections=sections,
         overall=overall,
     )
@@ -140,6 +188,7 @@ def evaluate(
 def write_outputs(result: RunResult, base_dir: Path, cfg: Config) -> Path:
     """Write results.json, report.html and results.xlsx; return the run directory."""
     from .report.html import render_report
+    from .report.tsv import write_hits_tsv
     from .report.xlsx import write_workbook
 
     parent = base_dir / result.assay.slug
@@ -156,5 +205,7 @@ def write_outputs(result: RunResult, base_dir: Path, cfg: Config) -> Path:
     (run_dir / "results.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
     (run_dir / "report.html").write_text(render_report(result, cfg), encoding="utf-8")
     write_workbook(result, run_dir / "results.xlsx")
+    if result.specificity is not None:
+        write_hits_tsv(result, run_dir / "hits.tsv")
     log.info("Wrote evaluation record to %s", run_dir)
     return run_dir
