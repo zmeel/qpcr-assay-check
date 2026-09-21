@@ -165,6 +165,9 @@ class FakeNcbi:
                 )
                 return FakeResponse(200, body)
         if "esearch" in url:
+            # No <Id> elements: any taxonomy name-lookup finds nothing by default, so most tests
+            # get no exclusivity tier (see tests/test_taxonomy.py and tests/test_run_full.py's
+            # own exclusivity-specific tests for realistic resolution behaviour).
             return FakeResponse(200, "<eSearchResult><Count>1234</Count></eSearchResult>")
         if "efetch" in url:
             return FakeResponse(200, f">{payload.get('id')}\nACGTACGT\n")

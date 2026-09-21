@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live smoke test for qpcr-assay-check's NCBI assumptions.  (v0.2.1)
+"""Live smoke test for qpcr-assay-check's NCBI assumptions.  (v0.3.0 + v0.4.0 phase 4a)
 
 WHY THIS EXISTS
     The developer of this tool could not reach NCBI while writing the BLAST client. Several
@@ -7,9 +7,13 @@ WHY THIS EXISTS
     docs/ARCHITECTURE.md). This script checks them against the real servers and writes a single
     report, smoke_out/smoke_report.json, which contains no secrets and can be pasted back.
 
+    v0.4.0 phase 4a added steps 03b (taxonomy lineage parsing: Rank, LineageEx) and 03c (the
+    actual exclusivity-tier organism-list resolution, live) -- both new and unverified before now.
+
 WHAT IT SENDS TO NCBI
     * the three CDC 2019-nCoV N1 oligo sequences (published sequences, not proprietary)
-    * a few E-utilities queries; up to six BLAST searches (use --quick for two)
+    * a few E-utilities queries, including every name in the packaged clinical organism list
+      (unless --quick); up to six BLAST searches (use --quick for two)
     Your NCBI_EMAIL is sent to NCBI as NCBI requires. Neither it nor NCBI_API_KEY is written to
     any output file.
 
@@ -73,6 +77,9 @@ from qpcr_assay_check.ncbi.settings import credentials_from_env
 from qpcr_assay_check.oligo import iupac
 from qpcr_assay_check.search.assess import assess_saturation, summarise_restriction
 from qpcr_assay_check.search.planner import plan_searches
+from qpcr_assay_check.taxonomy.organisms import load_organism_list
+from qpcr_assay_check.taxonomy.plan import resolve_organism_list
+from qpcr_assay_check.taxonomy.resolve import fetch_lineages, resolve_name
 
 log = logging.getLogger("smoke")
 
@@ -343,14 +350,15 @@ def main() -> int:
     http = NcbiHttp(cfg.ncbi, creds)
     eu, api = Eutils(http, cfg.ncbi.eutils_url), BlastApi(http, cfg.ncbi.blast_url)
     store = JobStore(out / "jobs.json")
-    runner = BlastRunner(api, Cache(cfg.ncbi.cache_dir), store, cfg.ncbi, cfg.search.result_format)
+    cache = Cache(cfg.ncbi.cache_dir)
+    runner = BlastRunner(api, cache, store, cfg.ncbi, cfg.search.result_format)
     base = cfg.ncbi.eutils_url
     started = datetime.now(UTC).isoformat()
     ctx: dict[str, Any] = {}
 
     def write_report(complete: bool) -> None:
         report = {
-            "smoke_test_version": "0.2.1",
+            "smoke_test_version": "0.4.0-4a",
             "started": started,
             "updated": datetime.now(UTC).isoformat(),
             "complete": complete,
@@ -431,6 +439,49 @@ def main() -> int:
         )  # fmt: skip
         m = re.search(r"<ScientificName>([^<]+)</ScientificName>", resp.text)
         return {"resolution": table, "taxid_2697049_scientific_name": m.group(1) if m else None}
+
+    @rep.step("03b_taxonomy_lineage_and_synonym_fallback")
+    def _tax_lineage() -> dict[str, Any]:
+        """Checks the NEW v0.4.0 taxonomy module (not the ad-hoc code in step 03) live.
+
+        1. The synonym fallback: 'Mycoplasma pneumoniae' failed with [Scientific Name] in step 03
+           (believed to be a 2018 genus rename to Mycoplasmoides); [All Names] should catch it.
+        2. Lineage parsing (Rank, LineageEx/Taxon) for a few already-resolved taxids: unverified
+           until now, unlike the ScientificName-only regex step 03 already checked.
+        """
+        mp = resolve_name(eu, cache, "Mycoplasma pneumoniae", ttl_days=0, synonyms=True)
+        sample = dict(list(ctx.get("by_name", {}).items())[:5])
+        lineages = fetch_lineages(eu, cache, list(sample.values()), ttl_days=0)
+        return {
+            "mycoplasma_pneumoniae_resolution": mp.model_dump(),
+            "lineages_by_name": {
+                name: lineages[taxid].model_dump()
+                for name, taxid in sample.items()
+                if taxid in lineages
+            },
+            "lineage_fields_present": {
+                name: bool(lineages[taxid].species or lineages[taxid].genus)
+                for name, taxid in sample.items()
+                if taxid in lineages
+            },
+        }
+
+    @rep.step("03c_organism_list_resolution")
+    def _org_list() -> dict[str, Any]:
+        """The actual exclusivity-tier resolution path: the packaged starter list, live."""
+        if args.quick:
+            return {"skipped": "--quick"}
+        names = load_organism_list(cfg).names
+        resolution = resolve_organism_list(cfg, eu, cache)
+        counts: dict[str, int] = {}
+        for r in resolution.resolutions:
+            counts[r.status] = counts.get(r.status, 0) + 1
+        rep.findings["organism_list_resolved"] = f"{counts.get('resolved', 0)}/{len(names)}"
+        return {
+            "n_names": len(names),
+            "counts": counts,
+            "unresolved": [r.name for r in resolution.unresolved],
+        }
 
     @rep.step("04_reference_check_against_NC_045512.2")
     def _reference() -> dict[str, Any]:

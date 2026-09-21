@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 from .models import Assay, Status
 from .specificity.models import SpecificityResult
+from .taxonomy.exclusivity import ExclusivityResult
+from .taxonomy.rollup import TaxonCount
 from .verdict import Verdict
 
 RESULTS_SCHEMA_VERSION = 1
@@ -137,6 +139,10 @@ class RunResult(BaseModel):
     config: dict[str, Any]
     oligo_qc: QCReport
     specificity: SpecificityResult | None = None
+    exclusivity: ExclusivityResult | None = None
+    taxonomy_breakdown: list[TaxonCount] = Field(
+        default_factory=list, description="Off-target sites aggregated by species/genus/family"
+    )
     search: dict[str, Any] | None = Field(
         default=None, description="Parameters, versions, RIDs and hit counts of the remote searches"
     )

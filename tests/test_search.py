@@ -31,7 +31,9 @@ def test_default_plan_has_target_and_background_tiers(cfg, n1):
     ]
     assert plan.searches[0].labels == ["forward", "reverse", "probe"]
     assert len({s.key for s in plan.searches}) == 2
-    assert any("organism-list tier" in n for n in plan.notes)
+    # exclusivity_taxids=None (the default): resolution needs the network, so a plain
+    # plan_searches() call (as --dry-run makes) cannot show the exclusivity tier's taxids yet.
+    assert any("exclusivity tier" in n for n in plan.notes)
 
 
 def test_near_neighbours_and_exclusions_are_chunked_to_the_taxid_limit(cfg):
@@ -243,9 +245,11 @@ def test_target_tier_saturation_is_informational_not_a_warning(cli_env, tmp_path
     r = runner.invoke(
         app, ["search", str(ROOT_EXAMPLE), "-c", str(conf), "-o", str(cli_env.out), "--yes"]
     )
-    assert r.exit_code == 0, r.output  # only the target tier exists, and it is saturated
+    assert r.exit_code == 0, r.output  # only the target tier is searched, and it is saturated
     (search_dir,) = list((cli_env.out / "cdc-2019-ncov-n1").glob("search-*"))
     doc = json.loads((search_dir / "search.json").read_text())
-    assert doc["warnings"] == []
+    # This fake never resolves organism names, so the exclusivity tier is never searched either
+    # (a separate, expected warning); no OTHER warning (e.g. from saturation) is present.
+    assert [w for w in doc["warnings"] if "organism-list name" not in w] == []
     assert any("Expected for a well-sequenced target" in n for n in doc["notes"])
     assert doc["searches"][0]["saturation"][0]["saturated"] is True  # still recorded

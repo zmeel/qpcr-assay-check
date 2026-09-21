@@ -273,6 +273,48 @@ td.aln-cell { min-width: 22rem; }
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
 {% endif %}
 
+{% if r.exclusivity %}
+<h2>Exclusivity against the clinical organism list</h2>
+<p>{{ chip(r.exclusivity.verdict.value) }} exclusivity ({{ r.exclusivity.n_resolved }} of {{ r.exclusivity.n_organisms }} organism-list name(s) resolved to a taxonomy ID)</p>
+<div class="notice"><p><strong>Starting point.</strong> The organism list is a starting point the laboratory must review and edit (see the packaged
+  <code>data/clinical_organisms.yaml</code> or your own <code>organisms.list_file</code>); it does not claim to be complete for any particular assay.</p></div>
+{% if not r.exclusivity.tier_searched %}
+<p>The exclusivity tier was not searched in this run (no organism name resolved to a taxonomy ID, or the tier was excluded from this run), so this section is INCOMPLETE.</p>
+{% else %}
+<div class="scroll"><table>
+  <thead><tr><th>Organism</th><th>Resolution</th><th>Taxonomy ID</th><th>Sites</th><th>Best site</th><th>Predicted product</th></tr></thead>
+  <tbody>
+  {% for row in r.exclusivity.rows %}
+  <tr><td>{{ row.organism }}</td>
+    <td>{% if row.resolution == 'resolved' %}resolved{% else %}{{ chip('INCOMPLETE') }} {{ row.resolution }}{% endif %}</td>
+    <td class="num">{{ row.taxid or '–' }}</td>
+    <td class="num">{{ row.n_sites }}</td>
+    <td>{% if row.best_site_level %}{{ chip(row.best_site_level) }} {{ row.best_site_id }}{% else %}none{% endif %}</td>
+    <td>{% if row.amplicon_predicted %}{{ chip(row.amplicon_classification) }}{% else %}no{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if r.exclusivity.unresolved %}
+<p class="meta">{{ r.exclusivity.unresolved | length }} organism-list name(s) did not resolve to exactly one taxonomy ID and were not searched (never guessed):
+  {% for u in r.exclusivity.unresolved %}{{ u.name }} ({{ u.status }}){% if not loop.last %}, {% endif %}{% endfor %}. Review the organism list.</p>
+{% endif %}
+{% endif %}
+{% endif %}
+
+{% if r.taxonomy_breakdown %}
+<h2>Taxonomic breakdown of off-target sites</h2>
+<p class="meta">Every off-target tier (near neighbours, background, exclusivity), by the taxon each site's subject record belongs to. Species/genus/family come from
+  Entrez Taxonomy lineages, cached; a blank rank means the lineage could not be determined.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Organism</th><th>Species</th><th>Genus</th><th>Family</th><th>Sites</th></tr></thead>
+  <tbody>
+  {% for t in r.taxonomy_breakdown %}
+  <tr><td>{{ t.scientific_name or 'taxid ' + t.taxid | string }}</td><td>{{ t.species or '–' }}</td><td>{{ t.genus or '–' }}</td><td>{{ t.family or '–' }}</td><td class="num">{{ t.n_sites }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+
 <h2>Closest off-target sites</h2>
 {% if shown_sites %}
 <p class="meta">Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;

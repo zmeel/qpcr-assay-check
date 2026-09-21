@@ -1,9 +1,13 @@
 # Architecture
 
 Status: v0.3.0 implements steps 1, 2, 5, 6 (from v0.2.0) plus 7 and 8: full-length re-alignment of
-every relevant hit and amplicon pairing, feeding a real specificity verdict. Steps 3, 4, 9 and 10
-(taxonomy, the clinical organism list, inclusivity, exclusivity) and 11's history comparison are
-still the agreed design for later releases, not implemented.
+every relevant hit and amplicon pairing, feeding a real specificity verdict. v0.4.0 phase 4a
+(implemented, not yet tagged/released) adds steps 3 and part of 4: organism names are resolved to
+taxonomy IDs (never guessed) and searched as a real "exclusivity" tier reusing the same specificity
+machinery as the other off-target tiers, with its own per-organism table and a species/genus/family
+rollup of every off-target hit (step 6's aggregation, generalised beyond exclusivity alone). Step 4's
+inclusivity windows, step 9 (inclusivity itself), and step 11's history comparison are still the
+agreed design for later work (phase 4b and v1.0.0), not implemented.
 
 ## Data flow
 
@@ -41,8 +45,8 @@ still the agreed design for later releases, not implemented.
 |---|---|
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
-| **0.3.0** | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
-| 0.4.0 | Taxonomy, organism list, inclusivity, exclusivity |
+| 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
+| **0.4.0** | Taxonomy resolution, organism list, exclusivity (phase 4a, done); inclusivity (4b, planned) |
 | 1.0.0 | Run history, yearly diff, complete report, Docker, documentation |
 
 ## Design decisions
@@ -75,6 +79,27 @@ still the agreed design for later releases, not implemented.
   positive control, so its absence is itself informative.
 - **Saturation, site-cap truncation and failed fetches are never silently dropped**: they make the
   specificity verdict INCOMPLETE rather than a false PASS.
+- **Exclusivity reuses the specificity tier machinery, not a parallel implementation** (phase 4a):
+  once the organism list is resolved to taxonomy IDs, "exclusivity" is planned, searched and
+  assessed exactly like `near_neighbours`/`background` (it is simply added to
+  `specificity.off_target_tiers`). `taxonomy/exclusivity.py` only adds SPEC.md step 8's own view
+  over that same evidence: one row per organism-list entry (including zero-hit organisms and names
+  that did not resolve), plus its own tier-scoped verdict, rather than a second assessment.
+- **Name resolution never guesses** (`taxonomy/resolve.py`): `[Scientific Name]` first, then (if
+  configured) `[All Names]` for synonyms; exactly one UID is a resolution, more than one is flagged
+  ambiguous, none is unresolved — never picked at random. A tier built from zero resolved names is
+  simply not searched, and the run reports why rather than silently passing.
+- **A tier that was never searched is INCOMPLETE, not a silent PASS**: if every organism-list name
+  fails to resolve, the exclusivity section still renders, explains why, and does not count as
+  evidence of exclusivity.
+- **Species/genus/family aggregation is generic, not exclusivity-specific** (`taxonomy/rollup.py`):
+  it runs over every off-target site regardless of tier, because SPEC.md step 6 ("taxonomy
+  annotation of hits") is not scoped to exclusivity alone. A lineage-fetch failure degrades this
+  aggregation to empty rather than failing the whole evaluation: it is informational, not a
+  required section.
+- **Taxonomy resolution runs before the send-oligos confirmation, without its own gate**: it sends
+  only organism names (from the reviewable, packaged or lab-supplied list), never the assay's own
+  oligo sequences, so it does not need the same confirm/decline protection that oligo sequences do.
 
 ## NCBI facts checked against current documentation (2026-09-20)
 
@@ -176,3 +201,22 @@ disregarded.
 This is one sample of one tier of one assay, not a proof for every assay or tier: re-run the script
 (varying `--tier` and `--sample`) whenever the alignment or pruning logic changes, and periodically
 otherwise, before trusting a specificity verdict on a different assay.
+
+### Still unverified for v0.4.0 phase 4a (`scripts/smoke_test.py` steps `03b`/`03c`, never run live)
+
+The Taxonomy EFetch XML shape used by `taxonomy/resolve.py`'s lineage parsing (`Rank`,
+`LineageEx/Taxon/Rank`, `LineageEx/Taxon/ScientificName`) follows the same well-established
+Taxonomy DTD as the `ScientificName`-only regex step 03 already checked live, but the `Rank` field
+and the `LineageEx` ancestor walk it relies on for species/genus/family have not themselves been
+exercised against real output. Step 03b fetches lineages for a few of step 03's already-resolved
+taxids and checks the species/genus fields come back populated. It also re-checks the
+`Mycoplasma pneumoniae` synonym-fallback resolution through the actual `resolve_name` function
+(not step 03's ad-hoc code), since step 03 established only that `[Scientific Name]` fails for it,
+not that `[All Names]` succeeds.
+
+Step 03c resolves the entire packaged clinical organism list (`data/clinical_organisms.yaml`, about
+40 names) through the actual exclusivity-tier resolution path (`taxonomy.plan.resolve_organism_list`)
+and reports how many resolve, are ambiguous, or are unresolved. A name resolving ambiguously or not
+at all is not itself a bug — laboratories are expected to review and edit the list — but a
+surprisingly low resolution rate would suggest the query format or synonym handling needs work
+before the exclusivity tier can be trusted on the packaged list.

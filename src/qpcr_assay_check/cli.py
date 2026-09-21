@@ -248,33 +248,66 @@ def init(
 
 
 def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: bool, yes: bool):
-    """Full evaluation: remote searches, full-length assessment, verdicts."""
+    """Full evaluation: remote searches, full-length assessment, verdicts.
+
+    The exclusivity tier's taxonomy IDs are resolved from the organism list when the search
+    actually runs (needs the network and NCBI_EMAIL), so a --dry-run plan cannot show them; it
+    shows the organism-list name count instead (see planner.plan_searches).
+    """
     from .ncbi.eutils import Eutils
     from .search.execute import run_remote_search
     from .search.planner import plan_searches
     from .specificity.assess import assess_specificity
     from .specificity.fetch import WindowFetcher
 
-    plan = plan_searches(assay, cfg)
-    for line in _describe_plan(plan):
-        typer.echo(line)
-    if not plan.searches:
-        raise InputError("Nothing to search: give the assay a target taxid or background taxa.")
     if dry_run:
+        plan = plan_searches(assay, cfg)
+        for line in _describe_plan(plan):
+            typer.echo(line)
+        if not plan.searches:
+            raise InputError(
+                "Nothing to search: give the assay a target taxid or configure background taxa."
+            )
         typer.echo("Dry run: nothing was sent to NCBI.")
         return None
+
+    def show(plan: Any) -> None:
+        for line in _describe_plan(plan):
+            typer.echo(line)
+
     remote = run_remote_search(
         assay,
         cfg,
         outdir,
         confirm=_make_confirm(yes),
         keep_tiers=set(cfg.specificity.off_target_tiers),
+        on_plan=show,
     )
-    fetcher = WindowFetcher(Eutils(remote.http, cfg.ncbi.eutils_url), remote.cache)
+    from .ncbi.http import NcbiError
+    from .taxonomy.rollup import taxonomy_breakdown
+
+    eutils = Eutils(remote.http, cfg.ncbi.eutils_url)
+    fetcher = WindowFetcher(eutils, remote.cache)
     specificity = assess_specificity(
         assay, cfg, remote.plan, remote.parsed, remote.outcome, fetcher
     )
-    return evaluate(assay, cfg, specificity=specificity, search_outcome=remote.outcome)
+    try:
+        breakdown = taxonomy_breakdown(
+            specificity.sites, eutils, remote.cache, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
+        )
+    except NcbiError as exc:
+        # Informational only (not a required section): a lineage-lookup failure should not
+        # discard an otherwise-complete specificity verdict.
+        log.warning("Could not fetch taxonomy lineages for the breakdown: %s", exc)
+        breakdown = []
+    return evaluate(
+        assay,
+        cfg,
+        specificity=specificity,
+        search_outcome=remote.outcome,
+        organism_resolution=remote.organism_resolution,
+        taxonomy_breakdown=breakdown,
+    )
 
 
 def _make_confirm(yes: bool) -> Any:
@@ -341,20 +374,30 @@ def search(
     try:
         cfg = load_config(config)
         assay = build_assay(assay_file, {})
-        plan = plan_searches(assay, cfg)
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return
-    for line in _describe_plan(plan):
-        typer.echo(line)
-    if not plan.searches:
-        _fail("Nothing to search: give the assay a target taxid or configure background taxa.")
-        return
+
     if dry_run:
+        try:
+            plan = plan_searches(assay, cfg)
+        except QpcrAssayCheckError as exc:
+            _fail(str(exc))
+            return
+        for line in _describe_plan(plan):
+            typer.echo(line)
+        if not plan.searches:
+            _fail("Nothing to search: give the assay a target taxid or configure background taxa.")
+            return
         typer.echo("Dry run: nothing was sent to NCBI.")
         return
+
+    def show(plan: Any) -> None:
+        for line in _describe_plan(plan):
+            typer.echo(line)
+
     try:
-        remote = run_remote_search(assay, cfg, outdir, confirm=_make_confirm(yes))
+        remote = run_remote_search(assay, cfg, outdir, confirm=_make_confirm(yes), on_plan=show)
     except NcbiError as exc:
         typer.echo(f"NCBI problem: {exc}", err=True)
         raise typer.Exit(EXIT_NCBI_ERROR) from exc

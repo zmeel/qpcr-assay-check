@@ -11,12 +11,14 @@ from ..errors import InputError
 from ..models import Assay
 from ..ncbi.blast import BlastApi
 from ..ncbi.cache import Cache
+from ..ncbi.eutils import Eutils
 from ..ncbi.http import NcbiHttp
 from ..ncbi.jobs import Job, JobStore
 from ..ncbi.parser import ParsedSearch
 from ..ncbi.runner import BlastRunner
 from ..ncbi.settings import credentials_from_env
 from ..pipeline import inputs_hash
+from ..taxonomy.plan import OrganismListResolution, resolve_organism_list
 from .orchestrate import SearchOutcome, run_search
 from .planner import PlannedSearch, SearchPlan, plan_searches
 
@@ -36,12 +38,36 @@ class RemoteSearch:
     digest: str
     http: NcbiHttp
     cache: Cache
+    organism_resolution: OrganismListResolution | None = None
 
 
 def search_dir_for(assay: Assay, cfg: Config, outdir: Path) -> tuple[Path, str]:
     """Directory holding the resumable state of this assay's searches (keyed by inputs hash)."""
     digest = inputs_hash(assay, cfg)
     return outdir / assay.slug / f"search-{digest[:8]}", digest
+
+
+def _resolve_and_plan(
+    assay: Assay, cfg: Config, http: NcbiHttp, cache: Cache, *, only_tiers: set[str] | None
+) -> tuple[SearchPlan, OrganismListResolution | None]:
+    """Build the real (network-informed) search plan: resolve the organism list first.
+
+    Skipped when ``only_tiers`` is given and excludes "exclusivity" (e.g. a validation run
+    scoped to one other tier), so that run makes no unrelated Entrez Taxonomy calls.
+    """
+    resolution = None
+    excl_taxids = None
+    excl_unresolved = 0
+    if only_tiers is None or "exclusivity" in only_tiers:
+        resolution = resolve_organism_list(cfg, Eutils(http, cfg.ncbi.eutils_url), cache)
+        excl_taxids = resolution.taxids
+        excl_unresolved = len(resolution.unresolved)
+    plan = plan_searches(
+        assay, cfg, exclusivity_taxids=excl_taxids, exclusivity_unresolved=excl_unresolved
+    )
+    if only_tiers is not None:  # validation runs restrict the plan; the cache keys stay the same
+        plan.searches = [ps for ps in plan.searches if ps.tier in only_tiers]
+    return plan, resolution
 
 
 def run_remote_search(
@@ -52,20 +78,28 @@ def run_remote_search(
     confirm: Callable[[list[PlannedSearch], SearchPlan], bool],
     keep_tiers: set[str] | None = None,
     only_tiers: set[str] | None = None,
+    on_plan: Callable[[SearchPlan], None] | None = None,
 ) -> RemoteSearch:
-    """Plan, ask for confirmation if anything must be sent, execute, and keep parsed results.
+    """Plan (resolving the exclusivity tier), ask for confirmation, execute, keep parsed results.
 
-    ``confirm`` is called only when at least one search has to be submitted; searches that are
-    cached or still resumable send nothing. Returning False aborts before anything is sent.
+    ``on_plan`` is called once the real plan is known, before anything is sent, so a caller can
+    show exactly what will be searched -- including the resolved exclusivity taxids -- rather than
+    a plan built before resolution. ``confirm`` is called only when at least one search has to be
+    submitted; searches that are cached or still resumable send nothing. Returning False from
+    ``confirm`` aborts before anything is sent.
     """
-    plan = plan_searches(assay, cfg)
-    if only_tiers is not None:  # validation runs restrict the plan; the cache keys stay the same
-        plan.searches = [ps for ps in plan.searches if ps.tier in only_tiers]
-    search_dir, digest = search_dir_for(assay, cfg, outdir)
     creds = credentials_from_env()
-    store = JobStore(search_dir / "jobs.json")
     http = NcbiHttp(cfg.ncbi, creds)
     cache = Cache(cfg.ncbi.cache_dir)
+    plan, resolution = _resolve_and_plan(assay, cfg, http, cache, only_tiers=only_tiers)
+    if on_plan:
+        on_plan(plan)
+    if not plan.searches:
+        raise InputError(
+            "Nothing to search: give the assay a target taxid or configure background taxa."
+        )
+    search_dir, digest = search_dir_for(assay, cfg, outdir)
+    store = JobStore(search_dir / "jobs.json")
     runner = BlastRunner(
         BlastApi(http, cfg.ncbi.blast_url), cache, store, cfg.ncbi, cfg.search.result_format
     )
@@ -86,4 +120,4 @@ def run_remote_search(
     outcome = run_search(
         plan, cfg, runner, store, search_dir, inputs_hash=digest, keep=parsed, keep_tiers=keep_tiers
     )
-    return RemoteSearch(plan, outcome, parsed, search_dir, digest, http, cache)
+    return RemoteSearch(plan, outcome, parsed, search_dir, digest, http, cache, resolution)
