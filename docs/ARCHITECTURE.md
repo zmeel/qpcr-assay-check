@@ -162,12 +162,17 @@ The NCBI Taxonomy page announces that the legacy Taxonomy Browser will be replac
 Datasets Taxonomy Browser in Fall 2026. That concerns the web interface; whether the Entrez
 Taxonomy E-utilities used in v0.4.0 are affected has not been checked and will be verified then.
 
-### Still unverified for v0.3.0 (run `scripts/validate_assessment.py`, never yet run live)
+### Verified for v0.3.0 (`scripts/validate_assessment.py`, live, 2026-09-21)
 
 The two pruning bounds described above (mismatch lower bound, clean-3'-nt cap) were derived on
-paper from BLAST's documented scoring, not observed. The script re-aligns a sample of real partial
-hits over their full oligo length — including hits the assessment would otherwise skip — and reports
-every case where reality contradicts a bound; a contradiction means the pruning is unsafe and must
-not be trusted until fixed. It also counts how many `efetch` calls a real run actually makes; an
-earlier "about 1,500" figure mentioned in development chat was an unverified guess and should be
-disregarded in favour of the script's own count.
+paper from BLAST's documented scoring, not observed; the script re-aligns a sample of real partial
+hits over their full oligo length — including hits the assessment would otherwise skip — and
+reports every case where reality contradicts a bound. First live run: CDC N1 example assay,
+background tier, 905 relevant alignments, 244 ruled out without fetching, 661 needing a fetch, an
+80-hit sample (40 fetchable, 40 ruled out) checked, **0 contradictions**. That 661 figure replaces
+an earlier "about 1,500" guess from development chat, which was never measured and should be
+disregarded.
+
+This is one sample of one tier of one assay, not a proof for every assay or tier: re-run the script
+(varying `--tier` and `--sample`) whenever the alignment or pruning logic changes, and periodically
+otherwise, before trusting a specificity verdict on a different assay.

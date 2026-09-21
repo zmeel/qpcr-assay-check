@@ -3,6 +3,26 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-21 — v0.3.0 pushed; pruning bounds validated live
+
+- Pushed the v0.3.0 commit to `origin/claude/brave-dirac-1vppye` (user confirmed).
+- Created an annotated `v0.3.0` tag locally, but **pushing it was blocked**: the sandbox's egress
+  proxy returned an HTTP 403 specifically for the tag ref (the branch push to the same host had just
+  succeeded), which the proxy's own guidance identifies as an organization policy denial, not a
+  transient failure — so it was not retried or routed around. Also discovered the "no git tags
+  exist" note from the previous session was wrong: v0.1.0/v0.2.0/v0.2.1 tags do exist on the remote;
+  this sandbox's clone had just never fetched them. Told the user to pull the branch and push (and
+  tag) themselves from their own machine (a Synology NAS running code-server in Docker), where the
+  restriction likely doesn't apply.
+- The user ran `scripts/validate_assessment.py` live (CDC N1 example, `--tier background`) and
+  pasted back `validation_out/validation_report.json`: 905 relevant alignments, 244 ruled out
+  without fetching, 661 needing a fetch (replaces the earlier unmeasured "about 1,500" guess),
+  80-hit sample checked (40 fetchable, 40 ruled out), **0 contradictions**. Updated README.md,
+  `docs/ARCHITECTURE.md` and `CHANGELOG.md` to reflect this: the pruning bounds are no longer
+  described as "unverified," but as checked once, on a sample, for one assay's background tier —
+  not exhaustive proof, and worth re-running for other tiers/assays or after logic changes.
+- `scripts/smoke_test.py` still has not been re-run since 0.2.1 — still open.
+
 ## 2026-09-21 — v0.3.0: specificity assessment integrated
 
 Picked up a work-in-progress snapshot (`qpcr-assay-check-v0.3.0-WIP-snapshot.zip`, built in a
@@ -63,8 +83,10 @@ Left for the user / next session:
 
 ## Open questions carried across sessions
 
-- License: resolved this session — proceed with Apache-2.0 (already committed). CLAUDE.md's "Open
-  items" note that it was unchosen is stale.
-- Git tags: none exist locally despite three documented releases (0.1.0–0.2.1). Needs reconciling
-  (tag retroactively, or treat CHANGELOG history as the record and tag going forward only) — ask the
-  user.
+- License: resolved — proceed with Apache-2.0 (already committed). CLAUDE.md's "Open items" note
+  that it was unchosen is stale.
+- Git tags: resolved — v0.1.0/v0.2.0/v0.2.1 exist on the remote; a prior session's local clone had
+  just never fetched them. **v0.3.0 needs the user to tag and push it themselves** (this sandbox's
+  egress policy blocks tag pushes even though branch pushes work).
+- `scripts/smoke_test.py` has not been re-run since 0.2.1; the wire protocol is unchanged but this
+  is still worth doing before the next release.

@@ -11,10 +11,15 @@ diff, Docker, documentation.
 
 ## [0.3.0] - 2026-09-21
 
-Full-length re-alignment, amplicon pairing and a real specificity verdict. **The pruning rules that
-avoid re-aligning every BLAST hit (`scripts/validate_assessment.py`) have not been run against live
-NCBI yet** and must be before this release's verdicts are trusted; everything else was validated
-against a constructed test world plus two facts confirmed on real hits (below).
+Full-length re-alignment, amplicon pairing and a real specificity verdict.
+
+**Live validation (2026-09-21, `scripts/validate_assessment.py`, CDC N1 example, background
+tier):** the two pruning bounds that decide which BLAST hits can skip an `efetch` call were
+checked against a sample of 80 real hits (40 that would be fetched, 40 ruled out) out of 905
+relevant alignments — **0 contradictions**. A full run of this tier on this assay would make 661
+`efetch` calls (905 relevant alignments, 244 ruled out without fetching), superseding the earlier
+unverified "about 1,500" estimate. This is a sample check, not exhaustive proof, and covers one
+assay's background tier; re-run it after any change to the alignment or pruning logic.
 
 ### Added
 - `run` (without `--qc-only`) now performs the full pipeline by default: tiered remote BLAST search,
@@ -29,8 +34,8 @@ against a constructed test world plus two facts confirmed on real hits (below).
     re-aligned — provably cannot reach a reportable level, or the fetch failed — assumed to match
     as well as BLAST's own scoring allows, the risk-conservative choice).
   - Two BLAST-scoring-derived bounds decide which partial hits can be skipped without an `efetch`
-    call: a mismatch lower bound and a clean-3'-nt cap. Both are checked against real hits by the
-    new `scripts/validate_assessment.py`, not yet run live (see above).
+    call: a mismatch lower bound and a clean-3'-nt cap. Checked against a live sample of real hits
+    with `scripts/validate_assessment.py`: 0 contradictions (see above).
   - Forward/reverse hits on the same accession, facing each other within `specificity.max_amplicon_size`,
     are paired into predicted products and classified likely detected / amplified but not detected /
     primer-only, depending on whether the probe also binds; genomic-DNA products are flagged for
@@ -66,8 +71,10 @@ against a constructed test world plus two facts confirmed on real hits (below).
   `align/` + `specificity/`. (Internal only — never released.)
 
 ### Known limitations
-- The pruning bounds are unverified against live NCBI (see above); until `scripts/validate_assessment.py`
-  has been run and reports no contradiction, treat specificity verdicts as provisional.
+- The pruning bounds were checked live on one assay's background tier, on a sample of 80 of 905
+  relevant alignments (see above), not exhaustively and not on the near-neighbour or target tiers;
+  re-run `scripts/validate_assessment.py` (a different `--tier`, a larger `--sample`) periodically
+  and whenever the alignment or pruning logic changes.
 - Amplicon pairing only expands the primary record of a BLAST hit group; sequences merged into one
   hit by core_nt (observed: up to ~39 descriptions per hit) are not, so a product on a merged record
   can be missed.
