@@ -46,10 +46,19 @@ def test_run_qc_only_writes_record_and_exit_code_reflects_verdict(tmp_path):
     assert (result_json.parent / "results.xlsx").exists()
 
 
-def test_full_run_is_incomplete_in_this_version(tmp_path):
-    r = runner.invoke(app, ["run", str(EXAMPLE), "-o", str(tmp_path)])
-    assert r.exit_code == 30, r.output
-    assert "INCOMPLETE" in r.output and "remote analyses are not yet available" in r.output
+def test_full_run_without_an_ncbi_email_stops_before_sending_anything(tmp_path, monkeypatch):
+    monkeypatch.delenv("NCBI_EMAIL", raising=False)
+    r = runner.invoke(app, ["run", str(EXAMPLE), "-o", str(tmp_path), "--yes"])
+    assert r.exit_code == 64, r.output
+    assert "NCBI_EMAIL" in r.output
+
+
+def test_full_run_dry_run_needs_no_credentials_and_sends_nothing(tmp_path, monkeypatch):
+    monkeypatch.delenv("NCBI_EMAIL", raising=False)
+    r = runner.invoke(app, ["run", str(EXAMPLE), "-o", str(tmp_path), "--dry-run"])
+    assert r.exit_code == 0, r.output
+    assert "Dry run" in r.output and "txid2697049[ORGN]" in r.output
+    assert not list(tmp_path.rglob("results.json"))
 
 
 def test_run_from_command_line_arguments_only(tmp_path):

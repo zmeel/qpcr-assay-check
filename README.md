@@ -4,12 +4,14 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v0.2.0 (alpha).** `run` still checks **oligo quality only** (Tm, GC, dimers, hairpins,
-> probe rules, optional amplicon geometry). New in this release: the `search` command runs tiered,
-> taxon-restricted **remote BLAST searches** and writes the raw hits (`hits.tsv`, `search.json`).
-> Those hits are **not yet assessed** (re-alignment and off-target verdicts arrive in v0.3.0), so a
-> full `run` still ends as `INCOMPLETE`, never as `PASS`. The BLAST client was validated once
-> against the live NCBI servers (2026-09-21); see `docs/ARCHITECTURE.md` for what was verified.
+> **Status: v0.3.0 (alpha).** A full `run` now sends the oligos to NCBI (tiered, taxon-restricted
+> remote BLAST), fetches the subject window and re-aligns the whole oligo over every relevant hit,
+> predicts off-target products, and judges specificity — genuine `PASS`/`WARN`/`FAIL`, not just
+> `INCOMPLETE`. The overall verdict still ends as `INCOMPLETE`, because exclusivity against a
+> clinical organism list, inclusivity and yearly history are not implemented yet (v0.4.0/v1.0.0).
+> The BLAST client was checked against the live NCBI servers once (2026-09-21); the re-alignment
+> pruning rules that avoid fetching every hit have not been. See `docs/ARCHITECTURE.md` for what was
+> verified and `docs/PROGRESS.md` for what is still open.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -49,11 +51,15 @@ qpcr-assay-check init my-assay --example
 # check the input files without running anything
 qpcr-assay-check validate my-assay/assay.yaml
 
-# oligo QC only (verdict covers QC alone; exit code 10 = WARN)
+# oligo QC only, no network use (verdict covers QC alone; exit code 10 = WARN)
 qpcr-assay-check run my-assay/assay.yaml --qc-only -o results
 
-# a full run (INCOMPLETE until the off-target assessment exists, v0.3.0)
+# a full run: sends the oligos to NCBI, asks first (still INCOMPLETE overall until
+# exclusivity/inclusivity/history exist, v0.4.0/v1.0.0)
 qpcr-assay-check run my-assay/assay.yaml -o results
+
+# show exactly what a full run would send, without sending anything or needing credentials
+qpcr-assay-check run my-assay/assay.yaml --dry-run
 ```
 
 Each run writes `results/<assay>/<run-id>/` containing:
@@ -62,26 +68,23 @@ Each run writes `results/<assay>/<run-id>/` containing:
 |---|---|
 | `report.html` | Self-contained evaluation record (no external requests) |
 | `results.json` | Machine-readable results (`schema_version` 1) |
-| `results.xlsx` | Workbook: summary, inputs, QC checks, structures, sections |
+| `results.xlsx` | Workbook: summary, inputs, QC checks, off-target sites, products, sections |
+| `hits.tsv` | One row per assessed off-target site: alignment, mismatches, level, duplex Tm/ΔG (full `run` only, not `--qc-only`) |
 
-### Remote BLAST search (v0.2.0)
+### Specificity assessment (v0.3.0)
 
-```bash
-export NCBI_EMAIL="your.name@example.org"      # required by NCBI
-qpcr-assay-check search my-assay/assay.yaml --dry-run   # show exactly what would be sent
-qpcr-assay-check search my-assay/assay.yaml -o results   # asks before sending anything
-```
-
-`search` sends the oligos to NCBI in tiers (intended target, near neighbours and exclusion taxa,
-background taxa such as human), each restricted to its taxa, with short-oligo BLAST settings
+A full `run` sends the oligos to NCBI in tiers (intended target, near neighbours and exclusion
+taxa, background taxa such as human), each restricted to its taxa, with short-oligo BLAST settings
 (word size 7, E-value 1000, filtering off, reward 1 / penalty -3, gap costs 5/2, database
-`core_nt`). Output goes to `results/<assay>/search-<hash>/`:
-
-| File | Content |
-|---|---|
-| `hits.tsv` | One row per alignment: tier, query oligo, subject, taxon, identical bases, positions |
-| `search.json` | Parameters, BLAST version, RIDs, hit counts, hit-list saturation, restriction summary |
-| `jobs.json` | Job state: the run resumes from here if it is interrupted |
+`core_nt`). For every hit that could plausibly reach a reportable level, it fetches the subject
+window (`efetch`, padded for gaps) and semi-globally re-aligns the *whole* oligo, so mismatches
+past BLAST's seed are not missed. Hits that provably cannot reach even a "warning" level (from
+BLAST's own scoring bound) are not fetched, to keep a background-tier run to a practical number of
+`efetch` calls; `scripts/validate_assessment.py` checks that bound against real NCBI hits.
+Forward/reverse hits on the same accession, facing each other within `specificity.max_amplicon_size`,
+are paired into predicted products, and classified as likely detected / amplified but not detected /
+primer-only depending on whether the probe also binds. Amplicon pairing only expands the *primary*
+record of a BLAST hit group; sequences merged into one hit by core_nt (see below) are not.
 
 Behaviour worth knowing:
 - **Resumable**: if a run is interrupted (network, laptop closed, timeout), run the same command
@@ -92,9 +95,23 @@ Behaviour worth knowing:
 - **Saturation is judged by relevance**: a full hit list only triggers a warning (exit code 10)
   if even its weakest hit still has at least `search.relevance.min_identical_bases` identical
   bases, meaning relevant hits may have been cut off.
-- **Cached, but not for long**: BLAST results are reused only for `ncbi.blast_cache_ttl_days` (7),
-  so next year's run never receives this year's answer.
-- Exit codes: 0 done, 10 done with a saturated hit list, 64 invalid input, 70 NCBI problem (resumable).
+- **Cached at different scopes**: BLAST results are reused only for `ncbi.blast_cache_ttl_days`
+  (7), so next year's run never receives this year's answer. Fetched sequence windows are cached
+  without expiry, keyed on accession and coordinates, because a published record's sequence does
+  not change.
+- Exit codes for `run`: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input, 70 NCBI problem
+  (resumable).
+
+For just the raw BLAST hits without assessment (e.g. to inspect what a search alone returns), the
+lower-level `search` command still exists and writes `results/<assay>/search-<hash>/hits.tsv` and
+`search.json` (different columns from the `run` output above) plus `jobs.json`. Its own exit codes:
+0 done, 10 done with a saturated hit list, 64 invalid input, 70 NCBI problem (resumable).
+
+```bash
+export NCBI_EMAIL="your.name@example.org"      # required by NCBI
+qpcr-assay-check search my-assay/assay.yaml --dry-run   # show exactly what would be sent
+qpcr-assay-check search my-assay/assay.yaml -o results   # asks before sending anything
+```
 
 You can also define an assay entirely on the command line:
 
@@ -171,10 +188,12 @@ export NCBI_EMAIL="your.name@example.org"   # required for any network use
 export NCBI_API_KEY="..."                   # optional; raises E-utilities from 3 to 10 requests/s
 ```
 
-**Privacy note: the `search` command sends the oligo sequences of the assay to NCBI's public
-servers** for BLAST searches. This matters for proprietary assays. It always shows the sequences
-and the planned searches first and asks for confirmation (`--yes` skips the question; `--dry-run`
-sends nothing and needs no credentials). `run` and `validate` never use the network.
+**Privacy note: `run` (unless given `--qc-only`) and `search` send the oligo sequences of the
+assay to NCBI's public servers** for BLAST searches, and a full `run` also sends the resulting hit
+accessions to NCBI's E-utilities to fetch sequence windows. This matters for proprietary assays.
+Both commands always show the sequences and the planned searches first and ask for confirmation
+(`--yes` skips the question; `--dry-run` sends nothing and needs no credentials). `run --qc-only`
+and `validate` never use the network.
 
 ### Live smoke test (please run once)
 
@@ -204,6 +223,25 @@ one minute; a human-restricted search against `core_nt` took **61 minutes**. A `
 default human background tier therefore takes roughly an hour or more. The default wait limit is
 240 minutes and interrupted searches resume.
 
+### Live validation of the specificity assessment (please run once, v0.3.0)
+
+`scripts/validate_assessment.py` checks the pruning rules the specificity assessment relies on to
+avoid fetching every hit (see [Specificity assessment](#specificity-assessment-v030) above) against
+real NCBI hits, and reports how many `efetch` calls a real run makes. It has not been run yet:
+
+```bash
+export NCBI_EMAIL="your.name@example.org"
+mkdir -p validation_out
+nohup python scripts/validate_assessment.py > validation_out/run.log 2>&1 &
+tail -f validation_out/run.log
+```
+
+Paste back `validation_out/validation_report.json` (no secrets). Exit code 0 means no rule was
+contradicted in the sample; exit code 1 means at least one was, and the report lists the cases —
+in that event the assessment's pruning must not be trusted until it is fixed. The default tier
+(`--tier background`) reuses the same search as `run`, so it can take about an hour the first time
+but is served from cache afterwards.
+
 ## Limitations
 
 - Thresholds are common-practice defaults, not acceptance criteria.
@@ -219,16 +257,29 @@ default human background tier therefore takes roughly an hour or more. The defau
   hit" is not "no binding". Primer-BLAST and IDT OligoAnalyzer remain useful manual cross-checks.
 - The remote client was validated against live NCBI once, for one assay; NCBI can change formats
   or behaviour, and a parse failure ends the run as an error rather than guessing.
-- Hits are collected but not yet assessed: re-alignment, off-target amplicons and taxonomy come
-  in later releases (see the roadmap).
+- The re-alignment pruning rules (which hits can be skipped without fetching) follow from BLAST's
+  documented scoring, but have not themselves been checked against real hits; run
+  `scripts/validate_assessment.py` before relying on a specificity verdict.
+- Amplicon pairing only expands the *primary* record of a BLAST hit group; core_nt merges identical
+  sequences into one hit (observed: up to ~39 descriptions per hit), so a product on a merged
+  record can be missed.
+- Duplex Tm/ΔG for a mismatched site ignore a mismatch at the very 3' terminal base (treated as an
+  unpaired overhang); priming risk is judged from the mismatch positions and clean-3'-nt count,
+  never from Tm alone.
+- Specificity covers only the tiers actually searched (intended target, near neighbours,
+  background); the clinical organism list (exclusivity) and inclusivity sampling arrive in v0.4.0.
+- `ENTREZ_QUERY` taxon restriction is effective, not airtight: one "synthetic construct" record
+  leaked into 3,715 live human-restricted hits (it carries a human source feature).
+- Taxonomy annotation, the clinical organism list, inclusivity and yearly history are not
+  implemented yet, so a full `run` still ends `INCOMPLETE` overall even when specificity passes.
 
 ## Roadmap
 
 | Version | Content |
 |---|---|
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
-| **0.2.0** | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
-| 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing |
+| 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
+| **0.3.0** | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
 | 0.4.0 | Taxonomy, organism list, inclusivity, exclusivity |
 | 1.0.0 | Run history, yearly diff report, complete report, Docker, documentation |
 

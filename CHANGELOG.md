@@ -6,8 +6,73 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Planned: v0.3.0 re-alignment and amplicon pairing; v0.4.0 taxonomy,
-organism list, inclusivity and exclusivity; v1.0.0 run history, yearly diff, Docker, documentation.
+Planned: v0.4.0 taxonomy, organism list, inclusivity and exclusivity; v1.0.0 run history, yearly
+diff, Docker, documentation.
+
+## [0.3.0] - 2026-09-21
+
+Full-length re-alignment, amplicon pairing and a real specificity verdict. **The pruning rules that
+avoid re-aligning every BLAST hit (`scripts/validate_assessment.py`) have not been run against live
+NCBI yet** and must be before this release's verdicts are trusted; everything else was validated
+against a constructed test world plus two facts confirmed on real hits (below).
+
+### Added
+- `run` (without `--qc-only`) now performs the full pipeline by default: tiered remote BLAST search,
+  full-length re-alignment of every relevant hit, amplicon prediction, and a genuine
+  PASS/WARN/FAIL specificity verdict — not just `INCOMPLETE`. The overall verdict still ends
+  `INCOMPLETE` until exclusivity, inclusivity and run history exist (v0.4.0/v1.0.0).
+- `align/realign.py`: an affine-gap semi-global aligner (own implementation, no new dependency) for
+  fitting a whole oligo into a fetched subject window.
+- `specificity/`: turns BLAST hits into full-length binding sites and predicted products.
+  - Three site sources, most to least certain: `blast_full` (BLAST's own alignment already spans
+    the oligo), `realigned` (a fetched window re-aligned in full), `blast_partial_worst_case` (not
+    re-aligned — provably cannot reach a reportable level, or the fetch failed — assumed to match
+    as well as BLAST's own scoring allows, the risk-conservative choice).
+  - Two BLAST-scoring-derived bounds decide which partial hits can be skipped without an `efetch`
+    call: a mismatch lower bound and a clean-3'-nt cap. Both are checked against real hits by the
+    new `scripts/validate_assessment.py`, not yet run live (see above).
+  - Forward/reverse hits on the same accession, facing each other within `specificity.max_amplicon_size`,
+    are paired into predicted products and classified likely detected / amplified but not detected /
+    primer-only, depending on whether the probe also binds; genomic-DNA products are flagged for
+    RNA assays in eukaryotic targets.
+  - Duplex Tm/ΔG for a mismatched site, verified against primer3 directly (a 3'-terminal mismatch is
+    treated as an unpaired overhang: 61.6 vs 61.2 °C); priming risk is judged from mismatch
+    positions and clean-3'-nt count, never from Tm alone.
+  - A target tier without a perfect full-length hit for every oligo is a WARN: the assay's own
+    positive control is missing.
+  - Saturation, the `specificity.max_sites_per_query` cap and a failed window fetch all make the
+    result INCOMPLETE, never a silent PASS.
+- `report.html`, `results.xlsx` and the new `hits.tsv` (one row per assessed site, with alignments,
+  mismatch positions and duplex Tm/ΔG) now cover specificity and predicted products.
+- `scripts/validate_assessment.py`: samples real BLAST hits of one tier, re-aligns them over the
+  full oligo (including hits the assessment would skip), and reports every case where reality
+  contradicts a pruning bound, plus the number of `efetch` calls a real run makes.
+- Real minus-strand NCBI hit data as a test fixture (`tests/fixtures/real_hits_strands.json`):
+  confirms that for a Minus hit `hit_from > hit_to`, `query_strand` is always `Plus`, and `hseq` is
+  written in the oligo's own orientation.
+- A constructed end-to-end test world (`tests/world.py`) with a real-BLAST-behaviour guard: a hit
+  cannot leave an unaligned flank where any prefix (read outward from the alignment boundary) would
+  have scored positive under BLAST's own match(+1)/mismatch(-3) scoring, because BLAST would then
+  have extended the alignment over it.
+- 250 tests (up from 160); `ruff check` and `ruff format --check` clean.
+
+### Changed
+- README's privacy note: a full `run` (not only `search`) now sends oligo sequences to NCBI, and
+  also sends hit accessions to E-utilities to fetch sequence windows.
+- `results.xlsx` gained "Off-target sites", "Predicted products" and "Findings" sheets.
+
+### Fixed
+- An earlier deleted `offtarget/` package name is retired for good; the current implementation is
+  `align/` + `specificity/`. (Internal only — never released.)
+
+### Known limitations
+- The pruning bounds are unverified against live NCBI (see above); until `scripts/validate_assessment.py`
+  has been run and reports no contradiction, treat specificity verdicts as provisional.
+- Amplicon pairing only expands the primary record of a BLAST hit group; sequences merged into one
+  hit by core_nt (observed: up to ~39 descriptions per hit) are not, so a product on a merged record
+  can be missed.
+- Specificity covers only the tiers actually searched (intended target, near neighbours,
+  background); the clinical organism list, inclusivity and history arrive in v0.4.0/v1.0.0.
 
 ## [0.2.1] - 2026-09-21
 

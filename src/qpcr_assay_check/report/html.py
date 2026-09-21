@@ -39,6 +39,68 @@ def _seq_html(seq: str, tail: int = 5) -> Markup:
     return Markup(f'<span class="seq">5′-{s}-3′</span>')  # noqa: S704 - content escaped above
 
 
+def _alignment_html(site: Any, tail: int = 5) -> Markup:
+    """Three-line alignment: oligo, match line, subject; mismatches marked, 3' end emphasised.
+
+    Columns belonging to the last ``tail`` oligo bases are underlined; mismatched subject bases
+    are highlighted, gaps shaded, and unaligned (not re-aligned) positions shown as dots.
+    """
+    q, s, mid = site.q_aln, site.s_aln, site.midline
+    n_oligo = sum(c != "-" for c in q)
+    seen = 0
+    lines: list[list[str]] = [[], [], []]
+    for qc, sc, mc in zip(q, s, mid.ljust(len(q)), strict=True):
+        is_tail = qc != "-" and seen >= n_oligo - tail
+        if qc != "-":
+            seen += 1
+        elif seen >= n_oligo - tail:
+            is_tail = True
+        if sc == ".":
+            klass = "un"
+        elif qc == "-" or sc == "-":
+            klass = "gp"
+        elif mc == " ":
+            klass = "mm"
+        else:
+            klass = ""
+        for row, ch, k in ((0, qc, ""), (1, mc, ""), (2, sc, klass)):
+            classes = " ".join(c for c in (k, "tail" if is_tail else "") if c)
+            ch = str(escape(ch)) if ch != " " else "&nbsp;"
+            lines[row].append(f'<span class="{classes}">{ch}</span>' if classes else ch)
+    return Markup(  # noqa: S704 - every character was escaped above
+        '<pre class="aln">'
+        f"5′ {''.join(lines[0])} 3′\n   {''.join(lines[1])}\n   {''.join(lines[2])}"
+        "</pre>"
+    )
+
+
+def _search_rows(spec: Any) -> list[dict[str, Any]]:
+    """Searches grouped by tier for the report table."""
+    tiers: dict[str, dict[str, Any]] = {}
+    for r in spec.searches:
+        t = tiers.setdefault(
+            r["tier"],
+            {
+                "tier": r["tier"], "taxids": [], "rids": [], "hits": {}, "saturated": [], "n": 0,
+                "descriptions": 0, "in_requested": 0, "other": 0, "no_taxid": 0,
+            },
+        )  # fmt: skip
+        res = r.get("restriction")
+        if res:
+            t["descriptions"] += res["n_descriptions"]
+            t["in_requested"] += res["n_taxid_in_requested"]
+            t["other"] += res["n_taxid_other"]
+            t["no_taxid"] += res["n_without_taxid"]
+        t["n"] += 1
+        t["taxids"] += [x for x in r["taxids"] if x not in t["taxids"]]
+        if r.get("rid"):
+            t["rids"].append(r["rid"])
+        for label, n in r["n_hits"].items():
+            t["hits"][label] = t["hits"].get(label, 0) + n
+        t["saturated"] += [s["label"] for s in r["saturation"] if s["saturated"]]
+    return list(tiers.values())
+
+
 def _tm(value: float | None) -> str:
     if value is None:
         return "none"
@@ -57,6 +119,7 @@ def _environment() -> Environment:
         lstrip_blocks=True,
     )
     env.filters["seq_html"] = _seq_html
+    env.filters["aln_html"] = _alignment_html
     env.filters["tm"] = _tm
     env.filters["dg"] = _dg
     return env
@@ -92,12 +155,28 @@ def render_report(result: RunResult, cfg: Config) -> str:
                 }
             )
 
+    spec = result.specificity
+    rank = {"critical": 0, "warning": 1, "minor": 2}
+    shown: list[Any] = []
+    hidden = 0
+    if spec is not None:
+        ordered = sorted(
+            spec.sites,
+            key=lambda s: (rank[s.level], s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id),
+        )
+        limit = max(cfg.specificity.report_top_sites * 2, 40)
+        shown, hidden = ordered[:limit], max(0, len(ordered) - limit)
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
         qc=result.oligo_qc,
         assay=result.assay,
         groups=groups,
+        spec=spec,
+        shown_sites=shown,
+        hidden_sites=hidden,
+        search_rows=_search_rows(spec) if spec is not None else [],
+        pending=[s for s in result.sections if s.verdict is None],
         charts=charts,
         plotly_js=Markup(_plotly_js()) if charts else "",  # noqa: S704 - bundled library
         config_yaml=yaml.safe_dump(result.config, sort_keys=False, allow_unicode=True),

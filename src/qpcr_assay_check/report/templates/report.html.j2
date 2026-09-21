@@ -74,6 +74,15 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   .verdict, table, pre, figure, .notice { break-inside: avoid; }
   h2 { break-after: avoid; } details:not([open]) > *:not(summary) { display: block; }
 }
+.s-critical, .s-likely_detected { background: var(--fail-bg); color: var(--fail); }
+.s-warning, .s-amplified_not_detected { background: var(--warn-bg); color: var(--warn); }
+.s-minor { background: var(--info-bg); color: var(--info); }
+pre.aln { font-family: var(--mono); font-size: .78rem; line-height: 1.3; margin: .2rem 0 0; padding: 0; border: 0; background: none; overflow-x: auto; white-space: pre; }
+.aln .mm { background: var(--fail-bg); color: var(--fail); font-weight: 700; }
+.aln .gp { background: var(--warn-bg); }
+.aln .un { color: var(--muted); }
+.aln .tail { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+td.aln-cell { min-width: 22rem; }
 </style>
 {% if plotly_js %}<script>{{ plotly_js }}</script>{% endif %}
 </head>
@@ -209,13 +218,94 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 </tbody></table></div>
 {% endif %}
 
+{% if spec %}
+<h2>Specificity</h2>
+<p>{{ chip(spec.verdict_sites.value) }} off-target primer and probe sites &nbsp; {{ chip(spec.verdict_amplicons.value) }} predicted off-target products</p>
+<div class="notice"><p><strong>Scope.</strong> {{ spec.scope }} This verdict covers only what was searched and says nothing about organisms outside those tiers.</p></div>
+
+<h3>Rationale</h3>
+<ul>
+{% for f in spec.findings %}
+  <li>{{ chip(f.severity) }} {{ f.message }}</li>
+{% endfor %}
+</ul>
+
+<h3>Searches</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Tier</th><th>Taxa (NCBI taxonomy ID)</th><th>Searches</th><th>Hits per query</th><th>Hit list saturated</th><th>RIDs</th></tr></thead>
+  <tbody>
+  {% for t in search_rows %}
+  <tr><td>{{ t.tier }}</td><td class="num">{{ t.taxids | join(', ') }}</td><td class="num">{{ t.n }}</td>
+    <td>{% for k, v in t.hits.items() %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+    <td>{% if t.saturated %}{{ chip('INCOMPLETE') }} {{ t.saturated | join(', ') }}{% else %}no{% endif %}</td>
+    <td class="num">{{ t.rids | join(', ') }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<div class="scroll"><table>
+  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th></tr></thead>
+  <tbody>
+  {% for c in spec.counts %}
+  <tr><td>{{ c.tier }}</td><td>{{ c.query }}</td><td class="num">{{ c.blast_hits }}</td><td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">Sites found: {{ spec.n_sites.critical }} critical, {{ spec.n_sites.warning }} warning, {{ spec.n_sites.minor }} minor.
+  Levels follow the configured limits (mismatches, gaps and clean 3′ nucleotides). {{ spec.n_fetched }} sequence windows were used for full-length
+  re-alignment{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.</p>
+
+<h2>Predicted off-target products</h2>
+{% if spec.amplicons %}
+<div class="scroll"><table>
+  <thead><tr><th>ID</th><th>Tier</th><th>Organism / record</th><th>Position</th><th>Length</th><th>Primers</th><th>Probe</th><th>Class</th></tr></thead>
+  <tbody>
+  {% for a in spec.amplicons %}
+  <tr><td>{{ a.id }}</td><td>{{ a.tier }}</td><td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession }} ({{ a.record_type }})</span></td>
+    <td class="num">{{ a.start }}–{{ a.end }}</td><td class="num">{{ a.length }} bp</td><td>{{ a.roles }}</td>
+    <td>{{ a.probe_site or 'no site' }}</td><td>{{ chip(a.classification) }}{% if a.note %}<br><span class="meta">{{ a.note }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">A product is predicted when two primer sites of at least warning level face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp.
+  “Likely detected” means the probe also binds inside it; “amplified, not detected” means it does not.
+  {{ spec.n_primer_only }} primer site(s) at warning or critical level formed no product.</p>
+{% else %}
+<p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
+{% endif %}
+
+<h2>Closest off-target sites</h2>
+{% if shown_sites %}
+<p class="meta">Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
+  shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The 3′ end (last 5 nucleotides) is underlined.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Level</th><th>Oligo</th><th>Subject</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th></tr></thead>
+  <tbody>
+  {% for s in shown_sites %}
+  <tr><td>{{ chip(s.level) }}<br><span class="meta">{{ s.tier }}</span></td><td>{{ s.query }}</td>
+    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}<br>{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</span></td>
+    <td class="aln-cell">{{ s | aln_html }}<span class="meta">{{ {'blast_full': 'BLAST alignment', 'realigned': 'full-length re-alignment', 'blast_partial_worst_case': 'worst case (not re-aligned)'}[s.source] }}</span></td>
+    <td class="num">{{ s.n_mismatch }}{% if s.n_gap %} + {{ s.n_gap }} gap{% endif %}{% if s.n_unaligned %}<br><span class="meta">{{ s.n_unaligned }} unaligned</span>{% endif %}</td>
+    <td class="num">{{ s.clean_3prime_nt }}</td>
+    <td class="num">{% if s.tm_c is not none %}Tm {{ '%.1f' % s.tm_c }} °C<br><span class="meta">{% if s.delta_tm_c is not none %}{{ '%+.1f' % s.delta_tm_c }} °C vs perfect{% endif %}</span>{% else %}–{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if hidden_sites %}<p class="meta">{{ hidden_sites }} further site(s) are listed in hits.tsv.</p>{% endif %}
+<p class="meta">Duplex Tm is a nearest-neighbour estimate of stability. A mismatch at the 3′-terminal base is treated as an unpaired overhang and barely lowers it,
+  although it usually prevents extension: judge priming from the mismatch and 3′ columns, not from Tm.</p>
+{% else %}
+<p>No site with enough identical bases to be relevant was found in the searched off-target tiers.</p>
+{% endif %}
+{% endif %}
+
+{% if pending %}
 <h2>Not yet evaluated</h2>
 <div class="notice">
-  <p>This version of qpcr-assay-check evaluates oligo quality only. Specificity against public sequence
-    data, off-target amplicons, exclusivity, inclusivity and comparison with earlier runs arrive in later releases
-    (see the sections table). <strong>No sequence has been searched against any database in this record</strong>,
-    and no data was sent to NCBI{% if r.network_used %} (this run used the network){% endif %}.</p>
+  <p>The following parts of the evaluation were not performed in this record, so the overall verdict cannot be a pass:</p>
+  <ul>{% for s in pending %}<li>{{ s.title }}: {{ s.note }}</li>{% endfor %}</ul>
+  <p>{% if r.network_used %}This run sent the oligo sequences to NCBI (see Methods).{% else %}No sequence was searched against any database in this run, and no data was sent to NCBI.{% endif %}</p>
 </div>
+{% endif %}
 
 <h2>Methods</h2>
 <div class="scroll"><table><tbody>
@@ -226,7 +316,19 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <tr><th scope="row">Structures</th><td>primer3 thermodynamic alignment (hairpin, homodimer, heterodimer, 3′-end) at {{ r.config.reaction.annealing_temp_C }} °C</td></tr>
   <tr><th scope="row">3′ end stability</th><td>Sum of SantaLucia (1998) nearest-neighbour ΔG°37 over the last five nucleotides (informational)</td></tr>
   <tr><th scope="row">Run mode</th><td>{{ r.mode }}</td></tr>
+  {% if spec %}
+  {% set bp = spec.parameters.blast %}
+  <tr><th scope="row">Database searched</th><td>{{ spec.parameters.databases | join(', ') or 'not reported' }}; {{ spec.parameters.blast_versions | join(', ') }}</td></tr>
+  <tr><th scope="row">BLAST parameters</th><td>{% for k, v in bp.items() %}{{ k }} = {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+  <tr><th scope="row">Taxon restriction check</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none{% if not loop.last %}<br>{% endif %}{% endfor %}<br>
+    <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight; a lineage-based check is planned for v0.4.0.</span></td></tr>
+  <tr><th scope="row">Re-alignment</th><td>Semi-global, affine gaps: match {{ spec.parameters.alignment.match }}, mismatch {{ spec.parameters.alignment.mismatch }},
+    gap {{ spec.parameters.alignment.gap_open }} + {{ spec.parameters.alignment.gap_extend }} per base; partial hits completed from sequence windows fetched with E-utilities efetch ({{ spec.parameters.window_padding_nt }} nt padding)</td></tr>
+  <tr><th scope="row">Search and RIDs</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.rids | join(', ') }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+  <tr><th scope="row">Data sent to NCBI</th><td>The oligo sequences (forward, reverse, probe and any expanded degenerate variants) and the taxon restrictions above.</td></tr>
+  {% else %}
   <tr><th scope="row">Database, BLAST parameters, RIDs</th><td>Not applicable: no database search was performed</td></tr>
+  {% endif %}
 </tbody></table></div>
 <details>
   <summary>Effective configuration (thresholds and conditions applied)</summary>
@@ -241,6 +343,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   the same oligo can be flagged at one annealing temperature and not at another. Modified probes (MGB, LNA, ZEN and
   similar) are not modelled. These results describe the oligo sequences only: nothing here says how the assay behaves
   against real specimens or real off-target sequences.</p>
+{% if spec %}
+<ul>{% for text in spec.limitations %}<li>{{ text }}</li>{% endfor %}</ul>
+{% endif %}
 
 <h2>Required statements</h2>
 <div class="notice">

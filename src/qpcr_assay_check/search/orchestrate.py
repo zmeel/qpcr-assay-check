@@ -41,6 +41,7 @@ class SearchRecord(BaseModel):
     blast_version: str | None
     database: str | None
     n_hits: dict[str, int]
+    perfect_full_length: dict[str, int] = Field(default_factory=dict)
     saturation: list[QuerySaturation]
     restriction: RestrictionSummary | None
 
@@ -67,6 +68,18 @@ class SearchOutcome(BaseModel):
         is assessed with time windows instead.
         """
         return any(s.saturated for r in self.searches if r.tier != "target" for s in r.saturation)
+
+
+def _perfect(results: list[QueryResult], queries: dict[str, str]) -> dict[str, int]:
+    """Hits with an alignment covering the whole oligo without a single mismatch or gap."""
+    out: dict[str, int] = {}
+    for q in results:
+        n = len(queries[q.label])
+        out[q.label] = sum(
+            any(h.identity == n and h.align_len == n and h.gaps == 0 for h in hit.hsps)
+            for hit in q.hits
+        )
+    return out
 
 
 def _rows(tier: str, parsed: ParsedSearch) -> list[list[Any]]:
@@ -101,6 +114,8 @@ def run_search(
     *,
     inputs_hash: str,
     now: datetime | None = None,
+    keep: dict[str, ParsedSearch] | None = None,
+    keep_tiers: set[str] | None = None,
 ) -> SearchOutcome:
     """Execute every planned search (resuming where possible) and write the outputs."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -115,6 +130,8 @@ def run_search(
         parsed = parse_blast_json(raw, ps.labels)
         if parsed.version:
             versions.add(parsed.version)
+        if keep is not None and (keep_tiers is None or ps.tier in keep_tiers):
+            keep[ps.key] = parsed
         results: list[QueryResult] = list(parsed.queries.values())
         records.append(
             SearchRecord(
@@ -128,6 +145,7 @@ def run_search(
                 blast_version=parsed.version,
                 database=parsed.database,
                 n_hits={q.label: len(q.hits) for q in results},
+                perfect_full_length=_perfect(results, plan.queries),
                 saturation=[
                     assess_saturation(
                         q, cfg.search.hitlist_size, cfg.search.relevance.min_identical_bases
