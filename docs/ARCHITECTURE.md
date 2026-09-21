@@ -1,7 +1,8 @@
 # Architecture
 
-Status: v0.1.0 implements steps 1, 2 and the offline part of 5 (see the roadmap). Everything else in
-this document is the agreed design for later releases.
+Status: v0.2.0 implements steps 1, 2, the remote client and search planning of steps 3-5 (BLAST
+submission, polling, fetching, parsing, saturation). Everything else in this document is the agreed
+design for later releases.
 
 ## Data flow
 
@@ -38,7 +39,7 @@ this document is the agreed design for later releases.
 | Version | Content |
 |---|---|
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
-| 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser |
+| 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing |
 | 0.4.0 | Taxonomy, organism list, inclusivity, exclusivity |
 | 1.0.0 | Run history, yearly diff, complete report, Docker, documentation |
@@ -74,11 +75,25 @@ this document is the agreed design for later releases.
 - RIDs are stable for 36 hours (NCBI training material, not the API page).
 - E-utilities: 3 requests/s without an API key, 10 with one.
 
-### Not yet verified (checked by `scripts/smoke_test.py`, from v0.2.0)
+### Implemented in v0.2.0 on the basis of the above
+
+- Short-oligo parameters: word size 7, E-value 1000, `FILTER=F`, reward 1 / penalty -3, `core_nt`.
+  Gap costs 5/2 are assumed to be valid for reward 1 / penalty -3; that is unverified, and the
+  smoke test checks that the server accepts them.
+- One multi-FASTA submission per tier and batch (at most 1,000 bases), as NCBI recommends.
+- Taxon restriction through `ENTREZ_QUERY` with `txid<ID>[ORGN]` terms joined by `OR`; chunked to
+  `search.max_taxids_per_search` because the real limit is unknown.
+- Result format `JSON2_S`, parsed defensively; the layout is taken from the documented BLAST
+  JSON2 format and has not been validated against real output.
+
+### Not yet verified (checked by `scripts/smoke_test.py`)
 
 Whether `ENTREZ_QUERY` is still honoured; the number of taxa an Entrez query can hold; the maximum
 `HITLIST_SIZE` via the URL API; valid `GAPCOSTS` for reward/penalty 1,-3; the semantics of the `_S`
 formats; the ESearch UID cap for nuccore; the behaviour of `[PDAT]` for nuccore.
+
+Also unverified: that `HITLIST_SIZE` counts the same units as the hits in a JSON2 report (merged
+identical sequences may make the list look shorter than requested).
 
 The NCBI Taxonomy page announces that the legacy Taxonomy Browser will be replaced by the NCBI
 Datasets Taxonomy Browser in Fall 2026. That concerns the web interface; whether the Entrez

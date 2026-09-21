@@ -56,5 +56,41 @@ thresholds:
     allow_probe_primer_overlap: false
     max_site_mismatches: 2                   # tolerated when locating oligos in the amplicon
 
+ncbi:
+  # NCBI credentials are NEVER read from configuration: use the NCBI_EMAIL (required for any
+  # network use) and NCBI_API_KEY (optional) environment variables.
+  tool: qpcr-assay-check
+  blast_url: https://blast.ncbi.nlm.nih.gov/Blast.cgi
+  eutils_url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils
+  request_timeout_s: 120
+  max_retries: 5
+  backoff_base_s: 2.0              # exponential: 2, 4, 8, ... seconds (plus jitter)
+  blast_min_interval_s: 10         # NCBI: contact the BLAST server at most once per 10 s
+  poll_interval_s: 60              # NCBI: poll a given RID at most once per minute
+  max_wait_minutes: 120            # give up waiting (the job stays resumable)
+  rid_lifetime_hours: 36           # NCBI keeps results for about 36 h; older jobs are resubmitted
+  blast_cache_ttl_days: 7          # BLAST results are only reused within a run / a resume
+  taxonomy_cache_ttl_days: 30
+  cache_dir: null                  # null = per-user cache directory
+
+search:
+  # Short-oligo BLAST settings (see docs/ARCHITECTURE.md for the NCBI documentation they follow).
+  program: blastn
+  database: core_nt
+  word_size: 7
+  expect: 1000
+  filter: "F"                      # low-complexity filtering off
+  reward: 1
+  penalty: -3
+  gap_open: 5                      # assumed valid with reward 1 / penalty -3 (smoke test checks)
+  gap_extend: 2
+  hitlist_size: 5000               # maximum via the URL API is unverified; the smoke test checks it
+  result_format: JSON2_S
+  max_taxids_per_search: 20        # conservative until the smoke test verifies the real limit
+  max_searches_warn: 50            # NCBI asks for off-peak scheduling above this
+  background_taxids: [9606]        # human; add your own background taxa
+  relevance:
+    min_identical_bases: 14        # a hit with fewer identical bases is not a relevant off-target
+
 report:
   include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)

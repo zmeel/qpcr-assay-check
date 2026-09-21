@@ -212,6 +212,70 @@ class Thresholds(_Strict):
     amplicon: AmpliconThresholds
 
 
+class NcbiSettings(_Strict):
+    """Network behaviour towards NCBI. Credentials come from the environment, never from here."""
+
+    tool: str
+    blast_url: str
+    eutils_url: str
+    request_timeout_s: float
+    max_retries: int
+    backoff_base_s: float
+    blast_min_interval_s: float
+    poll_interval_s: float
+    max_wait_minutes: float
+    rid_lifetime_hours: float
+    blast_cache_ttl_days: float
+    taxonomy_cache_ttl_days: float
+    cache_dir: str | None
+
+    @model_validator(mode="after")
+    def _etiquette(self) -> NcbiSettings:
+        if self.blast_min_interval_s < 10:
+            raise ValueError("blast_min_interval_s must be at least 10 (NCBI usage guideline)")
+        if self.poll_interval_s < 60:
+            raise ValueError("poll_interval_s must be at least 60 (NCBI usage guideline)")
+        if self.max_retries < 0 or self.backoff_base_s <= 0:
+            raise ValueError("max_retries must be >= 0 and backoff_base_s > 0")
+        return self
+
+
+class RelevanceSettings(_Strict):
+    """When is a hit relevant enough that missing it would matter?"""
+
+    min_identical_bases: int
+
+
+class SearchSettings(_Strict):
+    """BLAST parameters and search planning."""
+
+    program: Literal["blastn"]
+    database: str
+    word_size: Literal[7, 11, 15]
+    expect: float
+    filter: str
+    reward: int
+    penalty: int
+    gap_open: int
+    gap_extend: int
+    hitlist_size: int
+    result_format: Literal["JSON2_S", "JSON2", "XML2_S", "XML2"]
+    max_taxids_per_search: int
+    max_searches_warn: int
+    background_taxids: list[int]
+    relevance: RelevanceSettings
+
+    @model_validator(mode="after")
+    def _sane(self) -> SearchSettings:
+        if self.hitlist_size < 1 or self.max_taxids_per_search < 1:
+            raise ValueError("hitlist_size and max_taxids_per_search must be >= 1")
+        if self.reward <= 0 or self.penalty >= 0:
+            raise ValueError("reward must be positive and penalty negative")
+        if any(t <= 0 for t in self.background_taxids):
+            raise ValueError("background_taxids must be positive integers")
+        return self
+
+
 class ReportSettings(_Strict):
     """Report rendering options."""
 
@@ -225,6 +289,8 @@ class Config(_Strict):
     reaction: ReactionConditions
     oligo: OligoSettings
     thresholds: Thresholds
+    ncbi: NcbiSettings
+    search: SearchSettings
     report: ReportSettings
 
     @property

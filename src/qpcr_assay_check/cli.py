@@ -15,8 +15,8 @@ from . import __version__
 from .config import default_config_text, format_validation_error, load_config
 from .errors import InputError, QpcrAssayCheckError
 from .models import Assay
-from .pipeline import evaluate, write_outputs
-from .verdict import EXIT_INPUT_ERROR
+from .pipeline import evaluate, inputs_hash, write_outputs
+from .verdict import EXIT_CODES, EXIT_INPUT_ERROR, EXIT_NCBI_ERROR, Verdict
 
 app = typer.Typer(
     name="qpcr-assay-check",
@@ -232,3 +232,119 @@ def init(
             _fail(f"{target} already exists (use --force to overwrite).", 1)
         target.write_text(text, encoding="utf-8")
         typer.echo(f"Wrote {target}")
+
+
+def _describe_plan(plan: Any) -> list[str]:
+    lines = ["Oligo sequences that would be sent to NCBI (BLAST, database core_nt):"]
+    lines += [f"  {label:12} {seq}" for label, seq in plan.queries.items()]
+    lines.append(f"Planned searches: {len(plan.searches)}")
+    for ps in plan.searches:
+        where = ps.entrez_query or "(no taxon restriction)"
+        lines.append(f"  - {ps.label}: {where}")
+    lines += [f"Note: {n}" for n in plan.notes]
+    lines += [f"WARNING: {w}" for w in plan.warnings]
+    return lines
+
+
+@app.command()
+def search(
+    assay_file: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Assay YAML file.")
+    ],
+    config: Annotated[
+        Path | None, typer.Option("--config", "-c", help="Configuration YAML.")
+    ] = None,
+    outdir: Annotated[Path, typer.Option("--outdir", "-o", help="Base output directory.")] = Path(
+        "results"
+    ),
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Show what would be sent to NCBI; send nothing.")
+    ] = False,
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Do not ask before sending oligos to NCBI.")
+    ] = False,
+    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="More logging.")] = 0,
+) -> None:
+    """Run the tiered remote BLAST searches and write hits.tsv and search.json.
+
+    Needs NCBI_EMAIL (and optionally NCBI_API_KEY) in the environment. The oligo sequences are
+    sent to NCBI. Interrupted runs resume when you run the same command again. Exit codes:
+    0 complete, 10 complete but a hit list is saturated, 64 invalid input, 70 NCBI problem
+    (resumable).
+    """
+    from .ncbi.blast import BlastApi
+    from .ncbi.cache import Cache
+    from .ncbi.eutils import Eutils  # noqa: F401 - imported to fail early if broken
+    from .ncbi.http import NcbiError, NcbiHttp
+    from .ncbi.jobs import JobStore
+    from .ncbi.runner import BlastRunner
+    from .ncbi.settings import credentials_from_env
+    from .search.orchestrate import run_search
+    from .search.planner import plan_searches
+
+    _setup_logging(verbose)
+    try:
+        cfg = load_config(config)
+        assay = build_assay(assay_file, {})
+        plan = plan_searches(assay, cfg)
+    except QpcrAssayCheckError as exc:
+        _fail(str(exc))
+        return
+    for line in _describe_plan(plan):
+        typer.echo(line)
+    if not plan.searches:
+        _fail("Nothing to search: give the assay a target taxid or configure background taxa.")
+        return
+    if dry_run:
+        typer.echo("Dry run: nothing was sent to NCBI.")
+        return
+
+    digest = inputs_hash(assay, cfg)
+    search_dir = outdir / assay.slug / f"search-{digest[:8]}"
+    try:
+        creds = credentials_from_env()
+        store = JobStore(search_dir / "jobs.json")
+        http = NcbiHttp(cfg.ncbi, creds)
+        runner = BlastRunner(
+            BlastApi(http, cfg.ncbi.blast_url),
+            Cache(cfg.ncbi.cache_dir),
+            store,
+            cfg.ncbi,
+            cfg.search.result_format,
+        )
+        from .ncbi.jobs import Job
+
+        fresh = [
+            ps
+            for ps in plan.searches
+            if runner.needs_submission(
+                store.jobs.get(ps.key)
+                or Job(
+                    key=ps.key, tier=ps.tier, label=ps.label, taxids=ps.taxids,
+                    entrez_query=ps.entrez_query, params={}, query_labels=ps.labels,
+                )
+            )
+        ]  # fmt: skip
+        if fresh and not yes:
+            typer.echo(
+                f"{len(fresh)} search(es) will send the sequences above to NCBI's public servers."
+            )
+            try:
+                typer.confirm("Continue?", abort=True)
+            except typer.Abort:
+                _fail("Aborted. Nothing was sent to NCBI (use --yes to skip this question).")
+                return
+        outcome = run_search(plan, cfg, runner, store, search_dir, inputs_hash=digest)
+    except NcbiError as exc:
+        typer.echo(f"NCBI problem: {exc}", err=True)
+        raise typer.Exit(EXIT_NCBI_ERROR) from exc
+    except QpcrAssayCheckError as exc:
+        _fail(str(exc))
+        return
+
+    total = sum(sum(r.n_hits.values()) for r in outcome.searches)
+    typer.echo(f"Done: {len(outcome.searches)} search(es), {total} hits in total.")
+    for w in outcome.warnings:
+        typer.echo(f"WARNING: {w}")
+    typer.echo(f"Results written to {search_dir}")
+    raise typer.Exit(EXIT_CODES[Verdict.WARN] if outcome.saturated else 0)

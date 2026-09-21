@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+# Published oligos (see examples/cdc_2019-nCoV_N1.yaml for the verification record).
+from pathlib import Path  # noqa: E402
+
 import pytest
 
 from qpcr_assay_check.config import Config, load_config
 from qpcr_assay_check.models import Assay
 from qpcr_assay_check.oligo import iupac
 
-# Published oligos (see examples/cdc_2019-nCoV_N1.yaml for the verification record).
+ROOT_EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "cdc_2019-nCoV_N1.yaml"
 CDC_N1_F = "GACCCCAAAATCAGCGAAAT"
 CDC_N1_R = "TCTGGTTACTGCCAGTTGAATCTG"
 CDC_N1_P = "ACCCCGCATTACGTTTGGTGGACC"

@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 #: (key, title, version in which the section becomes available)
 PLANNED_SECTIONS: list[tuple[str, str, str]] = [
-    ("specificity", "Remote specificity search (NCBI BLAST, tiered)", "0.2.0"),
+    ("specificity", "Specificity assessment of off-target hits", "0.3.0"),
     ("amplicon_prediction", "Off-target amplicon prediction", "0.3.0"),
     ("exclusivity", "Exclusivity against the clinical organism list", "0.4.0"),
     ("inclusivity", "Inclusivity across the intended target (sampled)", "0.4.0"),
@@ -32,7 +32,12 @@ PLANNED_SECTIONS: list[tuple[str, str, str]] = [
 
 def inputs_hash(assay: Assay, cfg: Config) -> str:
     """SHA-256 over the canonical JSON of the assay definition and the effective config."""
-    payload = {"assay": assay.model_dump(mode="json"), "config": cfg.model_dump(mode="json")}
+    # Operational settings (timeouts, cache location, report options) do not change the science,
+    # so they must not change the hash that identifies "the same evaluation".
+    payload = {
+        "assay": assay.model_dump(mode="json"),
+        "config": cfg.model_dump(mode="json", exclude={"ncbi", "report"}),
+    }
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
