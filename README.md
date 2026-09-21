@@ -9,9 +9,10 @@ in; a detailed, reproducible, version-stamped evaluation record comes out (HTML,
 > predicts off-target products, and judges specificity — genuine `PASS`/`WARN`/`FAIL`, not just
 > `INCOMPLETE`. The overall verdict still ends as `INCOMPLETE`, because exclusivity against a
 > clinical organism list, inclusivity and yearly history are not implemented yet (v0.4.0/v1.0.0).
-> The BLAST client was checked against the live NCBI servers once (2026-09-21); the re-alignment
-> pruning rules that avoid fetching every hit have not been. See `docs/ARCHITECTURE.md` for what was
-> verified and `docs/PROGRESS.md` for what is still open.
+> The BLAST client and the re-alignment pruning rules were both checked against the live NCBI
+> servers once (2026-09-21) with no contradictions found — one assay, one tier, a sample, not an
+> exhaustive proof. See `docs/ARCHITECTURE.md` for what was verified and `docs/PROGRESS.md` for
+> what is still open.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -223,11 +224,11 @@ one minute; a human-restricted search against `core_nt` took **61 minutes**. A `
 default human background tier therefore takes roughly an hour or more. The default wait limit is
 240 minutes and interrupted searches resume.
 
-### Live validation of the specificity assessment (please run once, v0.3.0)
+### Live validation of the specificity assessment (v0.3.0)
 
 `scripts/validate_assessment.py` checks the pruning rules the specificity assessment relies on to
 avoid fetching every hit (see [Specificity assessment](#specificity-assessment-v030) above) against
-real NCBI hits, and reports how many `efetch` calls a real run makes. It has not been run yet:
+real NCBI hits, and reports how many `efetch` calls a real run makes:
 
 ```bash
 export NCBI_EMAIL="your.name@example.org"
@@ -241,6 +242,13 @@ contradicted in the sample; exit code 1 means at least one was, and the report l
 in that event the assessment's pruning must not be trusted until it is fixed. The default tier
 (`--tier background`) reuses the same search as `run`, so it can take about an hour the first time
 but is served from cache afterwards.
+
+**First live run (2026-09-21, CDC N1 example, `--tier background`):** 905 relevant alignments, 244
+ruled out without fetching, 661 needing a fetch (a real background-tier run for this assay makes
+661 `efetch` calls — this replaces an earlier unmeasured "about 1,500" guess). Sample of 80 checked
+(40 fetchable, 40 ruled out): **0 contradictions.** That covers one assay's background tier only —
+re-run it (varying `--tier` and `--sample`) for other assays or tiers, and whenever the alignment or
+pruning logic changes, rather than treating this one result as permanent proof.
 
 ## Limitations
 
@@ -258,8 +266,10 @@ but is served from cache afterwards.
 - The remote client was validated against live NCBI once, for one assay; NCBI can change formats
   or behaviour, and a parse failure ends the run as an error rather than guessing.
 - The re-alignment pruning rules (which hits can be skipped without fetching) follow from BLAST's
-  documented scoring, but have not themselves been checked against real hits; run
-  `scripts/validate_assessment.py` before relying on a specificity verdict.
+  documented scoring, and were checked live once (CDC N1, background tier, 0 contradictions in an
+  80-hit sample; see [Live validation](#live-validation-of-the-specificity-assessment-v030) above) —
+  one assay, one tier, a sample. Re-run `scripts/validate_assessment.py` for other assays or tiers
+  before relying on a specificity verdict there.
 - Amplicon pairing only expands the *primary* record of a BLAST hit group; core_nt merges identical
   sequences into one hit (observed: up to ~39 descriptions per hit), so a product on a merged
   record can be missed.
