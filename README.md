@@ -18,7 +18,8 @@ in; a detailed, reproducible, version-stamped evaluation record comes out (HTML,
 > sites and amplicons, inclusivity regressions — so the overall verdict finally reaches a genuine
 > `PASS` from a run's *second* year onward (the very first run for an assay has nothing to compare
 > against yet, so it stays `INCOMPLETE` by the same "missing evidence is never a PASS" rule as every
-> other section). A Dockerfile is also new; see [Docker](#docker-v100) below. The BLAST client, the
+> other section). A Docker image is also new and has been built and run successfully (see
+> [Docker](#docker-v100) below). The BLAST client, the
 > re-alignment pruning rules, taxonomy lineage parsing, the organism-list resolution path and the
 > inclusivity ESummary date lookup have all now been checked against the live NCBI servers (most
 > recently 2026-09-22). One negative result along the way: a live check **ruled out this project's
@@ -68,25 +69,31 @@ cd qpcr-assay-check
 docker build -t qpcr-assay-check .
 
 # write a starter assay/config into a host directory (bind-mounted as /work)
-docker run --rm -v "$PWD/work:/work" qpcr-assay-check init my-assay --example
+mkdir -p work
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/work:/work" qpcr-assay-check init my-assay --example
 
 # a full run: give NCBI_EMAIL (required) and NCBI_API_KEY (optional); -y skips the confirmation
 # prompt, which does not work in a non-interactive `docker run` without a TTY
-docker run --rm -e NCBI_EMAIL="your.name@example.org" -v "$PWD/work:/work" \
+docker run --rm --user "$(id -u):$(id -g)" -e NCBI_EMAIL="your.name@example.org" -v "$PWD/work:/work" \
   qpcr-assay-check run my-assay/assay.yaml -o results -y
 ```
 
 Everything the container writes lands under the bind-mounted `/work` directory (`results/`,
 and the NCBI cache if you point `ncbi.cache_dir` there too via `--config`); nothing persists
-inside the container itself, which runs as a non-root user. Pass `--qc-only` for a network-free
-run, or omit `-y` and run with `-it` for an interactive confirmation prompt.
+inside the container itself. The image's own default user is non-root (uid 1000, matching neither
+root nor most host users), so a bind-mounted directory created or owned by a different user on the
+host will not be writable from inside the container without one of: `--user "$(id -u):$(id -g)"`
+(shown above -- runs the container as your own host user instead) or pre-creating the host
+directory and `chown`-ing it to uid 1000 to match the image's default user. Pass `--qc-only` for a
+network-free run, or omit `-y` and run with `-it` for an interactive confirmation prompt.
 
-The image was built and its `init`/`validate`/`run --qc-only` path was verified locally
-(the sandbox this was developed in could reach PyPI to install the package into a plain
-virtualenv, confirmed to install and run correctly end to end, but could not reach Docker Hub
-through its outbound proxy to pull the `python:3.12-slim` base image itself and build/run the
-actual container). Build and run it yourself before relying on it, the same way you would for
-any new deployment.
+Built, and `init`/`run --qc-only` run end to end (2026-09-22, on a Synology NAS, Docker running as
+root): correct version string, correct `init` output, and a `run --qc-only` verdict/message
+identical to the equivalent plain-virtualenv install this was first checked against. A full
+network run against real NCBI has not been separately confirmed through the container (only the
+plain-virtualenv install has, and the container runs the identical installed package), so treat
+that combination as inheriting the same live-verification status as everything else in this
+README rather than as newly, separately confirmed.
 
 ## Quick start
 
@@ -447,10 +454,12 @@ pruning logic changes, rather than treating this one result as permanent proof.
   if the oligos themselves did not change. Off-target sites and predicted products are matched
   across runs by accession and position, which is stable for the same physical binding site but
   will register as "new" if the *reference record itself* is revised to a new accession.version.
-- **Docker**: the image was built and its `init`/`validate`/`run --qc-only` path verified in a
-  plain virtualenv (equivalent `pip install .` and entry point), but the actual container could not
-  be built in the sandbox this was developed in (no route to Docker Hub through its outbound
-  proxy). Build and run it yourself before relying on it.
+- **Docker's default user is non-root (uid 1000)**: a bind-mounted host directory not owned by
+  that uid needs `--user "$(id -u):$(id -g)"` on `docker run` (or a `chown` to uid 1000
+  beforehand), or `init`/`run` will fail with a permission error writing into it. Confirmed live
+  (2026-09-22): the image builds and `init`/`run --qc-only` produce identical output to the
+  equivalent plain-virtualenv install; a full network run against NCBI through the container has
+  not been separately confirmed (only through a plain install).
 
 ## Roadmap
 
@@ -460,7 +469,7 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
 | 0.4.0 | Taxonomy resolution, organism list, exclusivity, inclusivity |
-| **1.0.0** | Run history, yearly diff report, Docker (done, unreleased); complete report/documentation polish (open) |
+| **1.0.0** | Run history, yearly diff report, Docker (done, unreleased, Docker confirmed live); complete report/documentation polish (open) |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 

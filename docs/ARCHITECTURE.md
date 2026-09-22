@@ -13,8 +13,9 @@ out live; see "Design decisions" below). Both phase 4a's and 4b's remaining live
 have now been checked (see "Verified" sections below). v1.0.0 (implemented, not yet tagged) adds
 step 11: every run diffs itself against the most recent previous run for the same assay (found from
 the existing `results/<slug>/<run_id>/` layout, no separate index), reusing the design already
-sketched below ("History as files"). A Dockerfile is also new. Neither has been checked live/in a
-real container yet (see "Verified" below for what has and has not been confirmed).
+sketched below ("History as files"). A Dockerfile is also new, built and run successfully by the
+user (see "Verified for v1.0.0" below); the history/diff feature itself has not been checked
+against a real multi-year dataset yet (see "Still unverified" below).
 
 ## Data flow
 
@@ -317,18 +318,30 @@ otherwise, before trusting a specificity verdict on a different assay.
   (`createdate` present, `accessionversion` present). Still open: a record where `createdate` is
   absent and one of the fallback field names is needed instead has not been observed live.
 
+### Verified for v1.0.0 (Docker, live, 2026-09-22)
+
+The Docker image could not be built in the sandbox this was developed in (no route to Docker Hub
+through its outbound proxy -- both `docker pull python:3.12-slim` and `docker build` failed
+identically with an HTTP 403 from Docker's own CDN, even after installing the proxy's CA bundle
+system-wide and passing `HTTPS_PROXY`/`HTTP_PROXY` to the daemon as the environment's own guidance
+for `docker build` describes; concluded to be a genuine restriction on reaching that particular CDN
+through this proxy, not a fixable misconfiguration, and not worked around further). The user built
+and ran it themselves (Synology NAS, Docker running as root):
+
+- `docker build` succeeds; `--version` and `--help` produce the expected output.
+- **The image's default non-root user (uid 1000) cannot write to a bind-mounted host directory it
+  does not own** -- hit as a real `PermissionError` on first try (`docker run -v "$PWD/work:/work"
+  ... init ...` with the host `work/` directory owned by root). Documented in the README:
+  `--user "$(id -u):$(id -g)"` on `docker run` (what the user used successfully) or `chown`-ing the
+  host directory to uid 1000 beforehand.
+- With that fixed, `init` and `run --qc-only` both produced output identical to the plain-virtualenv
+  install this was first checked against (same verdict, same rationale message, correct files).
+- Not separately confirmed: a full network run against real NCBI *through the container specifically*
+  (only the plain-virtualenv install's network path has been exercised) -- expected to work
+  identically since the container runs the same installed package, but not itself observed.
+
 ### Still unverified for v1.0.0
 
-- **The Docker image itself has not been built or run.** `Dockerfile` was written and reviewed, and
-  the same `pip install .` + console-script entry point it relies on was verified end to end in a
-  plain virtualenv (`init` → `validate` → `run --qc-only`, correct output files, correct exit code),
-  but the sandbox this was developed in has no route to Docker Hub through its outbound proxy (both
-  `docker pull python:3.12-slim` and `docker build` failed identically with an HTTP 403 from
-  Docker's own CDN, even after installing the proxy's CA bundle system-wide and passing
-  `HTTPS_PROXY`/`HTTP_PROXY` to the daemon as the environment's own guidance for `docker build`
-  describes -- concluded to be a genuine restriction on reaching that particular CDN through this
-  proxy, not a fixable misconfiguration, and not worked around further). Build and run the actual
-  image before relying on it.
 - **The history/diff feature has not been checked against a real multi-year dataset**, only the
   constructed test world and hand-built unit fixtures (`tests/test_history.py`,
   `tests/test_run_full.py::test_history_diff_across_two_runs`). The natural-key matching logic
