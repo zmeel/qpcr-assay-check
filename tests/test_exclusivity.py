@@ -106,3 +106,38 @@ def test_a_tier_that_was_never_searched_is_incomplete_not_a_pass():
 def test_no_resolution_at_all_is_an_empty_incomplete_report():
     out = build_exclusivity(None, [], [], SEV, tier_searched=False)
     assert out.rows == [] and out.n_organisms == 0 and out.verdict is Verdict.INCOMPLETE
+
+
+TARGET = 2697049  # e.g. SARS-CoV-2: a common organism-list entry that can also be the target
+
+
+def test_the_assay_s_own_target_is_flagged_not_treated_as_an_off_target_hit():
+    """A live run found: when the target organism is also in the clinical organism list (a
+    respiratory panel listing SARS-CoV-2 alongside a SARS-CoV-2 assay's other targets), its own
+    perfect, intended match was reported as a critical off-target site -- a false FAIL. The row
+    must still appear (never silently dropped), but flagged and excluded from the verdict."""
+    res = resolution(
+        Resolution(
+            name="Severe acute respiratory syndrome coronavirus 2",
+            status="resolved",
+            taxid=TARGET,
+        ),
+        Resolution(name="Chlamydia trachomatis", status="resolved", taxid=CT),
+    )
+    # even if evidence for the target taxid were somehow present (defence in depth -- the real
+    # fix is that search/execute.py never searches for it), it must not count.
+    sites = [site(TARGET, "forward", "critical"), site(CT, "forward", "critical")]
+    out = build_exclusivity(res, sites, [], SEV, tier_searched=True, target_taxid=TARGET)
+    by_name = {row.organism: row for row in out.rows}
+    target_row = by_name["Severe acute respiratory syndrome coronavirus 2"]
+    assert target_row.is_target is True
+    assert target_row.n_sites == 0
+    assert target_row.best_site_level is None
+    assert by_name["Chlamydia trachomatis"].is_target is False
+    assert by_name["Chlamydia trachomatis"].n_sites == 1
+
+
+def test_without_a_target_taxid_no_row_is_flagged():
+    res = resolution(Resolution(name="Chlamydia trachomatis", status="resolved", taxid=CT))
+    out = build_exclusivity(res, [], [], SEV, tier_searched=True, target_taxid=None)
+    assert all(not row.is_target for row in out.rows)

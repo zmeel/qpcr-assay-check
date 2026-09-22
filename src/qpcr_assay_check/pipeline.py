@@ -125,12 +125,19 @@ def evaluate(
             specificity.amplicons,
             cfg.specificity.severity,
             tier_searched=tier_searched,
+            target_taxid=assay.target.taxid,
         )
         n_hit = sum(1 for r in exclusivity.rows if r.n_sites)
         note = f"{exclusivity.n_resolved}/{exclusivity.n_organisms} organism name(s) resolved"
         note += f"; {n_hit} had at least one relevant hit." if exclusivity.n_resolved else "."
         if exclusivity.unresolved:
             note += f" {len(exclusivity.unresolved)} name(s) not resolved (see rationale)."
+        n_target = sum(1 for r in exclusivity.rows if r.is_target)
+        if n_target:
+            note += (
+                f" {n_target} name(s) are the assay's own intended target and were excluded "
+                "from this search."
+            )
         if not tier_searched:
             note = "The exclusivity tier was not searched in this run."
         sections.append(

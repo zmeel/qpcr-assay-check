@@ -60,8 +60,14 @@ def _resolve_and_plan(
     excl_unresolved = 0
     if only_tiers is None or "exclusivity" in only_tiers:
         resolution = resolve_organism_list(cfg, Eutils(http, cfg.ncbi.eutils_url), cache)
-        excl_taxids = resolution.taxids
         excl_unresolved = len(resolution.unresolved)
+        # The organism list may legitimately include the assay's own intended target (e.g. a
+        # respiratory panel listing SARS-CoV-2 alongside the pathogens a SARS-CoV-2 assay is
+        # checked against). Searching for it here would only ever find the assay's own perfect,
+        # intended match -- not evidence of cross-reactivity -- so it is excluded from this tier's
+        # own search; taxonomy/exclusivity.py still shows the organism-list row, flagged, rather
+        # than silently dropping it.
+        excl_taxids = [t for t in resolution.taxids if t != assay.target.taxid]
     plan = plan_searches(
         assay, cfg, exclusivity_taxids=excl_taxids, exclusivity_unresolved=excl_unresolved
     )

@@ -193,6 +193,14 @@ it runs automatically before the confirmation prompt without needing `--yes`; de
 no sequences (see `--dry-run`, which shows the organism-list name count but resolves nothing, since
 resolution needs `NCBI_EMAIL`).
 
+If the organism list also happens to include the assay's own intended target — a respiratory panel
+that lists SARS-CoV-2 alongside the other pathogens a SARS-CoV-2 assay is checked against, for
+example — that entry is automatically excluded from the exclusivity search: searching for it there
+could only ever find the assay's own perfect, intended match, not evidence of cross-reactivity. The
+organism-list row is still shown (never silently dropped), marked as the assay's own target rather
+than given a `0` sites / `none` result that would otherwise look identical to a genuinely clean
+finding.
+
 ### Inclusivity across the intended target (v0.4.0)
 
 A full `run` also gives a year-by-year trend of how well the oligos still match the intended

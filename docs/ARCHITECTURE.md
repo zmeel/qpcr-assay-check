@@ -124,6 +124,14 @@ against a real multi-year dataset yet (see "Still unverified" below).
 - **A tier that was never searched is INCOMPLETE, not a silent PASS**: if every organism-list name
   fails to resolve, the exclusivity section still renders, explains why, and does not count as
   evidence of exclusivity.
+- **The assay's own target taxid is excluded from the exclusivity search** (found live, v1.0.0):
+  the packaged organism list can legitimately include the assay's own target organism (e.g. a
+  respiratory panel lists SARS-CoV-2 alongside the other pathogens a SARS-CoV-2 assay is checked
+  against). Searching it under "exclusivity" would only ever find the assay's own perfect,
+  intended match -- not evidence of cross-reactivity -- so `search/execute.py` filters
+  `assay.target.taxid` out of the resolved taxids before they reach the exclusivity search. The
+  organism-list row is still shown (never silently dropped), flagged via
+  `ExclusivityRow.is_target`, with no site/amplicon evidence populated for it even defensively.
 - **Species/genus/family aggregation is generic, not exclusivity-specific** (`taxonomy/rollup.py`):
   it runs over every off-target site regardless of tier, because SPEC.md step 6 ("taxonomy
   annotation of hits") is not scoped to exclusivity alone. A lineage-fetch failure degrades this
@@ -336,9 +344,40 @@ and ran it themselves (Synology NAS, Docker running as root):
   host directory to uid 1000 beforehand.
 - With that fixed, `init` and `run --qc-only` both produced output identical to the plain-virtualenv
   install this was first checked against (same verdict, same rationale message, correct files).
-- Not separately confirmed: a full network run against real NCBI *through the container specifically*
-  (only the plain-virtualenv install's network path has been exercised) -- expected to work
-  identically since the container runs the same installed package, but not itself observed.
+- A full network run against real NCBI, through the container, also completed successfully (see
+  next section for what it found).
+
+### Verified for v1.0.0 (first full live `run`, through Docker, 2026-09-22)
+
+The user's first full `run` (CDC N1 example, packaged organism list, background tier included)
+completed end to end through the container and surfaced a real, significant bug, not a config or
+environment issue:
+
+- **The exclusivity tier had no exclusion for the assay's own target taxid.** The packaged
+  organism list includes "Severe acute respiratory syndrome coronavirus 2" (a respiratory panel
+  reasonably tests for it alongside other pathogens) — which is also the CDC N1 example's own
+  target (`taxid 2697049`). Without an exclusion, the exclusivity tier's search restricted to that
+  taxid (among ~39 others) could only ever find the assay's own perfect, intended match, and every
+  one of those matches was reported as a critical off-target site or a "likely detected" predicted
+  product — dominating the run: 4025 critical primer sites, 2000 critical probe sites, 343
+  "likely detected" predicted products, all with 0 mismatches (`+0.0 °C vs perfect`) against
+  records explicitly titled "Severe acute respiratory syndrome coronavirus 2". This alone flipped
+  the overall verdict from what should have been closer to a real (background-tier) `WARN` into a
+  dramatic, misleading `FAIL`.
+- **Fixed**: `search/execute.py` now filters `assay.target.taxid` out of the resolved exclusivity
+  taxids before they reach the search planner, so this tier is never asked to find the assay's own
+  target. The organism-list row for it is still shown (never silently dropped, per the project's
+  own "never present a sample as the full population" rule) — `ExclusivityRow.is_target` flags it,
+  and no site/amplicon evidence is populated for it, defensively, even if some were somehow present.
+- Everything else in that first full run looked as expected and not itself concerning: real
+  human-background hits (24 critical, 71 warning primer sites — the CDC N1 forward/reverse primers
+  do have some homology to the human genome, a known, documented finding for this published assay,
+  not new), the hit-list saturating for the (now-smaller, ~38-organism) exclusivity tier at the
+  configured `max_sites_per_query` per search chunk, and `Mycobacterium chelonae` still the one
+  unresolved organism-list name (consistent with earlier live runs).
+- **Not yet re-verified**: a fresh full run with the fix applied, to confirm the corrected verdict
+  looks sane end to end (the fix was implemented and unit/CLI-tested against a constructed world
+  reproducing the exact bug, but not re-run against live NCBI data after the fix).
 
 ### Still unverified for v1.0.0
 

@@ -220,8 +220,9 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ["Organism", "Resolution", "Taxonomy ID", "Sites", "Best site", "Best level",
              "Predicted product"],
             [
-                [row.organism, row.resolution, row.taxid or "", row.n_sites,
-                 row.best_site_id or "", row.best_site_level or "",
+                [row.organism,
+                 "target (excluded)" if row.is_target else row.resolution,
+                 row.taxid or "", row.n_sites, row.best_site_id or "", row.best_site_level or "",
                  row.amplicon_classification or ("no" if not row.amplicon_predicted else "")]
                 for row in excl.rows
             ],
