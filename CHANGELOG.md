@@ -6,8 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-v1.0.0: run history and a yearly diff report, and a Docker image. Documentation polish remains
-before this is tagged.
+## [1.0.0] - 2026-09-22
+
+Run history and a yearly diff report, and a Docker image.
+
+**Live validation (2026-09-22):** the Docker image was built and run by the user on their own
+hardware (build, `--version`, `--help`, `init`, `run --qc-only`, and a full network run against
+real NCBI all confirmed working). That first full run surfaced a real bug -- the exclusivity tier
+had no exclusion for the assay's own target taxid, so a respiratory-panel organism list that also
+lists the assay's own target (e.g. SARS-CoV-2) reported the assay's own perfect match as an
+off-target FAIL -- fixed, then re-verified live on the same assay: predicted off-target products
+dropped from 500 to 0, and the new history/diff feature correctly attributed the change to the
+fix (6028 sites and 500 products "no longer found"). This is also the first live confirmation of
+history/diff itself, across that same two-run pair. See `docs/ARCHITECTURE.md` and
+`docs/PROGRESS.md` for the full account.
 
 ### Added
 - **Run history and diff** (SPEC.md step 11): every full `run` now finds the most recently
