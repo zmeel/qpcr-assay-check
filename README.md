@@ -4,30 +4,34 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v0.4.0 (alpha, tagged 2026-09-22) plus v1.0.0 work in progress.** A full `run` sends
-> the oligos to NCBI (tiered, taxon-restricted remote BLAST), fetches the subject window and
-> re-aligns the whole oligo over every relevant hit, predicts off-target products, and judges
-> specificity — genuine `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to
-> NCBI taxonomy IDs (never guessed) and searched as a real **exclusivity** tier against a starter
-> clinical organism list, with its own per-organism table, plus a species/genus/family breakdown of
-> every off-target hit; and **inclusivity** gives a year-by-year trend of how well the oligos still
-> match the intended target, built by reusing the target tier's own search and bucketing its hits
-> into years afterwards (see below for why, not a separate date-restricted BLAST search). **New, not
-> yet released as a tagged version:** every run now compares itself against the most recent previous
-> run for the same assay and reports what changed — verdict changes, new or resolved off-target
-> sites and amplicons, inclusivity regressions — so the overall verdict finally reaches a genuine
-> `PASS` from a run's *second* year onward (the very first run for an assay has nothing to compare
-> against yet, so it stays `INCOMPLETE` by the same "missing evidence is never a PASS" rule as every
-> other section). A Docker image is also new and has been built and run successfully (see
-> [Docker](#docker-v100) below). The BLAST client, the
-> re-alignment pruning rules, taxonomy lineage parsing, the organism-list resolution path and the
-> inclusivity ESummary date lookup have all now been checked against the live NCBI servers (most
-> recently 2026-09-22). One negative result along the way: a live check **ruled out this project's
-> originally planned inclusivity design** — combining `ENTREZ_QUERY` taxon restriction with a
-> `[PDAT]` date filter in one BLAST call does not reliably restrict by date — so inclusivity was
-> redesigned around reusing the target tier's search instead (see `docs/ARCHITECTURE.md`). See
-> `docs/ARCHITECTURE.md` for everything verified so far and `docs/PROGRESS.md` for what is still
-> open.
+> **Status: v1.0.0 (alpha, tagged 2026-09-22).** A full `run` sends the oligos to NCBI (tiered,
+> taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
+> every relevant hit, predicts off-target products, and judges specificity — genuine
+> `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
+> (never guessed) and searched as a real **exclusivity** tier against a starter clinical organism
+> list, with its own per-organism table, plus a species/genus/family breakdown of every off-target
+> hit; **inclusivity** gives a year-by-year trend of how well the oligos still match the intended
+> target, built by reusing the target tier's own search and bucketing its hits into years
+> afterwards (see below for why, not a separate date-restricted BLAST search); and every run now
+> compares itself against the most recent previous run for the same assay and reports what changed
+> — verdict changes, new or resolved off-target sites and amplicons, inclusivity regressions — so
+> the overall verdict finally reaches a genuine `PASS` from a run's *second* year onward (the very
+> first run for an assay has nothing to compare against yet, so it stays `INCOMPLETE` by the same
+> "missing evidence is never a PASS" rule as every other section). A Docker image is also
+> available (see [Docker](#docker-v100) below). The BLAST client, the re-alignment pruning rules,
+> taxonomy lineage parsing, the organism-list resolution path, the inclusivity ESummary date
+> lookup, the Docker image, and now the history/diff feature have all been checked against the
+> live NCBI servers or run live by the user (most recently 2026-09-22). That first full live run
+> through Docker found and led to fixing a real bug — the exclusivity tier had no exclusion for the
+> assay's own target taxid, so a respiratory-panel organism list that also lists the assay's own
+> target (e.g. SARS-CoV-2) reported the assay's own perfect match as an off-target `FAIL` — since
+> re-verified live: predicted off-target products dropped from 500 to 0, correctly attributed by
+> the new history/diff feature. One earlier negative result along the way: a live check **ruled
+> out this project's originally planned inclusivity design** — combining `ENTREZ_QUERY` taxon
+> restriction with a `[PDAT]` date filter in one BLAST call does not reliably restrict by date —
+> so inclusivity was redesigned around reusing the target tier's search instead (see
+> `docs/ARCHITECTURE.md`). See `docs/ARCHITECTURE.md` for everything verified so far and
+> `docs/PROGRESS.md` for what is still open.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -87,13 +91,11 @@ host will not be writable from inside the container without one of: `--user "$(i
 directory and `chown`-ing it to uid 1000 to match the image's default user. Pass `--qc-only` for a
 network-free run, or omit `-y` and run with `-it` for an interactive confirmation prompt.
 
-Built, and `init`/`run --qc-only` run end to end (2026-09-22, on a Synology NAS, Docker running as
-root): correct version string, correct `init` output, and a `run --qc-only` verdict/message
-identical to the equivalent plain-virtualenv install this was first checked against. A full
-network run against real NCBI has not been separately confirmed through the container (only the
-plain-virtualenv install has, and the container runs the identical installed package), so treat
-that combination as inheriting the same live-verification status as everything else in this
-README rather than as newly, separately confirmed.
+Built and run end to end (2026-09-22, on a Synology NAS, Docker running as root): correct version
+string, `init`, `run --qc-only`, and a full network run against real NCBI all confirmed. That first
+full run also found and led to fixing a real bug (the exclusivity tier had no exclusion for the
+assay's own target taxid — see Limitations below and `docs/ARCHITECTURE.md`), then confirmed fixed
+on a second live run.
 
 ## Quick start
 
@@ -465,9 +467,14 @@ pruning logic changes, rather than treating this one result as permanent proof.
 - **Docker's default user is non-root (uid 1000)**: a bind-mounted host directory not owned by
   that uid needs `--user "$(id -u):$(id -g)"` on `docker run` (or a `chown` to uid 1000
   beforehand), or `init`/`run` will fail with a permission error writing into it. Confirmed live
-  (2026-09-22): the image builds and `init`/`run --qc-only` produce identical output to the
-  equivalent plain-virtualenv install; a full network run against NCBI through the container has
-  not been separately confirmed (only through a plain install).
+  (2026-09-22): the image builds, and `init`, `run --qc-only`, and a full network run against real
+  NCBI all completed correctly through the container.
+- **If the organism list also includes the assay's own target** (a respiratory panel listing
+  SARS-CoV-2 alongside a SARS-CoV-2 assay's other targets, say), that entry is automatically
+  excluded from the exclusivity search rather than reported as an off-target hit against itself —
+  found and fixed from the user's first full live run, then confirmed fixed on a second live run
+  (predicted off-target products dropped from 500 to 0). See "Exclusivity" above and
+  `docs/ARCHITECTURE.md`.
 
 ## Roadmap
 
@@ -477,7 +484,7 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
 | 0.4.0 | Taxonomy resolution, organism list, exclusivity, inclusivity |
-| **1.0.0** | Run history, yearly diff report, Docker (done, unreleased, Docker confirmed live); complete report/documentation polish (open) |
+| **1.0.0** | Run history, yearly diff report, Docker — all confirmed live |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 
