@@ -289,9 +289,15 @@ td.aln-cell { min-width: 22rem; }
   <tr><td>{{ row.organism }}</td>
     <td>{% if row.resolution == 'resolved' %}resolved{% else %}{{ chip('INCOMPLETE') }} {{ row.resolution }}{% endif %}</td>
     <td class="num">{{ row.taxid or '–' }}</td>
+    {% if row.is_target %}
+    <td class="note" colspan="3">assay's own intended target — excluded from this search (a
+      match here is expected and is not evidence of cross-reactivity)</td>
+    {% else %}
     <td class="num">{{ row.n_sites }}</td>
     <td>{% if row.best_site_level %}{{ chip(row.best_site_level) }} {{ row.best_site_id }}{% else %}none{% endif %}</td>
-    <td>{% if row.amplicon_predicted %}{{ chip(row.amplicon_classification) }}{% else %}no{% endif %}</td></tr>
+    <td>{% if row.amplicon_predicted %}{{ chip(row.amplicon_classification) }}{% else %}no{% endif %}</td>
+    {% endif %}
+  </tr>
   {% endfor %}
   </tbody>
 </table></div>

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..config import SeverityMap
 from ..specificity.models import AmpliconResult, SiteResult
@@ -29,6 +29,14 @@ class ExclusivityRow(BaseModel):
     organism: str
     taxid: int | None = None
     resolution: Literal["resolved", "ambiguous", "unresolved"]
+    is_target: bool = Field(
+        default=False,
+        description=(
+            "this taxid is the assay's own intended target: excluded from the exclusivity "
+            "search, since a perfect match there is expected and is not evidence of "
+            "cross-reactivity, not a genuine off-target finding"
+        ),
+    )
     n_sites: int = 0
     best_site_id: str | None = None
     best_site_level: Literal["critical", "warning", "minor"] | None = None
@@ -80,11 +88,15 @@ def build_exclusivity(
     sev: SeverityMap,
     *,
     tier_searched: bool,
+    target_taxid: int | None = None,
 ) -> ExclusivityResult:
     """Group the exclusivity tier's already-assessed sites/amplicons by organism-list entry.
 
     Missing evidence (saturation, fetch failures, hit-list truncation) is reported at the overall
-    specificity level, not recomputed per organism here.
+    specificity level, not recomputed per organism here. ``target_taxid``, if given, marks the
+    organism-list row that is the assay's own intended target (see ``ExclusivityRow.is_target``):
+    that taxid is never searched as part of this tier (see ``search/execute.py``), so its row is
+    never populated from ``sites``/``amplicons`` here either, even defensively.
     """
     excl_sites = [s for s in sites if s.tier == "exclusivity"]
     excl_amplicons = [a for a in amplicons if a.tier == "exclusivity"]
@@ -100,8 +112,11 @@ def build_exclusivity(
     resolutions = resolution.resolutions if resolution else []
     rows: list[ExclusivityRow] = []
     for r in resolutions:
-        row = ExclusivityRow(organism=r.name, taxid=r.taxid, resolution=r.status)
-        if r.taxid is not None:
+        is_target = r.taxid is not None and r.taxid == target_taxid
+        row = ExclusivityRow(
+            organism=r.name, taxid=r.taxid, resolution=r.status, is_target=is_target
+        )
+        if r.taxid is not None and not is_target:
             hits = sites_by_taxid.get(r.taxid, [])
             row.n_sites = len(hits)
             if hits:

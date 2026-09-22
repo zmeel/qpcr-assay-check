@@ -29,9 +29,10 @@ before this is tagged.
   dependencies), `.dockerignore`, and a Docker section in the README with build/run instructions
   (including the `--user "$(id -u):$(id -g)"` needed for a bind-mounted volume the image's default
   non-root user does not own -- see Known limitations). Built and run successfully by the user.
-- 13 new tests (`tests/test_history.py`'s natural-key matching and first-run-INCOMPLETE unit tests,
-  plus `tests/test_run_full.py`'s full two-run CLI end-to-end scenario). 308 tests total (up from
-  295); `ruff check` clean.
+- 16 new tests: `tests/test_history.py`'s natural-key matching and first-run-INCOMPLETE unit tests,
+  `tests/test_run_full.py`'s full two-run CLI end-to-end scenario, and (once the exclusivity/target
+  bug below was found) regression tests for it in `tests/test_exclusivity.py` and
+  `tests/test_run_full.py`. 311 tests total (up from 295); `ruff check` clean.
 
 ### Changed
 - `pipeline.PLANNED_SECTIONS` removed: "history" was its only remaining entry and is now a real,
@@ -48,6 +49,17 @@ before this is tagged.
   design never needed) that was silently ignoring the entire new `src/qpcr_assay_check/history/`
   source package. Found and fixed before the first commit of this phase; nothing was ever lost, but
   it would have quietly excluded the whole feature from version control.
+- **The exclusivity tier had no exclusion for the assay's own target taxid**, found by the user's
+  first full live `run` through Docker: the packaged organism list includes "Severe acute
+  respiratory syndrome coronavirus 2" (reasonable for a respiratory panel), which is also the CDC
+  N1 example's own target. Without an exclusion, the exclusivity tier's search could only ever find
+  the assay's own perfect, intended match against itself, and reported every one of those matches
+  as a critical off-target site or a "likely detected" predicted product -- 4025 critical primer
+  sites, 2000 critical probe sites and 343 "likely detected" products, all at 0 mismatches, which
+  alone flipped the overall verdict to a misleading `FAIL`. Fixed: `search/execute.py` now filters
+  `assay.target.taxid` out of the exclusivity search's taxids; the organism-list row for it is
+  still shown (never silently dropped), flagged via the new `ExclusivityRow.is_target`, with no
+  site/amplicon evidence populated for it even defensively. See `docs/ARCHITECTURE.md`.
 
 ### Known limitations
 - **Docker's default user is non-root (uid 1000)**: a bind-mounted host directory it does not own
@@ -55,9 +67,12 @@ before this is tagged.
   (or a `chown` of the host directory to uid 1000 beforehand); documented in the README. The image
   itself could not be built in the sandbox this was developed in (no route to Docker Hub through
   its outbound proxy, confirmed with both `docker pull` and `docker build`), so this was found and
-  fixed only once the user built and ran the image themselves (2026-09-22): `init`/`run --qc-only`
-  then produced output identical to the plain-virtualenv install this was first checked against. A
-  full network run against NCBI has not been separately confirmed through the container itself.
+  fixed only once the user built and ran the image themselves (2026-09-22). A full network run
+  against real NCBI, through the container, was also confirmed by the user and is what surfaced
+  the exclusivity/target bug fixed above -- see `docs/ARCHITECTURE.md`.
+- **A fresh full run with the exclusivity/target fix applied has not yet been re-checked against
+  live NCBI data** -- the fix was verified against a constructed test world reproducing the exact
+  bug, and unit-tested, but not re-run live.
 - **History/diff has not been checked against a real multi-year dataset**, only the constructed test
   world and hand-built unit fixtures. Its natural-key matching operates entirely on this tool's own
   already-verified output (no new NCBI behaviour involved), so no live smoke-test step was needed.

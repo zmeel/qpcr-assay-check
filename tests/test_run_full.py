@@ -15,7 +15,7 @@ from .conftest import CDC_N1_F as F
 from .conftest import CDC_N1_P as P
 from .conftest import CDC_N1_R as R
 from .conftest import ROOT_EXAMPLE
-from .test_assess import F_START, HUMAN, P_START, R_START, add_target_hits, offtarget_genome
+from .test_assess import F_START, HUMAN, P_START, R_START, TARGET, add_target_hits, offtarget_genome
 from .world import WorldFake
 
 runner = CliRunner()
@@ -227,6 +227,52 @@ def test_exclusivity_end_to_end_with_a_real_organism_list(env, tmp_path):
     assert "Chlamydia trachomatis" in html and "Mycoplasma pneumoniae" in html
     wb = load_workbook(run_dir(env) / "results.xlsx")
     assert "Exclusivity" in wb.sheetnames
+
+
+def test_exclusivity_excludes_the_assay_s_own_target_even_when_listed(env, tmp_path):
+    """A live full run found: the packaged organism list includes SARS-CoV-2 itself (a
+    respiratory panel commonly tests for it alongside other pathogens), which for a SARS-CoV-2
+    assay meant the exclusivity tier found the assay's own perfect, intended match and reported
+    it as a critical off-target site -- a false FAIL that has nothing to do with specificity."""
+    CT = 813
+    organisms = tmp_path / "organisms.yaml"
+    organisms.write_text(
+        "categories:\n"
+        "  - name: Test panel\n"
+        "    organisms: [Chlamydia trachomatis, Severe acute respiratory syndrome coronavirus 2]\n"
+    )
+    env.conf.write_text(
+        f"ncbi:\n  cache_dir: {tmp_path / 'cache'}\norganisms:\n  list_file: {organisms}\n"
+    )
+    w = world_with(hits="none")  # add_target_hits() already registered perfect hits at TARGET
+    w.name("Chlamydia trachomatis", CT)
+    w.name("Severe acute respiratory syndrome coronavirus 2", TARGET)
+    offtarget_genome(taxid=CT, acc="OT_CT.1", name="Chlamydia trachomatis", world=w)
+    w.hit(CT, "forward", F, "OT_CT.1", F_START, "+")
+    env.install(w)
+
+    invoke(env, "--yes")
+
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    excl = data["exclusivity"]
+    assert excl["tier_searched"] is True  # Chlamydia trachomatis alone still gets it searched
+    by_name = {row["organism"]: row for row in excl["rows"]}
+    target_row = by_name["Severe acute respiratory syndrome coronavirus 2"]
+    assert target_row["is_target"] is True
+    assert target_row["n_sites"] == 0
+    assert target_row["best_site_level"] is None
+    assert by_name["Chlamydia trachomatis"]["is_target"] is False
+    assert by_name["Chlamydia trachomatis"]["n_sites"] >= 1
+    # the real regression check: no exclusivity-tier evidence at all for the target's own taxid,
+    # regardless of what the (unrelated) Chlamydia finding does to the overall verdict
+    assert not any(
+        s["tier"] == "exclusivity" and s["taxid"] == TARGET for s in data["specificity"]["sites"]
+    )
+    amplicons = data["specificity"]["amplicons"]
+    assert not any(a["tier"] == "exclusivity" and a["taxid"] == TARGET for a in amplicons)
+
+    html = (run_dir(env) / "report.html").read_text()
+    assert "excluded from this search" in html
 
 
 def test_history_diff_across_two_runs(env, tmp_path, monkeypatch):
