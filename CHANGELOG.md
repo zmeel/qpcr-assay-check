@@ -26,7 +26,9 @@ before this is tagged.
   fails a run by itself, since a regression severe enough to fail already fails the specific section
   it belongs to.
 - **Dockerfile**: a small multi-stage image (no local BLAST database, just the CLI and its Python
-  dependencies), `.dockerignore`, and a Docker section in the README with build/run instructions.
+  dependencies), `.dockerignore`, and a Docker section in the README with build/run instructions
+  (including the `--user "$(id -u):$(id -g)"` needed for a bind-mounted volume the image's default
+  non-root user does not own -- see Known limitations). Built and run successfully by the user.
 - 13 new tests (`tests/test_history.py`'s natural-key matching and first-run-INCOMPLETE unit tests,
   plus `tests/test_run_full.py`'s full two-run CLI end-to-end scenario). 308 tests total (up from
   295); `ruff check` clean.
@@ -48,11 +50,14 @@ before this is tagged.
   it would have quietly excluded the whole feature from version control.
 
 ### Known limitations
-- **The Docker image has not been built or run.** The `pip install .` + console-script entry point
-  it relies on was verified end to end in a plain virtualenv, but the sandbox this was developed in
-  has no route to Docker Hub through its outbound proxy (confirmed with both `docker pull` and
-  `docker build`, after installing the proxy's CA bundle and configuring the daemon's proxy env vars
-  per the environment's own documented workaround). Build and run it yourself before relying on it.
+- **Docker's default user is non-root (uid 1000)**: a bind-mounted host directory it does not own
+  is not writable from inside the container without `--user "$(id -u):$(id -g)"` on `docker run`
+  (or a `chown` of the host directory to uid 1000 beforehand); documented in the README. The image
+  itself could not be built in the sandbox this was developed in (no route to Docker Hub through
+  its outbound proxy, confirmed with both `docker pull` and `docker build`), so this was found and
+  fixed only once the user built and ran the image themselves (2026-09-22): `init`/`run --qc-only`
+  then produced output identical to the plain-virtualenv install this was first checked against. A
+  full network run against NCBI has not been separately confirmed through the container itself.
 - **History/diff has not been checked against a real multi-year dataset**, only the constructed test
   world and hand-built unit fixtures. Its natural-key matching operates entirely on this tool's own
   already-verified output (no new NCBI behaviour involved), so no live smoke-test step was needed.
