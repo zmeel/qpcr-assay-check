@@ -6,9 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-v0.4.0 phases 4a and 4b: taxonomy resolution, the clinical organism list, a real exclusivity tier
+v1.0.0 (run history, yearly diff, Docker, documentation) is next.
+
+## [0.4.0] - 2026-09-22
+
+Phases 4a and 4b: taxonomy resolution, the clinical organism list, a real exclusivity tier
 and report, and inclusivity (a year-by-year trend of how well the oligos still match the intended
-target). v1.0.0 (run history, yearly diff, Docker, documentation) remains after this is tagged.
+target).
 
 **Live validation (2026-09-22, `scripts/smoke_test.py` steps `03b`/`03c`):** taxonomy lineage
 parsing matched real output for all 5 sampled organisms; 38 of the 40 packaged organism-list names
