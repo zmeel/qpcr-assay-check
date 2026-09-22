@@ -15,7 +15,11 @@ step 11: every run diffs itself against the most recent previous run for the sam
 the existing `results/<slug>/<run_id>/` layout, no separate index), reusing the design already
 sketched below ("History as files"). A Dockerfile is also new, built and run successfully by the
 user (see "Verified for v1.0.0" below); the history/diff feature itself has not been checked
-against a real multi-year dataset yet (see "Still unverified" below).
+against a real multi-year dataset yet (see "Still unverified" below). An unreleased addition on
+top of v1.0.0: a variant-summary report (`specificity/variants.py`) lumps the target tier's own
+hits into unique sequence variants, per oligo and per whole fragment -- requested after comparing
+this project against a lab's own pre-existing manual spreadsheet workflow, which had exactly this
+report and nothing else this project didn't already improve on.
 
 ## Data flow
 
@@ -132,6 +136,20 @@ against a real multi-year dataset yet (see "Still unverified" below).
   `assay.target.taxid` out of the resolved taxids before they reach the exclusivity search. The
   organism-list row is still shown (never silently dropped), flagged via
   `ExclusivityRow.is_target`, with no site/amplicon evidence populated for it even defensively.
+- **The variant summary carries no verdict of its own** (unreleased, `specificity/variants.py`):
+  like `taxonomy/rollup.py`, it is purely a different view of evidence the specificity assessment
+  already scored, so it needs no new `SectionResult` and does not affect `combine()`. It reuses
+  `SiteResult.q_aln`/`s_aln` directly (already computed for every target-tier hit) rather than
+  re-deriving a dot-diff notation, so it needs no new NCBI call and renders through the existing
+  `aln_html` filter.
+- **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
+  unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
+  variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's
+  `n_fetch_failed`). Excluded counts are reported, never silently dropped.
+- **The whole-fragment table only includes an amplicon when all three sites (forward, probe,
+  reverse) were fully re-aligned and the probe bound inside it**: an `amplified_not_detected`
+  product (no probe site) is not "the whole fragment" in the sense a lab means it, so it is
+  excluded and counted, not silently treated as a two-oligo fragment.
 - **Species/genus/family aggregation is generic, not exclusivity-specific** (`taxonomy/rollup.py`):
   it runs over every off-target site regardless of tier, because SPEC.md step 6 ("taxonomy
   annotation of hits") is not scoped to exclusivity alone. A lineage-fetch failure degrades this

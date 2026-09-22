@@ -20,6 +20,7 @@ from .oligo.qc import run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
 from .specificity.models import SpecificityResult
+from .specificity.variants import VariantSummary, build_variant_summary
 from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
 from .taxonomy.plan import OrganismListResolution
 from .taxonomy.rollup import TaxonCount
@@ -92,7 +93,9 @@ def evaluate(
         )
     ]
     exclusivity: ExclusivityResult | None = None
+    variant_summary: VariantSummary | None = None
     if specificity is not None:
+        variant_summary = build_variant_summary(specificity, assay)
         n = specificity.n_sites
         sections.append(
             SectionResult(
@@ -277,6 +280,7 @@ def evaluate(
         specificity=specificity,
         exclusivity=exclusivity,
         taxonomy_breakdown=taxonomy_breakdown or [],
+        variant_summary=variant_summary,
         inclusivity=inclusivity,
         history=history,
         search=search_outcome.model_dump(mode="json") if search_outcome else None,

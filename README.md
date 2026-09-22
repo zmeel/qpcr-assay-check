@@ -168,6 +168,16 @@ qpcr-assay-check search my-assay/assay.yaml --dry-run   # show exactly what woul
 qpcr-assay-check search my-assay/assay.yaml -o results   # asks before sending anything
 ```
 
+### Variant summary (unreleased)
+
+The report also gets a **variant summary**: the target tier's own hits, lumped into unique
+sequence variants and reported as a count and a percentage of the measured total — one table per
+oligo (forward/probe/reverse), plus a whole-fragment table combining forward + probe + reverse
+together when all three bind the same record. Only fully re-aligned hits count (never a
+`blast_partial_worst_case` estimate); excluded counts are always reported, never silently folded
+in. This reuses evidence the specificity assessment already scored — no new NCBI call — and, like
+the taxonomy breakdown, carries no verdict of its own.
+
 ### Exclusivity against a clinical organism list (v0.4.0)
 
 A full `run` also resolves every organism name in a **clinical organism list** to an NCBI

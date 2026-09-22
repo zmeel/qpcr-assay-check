@@ -10,6 +10,7 @@ from .history.models import HistoryResult
 from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
 from .specificity.models import SpecificityResult
+from .specificity.variants import VariantSummary
 from .taxonomy.exclusivity import ExclusivityResult
 from .taxonomy.rollup import TaxonCount
 from .verdict import Verdict
@@ -144,6 +145,11 @@ class RunResult(BaseModel):
     exclusivity: ExclusivityResult | None = None
     taxonomy_breakdown: list[TaxonCount] = Field(
         default_factory=list, description="Off-target sites aggregated by species/genus/family"
+    )
+    variant_summary: VariantSummary | None = Field(
+        default=None,
+        description="Target-tier hits lumped into unique sequence variants, per oligo and per "
+        "whole fragment (informational; no verdict of its own)",
     )
     inclusivity: InclusivityResult | None = None
     history: HistoryResult | None = None

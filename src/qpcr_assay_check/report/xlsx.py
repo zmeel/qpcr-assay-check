@@ -240,6 +240,33 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ],
             None,
         )  # fmt: skip
+    vs = result.variant_summary
+    if vs is not None:
+        _sheet(
+            wb,
+            "Oligo variants",
+            ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Level",
+             "Mismatches", "Gaps", "Example accession", "Example organism"],
+            [
+                [o.role, row.s_aln, row.count, round(row.percent, 1), row.level,
+                 row.n_mismatch, row.n_gap, row.example_accession, row.example_organism or ""]
+                for o in vs.oligos
+                for row in o.rows
+            ],
+            None,
+        )  # fmt: skip
+        _sheet(
+            wb,
+            "Fragment variants",
+            ["Forward", "Probe", "Reverse", "Count", "Fraction (%)", "Level",
+             "Example accession", "Example organism"],
+            [
+                [f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln, f.count, round(f.percent, 1),
+                 f.level, f.example_accession, f.example_organism or ""]
+                for f in vs.fragments
+            ],
+            None,
+        )  # fmt: skip
     incl = result.inclusivity
     if incl is not None and incl.oligos:
         _sheet(
