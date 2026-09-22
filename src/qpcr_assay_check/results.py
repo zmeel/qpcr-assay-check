@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from .history.models import HistoryResult
+from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
 from .specificity.models import SpecificityResult
 from .taxonomy.exclusivity import ExclusivityResult
@@ -143,6 +145,8 @@ class RunResult(BaseModel):
     taxonomy_breakdown: list[TaxonCount] = Field(
         default_factory=list, description="Off-target sites aggregated by species/genus/family"
     )
+    inclusivity: InclusivityResult | None = None
+    history: HistoryResult | None = None
     search: dict[str, Any] | None = Field(
         default=None, description="Parameters, versions, RIDs and hit counts of the remote searches"
     )

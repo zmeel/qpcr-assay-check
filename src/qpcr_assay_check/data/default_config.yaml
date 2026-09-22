@@ -127,5 +127,17 @@ organisms:
   resolve_synonyms: true            # also try Entrez's [All Names] when [Scientific Name] finds
                                      # nothing (taxonomic renames, e.g. Mycoplasma -> Mycoplasmoides)
 
+inclusivity:
+  # How well the oligos still match the intended target, over time. Built from the same "target"
+  # tier search every run already makes (see docs/ARCHITECTURE.md for why not a separate,
+  # date-restricted BLAST search); hits are bucketed into years afterwards by their own
+  # submission date. ALL of these are starting points, not acceptance criteria.
+  lookback_years: 10               # how many years back from today to report (0 records is a
+                                    # valid, honestly-reported answer for an early year, not skipped)
+  sample_per_window: 20            # records assessed per year, evenly sampled; never the whole
+                                    # population for a well-sequenced target (sample, not census)
+  warn_below_percent: 95           # % of the assessed sample at 0-1 mismatch (no 3' mismatch)
+  fail_below_percent: 80           # below this, WARN/FAIL; the worst oligo/window decides
+
 report:
   include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)

@@ -3,6 +3,7 @@
 import json
 import re
 import time
+from datetime import UTC, datetime
 
 import pytest
 from openpyxl import load_workbook
@@ -97,7 +98,8 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
 def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_verdict(env):
     env.install(world_with(hits="none"))
     r = invoke(env, "--yes")
-    assert r.exit_code == 30, r.output  # inclusivity/history are not available yet
+    # exclusivity, inclusivity and history (first run) all have no evidence: INCOMPLETE overall.
+    assert r.exit_code == 30, r.output
     data = json.loads((run_dir(env) / "results.json").read_text())
     assert data["specificity"]["verdict"] == "PASS"
     states = {s["key"]: s["state"] for s in data["sections"]}
@@ -105,8 +107,42 @@ def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_ver
     # exclusivity is implemented (v0.4.0), but this fake never resolves organism names, so its
     # own tier was never searched: missing evidence, so INCOMPLETE rather than a false PASS.
     assert states["exclusivity"] == "evaluated" and data["exclusivity"]["verdict"] == "INCOMPLETE"
-    assert states["inclusivity"] == "not_implemented"
-    assert "Not yet evaluated" in (run_dir(env) / "report.html").read_text()
+    # inclusivity is implemented (v0.4.0) and the target tier was searched, but this fake never
+    # registers a submission date for the target hit, so there is no dated evidence: INCOMPLETE.
+    assert states["inclusivity"] == "evaluated" and data["inclusivity"]["verdict"] == "INCOMPLETE"
+    # history is implemented (v1.0.0); this is the first run for this assay, so there is nothing
+    # to compare against yet: also evaluated (not skipped), also honestly INCOMPLETE.
+    assert states["history"] == "evaluated" and data["history"]["verdict"] == "INCOMPLETE"
+    assert data["history"]["has_previous"] is False
+    # every section was genuinely evaluated (even if some concluded INCOMPLETE), so nothing is
+    # truly "not yet evaluated" in this run -- that heading must not appear.
+    html = (run_dir(env) / "report.html").read_text()
+    assert "Not yet evaluated" not in html
+    assert "first recorded run for this assay" in html
+
+
+def test_inclusivity_end_to_end_with_a_dated_target_hit(env):
+    """The target tier's own hit gets a submission date, so inclusivity has real evidence."""
+    w = world_with(hits="none")  # human background stays clean; only inclusivity matters here
+    w.date("NC_045512.2", "2023/05/01")
+    env.install(w)
+
+    r = invoke(env, "--yes")
+    assert r.exit_code == 30, r.output  # exclusivity has no evidence, history is not implemented
+
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    incl = data["inclusivity"]
+    assert incl["tier_searched"] is True and incl["target_taxid"] == 2697049
+    forward = next(o for o in incl["oligos"] if o["role"] == "forward")
+    by_year = {win["year"]: win for win in forward["windows"]}
+    assert by_year[2023]["sample_size"] == 1 and by_year[2023]["n_perfect"] == 1
+    states = {s["key"]: s["state"] for s in data["sections"]}
+    assert states["inclusivity"] == "evaluated"
+
+    html = (run_dir(env) / "report.html").read_text()
+    assert "Inclusivity across the intended target (sampled)" in html and "2023" in html
+    wb = load_workbook(run_dir(env) / "results.xlsx")
+    assert "Inclusivity" in wb.sheetnames
 
 
 def test_dry_run_sends_nothing(env):
@@ -191,3 +227,47 @@ def test_exclusivity_end_to_end_with_a_real_organism_list(env, tmp_path):
     assert "Chlamydia trachomatis" in html and "Mycoplasma pneumoniae" in html
     wb = load_workbook(run_dir(env) / "results.xlsx")
     assert "Exclusivity" in wb.sheetnames
+
+
+def test_history_diff_across_two_runs(env, tmp_path, monkeypatch):
+    """Run the same assay twice; the second run must see and report what changed."""
+    # A controlled, strictly increasing clock: real wall-clock resolution (whole seconds) could
+    # tie two fast in-process runs to the same generated_at, which would make "which run is the
+    # previous one" ambiguous -- something that cannot happen for a real yearly re-evaluation.
+    times = iter([datetime(2025, 1, 1, tzinfo=UTC), datetime(2026, 1, 1, tzinfo=UTC)])
+    monkeypatch.setattr(
+        "qpcr_assay_check.pipeline.datetime",
+        type("_Clock", (), {"now": staticmethod(lambda tz=None: next(times))}),
+    )
+
+    env.install(world_with(hits="none"))
+    first = invoke(env, "--yes")
+    # clean, but INCOMPLETE: exclusivity/inclusivity/history all lack evidence on a first run
+    assert first.exit_code == 30, first.output
+    (first_path,) = env.out.rglob("results.json")
+    run1_id = json.loads(first_path.read_text())["run_id"]
+
+    # A fresh cache for the second run: otherwise the identical BLAST queries would be served
+    # from run 1's on-disk cache instead of reaching the (now different) fake world.
+    env.conf.write_text(f"ncbi:\n  cache_dir: {tmp_path / 'cache2'}\n")
+    env.install(world_with(f=[10], r=[5], p=[8]))  # a new critical off-target site appears
+    second = invoke(env, "--yes")
+    assert second.exit_code == 20, second.output  # the new off-target product now fails the run
+
+    run2_path = next(p for p in env.out.rglob("results.json") if p != first_path)
+    data2 = json.loads(run2_path.read_text())
+    hist = data2["history"]
+    assert hist["has_previous"] is True
+    assert hist["previous_run_id"] == run1_id
+    assert hist["inputs_changed"] is False  # same assay file both times
+    assert hist["verdict"] == "WARN"  # the "history" section itself just flags the change
+    assert len(hist["new_sites"]) >= 1
+    assert any(s["level_after"] == "critical" for s in hist["new_sites"])
+    states = {s["key"]: s["state"] for s in data2["sections"]}
+    assert states["history"] == "evaluated"
+
+    html = run2_path.parent.joinpath("report.html").read_text()
+    assert "Changes since the previous run" in html
+    assert run1_id in html
+    wb = load_workbook(run2_path.parent / "results.xlsx")
+    assert "History" in wb.sheetnames

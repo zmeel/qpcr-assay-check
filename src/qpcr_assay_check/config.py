@@ -364,6 +364,29 @@ class OrganismsSettings(_Strict):
     resolve_synonyms: bool
 
 
+class InclusivitySettings(_Strict):
+    """Time-windowed inclusivity: how well the oligos still match the intended target, over time.
+
+    Built from the same "target" tier search every run already makes (taxon-restricted only, no
+    date filter -- combining ENTREZ_QUERY taxon restriction with a [PDAT] date filter in one BLAST
+    call was checked live and found unreliable, see docs/ARCHITECTURE.md), bucketed into years
+    afterwards using each hit's own submission date (ESummary).
+    """
+
+    lookback_years: int
+    sample_per_window: int
+    warn_below_percent: float
+    fail_below_percent: float
+
+    @model_validator(mode="after")
+    def _sane(self) -> InclusivitySettings:
+        if self.lookback_years < 1 or self.sample_per_window < 1:
+            raise ValueError("lookback_years and sample_per_window must be >= 1")
+        if not (0 <= self.fail_below_percent <= self.warn_below_percent <= 100):
+            raise ValueError("require 0 <= fail_below_percent <= warn_below_percent <= 100")
+        return self
+
+
 class ReportSettings(_Strict):
     """Report rendering options."""
 
@@ -381,6 +404,7 @@ class Config(_Strict):
     search: SearchSettings
     specificity: SpecificitySettings
     organisms: OrganismsSettings
+    inclusivity: InclusivitySettings
     report: ReportSettings
 
     @property

@@ -3,6 +3,133 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-22 — v1.0.0 started: run history + diff implemented; Docker written but unverified
+
+User said "Start v1.0.0". Before writing code, checked in on one consequential design decision
+(the "history" section's scope): confirmed making it required, like every other section, so a
+brand-new assay's first run is honestly `INCOMPLETE` (nothing to compare against yet) rather than
+letting history be informational-only and let a first run reach a clean PASS. Recommended and
+chosen: required, INCOMPLETE on first run.
+
+Built `history/` (`store.py` finds the previous run by scanning `results/<slug>/*/results.json`
+for the most recent `generated_at`, no separate index; `diff.py` compares sections/sites/amplicons/
+inclusivity by natural key, not run-local IDs). Wired into `pipeline.evaluate()` (new `history`
+field, its own required section, `PLANNED_SECTIONS` removed since it was history's only remaining
+entry) and `cli.py` (`find_previous_run()` called before `evaluate()`). Added a "Changes since the
+previous run" report section and a "History" xlsx sheet. 13 new tests (natural-key matching unit
+tests plus a full two-run CLI end-to-end scenario); found and fixed a real bug along the way in
+`report/html.py`'s `pending` filter (`verdict is None` no longer means "not evaluated" now that a
+genuinely-evaluated INCOMPLETE section exists) that broke two existing tests, and moved the
+"oligos were/were not sent to NCBI" disclosure out of the now-sometimes-empty pending block so it
+always renders.
+
+**Near-miss worth remembering**: `.gitignore` had a stale, unscoped `history/` rule from early
+project scaffolding (apparently meant for a separate run-history output directory that this
+phase's "files, no separate index" design never ended up needing) that was silently ignoring the
+entire new `src/qpcr_assay_check/history/` source package the moment it was created. Caught by
+running `git status` before the first commit of this phase (a `git status --short --ignored`
+specifically, prompted by habit rather than suspicion) and fixed immediately -- nothing was lost,
+but it would have quietly excluded the whole feature from every future commit if it had gone
+unnoticed. Worth a standing lesson: check `git status --ignored` after creating a new top-level
+package directory, especially one whose name might collide with an older, unrelated `.gitignore`
+entry.
+
+Wrote `Dockerfile`/`.dockerignore` and attempted to build/run the image in this sandbox. Docker's
+CLI and daemon binaries are present but the daemon isn't running by default; started it manually,
+then hit the sandbox's outbound-proxy restriction pulling `python:3.12-slim` from Docker Hub's CDN
+(`production.cloudfront.docker.com`, HTTP 403). Followed the environment's own documented
+workaround for `docker build` exactly (installed `/root/.ccr/ca-bundle.crt` into the system trust
+store, passed `HTTPS_PROXY`/`HTTP_PROXY` to the `dockerd` process) and retried both `docker pull`
+and `docker build` -- identical failure both times, concluded to be a genuine restriction on this
+CDN through the proxy rather than a fixable misconfiguration, so stopped rather than trying further
+workarounds (matching the "report, do not work around" guidance for this class of proxy failure).
+Reverted the system CA change and stopped the daemon afterward to leave the sandbox as found.
+Validated what could be validated instead: `pip install .` into a clean virtualenv (the same
+command the Dockerfile's build stage runs) followed by `init` → `validate` → `run --qc-only`
+through the installed console-script entry point, end to end, correct output files and exit code.
+The Dockerfile itself is therefore unverified as a built image and should be built and run by the
+user (or in CI) before being relied on.
+
+Bumped version to 1.0.0 is NOT yet done (deliberately -- CHANGELOG.md's `[Unreleased]` section
+holds this phase's work; tagging v1.0.0 is expected to wait for documentation polish, the other
+open item in SPEC.md's v1.0.0 phase, and/or explicit user confirmation the Docker image was built
+and works).
+
+## 2026-09-22 — v0.4.0 tagged; phase 4b's ESummary date lookup verified live
+
+The user ran `scripts/smoke_test.py` again and pasted back a new `smoke_report.json` (all steps
+`ok: true`, including the new `08b_esummary_inclusivity_dates`). Also bumped the version to 0.4.0,
+closed out the CHANGELOG's Unreleased section into a dated `[0.4.0]` entry, and created an
+annotated tag `v0.4.0`. Pushing the branch commit worked; pushing the tag itself hit the same
+HTTP 403 from the agent proxy seen in an earlier session for tag pushes (an organisation policy
+restriction on tag refs, not transient) -- gave the user the exact commands to recreate and push
+the tag from their own machine rather than retrying or routing around it.
+
+Key results from the live run:
+- **The renamed organism `Mycoplasmoides pneumoniae` now resolves live.** Organism-list resolution
+  went from 38/40 (previous run) to 39/40; only `Mycobacterium chelonae` remains unresolved. This
+  confirms the phase-4a fix (renaming "Mycoplasma pneumoniae" directly rather than relying on the
+  `[All Names]` synonym fallback, which does not catch this rename) actually works.
+- **Inclusivity's ESummary-based date lookup works for the common case.** `Eutils.esummary()`'s
+  JSON shape matched a real response (`result.uids` + one object per UID); the nuccore docsum's
+  date field is `createdate` (format `"YYYY/MM/DD"`), the first candidate `year_from_docsum()`
+  tries; and NCBI does key the result by its own resolved UID, not the input accession (confirmed
+  directly -- the response for `id=NC_045512.2,NC_000007.14` came back keyed `"1798174254"`/
+  `"568815591"`). `fetch_years()` correctly recovered both years (2020, 2002) despite this.
+- **Found and fixed a bug in the smoke-test script itself, not in shipped code.** Step `08b`'s own
+  findings computation (`esummary_docsum_keys`, `esummary_reindexed_by_accession_correctly`)
+  naively indexed the UID-keyed `esummary()` response by accession directly -- the same mistake the
+  production `fetch_years()` code was specifically written to avoid. This silently produced empty
+  findings (`{}`) even though `fetch_years_result` itself was correct throughout, since
+  `fetch_years()` does its own correct re-indexing internally and never went through the buggy
+  path. Fixed the smoke-test step to re-index the same way, and tightened the constructed test
+  fakes (`tests/world.py`'s `WorldFake`, `tests/test_smoke_script.py`'s `SmokeFake`) to use a
+  synthetic UID that deliberately differs from the accession, so a UID/accession mix-up like this
+  would now fail the test suite too, not only surface on a live run. All 295 tests still pass after
+  this tightening -- confirming `inclusivity/dates.py` was already correct.
+- `blast_date_window_restriction_honoured: false` reconfirmed (BLAST+`[PDAT]` still unreliable, as
+  in the previous run) -- expected, not a new finding, just re-verifying the ruled-out design stays
+  ruled out.
+
+Updated `docs/ARCHITECTURE.md` (moved phase 4b's ESummary items from "Still unverified" to a new
+"Verified" section, updated the top status line to drop "not yet tagged/released"), `CHANGELOG.md`
+(closed `[0.4.0]`, updated Known limitations/Fixed), `README.md` (status blurb, third-live-run
+paragraph, Limitations bullets, dropped "in progress" from the Exclusivity/Inclusivity section
+headers and fixed the now-changed anchor link).
+
+## 2026-09-22 — Phase 4b implemented: inclusivity via target-tier reuse + ESummary date-bucketing
+
+Built inclusivity (SPEC.md step 9) on the redesign forced by the previous session's live finding
+(BLAST cannot reliably combine `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter):
+instead of a separate, date-windowed BLAST search, inclusivity reuses the "target" tier search
+every run already makes, and buckets its own hits into years afterwards via a new `esummary()`
+E-utility client method plus `inclusivity/dates.py` (which re-indexes ESummary's UID-keyed JSON
+response by each docsum's own `accessionversion`/`caption` field, not by input order). Per year:
+sample deterministically (evenly spread, one per accession, capped by `sample_per_window`),
+re-align over the full oligo length (`inclusivity/sites.py`, reusing `specificity/sites.py`'s
+candidate/window machinery), and aggregate perfect/1-mismatch/2+-mismatch/3'-mismatch counts plus
+a per-position mismatch profile (`inclusivity/aggregate.py`). Population size per year comes from
+an independent ESearch count, reported next to (never instead of) the sample size. Wired through
+`pipeline.py` (new `inclusivity` field on `RunResult`, its own `SectionResult`, rationale lines),
+`cli.py` (`keep_tiers` now always includes `"target"`; `compute_inclusivity()` call wrapped in
+`try/except NcbiError` so a date-lookup failure degrades gracefully rather than discarding an
+otherwise-complete run, matching the `taxonomy_breakdown` fix from phase 4a), the HTML report
+(new per-oligo, per-year table) and the xlsx writer (new Inclusivity sheet). 295 tests pass
+(`pytest -m "not live"`), `ruff check .` clean.
+
+**Honesty points carried through deliberately**: inclusivity's sample is not a controlled random
+sample (it depends on where each year's records fall in BLAST's own hit-list ranking, which is
+capped) — stated explicitly in `InclusivityResult.limitations` on every result, not just in docs.
+A year with zero sampled hits is reported as zero, not omitted. No target-tier search at all (or
+no assay target taxid) gives INCOMPLETE, never a false PASS.
+
+**Still unverified, flagged for the next live smoke test** (`scripts/smoke_test.py` step
+`08b_esummary_inclusivity_dates`, added but not yet run): the real nuccore ESummary docsum date
+field name (the code tries several candidates from memory of the docs, not an observed response),
+and whether the accession re-indexing logic holds for more than one accession in a real response
+(only checked against the constructed test world so far). Do not treat inclusivity's date
+attribution as confirmed until that step comes back `ok: true` with a sane `esummary_docsum_keys`.
+
 ## 2026-09-22 — Phase 4a verified live; inclusivity's planned design ruled out
 
 The user ran `scripts/smoke_test.py` and pasted back `smoke_report.json` (all steps `ok: true`).

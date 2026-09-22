@@ -1,10 +1,12 @@
-"""Minimal E-utilities client (ESearch counts/UIDs, EFetch sequence windows and taxonomy)."""
+"""Minimal E-utilities client (ESearch counts/UIDs, ESummary, EFetch sequence windows/taxonomy)."""
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from .http import NcbiError, NcbiHttp
 
@@ -44,6 +46,30 @@ class Eutils:
         if "<eSearchResult" not in resp.text:
             raise NcbiError(f"Unexpected ESearch response: {resp.text[:200]!r}")
         return [int(i) for i in _ID_RE.findall(resp.text)]
+
+    def esummary(self, db: str, ids: Sequence[str]) -> dict[str, dict[str, Any]]:
+        """ESummary (JSON, version 2.0) document summaries for ``ids``, keyed by the ID string.
+
+        NCBI accepts accession.version identifiers for ``nuccore`` interchangeably with numeric
+        UIDs; this project always passes accession.version (already on hand from a BLAST hit),
+        never a separately-looked-up UID. The exact document-summary field names below (see
+        ``inclusivity/dates.py``) have not been checked against live output; see
+        docs/ARCHITECTURE.md.
+        """
+        resp = self.http.request(
+            "GET",
+            f"{self.base_url}/esummary.fcgi",
+            service="eutils",
+            params={"db": db, "id": ",".join(ids), "retmode": "json"},
+        )
+        try:
+            data = json.loads(resp.text)
+        except json.JSONDecodeError as exc:
+            raise NcbiError(f"Unexpected ESummary response: {resp.text[:200]!r}") from exc
+        result = data.get("result") if isinstance(data, dict) else None
+        if not isinstance(result, dict) or "uids" not in result:
+            raise NcbiError(f"Unexpected ESummary response shape: {resp.text[:200]!r}")
+        return {uid: result[uid] for uid in result["uids"] if isinstance(result.get(uid), dict)}
 
     def fetch_taxonomy(self, taxids: Sequence[int]) -> str:
         """Taxonomy EFetch XML (``TaxaSet``) for one or more taxonomy IDs."""

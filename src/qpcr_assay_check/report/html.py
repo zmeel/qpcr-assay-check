@@ -176,7 +176,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
         shown_sites=shown,
         hidden_sites=hidden,
         search_rows=_search_rows(spec) if spec is not None else [],
-        pending=[s for s in result.sections if s.verdict is None],
+        pending=[s for s in result.sections if s.state != "evaluated"],
         charts=charts,
         plotly_js=Markup(_plotly_js()) if charts else "",  # noqa: S704 - bundled library
         config_yaml=yaml.safe_dump(result.config, sort_keys=False, allow_unicode=True),

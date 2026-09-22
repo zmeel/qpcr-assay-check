@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from ..history.models import HistoryResult
 from ..results import RunResult
 
 _FILL = {
@@ -41,6 +42,49 @@ def _sheet(
         for cell in r:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
     ws.freeze_panes = "A2"
+
+
+def _history_rows(hist: HistoryResult) -> list[list[object]]:
+    rows: list[list[object]] = [
+        ["run", "", "Previous run", "", hist.previous_run_id or ""],
+        ["run", "", "Previous generated (UTC)", "", hist.previous_generated_at or ""],
+        ["run", "", "Assay/config changed since then", "", "yes" if hist.inputs_changed else "no"],
+    ]
+    for sc in hist.section_changes:
+        if sc.changed:
+            before = sc.verdict_before.value if sc.verdict_before else ""
+            after = sc.verdict_after.value if sc.verdict_after else ""
+            rows.append(["section", sc.title, "", before, after])
+    for s in hist.new_sites:
+        where = f"{s.role} {s.accession}:{s.subject_start}-{s.subject_end}"
+        rows.append(["site: new", s.tier, where, "", s.level_after])
+    for s in hist.resolved_sites:
+        where = f"{s.role} {s.accession}:{s.subject_start}-{s.subject_end}"
+        rows.append(["site: resolved", s.tier, where, s.level_before, ""])
+    for s in hist.changed_sites:
+        where = f"{s.role} {s.accession}:{s.subject_start}-{s.subject_end}"
+        before = f"{s.level_before}, {s.n_mismatch_before} mm"
+        after = f"{s.level_after}, {s.n_mismatch_after} mm"
+        rows.append(["site: changed", s.tier, where, before, after])
+    for a in hist.new_amplicons:
+        where = f"{a.accession}:{a.start}-{a.end} ({a.roles})"
+        rows.append(["amplicon: new", a.tier, where, "", a.classification or ""])
+    for a in hist.resolved_amplicons:
+        where = f"{a.accession}:{a.start}-{a.end} ({a.roles})"
+        rows.append(["amplicon: resolved", a.tier, where, a.classification or "", ""])
+    for c in hist.inclusivity_changes:
+        before = (
+            f"{c.percent_before:.0f}% of {c.sample_size_before}"
+            if c.percent_before is not None
+            else ""
+        )
+        after = (
+            f"{c.percent_after:.0f}% of {c.sample_size_after}"
+            if c.percent_after is not None
+            else ""
+        )
+        rows.append(["inclusivity", c.role, f"year {c.year}", before, after])
+    return rows
 
 
 def write_workbook(result: RunResult, path: Path) -> None:
@@ -194,6 +238,28 @@ def write_workbook(result: RunResult, path: Path) -> None:
                 for t in result.taxonomy_breakdown
             ],
             None,
+        )  # fmt: skip
+    incl = result.inclusivity
+    if incl is not None and incl.oligos:
+        _sheet(
+            wb,
+            "Inclusivity",
+            ["Oligo", "Year", "Population", "Sample size", "Perfect", "1 mismatch",
+             "2+ mismatch/gap", "3' mismatch", "Fetch failed"],
+            [
+                [o.role, w.year, w.population_size if w.population_size is not None else "",
+                 w.sample_size, w.n_perfect, w.n_one_mismatch, w.n_two_plus_mismatch,
+                 w.n_three_prime_mismatch, w.n_fetch_failed]
+                for o in incl.oligos
+                for w in o.windows
+            ],
+            None,
+        )  # fmt: skip
+    hist = result.history
+    if hist is not None and hist.has_previous:
+        _sheet(
+            wb, "History", ["Kind", "Tier/Role", "Description", "Before", "After"],
+            _history_rows(hist), None,
         )  # fmt: skip
     _sheet(
         wb,

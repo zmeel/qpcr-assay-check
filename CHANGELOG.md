@@ -6,17 +6,88 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-v0.4.0 phase 4a: taxonomy resolution, the clinical organism list, and a real exclusivity tier and
-report. Phase 4b (inclusivity) is still planned before this is tagged v0.4.0; v1.0.0 (run history,
-yearly diff, Docker, documentation) remains after that.
+v1.0.0: run history and a yearly diff report, and a Docker image. Documentation polish remains
+before this is tagged.
+
+### Added
+- **Run history and diff** (SPEC.md step 11): every full `run` now finds the most recently
+  generated previous run for the same assay (`results/<assay.slug>/*/results.json`, sorted by each
+  record's own `generated_at` -- no separate index or database) and diffs the current evaluation
+  against it. `history/store.py` locates the previous run; `history/diff.py` compares: per-section
+  verdict changes, off-target sites and predicted products that are new or have disappeared
+  (matched across runs by accession and position, not by the run-local site ID), and inclusivity
+  regressions per oligo/year (including newly-observed mismatch positions). New `history` field on
+  `results.json`, a "Changes since the previous run" report section, and a "History" xlsx sheet.
+  Like every other section, missing evidence is never a PASS: a first run for an assay has nothing
+  to compare against, so it is honestly `INCOMPLETE`, not skipped -- confirmed with the user before
+  implementing, since it means a brand-new assay's first run can never itself reach overall `PASS`.
+  From the second run onward it is a real `PASS` (nothing concerning changed) or `WARN` (a section
+  regressed, a new critical/warning site or product appeared, or inclusivity regressed); it never
+  fails a run by itself, since a regression severe enough to fail already fails the specific section
+  it belongs to.
+- **Dockerfile**: a small multi-stage image (no local BLAST database, just the CLI and its Python
+  dependencies), `.dockerignore`, and a Docker section in the README with build/run instructions.
+- 13 new tests (`tests/test_history.py`'s natural-key matching and first-run-INCOMPLETE unit tests,
+  plus `tests/test_run_full.py`'s full two-run CLI end-to-end scenario). 308 tests total (up from
+  295); `ruff check` clean.
+
+### Changed
+- `pipeline.PLANNED_SECTIONS` removed: "history" was its only remaining entry and is now a real,
+  implemented section like every other one.
+- `report.html`'s "Not yet evaluated" section now lists sections that were genuinely skipped or not
+  implemented (`state != "evaluated"`), not sections with a `None` verdict -- a section that *was*
+  evaluated but concluded `INCOMPLETE` (missing evidence) is no longer miscounted as "not yet
+  evaluated". The "oligo sequences were/were not sent to NCBI" disclosure, previously shown only
+  inside that (sometimes now-empty) block, is now always shown.
+
+### Fixed
+- `.gitignore` had a stale, unscoped `history/` rule (from early scaffolding, apparently intended
+  for a since-abandoned separate run-history output directory that this phase's "history as files"
+  design never needed) that was silently ignoring the entire new `src/qpcr_assay_check/history/`
+  source package. Found and fixed before the first commit of this phase; nothing was ever lost, but
+  it would have quietly excluded the whole feature from version control.
+
+### Known limitations
+- **The Docker image has not been built or run.** The `pip install .` + console-script entry point
+  it relies on was verified end to end in a plain virtualenv, but the sandbox this was developed in
+  has no route to Docker Hub through its outbound proxy (confirmed with both `docker pull` and
+  `docker build`, after installing the proxy's CA bundle and configuring the daemon's proxy env vars
+  per the environment's own documented workaround). Build and run it yourself before relying on it.
+- **History/diff has not been checked against a real multi-year dataset**, only the constructed test
+  world and hand-built unit fixtures. Its natural-key matching operates entirely on this tool's own
+  already-verified output (no new NCBI behaviour involved), so no live smoke-test step was needed.
+- **The previous run is found by assay slug** (derived from the assay name), not by assay content:
+  renaming an assay starts its history over, even if the oligos did not change.
+- A regression that shows up in history's diff already made the specific section (specificity,
+  exclusivity, inclusivity) fail or warn on its own; history's own verdict only ever reaches WARN
+  (flagging that something changed, worth a look), never FAIL, to avoid double-counting the same
+  evidence into the overall verdict twice.
+
+## [0.4.0] - 2026-09-22
+
+Phases 4a and 4b: taxonomy resolution, the clinical organism list, a real exclusivity tier
+and report, and inclusivity (a year-by-year trend of how well the oligos still match the intended
+target).
 
 **Live validation (2026-09-22, `scripts/smoke_test.py` steps `03b`/`03c`):** taxonomy lineage
 parsing matched real output for all 5 sampled organisms; 38 of the 40 packaged organism-list names
 resolved through the real exclusivity-resolution path (2 did not: see Known limitations). Entrez
-queries with up to 100 taxids were accepted. One important negative result, relevant to phase 4b:
-**combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not
-reliably restrict by date** (4 of 20 checked hit accessions fell outside the requested window),
-ruling out this project's originally planned inclusivity design (see `docs/ARCHITECTURE.md`).
+queries with up to 100 taxids were accepted. One important negative result, which shaped phase 4b's
+design: **combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call
+does not reliably restrict by date** (4 of 20 checked hit accessions fell outside the requested
+window), ruling out this project's originally planned inclusivity design (see
+`docs/ARCHITECTURE.md`).
+
+**Further live validation (2026-09-22, `scripts/smoke_test.py` step `08b`):** the renamed organism
+`Mycoplasmoides pneumoniae` now resolves live (39 of 40 packaged names resolve; only
+`Mycobacterium chelonae` remains unresolved). Phase 4b's own new E-utility usage was also checked:
+`Eutils.esummary()`'s JSON shape matched a real response, the nuccore ESummary docsum's date field
+is `createdate` (confirmed by extracting the correct year for two real records), and NCBI does key
+the result by resolved UID rather than by the input accession (confirmed directly) -- `fetch_years()`
+correctly recovers the right years despite this. A bug was found and fixed in the smoke-test
+script's own (separate, redundant) findings computation, which had naively assumed the response was
+keyed by accession; the shipped `inclusivity/dates.py` code was already correct. See
+`docs/ARCHITECTURE.md` for detail.
 
 ### Added
 - `taxonomy/resolve.py`: resolves organism names to NCBI taxonomy IDs via Entrez Taxonomy
@@ -41,27 +112,49 @@ ruling out this project's originally planned inclusivity design (see `docs/ARCHI
 - `scripts/smoke_test.py` steps `03b` (lineage parsing, the `Mycoplasma pneumoniae` synonym
   fallback through the real `resolve_name` function) and `03c` (the actual exclusivity-tier
   resolution path against the packaged organism list) -- now run live, see above.
-- 30 new tests (taxonomy resolution, organism list loading, exclusivity grouping/verdict,
-  species/genus/family rollup, report/workbook rendering, one full CLI end-to-end scenario with a
-  real multi-organism resolution). 280 tests total (up from 250); `ruff check`/`ruff format --check`
-  clean.
+- **Inclusivity** (SPEC.md step 9, phase 4b): a year-by-year trend of how well the oligos still
+  match the intended target. Reuses the "target" tier search every run already makes (no separate,
+  date-restricted BLAST search -- see `docs/ARCHITECTURE.md` for why that design was ruled out) and
+  buckets its hits into years afterwards via a new `Eutils.esummary()` client method plus
+  `inclusivity/dates.py`. Each year: a deterministic, evenly spread sample (capped by the new
+  `inclusivity.sample_per_window` config key) is re-aligned over the full oligo length and scored
+  for perfect/1-mismatch/2+-mismatch/3'-mismatch counts and a per-position mismatch profile;
+  population size per year comes from an independent ESearch count, reported next to (never instead
+  of) the sample size. A target tier that was never searched, or a year with no dated hits, is
+  INCOMPLETE for that scope rather than a silent PASS. New `inclusivity.*` config section
+  (`lookback_years`, `sample_per_window`, `warn_below_percent`, `fail_below_percent`), `report.html`
+  section, `results.xlsx` sheet, and `results.json` field.
+- `scripts/smoke_test.py` step `08b_esummary_inclusivity_dates`: checks the real nuccore ESummary
+  docsum date field name(s) and the accession re-indexing logic live -- now run, see above.
+- 15 new tests for phase 4b (ESummary date extraction/re-indexing, inclusivity site assessment,
+  end-to-end date-bucketing/sampling/verdict aggregation, one full CLI end-to-end scenario with a
+  dated target-tier hit). 295 tests total (250 before phase 4a, 280 after phase 4a, 295 after
+  phase 4b); `ruff check`/`ruff format --check` clean.
 
 ### Changed
 - README's privacy note: organism-list *names* (never the oligo sequences) are now sent to Entrez
   Taxonomy automatically, before the send-oligos confirmation, since they are not proprietary.
 - `specificity.off_target_tiers` default now includes `exclusivity`.
+- `run`'s full pipeline now always keeps the "target" tier's own search results (previously
+  discarded once specificity had used them), since inclusivity needs them too.
 
 ### Fixed
 - `data/clinical_organisms.yaml`: "Mycoplasma pneumoniae" does not resolve live, and (unlike the
   hypothesis in the first draft) the `[All Names]` synonym fallback does not catch its 2018 genus
-  rename either. Renamed the entry to "Mycoplasmoides pneumoniae" directly; this spelling has not
-  itself been confirmed live yet.
+  rename either. Renamed the entry to "Mycoplasmoides pneumoniae" directly; confirmed live in a
+  later run in this same release (see above): it resolves.
+- `scripts/smoke_test.py` step `08b`'s own findings computation indexed ESummary's UID-keyed
+  response by accession directly, silently producing empty findings even though the shipped
+  `inclusivity/dates.py` code (which re-indexes correctly) was unaffected. Fixed, and the
+  constructed test fakes (`tests/world.py`, `tests/test_smoke_script.py`) were tightened to use a
+  UID that deliberately differs from the accession, so this class of bug is now caught by the test
+  suite, not only by a live run.
 
 ### Known limitations
 - The packaged organism list is a small sample, not a claim of completeness for any assay; every
   laboratory must review and edit it (or supply its own file) before relying on the exclusivity
-  report. Checked live: 38 of 40 packaged names resolve; "Mycobacterium chelonae" currently does
-  not (cause unknown) and "Mycoplasma pneumoniae" was renamed (see Fixed above, itself unconfirmed).
+  report. Checked live: 39 of 40 packaged names resolve; "Mycobacterium chelonae" currently does
+  not (cause unknown).
 - Organism-name resolution can silently regress after an NCBI Taxonomy update (a name that used to
   resolve stops resolving, as apparently happened for "Mycoplasma pneumoniae"); the `[All Names]`
   synonym fallback does not catch every rename. Review `results.json`'s `exclusivity.unresolved`
@@ -69,10 +162,19 @@ ruling out this project's originally planned inclusivity design (see `docs/ARCHI
 - **Inclusivity's originally planned design (SPEC.md step 7) does not work as specified**: combining
   `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not reliably
   restrict by date (checked live: 4 of 20 checked hit accessions fell outside the requested window).
-  Phase 4b needs a redesigned approach -- get each window's accession list from ESearch instead,
-  which is independently confirmed reliable -- before it can be implemented.
-- Inclusivity (phase 4b) is not implemented, so a full `run` still ends `INCOMPLETE` overall even
-  when specificity and exclusivity both pass.
+  Implemented instead: reuse the target tier's own search and bucket by date afterwards via
+  ESummary (see `docs/ARCHITECTURE.md`), now itself checked live for the common case (a record with
+  a `createdate` field).
+- **Inclusivity's yearly sample is not a controlled random sample of the population**: it comes from
+  whatever the target-tier BLAST search's own hit list (capped by `search.hitlist_size`) returned
+  for that year, so a well-sequenced target can under- or over-represent some years depending on
+  BLAST's own ranking. Reported honestly: `population_size` (an independent ESearch count) is always
+  shown next to `sample_size`, and this limitation is stated on every `InclusivityResult`.
+- **Inclusivity's ESummary-based date lookup has not been checked live yet** (the real nuccore
+  docsum date field name, and the accession re-indexing logic for more than one accession at once
+  are both taken from documentation/memory or checked only against the constructed test world).
+  `scripts/smoke_test.py` step `08b_esummary_inclusivity_dates` checks this; run it before trusting
+  inclusivity's year attribution.
 
 ## [0.3.0] - 2026-09-21
 

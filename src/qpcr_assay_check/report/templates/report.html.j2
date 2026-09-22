@@ -127,6 +127,7 @@ td.aln-cell { min-width: 22rem; }
   {% endfor %}
   </tbody>
 </table></div>
+<p class="meta">{% if r.network_used %}This run sent the oligo sequences to NCBI (see Methods).{% else %}No sequence was searched against any database in this run, and no data was sent to NCBI.{% endif %}</p>
 
 <h2>Assay as evaluated</h2>
 <div class="scroll"><table>
@@ -301,6 +302,37 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 {% endif %}
 
+{% if r.inclusivity %}
+<h2>Inclusivity across the intended target (sampled)</h2>
+<p>{{ chip(r.inclusivity.verdict.value) }} inclusivity</p>
+{% if not r.inclusivity.tier_searched %}
+<p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
+{% else %}
+<div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
+{% for o in r.inclusivity.oligos %}
+<h3>{{ o.role | capitalize }}</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Year</th><th>Population</th><th>Sample</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
+  <tbody>
+  {% for w in o.windows %}
+  <tr><td class="num">{{ w.year }}</td><td class="num">{{ w.population_size if w.population_size is not none else '–' }}</td>
+    <td class="num">{{ w.sample_size }}</td><td class="num">{{ w.n_perfect }}</td><td class="num">{{ w.n_one_mismatch }}</td>
+    <td class="num">{{ w.n_two_plus_mismatch }}</td><td class="num">{{ w.n_three_prime_mismatch }}</td><td class="num">{{ w.n_fetch_failed }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if o.n_no_date %}<p class="meta">{{ o.n_no_date }} sampled hit(s) had no determinable submission year and were excluded from the yearly buckets.</p>{% endif %}
+{% endfor %}
+{% if r.inclusivity.rationale %}
+<h3>Rationale</h3>
+<ul>{% for line in r.inclusivity.rationale %}<li>{{ line }}</li>{% endfor %}</ul>
+{% endif %}
+{% if r.inclusivity.limitations %}
+<p class="meta">{% for l in r.inclusivity.limitations %}{{ l }} {% endfor %}</p>
+{% endif %}
+{% endif %}
+{% endif %}
+
 {% if r.taxonomy_breakdown %}
 <h2>Taxonomic breakdown of off-target sites</h2>
 <p class="meta">Every off-target tier (near neighbours, background, exclusivity), by the taxon each site's subject record belongs to. Species/genus/family come from
@@ -340,12 +372,99 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 {% endif %}
 
+{% if r.history %}
+<h2>Changes since the previous run</h2>
+{% if not r.history.has_previous %}
+<p><span class="chip s-INCOMPLETE">INCOMPLETE</span> This is the first recorded run for this assay: there is nothing yet to compare it against.</p>
+{% else %}
+<p>{{ chip(r.history.verdict.value) }} compared to the run on {{ r.history.previous_generated_at }}
+  (<code>{{ r.history.previous_run_id }}</code>)</p>
+{% if r.history.inputs_changed %}<div class="notice"><p>The assay definition or configuration changed since that run: some of the differences below may reflect that rather than new NCBI data.</p></div>{% endif %}
+<ul>{% for line in r.history.rationale %}<li>{{ line }}</li>{% endfor %}</ul>
+{% set changed_sections = r.history.section_changes | selectattr('changed') | list %}
+{% if changed_sections %}
+<h3>Section verdicts</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Section</th><th>Before</th><th>After</th></tr></thead>
+  <tbody>
+  {% for sc in changed_sections %}
+  <tr><td>{{ sc.title }}</td>
+    <td>{% if sc.verdict_before %}{{ chip(sc.verdict_before.value) }}{% else %}<span class="chip s-none">not evaluated</span>{% endif %}</td>
+    <td>{% if sc.verdict_after %}{{ chip(sc.verdict_after.value) }}{% else %}<span class="chip s-none">not evaluated</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% if r.history.new_sites or r.history.resolved_sites or r.history.changed_sites %}
+<h3>Off-target sites</h3>
+<p class="meta">Matched across runs by accession and position, not by the run-local site ID.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Change</th><th>Tier</th><th>Oligo</th><th>Organism / record</th><th>Position</th><th>Level</th><th>Mismatches</th></tr></thead>
+  <tbody>
+  {% for s in r.history.new_sites %}
+  <tr><td><span class="chip s-WARN">new</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
+    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}</span></td>
+    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
+    <td>{{ chip(s.level_after) }}</td><td class="num">{{ s.n_mismatch_after }}</td></tr>
+  {% endfor %}
+  {% for s in r.history.resolved_sites %}
+  <tr><td><span class="chip s-PASS">resolved</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
+    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}</span></td>
+    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
+    <td>{{ chip(s.level_before) }}</td><td class="num">{{ s.n_mismatch_before }}</td></tr>
+  {% endfor %}
+  {% for s in r.history.changed_sites %}
+  <tr><td><span class="chip s-INFO">changed</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
+    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}</span></td>
+    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
+    <td>{{ chip(s.level_before) }} → {{ chip(s.level_after) }}</td>
+    <td class="num">{{ s.n_mismatch_before }} → {{ s.n_mismatch_after }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% if r.history.new_amplicons or r.history.resolved_amplicons %}
+<h3>Predicted off-target products</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Change</th><th>Tier</th><th>Organism / record</th><th>Position</th><th>Primers</th><th>Class</th></tr></thead>
+  <tbody>
+  {% for a in r.history.new_amplicons %}
+  <tr><td><span class="chip s-WARN">new</span></td><td>{{ a.tier }}</td>
+    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession }}</span></td>
+    <td class="num">{{ a.start }}–{{ a.end }}</td><td>{{ a.roles }}</td>
+    <td>{% if a.classification %}{{ chip(a.classification) }}{% endif %}</td></tr>
+  {% endfor %}
+  {% for a in r.history.resolved_amplicons %}
+  <tr><td><span class="chip s-PASS">resolved</span></td><td>{{ a.tier }}</td>
+    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession }}</span></td>
+    <td class="num">{{ a.start }}–{{ a.end }}</td><td>{{ a.roles }}</td>
+    <td>{% if a.classification %}{{ chip(a.classification) }}{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% if r.history.inclusivity_changes %}
+<h3>Inclusivity trend</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Oligo</th><th>Year</th><th>Before</th><th>After</th><th>New mismatch position(s)</th></tr></thead>
+  <tbody>
+  {% for c in r.history.inclusivity_changes %}
+  <tr><td>{{ c.role }}</td><td class="num">{{ c.year }}</td>
+    <td class="num">{% if c.percent_before is not none %}{{ '%.0f' % c.percent_before }}% of {{ c.sample_size_before }}{% else %}–{% endif %}</td>
+    <td class="num">{% if c.percent_after is not none %}{{ '%.0f' % c.percent_after }}% of {{ c.sample_size_after }}{% else %}–{% endif %}</td>
+    <td class="num">{{ c.new_mismatch_positions | join(', ') or '–' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% endif %}
+{% endif %}
+
 {% if pending %}
 <h2>Not yet evaluated</h2>
 <div class="notice">
   <p>The following parts of the evaluation were not performed in this record, so the overall verdict cannot be a pass:</p>
   <ul>{% for s in pending %}<li>{{ s.title }}: {{ s.note }}</li>{% endfor %}</ul>
-  <p>{% if r.network_used %}This run sent the oligo sequences to NCBI (see Methods).{% else %}No sequence was searched against any database in this run, and no data was sent to NCBI.{% endif %}</p>
 </div>
 {% endif %}
 

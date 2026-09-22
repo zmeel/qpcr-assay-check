@@ -8,7 +8,6 @@ results/
 smoke_out/
 validation_out/
 *.log
-history/
 .qpcr-cache/
 *.rid.json
 
