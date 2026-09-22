@@ -711,22 +711,28 @@ def main() -> int:
         from qpcr_assay_check.inclusivity.dates import fetch_years, year_from_docsum
 
         accs = [REFERENCE, "NC_000007.14"]  # SARS-CoV-2 reference + human chromosome 7 (unrelated)
+        # eu.esummary() returns its docsums keyed by NCBI's own resolved UID, not by the accession
+        # string given as input (confirmed by this very check) -- re-index by each docsum's own
+        # accessionversion field to look them up by accession, exactly as fetch_years() must do.
         docsums = eu.esummary("nuccore", accs)
+        by_accession = {d.get("accessionversion"): d for d in docsums.values()}
         years = fetch_years(eu, cache, accs, ttl_days=0)
+        rep.findings["esummary_keyed_by_uid_not_accession"] = bool(
+            docsums and not (set(accs) & set(docsums))
+        )
         rep.findings["esummary_docsum_keys"] = {
-            acc: sorted(docsums[acc].keys()) for acc in accs if acc in docsums
+            acc: sorted(by_accession[acc].keys()) for acc in accs if acc in by_accession
         }
         rep.findings["esummary_reindexed_by_accession_correctly"] = {
-            acc: docsums.get(acc, {}).get("accessionversion") == acc
-            or docsums.get(acc, {}).get("caption") == acc.split(".")[0]
+            acc: by_accession[acc].get("accessionversion") == acc
             for acc in accs
-            if acc in docsums
+            if acc in by_accession
         }
         rep.findings["esummary_years_extracted"] = years
         return {
-            "docsums": docsums,
+            "docsums_by_uid": docsums,
             "year_from_docsum_per_accession": {
-                acc: year_from_docsum(docsums[acc]) for acc in accs if acc in docsums
+                acc: year_from_docsum(by_accession[acc]) for acc in accs if acc in by_accession
             },
             "fetch_years_result": years,
         }

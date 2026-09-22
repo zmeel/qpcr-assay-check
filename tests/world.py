@@ -224,10 +224,13 @@ class WorldFake(FakeNcbi):
             p = dict(params or {})
             ids = [i for i in str(p.get("id", "")).split(",") if i]
             result: dict = {"uids": []}
-            for acc in ids:
+            for n, acc in enumerate(ids):
                 if acc in self.world.dates:
-                    result["uids"].append(acc)
-                    result[acc] = {"accessionversion": acc, "createdate": self.world.dates[acc]}
+                    # NCBI keys the result by its own resolved UID, never by the accession string
+                    # given as input -- use a UID that deliberately differs from the accession.
+                    uid = f"999{n}"
+                    result["uids"].append(uid)
+                    result[uid] = {"accessionversion": acc, "createdate": self.world.dates[acc]}
             return FakeResponse(200, json.dumps({"header": {"type": "esummary"}, "result": result}))
         if "efetch.fcgi" in url:
             p = dict(params or {})

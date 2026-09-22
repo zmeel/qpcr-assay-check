@@ -21,8 +21,18 @@ queries with up to 100 taxids were accepted. One important negative result, whic
 design: **combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call
 does not reliably restrict by date** (4 of 20 checked hit accessions fell outside the requested
 window), ruling out this project's originally planned inclusivity design (see
-`docs/ARCHITECTURE.md`). Phase 4b's own new E-utility usage (ESummary date lookup) has NOT yet been
-checked live -- see Known limitations.
+`docs/ARCHITECTURE.md`).
+
+**Further live validation (2026-09-22, `scripts/smoke_test.py` step `08b`):** the renamed organism
+`Mycoplasmoides pneumoniae` now resolves live (39 of 40 packaged names resolve; only
+`Mycobacterium chelonae` remains unresolved). Phase 4b's own new E-utility usage was also checked:
+`Eutils.esummary()`'s JSON shape matched a real response, the nuccore ESummary docsum's date field
+is `createdate` (confirmed by extracting the correct year for two real records), and NCBI does key
+the result by resolved UID rather than by the input accession (confirmed directly) -- `fetch_years()`
+correctly recovers the right years despite this. A bug was found and fixed in the smoke-test
+script's own (separate, redundant) findings computation, which had naively assumed the response was
+keyed by accession; the shipped `inclusivity/dates.py` code was already correct. See
+`docs/ARCHITECTURE.md` for detail.
 
 ### Added
 - `taxonomy/resolve.py`: resolves organism names to NCBI taxonomy IDs via Entrez Taxonomy
@@ -60,7 +70,7 @@ checked live -- see Known limitations.
   (`lookback_years`, `sample_per_window`, `warn_below_percent`, `fail_below_percent`), `report.html`
   section, `results.xlsx` sheet, and `results.json` field.
 - `scripts/smoke_test.py` step `08b_esummary_inclusivity_dates`: checks the real nuccore ESummary
-  docsum date field name(s) and the accession re-indexing logic live (not yet run).
+  docsum date field name(s) and the accession re-indexing logic live -- now run, see above.
 - 15 new tests for phase 4b (ESummary date extraction/re-indexing, inclusivity site assessment,
   end-to-end date-bucketing/sampling/verdict aggregation, one full CLI end-to-end scenario with a
   dated target-tier hit). 295 tests total (250 before phase 4a, 280 after phase 4a, 295 after
@@ -76,14 +86,20 @@ checked live -- see Known limitations.
 ### Fixed
 - `data/clinical_organisms.yaml`: "Mycoplasma pneumoniae" does not resolve live, and (unlike the
   hypothesis in the first draft) the `[All Names]` synonym fallback does not catch its 2018 genus
-  rename either. Renamed the entry to "Mycoplasmoides pneumoniae" directly; this spelling has not
-  itself been confirmed live yet.
+  rename either. Renamed the entry to "Mycoplasmoides pneumoniae" directly; confirmed live in a
+  later run in this same release (see above): it resolves.
+- `scripts/smoke_test.py` step `08b`'s own findings computation indexed ESummary's UID-keyed
+  response by accession directly, silently producing empty findings even though the shipped
+  `inclusivity/dates.py` code (which re-indexes correctly) was unaffected. Fixed, and the
+  constructed test fakes (`tests/world.py`, `tests/test_smoke_script.py`) were tightened to use a
+  UID that deliberately differs from the accession, so this class of bug is now caught by the test
+  suite, not only by a live run.
 
 ### Known limitations
 - The packaged organism list is a small sample, not a claim of completeness for any assay; every
   laboratory must review and edit it (or supply its own file) before relying on the exclusivity
-  report. Checked live: 38 of 40 packaged names resolve; "Mycobacterium chelonae" currently does
-  not (cause unknown) and "Mycoplasma pneumoniae" was renamed (see Fixed above, itself unconfirmed).
+  report. Checked live: 39 of 40 packaged names resolve; "Mycobacterium chelonae" currently does
+  not (cause unknown).
 - Organism-name resolution can silently regress after an NCBI Taxonomy update (a name that used to
   resolve stops resolving, as apparently happened for "Mycoplasma pneumoniae"); the `[All Names]`
   synonym fallback does not catch every rename. Review `results.json`'s `exclusivity.unresolved`
@@ -92,7 +108,8 @@ checked live -- see Known limitations.
   `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not reliably
   restrict by date (checked live: 4 of 20 checked hit accessions fell outside the requested window).
   Implemented instead: reuse the target tier's own search and bucket by date afterwards via
-  ESummary (see `docs/ARCHITECTURE.md`).
+  ESummary (see `docs/ARCHITECTURE.md`), now itself checked live for the common case (a record with
+  a `createdate` field).
 - **Inclusivity's yearly sample is not a controlled random sample of the population**: it comes from
   whatever the target-tier BLAST search's own hit list (capped by `search.hitlist_size`) returned
   for that year, so a well-sequenced target can under- or over-represent some years depending on

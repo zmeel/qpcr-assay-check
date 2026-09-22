@@ -91,10 +91,14 @@ class SmokeFake(FakeNcbi):
         return f">{p['id']} constructed\n{seq}\n"
 
     def _esummary(self, p):
-        ids = [i for i in str(p.get("id", "")).split(",") if i]
-        result: dict = {"uids": ids}
-        for acc in ids:
-            result[acc] = {"accessionversion": acc, "createdate": "2020/03/15"}
+        # NCBI keys the result by its own resolved UID, never by the accession string given as
+        # input -- use a UID that deliberately differs from the accession, so a test relying on
+        # the (wrong) assumption that they're the same would fail here too.
+        accs = [i for i in str(p.get("id", "")).split(",") if i]
+        uids = [f"999{i}" for i in range(len(accs))]
+        result: dict = {"uids": uids}
+        for uid, acc in zip(uids, accs, strict=True):
+            result[uid] = {"accessionversion": acc, "createdate": "2020/03/15"}
         return json.dumps({"header": {"type": "esummary"}, "result": result})
 
 

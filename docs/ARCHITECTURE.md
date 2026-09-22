@@ -1,16 +1,17 @@
 # Architecture
 
 Status: v0.3.0 implements steps 1, 2, 5, 6 (from v0.2.0) plus 7 and 8: full-length re-alignment of
-every relevant hit and amplicon pairing, feeding a real specificity verdict. v0.4.0 phase 4a
-(implemented, not yet tagged/released) adds steps 3 and part of 4: organism names are resolved to
-taxonomy IDs (never guessed) and searched as a real "exclusivity" tier reusing the same specificity
-machinery as the other off-target tiers, with its own per-organism table and a species/genus/family
-rollup of every off-target hit (step 6's aggregation, generalised beyond exclusivity alone). v0.4.0
-phase 4b (implemented, not yet tagged/released) adds step 9, inclusivity: the target tier's own
-hits (already searched for every run) are bucketed into years afterwards via ESummary, sampled, and
-re-aligned over the full oligo length, giving a year-by-year trend rather than the BLAST+`[PDAT]`
-design SPEC.md step 7 originally proposed (ruled out live; see "Design decisions" below). Step 11's
-history comparison is still the agreed design for later work (v1.0.0), not implemented.
+every relevant hit and amplicon pairing, feeding a real specificity verdict. v0.4.0 (tagged
+2026-09-22) adds steps 3, part of 4, and 9: organism names are resolved to taxonomy IDs (never
+guessed) and searched as a real "exclusivity" tier reusing the same specificity machinery as the
+other off-target tiers, with its own per-organism table and a species/genus/family rollup of every
+off-target hit (step 6's aggregation, generalised beyond exclusivity alone; phase 4a); and
+inclusivity (phase 4b): the target tier's own hits (already searched for every run) are bucketed
+into years afterwards via ESummary, sampled, and re-aligned over the full oligo length, giving a
+year-by-year trend rather than the BLAST+`[PDAT]` design SPEC.md step 7 originally proposed (ruled
+out live; see "Design decisions" below). Both phase 4a's and 4b's remaining live-verification items
+have now been checked (see "Verified" sections below). Step 11's history comparison is still the
+agreed design for later work (v1.0.0), not implemented.
 
 ## Data flow
 
@@ -252,28 +253,41 @@ otherwise, before trusting a specificity verdict on a different assay.
   this species. **Fixed by editing the organism list** to use the current name directly
   (`Mycoplasmoides pneumoniae`) rather than relying on synonym resolution; this itself needs a live
   re-check (not yet done) to confirm the new name resolves.
-- **The packaged organism list resolves 38 of 40 names** through the real
+- **The packaged organism list resolved 38 of 40 names in this run** through the real
   `taxonomy.plan.resolve_organism_list` path. Unresolved (this run): `Mycoplasma pneumoniae` (see
   above, now renamed in the list) and `Mycobacterium chelonae` (cause unknown — a plausible,
   well-established species name; needs investigation, not assumed to be a rename). Both are exactly
   what the "flag, never guess" design is for: they are left out of the exclusivity search and
-  reported, not silently dropped.
+  reported, not silently dropped. **Update (2026-09-22, next live run): the renamed entry,
+  `Mycoplasmoides pneumoniae`, now resolves** — 39 of 40 packaged names resolved, only
+  `Mycobacterium chelonae` remained unresolved. See "Verified for v0.4.0 phase 4b" below.
 
-### Still unverified for v0.4.0 phase 4b (inclusivity)
+### Verified for v0.4.0 phase 4b (`scripts/smoke_test.py` step `08b`, live, 2026-09-22)
 
-`scripts/smoke_test.py` step `08b_esummary_inclusivity_dates` checks these live, but has not been
-run yet:
-
-- **The real nuccore ESummary docsum field name(s) that carry a submission/creation date.**
-  `inclusivity/dates.py`'s `year_from_docsum()` tries several candidate field names (`createdate`,
-  `CreateDate`, `updatedate`, `UpdateDate`, `sortpubdate`, `PubDate`) taken from memory of the
-  ESummary JSON format documentation, not from an observed real response.
-  `esummary()` (`ncbi/eutils.py`) itself — the JSON shape (`result.uids` plus one object per UID)
-  — is also unverified against a real response.
-- **Re-indexing ESummary results by accession, not by response order, for more than one accession
-  at once.** NCBI keys its JSON result by resolved UID, not by the accession string given as input;
-  `fetch_years()` re-indexes using the docsum's own `accessionversion`/`caption` field specifically
-  to avoid trusting input order, but this has only been checked against the constructed test world
-  (`tests/world.py`), never a real multi-accession ESummary response.
-- Whether renaming the organism-list entry to `Mycoplasmoides pneumoniae` (see the phase 4a note
-  above) itself resolves — carried over from phase 4a, still open.
+- **The renamed organism-list entry `Mycoplasmoides pneumoniae` resolves live.** The organism-list
+  resolution carried over from phase 4a went from 38/40 to 39/40 in this run; only
+  `Mycobacterium chelonae` remains unresolved (cause still unknown).
+- **`Eutils.esummary()`'s JSON shape is correct against a real response**: `result.uids` is a list
+  of UID strings, and `result[uid]` is one document summary object per UID, exactly as the client
+  assumes.
+- **The nuccore ESummary docsum's date field is `createdate`** (format `"YYYY/MM/DD"`, e.g.
+  `"2020/01/13"` for `NC_045512.2`), the first candidate `year_from_docsum()` tries — confirmed by
+  extracting the correct year for two real records (`NC_045512.2` → 2020, `NC_000007.14` → 2002,
+  both matching the real `createdate` values in the response). The other candidate field names
+  (`CreateDate`, `updatedate`, `UpdateDate`, `sortpubdate`, `PubDate`) remain unverified but are no
+  longer needed for the common case.
+- **NCBI keys the ESummary result by its own resolved UID, not by the accession string sent as
+  input**, confirmed directly (the response for `id=NC_045512.2,NC_000007.14` came back keyed
+  `"1798174254"`/`"568815591"`, not by either accession). `fetch_years()`'s re-indexing by each
+  docsum's own `accessionversion` field (`inclusivity/dates.py`) correctly recovered both years
+  despite this. **A bug was found and fixed in the smoke-test script itself** (not in the shipped
+  `inclusivity/dates.py`, which was already correct): step `08b`'s own findings computation had
+  naively indexed the UID-keyed response by accession, which silently produced empty findings
+  (`esummary_docsum_keys: {}`) even though `fetch_years_result` was correct throughout. Fixed by
+  re-indexing the same way `fetch_years()` does, and the constructed test fakes
+  (`tests/world.py`, `tests/test_smoke_script.py`) were tightened to use a UID that deliberately
+  differs from the accession, so this class of bug is now caught by the test suite too, not only
+  by a live run.
+- Inclusivity's ESummary-based date lookup can now be considered verified for the common case
+  (`createdate` present, `accessionversion` present). Still open: a record where `createdate` is
+  absent and one of the fallback field names is needed instead has not been observed live.
