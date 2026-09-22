@@ -4,24 +4,29 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v0.4.0 (alpha, tagged 2026-09-22).** A full `run` sends the oligos to NCBI (tiered,
-> taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
-> every relevant hit, predicts off-target products, and judges specificity — genuine
-> `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
-> (never guessed) and searched as a real **exclusivity** tier against a starter clinical organism
-> list, with its own per-organism table, plus a species/genus/family breakdown of every off-target
-> hit; and **inclusivity** gives a year-by-year trend of how well the oligos still match the
-> intended target, built by reusing the target tier's own search and bucketing its hits into years
-> afterwards (see below for why, not a separate date-restricted BLAST search). The overall verdict
-> still ends as `INCOMPLETE`, because yearly run history is not implemented yet (v1.0.0). The BLAST
-> client, the re-alignment pruning rules, taxonomy lineage parsing, the organism-list resolution
-> path and the inclusivity ESummary date lookup have all now been checked against the live NCBI
-> servers (most recently 2026-09-22). One negative result along the way: a live check **ruled out
-> this project's originally planned inclusivity design** — combining `ENTREZ_QUERY` taxon
-> restriction with a `[PDAT]` date filter in one BLAST call does not reliably restrict by date — so
-> inclusivity was redesigned around reusing the target tier's search instead (see
-> `docs/ARCHITECTURE.md`). See `docs/ARCHITECTURE.md` for everything verified so far and
-> `docs/PROGRESS.md` for what is still open.
+> **Status: v0.4.0 (alpha, tagged 2026-09-22) plus v1.0.0 work in progress.** A full `run` sends
+> the oligos to NCBI (tiered, taxon-restricted remote BLAST), fetches the subject window and
+> re-aligns the whole oligo over every relevant hit, predicts off-target products, and judges
+> specificity — genuine `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to
+> NCBI taxonomy IDs (never guessed) and searched as a real **exclusivity** tier against a starter
+> clinical organism list, with its own per-organism table, plus a species/genus/family breakdown of
+> every off-target hit; and **inclusivity** gives a year-by-year trend of how well the oligos still
+> match the intended target, built by reusing the target tier's own search and bucketing its hits
+> into years afterwards (see below for why, not a separate date-restricted BLAST search). **New, not
+> yet released as a tagged version:** every run now compares itself against the most recent previous
+> run for the same assay and reports what changed — verdict changes, new or resolved off-target
+> sites and amplicons, inclusivity regressions — so the overall verdict finally reaches a genuine
+> `PASS` from a run's *second* year onward (the very first run for an assay has nothing to compare
+> against yet, so it stays `INCOMPLETE` by the same "missing evidence is never a PASS" rule as every
+> other section). A Dockerfile is also new; see [Docker](#docker-v100) below. The BLAST client, the
+> re-alignment pruning rules, taxonomy lineage parsing, the organism-list resolution path and the
+> inclusivity ESummary date lookup have all now been checked against the live NCBI servers (most
+> recently 2026-09-22). One negative result along the way: a live check **ruled out this project's
+> originally planned inclusivity design** — combining `ENTREZ_QUERY` taxon restriction with a
+> `[PDAT]` date filter in one BLAST call does not reliably restrict by date — so inclusivity was
+> redesigned around reusing the target tier's search instead (see `docs/ARCHITECTURE.md`). See
+> `docs/ARCHITECTURE.md` for everything verified so far and `docs/PROGRESS.md` for what is still
+> open.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -51,6 +56,37 @@ cd qpcr-assay-check
 pip install -e ".[dev]"
 pytest
 ```
+
+### Docker (v1.0.0)
+
+No local BLAST database is built or shipped: the image is just the CLI and its Python
+dependencies, so it is small and needs nothing beyond network access to NCBI at run time.
+
+```bash
+git clone https://github.com/zmeel/qpcr-assay-check.git
+cd qpcr-assay-check
+docker build -t qpcr-assay-check .
+
+# write a starter assay/config into a host directory (bind-mounted as /work)
+docker run --rm -v "$PWD/work:/work" qpcr-assay-check init my-assay --example
+
+# a full run: give NCBI_EMAIL (required) and NCBI_API_KEY (optional); -y skips the confirmation
+# prompt, which does not work in a non-interactive `docker run` without a TTY
+docker run --rm -e NCBI_EMAIL="your.name@example.org" -v "$PWD/work:/work" \
+  qpcr-assay-check run my-assay/assay.yaml -o results -y
+```
+
+Everything the container writes lands under the bind-mounted `/work` directory (`results/`,
+and the NCBI cache if you point `ncbi.cache_dir` there too via `--config`); nothing persists
+inside the container itself, which runs as a non-root user. Pass `--qc-only` for a network-free
+run, or omit `-y` and run with `-it` for an interactive confirmation prompt.
+
+The image was built and its `init`/`validate`/`run --qc-only` path was verified locally
+(the sandbox this was developed in could reach PyPI to install the package into a plain
+virtualenv, confirmed to install and run correctly end to end, but could not reach Docker Hub
+through its outbound proxy to pull the `python:3.12-slim` base image itself and build/run the
+actual container). Build and run it yourself before relying on it, the same way you would for
+any new deployment.
 
 ## Quick start
 
@@ -168,6 +204,30 @@ BLAST hit list returned for that year, not a controlled random sample of everyth
 year — `population_size` is always shown alongside `sample_size` so the two are never confused.
 A target tier that was never searched, or a year with no dated hits, is INCOMPLETE for that scope
 rather than a silent PASS.
+
+### Run history and changes since the last run (v1.0.0, in progress)
+
+Every full `run` looks for the most recently generated `results.json` under the same output
+directory and assay name (`<outdir>/<assay-slug>/*/results.json`, sorted by the record's own
+`generated_at`) and diffs the current evaluation against it: no separate index or database, just
+the same per-run directories every version has already written. The report gets a "Changes since
+the previous run" section: which section verdicts changed, which off-target sites or predicted
+products are new or have disappeared, and how the inclusivity trend moved — matched across runs by
+accession and position (not by the run-local site ID, which is only ever stable within one run).
+
+The first run for a new assay has nothing to compare against, so this section is honestly
+`INCOMPLETE` rather than silently skipped — the same "missing evidence is never a PASS" rule
+applied everywhere else in this tool. From the second run onward it is a real `PASS` (nothing
+concerning changed) or `WARN` (a section got worse, a new critical/warning site or predicted
+product appeared, or inclusivity regressed for some oligo/year) — never `FAIL` by itself, since a
+regression that is bad enough to fail the run already fails the specific section it belongs to
+(specificity, exclusivity, inclusivity); "history" only flags that something changed and is worth a
+human look.
+
+```bash
+# run the same assay again later; -o must point at the same output directory as before
+qpcr-assay-check run my-assay/assay.yaml -o results
+```
 
 You can also define an assay entirely on the command line:
 
@@ -378,8 +438,19 @@ pruning logic changes, rather than treating this one result as permanent proof.
   target-tier BLAST search's own hit list (capped) returned for that year, so a well-sequenced
   target can under- or over-represent some years depending on BLAST's own ranking. Reported
   honestly: `population_size` (an independent ESearch count) is always shown next to `sample_size`.
-- Yearly run history is not implemented yet, so a full `run` still ends `INCOMPLETE` overall even
-  when specificity, exclusivity and inclusivity all pass.
+- **A first run for any assay always ends `INCOMPLETE` overall**, even when every other section
+  passes: the new "history" section has no previous run to compare against yet, and missing
+  evidence is never a PASS. From the second run onward for that same assay (same output directory,
+  same assay name) it becomes a real comparison.
+- **The previous run is found by assay slug, not by assay content**: renaming an assay (which
+  changes its filesystem-safe slug) starts its history over with nothing to compare against, even
+  if the oligos themselves did not change. Off-target sites and predicted products are matched
+  across runs by accession and position, which is stable for the same physical binding site but
+  will register as "new" if the *reference record itself* is revised to a new accession.version.
+- **Docker**: the image was built and its `init`/`validate`/`run --qc-only` path verified in a
+  plain virtualenv (equivalent `pip install .` and entry point), but the actual container could not
+  be built in the sandbox this was developed in (no route to Docker Hub through its outbound
+  proxy). Build and run it yourself before relying on it.
 
 ## Roadmap
 
@@ -388,8 +459,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
-| **0.4.0** | Taxonomy resolution, organism list, exclusivity, inclusivity (done, unreleased) |
-| 1.0.0 | Run history, yearly diff report, complete report, Docker, documentation |
+| 0.4.0 | Taxonomy resolution, organism list, exclusivity, inclusivity |
+| **1.0.0** | Run history, yearly diff report, Docker (done, unreleased); complete report/documentation polish (open) |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 

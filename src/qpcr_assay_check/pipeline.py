@@ -13,6 +13,7 @@ import primer3
 
 from . import __version__
 from .config import Config
+from .history.diff import compute_history
 from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
 from .oligo.qc import run_oligo_qc
@@ -25,11 +26,6 @@ from .taxonomy.rollup import TaxonCount
 from .verdict import Verdict, combine, exit_code, verdict_from_status
 
 log = logging.getLogger(__name__)
-
-#: (key, title, version in which the section becomes available)
-PLANNED_SECTIONS: list[tuple[str, str, str]] = [
-    ("history", "Comparison with the previous run", "1.0.0"),
-]
 
 
 def inputs_hash(assay: Assay, cfg: Config) -> str:
@@ -62,6 +58,7 @@ def evaluate(
     organism_resolution: OrganismListResolution | None = None,
     taxonomy_breakdown: list[TaxonCount] | None = None,
     inclusivity: InclusivityResult | None = None,
+    previous_run: RunResult | None = None,
 ) -> RunResult:
     """Run every analysis that exists in this version and assemble the evaluation record."""
     now = (now or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
@@ -185,19 +182,40 @@ def evaluate(
                 note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
             )
         )
-    for key, title, since in PLANNED_SECTIONS:
+    history = None
+    if qc_only:
         sections.append(
             SectionResult(
-                key=key,
-                title=title,
-                state="skipped" if qc_only else "not_implemented",
+                key="history",
+                title="Comparison with the previous run",
+                state="skipped",
                 verdict=None,
-                note=(
-                    "Skipped (--qc-only)."
-                    if qc_only
-                    else f"Not available in v{__version__}; planned for v{since}."
-                ),
-                available_from=since,
+                note="Skipped (--qc-only).",
+            )
+        )
+    else:
+        history = compute_history(
+            previous_run,
+            inputs_hash=digest,
+            section_verdicts={s.key: s.verdict for s in sections},
+            section_titles={s.key: s.title for s in sections},
+            sites=specificity.sites if specificity else [],
+            amplicons=specificity.amplicons if specificity else [],
+            inclusivity=inclusivity,
+        )
+        if history.has_previous:
+            note = f"Compared to the run on {history.previous_generated_at}: {history.rationale[0]}"
+            if len(history.rationale) > 1:
+                note += f" (+{len(history.rationale) - 1} more change(s), see rationale)."
+        else:
+            note = history.rationale[0]
+        sections.append(
+            SectionResult(
+                key="history",
+                title="Comparison with the previous run",
+                state="evaluated",
+                verdict=history.verdict,
+                note=note,
             )
         )
 
@@ -223,6 +241,8 @@ def evaluate(
         )
     if inclusivity is not None and inclusivity.verdict is not Verdict.PASS:
         findings += [f"Inclusivity: {line}" for line in inclusivity.rationale]
+    if history is not None and history.verdict is not Verdict.PASS:
+        findings += [f"History: {line}" for line in history.rationale]
     if not findings and verdict is Verdict.PASS:
         findings = ["No oligo QC check raised a WARN or FAIL."]
     overall = OverallResult(
@@ -251,6 +271,7 @@ def evaluate(
         exclusivity=exclusivity,
         taxonomy_breakdown=taxonomy_breakdown or [],
         inclusivity=inclusivity,
+        history=history,
         search=search_outcome.model_dump(mode="json") if search_outcome else None,
         sections=sections,
         overall=overall,

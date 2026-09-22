@@ -10,8 +10,11 @@ inclusivity (phase 4b): the target tier's own hits (already searched for every r
 into years afterwards via ESummary, sampled, and re-aligned over the full oligo length, giving a
 year-by-year trend rather than the BLAST+`[PDAT]` design SPEC.md step 7 originally proposed (ruled
 out live; see "Design decisions" below). Both phase 4a's and 4b's remaining live-verification items
-have now been checked (see "Verified" sections below). Step 11's history comparison is still the
-agreed design for later work (v1.0.0), not implemented.
+have now been checked (see "Verified" sections below). v1.0.0 (implemented, not yet tagged) adds
+step 11: every run diffs itself against the most recent previous run for the same assay (found from
+the existing `results/<slug>/<run_id>/` layout, no separate index), reusing the design already
+sketched below ("History as files"). A Dockerfile is also new. Neither has been checked live/in a
+real container yet (see "Verified" below for what has and has not been confirmed).
 
 ## Data flow
 
@@ -38,9 +41,11 @@ agreed design for later work (v1.0.0), not implemented.
    8 Amplicon pairing   9 Inclusivity   10 Exclusivity table                  │
                       └───────────────┬───────────────────────────────────────┘
                                       ▼
-            11 Verdict engine ◄── previous run (history)
+            11 Diff against the previous run (results/<slug>/*, by generated_at)
                                       ▼
-            12 Outputs: HTML · results.json · hits.tsv · xlsx · diff
+            12 Verdict engine
+                                      ▼
+            13 Outputs: HTML · results.json · hits.tsv · xlsx
 ```
 
 ## Roadmap
@@ -50,8 +55,8 @@ agreed design for later work (v1.0.0), not implemented.
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
-| **0.4.0** | Taxonomy resolution, organism list, exclusivity (phase 4a); inclusivity via target-tier reuse + ESummary date-bucketing (phase 4b) |
-| 1.0.0 | Run history, yearly diff, complete report, Docker, documentation |
+| 0.4.0 | Taxonomy resolution, organism list, exclusivity (phase 4a); inclusivity via target-tier reuse + ESummary date-bucketing (phase 4b) |
+| **1.0.0** | Run history + yearly diff, Docker (implemented, not yet tagged); complete report/documentation polish (open) |
 
 ## Design decisions
 
@@ -68,7 +73,27 @@ agreed design for later work (v1.0.0), not implemented.
   not a dedicated per-year search (see the redesign note below), so it is not a controlled random
   sample and `limitations` says so explicitly on every result.
 - **Missing evidence is never a PASS** (verdict INCOMPLETE).
-- **History as files**: one directory per run plus a small index; easy to audit and diff.
+- **History as files, no separate index** (v1.0.0, `history/store.py`): the previous run is found
+  by scanning `results/<assay.slug>/*/results.json` (a directory every version already writes) and
+  reading each record's own `generated_at` field; the most recent one is "the previous run". No
+  database, no index file to keep in sync or go stale relative to the actual files on disk.
+- **Sites and amplicons are matched across runs by a natural key, not by their run-local ID**
+  (v1.0.0, `history/diff.py`): `(tier, role, accession, orientation, subject_start, subject_end)`
+  for a site, `(tier, accession, start, end, roles)` for an amplicon. A site's run-local `id`
+  (`S1`, `S2`, ...) is only stable within one run's output, so matching by it would make every site
+  look "new" on every run.
+- **The "history" section is required, and a first run is honestly INCOMPLETE** (v1.0.0): like
+  every other section, missing evidence is never a PASS -- a first run for an assay has nothing to
+  diff against, so it cannot be a full pass yet, only from the second run onward. Confirmed with the
+  user before implementing, since it means a brand-new assay's very first run can never reach
+  overall PASS by itself.
+- **"History" only flags that something changed (WARN), never FAILs by itself** (v1.0.0): a
+  regression bad enough to fail the run already fails the specific section it belongs to
+  (specificity/exclusivity/inclusivity); duplicating that into history's own verdict would just be
+  noise. History compares each *other* section's already-known verdict (computed earlier in the
+  same `evaluate()` call) rather than the run's own combined overall verdict, deliberately: the
+  overall verdict is combined from every section including history itself, so comparing against it
+  would be circular.
 - **Three site sources, most to least certain** (`specificity/sites.py`): `blast_full` when BLAST's
   own alignment already spans the whole oligo (nothing to fetch); `realigned` when a partial hit's
   subject window was fetched and the whole oligo re-aligned semi-globally; `blast_partial_worst_case`
@@ -291,3 +316,22 @@ otherwise, before trusting a specificity verdict on a different assay.
 - Inclusivity's ESummary-based date lookup can now be considered verified for the common case
   (`createdate` present, `accessionversion` present). Still open: a record where `createdate` is
   absent and one of the fallback field names is needed instead has not been observed live.
+
+### Still unverified for v1.0.0
+
+- **The Docker image itself has not been built or run.** `Dockerfile` was written and reviewed, and
+  the same `pip install .` + console-script entry point it relies on was verified end to end in a
+  plain virtualenv (`init` → `validate` → `run --qc-only`, correct output files, correct exit code),
+  but the sandbox this was developed in has no route to Docker Hub through its outbound proxy (both
+  `docker pull python:3.12-slim` and `docker build` failed identically with an HTTP 403 from
+  Docker's own CDN, even after installing the proxy's CA bundle system-wide and passing
+  `HTTPS_PROXY`/`HTTP_PROXY` to the daemon as the environment's own guidance for `docker build`
+  describes -- concluded to be a genuine restriction on reaching that particular CDN through this
+  proxy, not a fixable misconfiguration, and not worked around further). Build and run the actual
+  image before relying on it.
+- **The history/diff feature has not been checked against a real multi-year dataset**, only the
+  constructed test world and hand-built unit fixtures (`tests/test_history.py`,
+  `tests/test_run_full.py::test_history_diff_across_two_runs`). The natural-key matching logic
+  (site/amplicon identity by accession and position) is straightforward and needs no live NCBI
+  behaviour to verify -- it operates entirely on this tool's own already-verified output -- so no
+  smoke-test step was added for it.

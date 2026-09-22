@@ -6,7 +6,62 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-v1.0.0 (run history, yearly diff, Docker, documentation) is next.
+v1.0.0: run history and a yearly diff report, and a Docker image. Documentation polish remains
+before this is tagged.
+
+### Added
+- **Run history and diff** (SPEC.md step 11): every full `run` now finds the most recently
+  generated previous run for the same assay (`results/<assay.slug>/*/results.json`, sorted by each
+  record's own `generated_at` -- no separate index or database) and diffs the current evaluation
+  against it. `history/store.py` locates the previous run; `history/diff.py` compares: per-section
+  verdict changes, off-target sites and predicted products that are new or have disappeared
+  (matched across runs by accession and position, not by the run-local site ID), and inclusivity
+  regressions per oligo/year (including newly-observed mismatch positions). New `history` field on
+  `results.json`, a "Changes since the previous run" report section, and a "History" xlsx sheet.
+  Like every other section, missing evidence is never a PASS: a first run for an assay has nothing
+  to compare against, so it is honestly `INCOMPLETE`, not skipped -- confirmed with the user before
+  implementing, since it means a brand-new assay's first run can never itself reach overall `PASS`.
+  From the second run onward it is a real `PASS` (nothing concerning changed) or `WARN` (a section
+  regressed, a new critical/warning site or product appeared, or inclusivity regressed); it never
+  fails a run by itself, since a regression severe enough to fail already fails the specific section
+  it belongs to.
+- **Dockerfile**: a small multi-stage image (no local BLAST database, just the CLI and its Python
+  dependencies), `.dockerignore`, and a Docker section in the README with build/run instructions.
+- 13 new tests (`tests/test_history.py`'s natural-key matching and first-run-INCOMPLETE unit tests,
+  plus `tests/test_run_full.py`'s full two-run CLI end-to-end scenario). 308 tests total (up from
+  295); `ruff check` clean.
+
+### Changed
+- `pipeline.PLANNED_SECTIONS` removed: "history" was its only remaining entry and is now a real,
+  implemented section like every other one.
+- `report.html`'s "Not yet evaluated" section now lists sections that were genuinely skipped or not
+  implemented (`state != "evaluated"`), not sections with a `None` verdict -- a section that *was*
+  evaluated but concluded `INCOMPLETE` (missing evidence) is no longer miscounted as "not yet
+  evaluated". The "oligo sequences were/were not sent to NCBI" disclosure, previously shown only
+  inside that (sometimes now-empty) block, is now always shown.
+
+### Fixed
+- `.gitignore` had a stale, unscoped `history/` rule (from early scaffolding, apparently intended
+  for a since-abandoned separate run-history output directory that this phase's "history as files"
+  design never needed) that was silently ignoring the entire new `src/qpcr_assay_check/history/`
+  source package. Found and fixed before the first commit of this phase; nothing was ever lost, but
+  it would have quietly excluded the whole feature from version control.
+
+### Known limitations
+- **The Docker image has not been built or run.** The `pip install .` + console-script entry point
+  it relies on was verified end to end in a plain virtualenv, but the sandbox this was developed in
+  has no route to Docker Hub through its outbound proxy (confirmed with both `docker pull` and
+  `docker build`, after installing the proxy's CA bundle and configuring the daemon's proxy env vars
+  per the environment's own documented workaround). Build and run it yourself before relying on it.
+- **History/diff has not been checked against a real multi-year dataset**, only the constructed test
+  world and hand-built unit fixtures. Its natural-key matching operates entirely on this tool's own
+  already-verified output (no new NCBI behaviour involved), so no live smoke-test step was needed.
+- **The previous run is found by assay slug** (derived from the assay name), not by assay content:
+  renaming an assay starts its history over, even if the oligos did not change.
+- A regression that shows up in history's diff already made the specific section (specificity,
+  exclusivity, inclusivity) fail or warn on its own; history's own verdict only ever reaches WARN
+  (flagging that something changed, worth a look), never FAIL, to avoid double-counting the same
+  evidence into the overall verdict twice.
 
 ## [0.4.0] - 2026-09-22
 
