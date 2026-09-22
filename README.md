@@ -10,15 +10,19 @@ in; a detailed, reproducible, version-stamped evaluation record comes out (HTML,
 > `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. **New, not yet released as a tagged version:**
 > organism names are now resolved to NCBI taxonomy IDs (never guessed) and searched as a real
 > **exclusivity** tier against a starter clinical organism list, with its own per-organism table,
-> plus a species/genus/family breakdown of every off-target hit. The overall verdict still ends as
-> `INCOMPLETE`, because **inclusivity** and yearly history are not implemented yet (the rest of
-> v0.4.0, and v1.0.0). The BLAST client, the re-alignment pruning rules, taxonomy lineage parsing
-> and the organism-list resolution path have all now been checked against the live NCBI servers
-> (most recently 2026-09-22) — and that live run also **ruled out this project's planned inclusivity
-> design**: combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call
-> does not reliably restrict by date, so phase 4b needs a different approach (see
-> `docs/ARCHITECTURE.md`) before it can be built. See `docs/ARCHITECTURE.md` for everything verified
-> so far and `docs/PROGRESS.md` for what is still open.
+> plus a species/genus/family breakdown of every off-target hit; and **inclusivity** now gives a
+> year-by-year trend of how well the oligos still match the intended target, built by reusing the
+> target tier's own search and bucketing its hits into years afterwards (see below for why, not a
+> separate date-restricted BLAST search). The overall verdict still ends as `INCOMPLETE`, because
+> yearly run history is not implemented yet (v1.0.0). The BLAST client, the re-alignment pruning
+> rules, taxonomy lineage parsing and the organism-list resolution path have all now been checked
+> against the live NCBI servers (most recently 2026-09-22) — and that live run also **ruled out
+> this project's originally planned inclusivity design**: combining `ENTREZ_QUERY` taxon
+> restriction with a `[PDAT]` date filter in one BLAST call does not reliably restrict by date, so
+> inclusivity was redesigned around reusing the target tier's search instead (see
+> `docs/ARCHITECTURE.md`). Inclusivity's own new ESummary-based date lookup has **not yet been
+> checked live** — see `docs/PROGRESS.md`. See `docs/ARCHITECTURE.md` for everything verified so
+> far and `docs/PROGRESS.md` for what is still open.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -62,7 +66,7 @@ qpcr-assay-check validate my-assay/assay.yaml
 qpcr-assay-check run my-assay/assay.yaml --qc-only -o results
 
 # a full run: sends the oligos to NCBI, asks first (still INCOMPLETE overall until
-# exclusivity/inclusivity/history exist, v0.4.0/v1.0.0)
+# yearly history exists, v1.0.0)
 qpcr-assay-check run my-assay/assay.yaml -o results
 
 # show exactly what a full run would send, without sending anything or needing credentials
@@ -146,6 +150,25 @@ Resolving organism names uses the network (Entrez Taxonomy) but never sends the 
 it runs automatically before the confirmation prompt without needing `--yes`; declining still sends
 no sequences (see `--dry-run`, which shows the organism-list name count but resolves nothing, since
 resolution needs `NCBI_EMAIL`).
+
+### Inclusivity across the intended target (v0.4.0, in progress)
+
+A full `run` also gives a year-by-year trend of how well the oligos still match the intended
+target: the "target" tier search every run already makes (perfect full-length hits or near enough)
+is bucketed by each hit's own submission year afterwards (via ESummary), sampled deterministically
+(evenly spread by accession, capped by `inclusivity.sample_per_window`, default 20/year over the
+last `inclusivity.lookback_years`, default 10), and re-aligned over the full oligo length. The
+report gets a per-oligo, per-year table (population size from an independent ESearch count, sample
+size, perfect/1-mismatch/2+-mismatch/3'-mismatch counts, a per-position mismatch profile).
+
+This is deliberately **not** a separate, date-restricted BLAST search: a live check found that
+combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not
+reliably restrict by date, so inclusivity reuses evidence the run already gathers instead (see
+`docs/ARCHITECTURE.md`). One honest consequence: the yearly sample is whatever the target tier's own
+BLAST hit list returned for that year, not a controlled random sample of everything sequenced that
+year — `population_size` is always shown alongside `sample_size` so the two are never confused.
+A target tier that was never searched, or a year with no dated hits, is INCOMPLETE for that scope
+rather than a silent PASS.
 
 You can also define an assay entirely on the command line:
 
@@ -267,8 +290,10 @@ of the 40 packaged organism-list names resolved through the real exclusivity-res
 important negative result: **combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter
 in a single BLAST call does not reliably restrict by date** (4 of 20 checked hit accessions fell
 outside the requested window) — this rules out this project's originally planned inclusivity
-design; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detail and what it means for
-phase 4b.
+design; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detail and the redesign it led to
+(phase 4b, implemented: reuse the target tier's own search, bucket by date via ESummary afterwards).
+That ESummary-based date lookup itself has not yet been checked live — `scripts/smoke_test.py`
+step `08b_esummary_inclusivity_dates` checks it on the next live run.
 
 ### Live validation of the specificity assessment (v0.3.0)
 
@@ -323,7 +348,7 @@ pruning logic changes, rather than treating this one result as permanent proof.
   unpaired overhang); priming risk is judged from the mismatch positions and clean-3'-nt count,
   never from Tm alone.
 - Specificity covers only the tiers actually searched (intended target, near neighbours,
-  background, exclusivity); inclusivity sampling is not implemented yet.
+  background, exclusivity).
 - `ENTREZ_QUERY` taxon restriction is effective, not airtight: one "synthetic construct" record
   leaked into 3,715 live human-restricted hits (it carries a human source feature).
 - The clinical organism list ships as a small, hand-picked, non-authoritative starting point (see
@@ -336,13 +361,22 @@ pruning logic changes, rather than treating this one result as permanent proof.
   fallback does not catch every scientific-name rename (confirmed for "Mycoplasma pneumoniae" →
   *Mycoplasmoides pneumoniae*, now fixed in the packaged list) — a name that stops resolving is a
   real possibility worth checking for after any NCBI Taxonomy update, not just a corner case.
-- **Inclusivity's planned design does not work**: combining `ENTREZ_QUERY` taxon restriction with a
-  `[PDAT]` date filter in one BLAST call does not reliably restrict by date (checked live,
-  2026-09-22: 4 of 20 checked hit accessions fell outside the requested window). Phase 4b needs a
-  different approach (get date-windowed accession lists from ESearch instead) before it can be
-  built; see `docs/ARCHITECTURE.md`.
-- Inclusivity sampling and yearly history are not implemented yet, so a full `run` still ends
-  `INCOMPLETE` overall even when specificity and exclusivity pass.
+- **Inclusivity's originally planned design does not work**: combining `ENTREZ_QUERY` taxon
+  restriction with a `[PDAT]` date filter in one BLAST call does not reliably restrict by date
+  (checked live, 2026-09-22: 4 of 20 checked hit accessions fell outside the requested window).
+  Implemented instead: reuse the target tier's own search, bucket its hits into years afterwards
+  via ESummary; see `docs/ARCHITECTURE.md`.
+- **Inclusivity's yearly sample is not a controlled random sample**: it comes from whatever the
+  target-tier BLAST search's own hit list (capped) returned for that year, so a well-sequenced
+  target can under- or over-represent some years depending on BLAST's own ranking. Reported
+  honestly: `population_size` (an independent ESearch count) is always shown next to `sample_size`.
+- Inclusivity's ESummary-based date lookup has not been checked live yet (the real nuccore docsum
+  date field name, and the accession re-indexing logic for more than one accession, are both taken
+  from documentation/memory or checked only against the constructed test world so far); run
+  `scripts/smoke_test.py` (step `08b_esummary_inclusivity_dates`) before trusting inclusivity's year
+  attribution.
+- Yearly run history is not implemented yet, so a full `run` still ends `INCOMPLETE` overall even
+  when specificity, exclusivity and inclusivity all pass.
 
 ## Roadmap
 
@@ -351,7 +385,7 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
-| **0.4.0** | Taxonomy resolution, organism list, exclusivity (done, unreleased); inclusivity (planned) |
+| **0.4.0** | Taxonomy resolution, organism list, exclusivity, inclusivity (done, unreleased) |
 | 1.0.0 | Run history, yearly diff report, complete report, Docker, documentation |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.

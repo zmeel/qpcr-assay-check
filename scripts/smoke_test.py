@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live smoke test for qpcr-assay-check's NCBI assumptions.  (v0.3.0 + v0.4.0 phase 4a)
+"""Live smoke test for qpcr-assay-check's NCBI assumptions.  (v0.3.0 + v0.4.0 phases 4a/4b)
 
 WHY THIS EXISTS
     The developer of this tool could not reach NCBI while writing the BLAST client. Several
@@ -9,6 +9,8 @@ WHY THIS EXISTS
 
     v0.4.0 phase 4a added steps 03b (taxonomy lineage parsing: Rank, LineageEx) and 03c (the
     actual exclusivity-tier organism-list resolution, live) -- both new and unverified before now.
+    v0.4.0 phase 4b added step 08b (the ESummary-based inclusivity date lookup, live) -- the real
+    nuccore docsum field name(s) and the accession re-indexing logic were unverified before now.
 
 WHAT IT SENDS TO NCBI
     * the three CDC 2019-nCoV N1 oligo sequences (published sequences, not proprietary)
@@ -358,7 +360,7 @@ def main() -> int:
 
     def write_report(complete: bool) -> None:
         report = {
-            "smoke_test_version": "0.4.0-4a",
+            "smoke_test_version": "0.4.0-4b",
             "started": started,
             "updated": datetime.now(UTC).isoformat(),
             "complete": complete,
@@ -696,6 +698,38 @@ def main() -> int:
                 rep.findings["blast_date_window_restriction_honoured"] = r.get("count") == len(accs)
             info["window_check"] = check
             return info
+
+    @rep.step("08b_esummary_inclusivity_dates")
+    def _esummary_dates() -> dict[str, Any]:
+        """Checks the phase 4b ESummary-based date lookup (inclusivity/dates.py) live.
+
+        Unverified until now: the real nuccore ESummary docsum field name(s) that carry a
+        submission/creation date, and whether esummary()/fetch_years() correctly re-index by the
+        docsum's own accessionversion/caption field for more than one accession at once (NCBI
+        keys its JSON result by resolved UID, not by the accession string given as input).
+        """
+        from qpcr_assay_check.inclusivity.dates import fetch_years, year_from_docsum
+
+        accs = [REFERENCE, "NC_000007.14"]  # SARS-CoV-2 reference + human chromosome 7 (unrelated)
+        docsums = eu.esummary("nuccore", accs)
+        years = fetch_years(eu, cache, accs, ttl_days=0)
+        rep.findings["esummary_docsum_keys"] = {
+            acc: sorted(docsums[acc].keys()) for acc in accs if acc in docsums
+        }
+        rep.findings["esummary_reindexed_by_accession_correctly"] = {
+            acc: docsums.get(acc, {}).get("accessionversion") == acc
+            or docsums.get(acc, {}).get("caption") == acc.split(".")[0]
+            for acc in accs
+            if acc in docsums
+        }
+        rep.findings["esummary_years_extracted"] = years
+        return {
+            "docsums": docsums,
+            "year_from_docsum_per_accession": {
+                acc: year_from_docsum(docsums[acc]) for acc in accs if acc in docsums
+            },
+            "fetch_years_result": years,
+        }
 
     if args.human:
 

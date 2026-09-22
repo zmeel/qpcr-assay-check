@@ -5,9 +5,12 @@ every relevant hit and amplicon pairing, feeding a real specificity verdict. v0.
 (implemented, not yet tagged/released) adds steps 3 and part of 4: organism names are resolved to
 taxonomy IDs (never guessed) and searched as a real "exclusivity" tier reusing the same specificity
 machinery as the other off-target tiers, with its own per-organism table and a species/genus/family
-rollup of every off-target hit (step 6's aggregation, generalised beyond exclusivity alone). Step 4's
-inclusivity windows, step 9 (inclusivity itself), and step 11's history comparison are still the
-agreed design for later work (phase 4b and v1.0.0), not implemented.
+rollup of every off-target hit (step 6's aggregation, generalised beyond exclusivity alone). v0.4.0
+phase 4b (implemented, not yet tagged/released) adds step 9, inclusivity: the target tier's own
+hits (already searched for every run) are bucketed into years afterwards via ESummary, sampled, and
+re-aligned over the full oligo length, giving a year-by-year trend rather than the BLAST+`[PDAT]`
+design SPEC.md step 7 originally proposed (ruled out live; see "Design decisions" below). Step 11's
+history comparison is still the agreed design for later work (v1.0.0), not implemented.
 
 ## Data flow
 
@@ -46,7 +49,7 @@ agreed design for later work (phase 4b and v1.0.0), not implemented.
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
-| **0.4.0** | Taxonomy resolution, organism list, exclusivity (phase 4a, done); inclusivity (4b, planned) |
+| **0.4.0** | Taxonomy resolution, organism list, exclusivity (phase 4a); inclusivity via target-tier reuse + ESummary date-bucketing (phase 4b) |
 | 1.0.0 | Run history, yearly diff, complete report, Docker, documentation |
 
 ## Design decisions
@@ -58,9 +61,11 @@ agreed design for later work (phase 4b and v1.0.0), not implemented.
   would serve last year's results against this year's database.
 - **Saturation is judged by relevance**: a full hit list only matters if its weakest hit is still
   biologically relevant; then the search is split further.
-- **Inclusivity with honest denominators**: ESearch counts per time window; complete enumeration
-  where possible; truncated windows are labelled as upper bounds (BLAST ranks by similarity to the
-  reference, so truncation biases towards reference-like sequences).
+- **Inclusivity with honest denominators**: each year's `population_size` comes from an independent
+  ESearch count, reported next to `sample_size` (never presented as the full population). The
+  sample itself comes from whatever the target-tier BLAST search already returned for that year,
+  not a dedicated per-year search (see the redesign note below), so it is not a controlled random
+  sample and `limitations` says so explicitly on every result.
 - **Missing evidence is never a PASS** (verdict INCOMPLETE).
 - **History as files**: one directory per run plus a small index; easy to audit and diff.
 - **Three site sources, most to least certain** (`specificity/sites.py`): `blast_full` when BLAST's
@@ -100,15 +105,21 @@ agreed design for later work (phase 4b and v1.0.0), not implemented.
 - **Taxonomy resolution runs before the send-oligos confirmation, without its own gate**: it sends
   only organism names (from the reviewable, packaged or lab-supplied list), never the assay's own
   oligo sequences, so it does not need the same confirm/decline protection that oligo sequences do.
-- **Inclusivity (phase 4b) cannot combine `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date
-  filter in one BLAST call** — confirmed unreliable live (see "Verified in a third live run"
-  below: 4 of 20 checked hit accessions fell outside the requested window). The design in
-  SPEC.md step 7 ("BLAST the reference amplicon against nt restricted to the target taxid,
-  stratified into time windows via `ENTREZ_QUERY` date filters") needs revising before
-  implementation: get each window's accession list from ESearch (`[PDAT]` there is independently
-  confirmed reliable), then work from that list directly — e.g. fetch/align only the sampled
-  accessions, or restrict a BLAST search to that specific accession set if the URL API supports it
-  — rather than asking BLAST itself to do the date filtering.
+- **Inclusivity cannot combine `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one
+  BLAST call** — confirmed unreliable live (see "Verified in a third live run" below: 4 of 20
+  checked hit accessions fell outside the requested window). This rules out the design in SPEC.md
+  step 7 ("BLAST the reference amplicon against nt restricted to the target taxid, stratified into
+  time windows via `ENTREZ_QUERY` date filters") for BLAST calls specifically. **Phase 4b's actual
+  design (implemented)**: reuse the "target" tier search every run already makes (taxon-restricted
+  only, no date filter — the same search the specificity/exclusivity assessment already needs), and
+  bucket its hits into years *afterwards* via ESummary (`inclusivity/dates.py`), which reads each
+  hit's own accession's submission date rather than asking BLAST to filter by date at all. This
+  means inclusivity adds no new, unverified BLAST behaviour — only one new-but-standard E-utility
+  (ESummary, flagged for live verification below) on top of already-verified primitives (BLAST
+  taxon-only restriction, ESearch `[PDAT]` counts). The trade-off, stated honestly in every
+  `InclusivityResult.limitations`: the yearly sample is whatever the target-tier search's hit list
+  (capped at `hitlist_size`) happened to return for that year, not a dedicated per-year search, so a
+  well-sequenced target can under- or over-represent some years depending on BLAST's own ranking.
 
 ## NCBI facts checked against current documentation (2026-09-20)
 
@@ -247,3 +258,22 @@ otherwise, before trusting a specificity verdict on a different assay.
   well-established species name; needs investigation, not assumed to be a rename). Both are exactly
   what the "flag, never guess" design is for: they are left out of the exclusivity search and
   reported, not silently dropped.
+
+### Still unverified for v0.4.0 phase 4b (inclusivity)
+
+`scripts/smoke_test.py` step `08b_esummary_inclusivity_dates` checks these live, but has not been
+run yet:
+
+- **The real nuccore ESummary docsum field name(s) that carry a submission/creation date.**
+  `inclusivity/dates.py`'s `year_from_docsum()` tries several candidate field names (`createdate`,
+  `CreateDate`, `updatedate`, `UpdateDate`, `sortpubdate`, `PubDate`) taken from memory of the
+  ESummary JSON format documentation, not from an observed real response.
+  `esummary()` (`ncbi/eutils.py`) itself — the JSON shape (`result.uids` plus one object per UID)
+  — is also unverified against a real response.
+- **Re-indexing ESummary results by accession, not by response order, for more than one accession
+  at once.** NCBI keys its JSON result by resolved UID, not by the accession string given as input;
+  `fetch_years()` re-indexes using the docsum's own `accessionversion`/`caption` field specifically
+  to avoid trusting input order, but this has only been checked against the constructed test world
+  (`tests/world.py`), never a real multi-accession ESummary response.
+- Whether renaming the organism-list entry to `Mycoplasmoides pneumoniae` (see the phase 4a note
+  above) itself resolves — carried over from phase 4a, still open.

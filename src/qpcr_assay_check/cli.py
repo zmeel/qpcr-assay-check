@@ -280,9 +280,10 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         cfg,
         outdir,
         confirm=_make_confirm(yes),
-        keep_tiers=set(cfg.specificity.off_target_tiers),
+        keep_tiers=set(cfg.specificity.off_target_tiers) | {"target"},
         on_plan=show,
     )
+    from .inclusivity.aggregate import compute_inclusivity
     from .ncbi.http import NcbiError
     from .taxonomy.rollup import taxonomy_breakdown
 
@@ -300,6 +301,23 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         # discard an otherwise-complete specificity verdict.
         log.warning("Could not fetch taxonomy lineages for the breakdown: %s", exc)
         breakdown = []
+    tier_searched = any(r.tier == "target" for r in remote.outcome.searches)
+    try:
+        inclusivity = compute_inclusivity(
+            assay,
+            cfg,
+            remote.plan,
+            remote.parsed,
+            fetcher,
+            eutils,
+            remote.cache,
+            tier_searched=tier_searched,
+        )
+    except NcbiError as exc:
+        # Informational only (not a required section): a date-lookup failure should not
+        # discard an otherwise-complete specificity/exclusivity verdict.
+        log.warning("Could not compute inclusivity: %s", exc)
+        inclusivity = None
     return evaluate(
         assay,
         cfg,
@@ -307,6 +325,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         search_outcome=remote.outcome,
         organism_resolution=remote.organism_resolution,
         taxonomy_breakdown=breakdown,
+        inclusivity=inclusivity,
     )
 
 

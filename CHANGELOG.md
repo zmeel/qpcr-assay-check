@@ -6,17 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-v0.4.0 phase 4a: taxonomy resolution, the clinical organism list, and a real exclusivity tier and
-report. Phase 4b (inclusivity) is still planned before this is tagged v0.4.0; v1.0.0 (run history,
-yearly diff, Docker, documentation) remains after that.
+v0.4.0 phases 4a and 4b: taxonomy resolution, the clinical organism list, a real exclusivity tier
+and report, and inclusivity (a year-by-year trend of how well the oligos still match the intended
+target). v1.0.0 (run history, yearly diff, Docker, documentation) remains after this is tagged.
 
 **Live validation (2026-09-22, `scripts/smoke_test.py` steps `03b`/`03c`):** taxonomy lineage
 parsing matched real output for all 5 sampled organisms; 38 of the 40 packaged organism-list names
 resolved through the real exclusivity-resolution path (2 did not: see Known limitations). Entrez
-queries with up to 100 taxids were accepted. One important negative result, relevant to phase 4b:
-**combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not
-reliably restrict by date** (4 of 20 checked hit accessions fell outside the requested window),
-ruling out this project's originally planned inclusivity design (see `docs/ARCHITECTURE.md`).
+queries with up to 100 taxids were accepted. One important negative result, which shaped phase 4b's
+design: **combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call
+does not reliably restrict by date** (4 of 20 checked hit accessions fell outside the requested
+window), ruling out this project's originally planned inclusivity design (see
+`docs/ARCHITECTURE.md`). Phase 4b's own new E-utility usage (ESummary date lookup) has NOT yet been
+checked live -- see Known limitations.
 
 ### Added
 - `taxonomy/resolve.py`: resolves organism names to NCBI taxonomy IDs via Entrez Taxonomy
@@ -41,15 +43,31 @@ ruling out this project's originally planned inclusivity design (see `docs/ARCHI
 - `scripts/smoke_test.py` steps `03b` (lineage parsing, the `Mycoplasma pneumoniae` synonym
   fallback through the real `resolve_name` function) and `03c` (the actual exclusivity-tier
   resolution path against the packaged organism list) -- now run live, see above.
-- 30 new tests (taxonomy resolution, organism list loading, exclusivity grouping/verdict,
-  species/genus/family rollup, report/workbook rendering, one full CLI end-to-end scenario with a
-  real multi-organism resolution). 280 tests total (up from 250); `ruff check`/`ruff format --check`
-  clean.
+- **Inclusivity** (SPEC.md step 9, phase 4b): a year-by-year trend of how well the oligos still
+  match the intended target. Reuses the "target" tier search every run already makes (no separate,
+  date-restricted BLAST search -- see `docs/ARCHITECTURE.md` for why that design was ruled out) and
+  buckets its hits into years afterwards via a new `Eutils.esummary()` client method plus
+  `inclusivity/dates.py`. Each year: a deterministic, evenly spread sample (capped by the new
+  `inclusivity.sample_per_window` config key) is re-aligned over the full oligo length and scored
+  for perfect/1-mismatch/2+-mismatch/3'-mismatch counts and a per-position mismatch profile;
+  population size per year comes from an independent ESearch count, reported next to (never instead
+  of) the sample size. A target tier that was never searched, or a year with no dated hits, is
+  INCOMPLETE for that scope rather than a silent PASS. New `inclusivity.*` config section
+  (`lookback_years`, `sample_per_window`, `warn_below_percent`, `fail_below_percent`), `report.html`
+  section, `results.xlsx` sheet, and `results.json` field.
+- `scripts/smoke_test.py` step `08b_esummary_inclusivity_dates`: checks the real nuccore ESummary
+  docsum date field name(s) and the accession re-indexing logic live (not yet run).
+- 15 new tests for phase 4b (ESummary date extraction/re-indexing, inclusivity site assessment,
+  end-to-end date-bucketing/sampling/verdict aggregation, one full CLI end-to-end scenario with a
+  dated target-tier hit). 295 tests total (250 before phase 4a, 280 after phase 4a, 295 after
+  phase 4b); `ruff check`/`ruff format --check` clean.
 
 ### Changed
 - README's privacy note: organism-list *names* (never the oligo sequences) are now sent to Entrez
   Taxonomy automatically, before the send-oligos confirmation, since they are not proprietary.
 - `specificity.off_target_tiers` default now includes `exclusivity`.
+- `run`'s full pipeline now always keeps the "target" tier's own search results (previously
+  discarded once specificity had used them), since inclusivity needs them too.
 
 ### Fixed
 - `data/clinical_organisms.yaml`: "Mycoplasma pneumoniae" does not resolve live, and (unlike the
@@ -69,10 +87,18 @@ ruling out this project's originally planned inclusivity design (see `docs/ARCHI
 - **Inclusivity's originally planned design (SPEC.md step 7) does not work as specified**: combining
   `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not reliably
   restrict by date (checked live: 4 of 20 checked hit accessions fell outside the requested window).
-  Phase 4b needs a redesigned approach -- get each window's accession list from ESearch instead,
-  which is independently confirmed reliable -- before it can be implemented.
-- Inclusivity (phase 4b) is not implemented, so a full `run` still ends `INCOMPLETE` overall even
-  when specificity and exclusivity both pass.
+  Implemented instead: reuse the target tier's own search and bucket by date afterwards via
+  ESummary (see `docs/ARCHITECTURE.md`).
+- **Inclusivity's yearly sample is not a controlled random sample of the population**: it comes from
+  whatever the target-tier BLAST search's own hit list (capped by `search.hitlist_size`) returned
+  for that year, so a well-sequenced target can under- or over-represent some years depending on
+  BLAST's own ranking. Reported honestly: `population_size` (an independent ESearch count) is always
+  shown next to `sample_size`, and this limitation is stated on every `InclusivityResult`.
+- **Inclusivity's ESummary-based date lookup has not been checked live yet** (the real nuccore
+  docsum date field name, and the accession re-indexing logic for more than one accession at once
+  are both taken from documentation/memory or checked only against the constructed test world).
+  `scripts/smoke_test.py` step `08b_esummary_inclusivity_dates` checks this; run it before trusting
+  inclusivity's year attribution.
 
 ## [0.3.0] - 2026-09-21
 

@@ -64,10 +64,15 @@ class World:
         self.hits: dict[int, dict[str, list[dict]]] = {}  # taxid -> label -> hit dicts
         self.missing: set[str] = set()  # accessions whose efetch fails
         self.taxonomy_names: dict[str, int] = {}  # organism name -> taxid, for name resolution
+        self.dates: dict[str, str] = {}  # accession.version -> "YYYY/MM/DD", for ESummary
 
     def name(self, organism_name: str, taxid: int) -> None:
         """Register an organism name that Entrez Taxonomy ESearch should resolve to ``taxid``."""
         self.taxonomy_names[organism_name] = taxid
+
+    def date(self, accession: str, date_str: str) -> None:
+        """Register an accession's submission date (``YYYY/MM/DD``) for ESummary."""
+        self.dates[accession] = date_str
 
     def genome(self, acc: str, taxid: int, sciname: str, seq: str, title: str = "") -> None:
         self.genomes[acc] = {
@@ -207,6 +212,23 @@ class WorldFake(FakeNcbi):
             return FakeResponse(
                 200, f"<eSearchResult><Count>{count}</Count><IdList>{ids}</IdList></eSearchResult>"
             )
+        if "esearch.fcgi" in url and dict(params or {}).get("db") == "nuccore":
+            term = str(dict(params or {}).get("term", ""))
+            m = re.search(r"(\d{4})/01/01:\d{4}/12/31\[PDAT\]", term)
+            if m:
+                count = sum(1 for d in self.world.dates.values() if d.startswith(m.group(1)))
+            else:
+                count = len(self.world.dates)
+            return FakeResponse(200, f"<eSearchResult><Count>{count}</Count></eSearchResult>")
+        if "esummary.fcgi" in url:
+            p = dict(params or {})
+            ids = [i for i in str(p.get("id", "")).split(",") if i]
+            result: dict = {"uids": []}
+            for acc in ids:
+                if acc in self.world.dates:
+                    result["uids"].append(acc)
+                    result[acc] = {"accessionversion": acc, "createdate": self.world.dates[acc]}
+            return FakeResponse(200, json.dumps({"header": {"type": "esummary"}, "result": result}))
         if "efetch.fcgi" in url:
             p = dict(params or {})
             if p.get("db") == "taxonomy":

@@ -13,6 +13,7 @@ import primer3
 
 from . import __version__
 from .config import Config
+from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
 from .oligo.qc import run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
@@ -27,7 +28,6 @@ log = logging.getLogger(__name__)
 
 #: (key, title, version in which the section becomes available)
 PLANNED_SECTIONS: list[tuple[str, str, str]] = [
-    ("inclusivity", "Inclusivity across the intended target (sampled)", "0.4.0"),
     ("history", "Comparison with the previous run", "1.0.0"),
 ]
 
@@ -61,6 +61,7 @@ def evaluate(
     search_outcome: SearchOutcome | None = None,
     organism_resolution: OrganismListResolution | None = None,
     taxonomy_breakdown: list[TaxonCount] | None = None,
+    inclusivity: InclusivityResult | None = None,
 ) -> RunResult:
     """Run every analysis that exists in this version and assemble the evaluation record."""
     now = (now or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
@@ -159,6 +160,31 @@ def evaluate(
                     note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
                 )
             )
+    if inclusivity is not None:
+        note = (
+            inclusivity.sample_scheme
+            if inclusivity.tier_searched
+            else "The target tier was not searched in this run."
+        )
+        sections.append(
+            SectionResult(
+                key="inclusivity",
+                title="Inclusivity across the intended target (sampled)",
+                state="evaluated",
+                verdict=inclusivity.verdict,
+                note=note,
+            )
+        )
+    else:
+        sections.append(
+            SectionResult(
+                key="inclusivity",
+                title="Inclusivity across the intended target (sampled)",
+                state="skipped",
+                verdict=None,
+                note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
+            )
+        )
     for key, title, since in PLANNED_SECTIONS:
         sections.append(
             SectionResult(
@@ -195,6 +221,8 @@ def evaluate(
             f"exactly one taxonomy ID and were not searched: {names}{more}. Review the organism "
             "list; never guessed."
         )
+    if inclusivity is not None and inclusivity.verdict is not Verdict.PASS:
+        findings += [f"Inclusivity: {line}" for line in inclusivity.rationale]
     if not findings and verdict is Verdict.PASS:
         findings = ["No oligo QC check raised a WARN or FAIL."]
     overall = OverallResult(
@@ -222,6 +250,7 @@ def evaluate(
         specificity=specificity,
         exclusivity=exclusivity,
         taxonomy_breakdown=taxonomy_breakdown or [],
+        inclusivity=inclusivity,
         search=search_outcome.model_dump(mode="json") if search_outcome else None,
         sections=sections,
         overall=overall,

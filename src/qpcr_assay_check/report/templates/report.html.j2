@@ -301,6 +301,37 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 {% endif %}
 
+{% if r.inclusivity %}
+<h2>Inclusivity across the intended target (sampled)</h2>
+<p>{{ chip(r.inclusivity.verdict.value) }} inclusivity</p>
+{% if not r.inclusivity.tier_searched %}
+<p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
+{% else %}
+<div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
+{% for o in r.inclusivity.oligos %}
+<h3>{{ o.role | capitalize }}</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Year</th><th>Population</th><th>Sample</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
+  <tbody>
+  {% for w in o.windows %}
+  <tr><td class="num">{{ w.year }}</td><td class="num">{{ w.population_size if w.population_size is not none else '–' }}</td>
+    <td class="num">{{ w.sample_size }}</td><td class="num">{{ w.n_perfect }}</td><td class="num">{{ w.n_one_mismatch }}</td>
+    <td class="num">{{ w.n_two_plus_mismatch }}</td><td class="num">{{ w.n_three_prime_mismatch }}</td><td class="num">{{ w.n_fetch_failed }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if o.n_no_date %}<p class="meta">{{ o.n_no_date }} sampled hit(s) had no determinable submission year and were excluded from the yearly buckets.</p>{% endif %}
+{% endfor %}
+{% if r.inclusivity.rationale %}
+<h3>Rationale</h3>
+<ul>{% for line in r.inclusivity.rationale %}<li>{{ line }}</li>{% endfor %}</ul>
+{% endif %}
+{% if r.inclusivity.limitations %}
+<p class="meta">{% for l in r.inclusivity.limitations %}{{ l }} {% endfor %}</p>
+{% endif %}
+{% endif %}
+{% endif %}
+
 {% if r.taxonomy_breakdown %}
 <h2>Taxonomic breakdown of off-target sites</h2>
 <p class="meta">Every off-target tier (near neighbours, background, exclusivity), by the taxon each site's subject record belongs to. Species/genus/family come from

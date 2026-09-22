@@ -45,6 +45,11 @@ class SmokeFake(FakeNcbi):
                 {"method": method, "url": url, "payload": dict(params or {}), "t": None}
             )
             return FakeResponse(200, self._efetch(params))
+        if "esummary.fcgi" in url:
+            self.calls.append(
+                {"method": method, "url": url, "payload": dict(params or {}), "t": None}
+            )
+            return FakeResponse(200, self._esummary(params))
         return super().request(method, url, params, data, timeout)
 
     def _esearch(self, p):
@@ -84,6 +89,13 @@ class SmokeFake(FakeNcbi):
             if int(p.get("strand", 1)) == 2:
                 seq = iupac.reverse_complement(seq)
         return f">{p['id']} constructed\n{seq}\n"
+
+    def _esummary(self, p):
+        ids = [i for i in str(p.get("id", "")).split(",") if i]
+        result: dict = {"uids": ids}
+        for acc in ids:
+            result[acc] = {"accessionversion": acc, "createdate": "2020/03/15"}
+        return json.dumps({"header": {"type": "esummary"}, "result": result})
 
 
 def result_for(payload):

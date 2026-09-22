@@ -97,7 +97,7 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
 def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_verdict(env):
     env.install(world_with(hits="none"))
     r = invoke(env, "--yes")
-    assert r.exit_code == 30, r.output  # inclusivity/history are not available yet
+    assert r.exit_code == 30, r.output  # history is not available yet
     data = json.loads((run_dir(env) / "results.json").read_text())
     assert data["specificity"]["verdict"] == "PASS"
     states = {s["key"]: s["state"] for s in data["sections"]}
@@ -105,8 +105,34 @@ def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_ver
     # exclusivity is implemented (v0.4.0), but this fake never resolves organism names, so its
     # own tier was never searched: missing evidence, so INCOMPLETE rather than a false PASS.
     assert states["exclusivity"] == "evaluated" and data["exclusivity"]["verdict"] == "INCOMPLETE"
-    assert states["inclusivity"] == "not_implemented"
+    # inclusivity is implemented (v0.4.0) and the target tier was searched, but this fake never
+    # registers a submission date for the target hit, so there is no dated evidence: INCOMPLETE.
+    assert states["inclusivity"] == "evaluated" and data["inclusivity"]["verdict"] == "INCOMPLETE"
     assert "Not yet evaluated" in (run_dir(env) / "report.html").read_text()
+
+
+def test_inclusivity_end_to_end_with_a_dated_target_hit(env):
+    """The target tier's own hit gets a submission date, so inclusivity has real evidence."""
+    w = world_with(hits="none")  # human background stays clean; only inclusivity matters here
+    w.date("NC_045512.2", "2023/05/01")
+    env.install(w)
+
+    r = invoke(env, "--yes")
+    assert r.exit_code == 30, r.output  # exclusivity has no evidence, history is not implemented
+
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    incl = data["inclusivity"]
+    assert incl["tier_searched"] is True and incl["target_taxid"] == 2697049
+    forward = next(o for o in incl["oligos"] if o["role"] == "forward")
+    by_year = {win["year"]: win for win in forward["windows"]}
+    assert by_year[2023]["sample_size"] == 1 and by_year[2023]["n_perfect"] == 1
+    states = {s["key"]: s["state"] for s in data["sections"]}
+    assert states["inclusivity"] == "evaluated"
+
+    html = (run_dir(env) / "report.html").read_text()
+    assert "Inclusivity across the intended target (sampled)" in html and "2023" in html
+    wb = load_workbook(run_dir(env) / "results.xlsx")
+    assert "Inclusivity" in wb.sheetnames
 
 
 def test_dry_run_sends_nothing(env):
