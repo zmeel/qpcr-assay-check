@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Variant summary report** (`specificity/variants.py`): a new report section, requested after
+  comparing the tool against a lab's own pre-existing manual spreadsheet workflow for the same
+  kind of assessment. Lumps the target tier's own hits into unique sequence variants -- one row
+  per distinct alignment, with a count and a percentage of the measured total -- per oligo
+  (forward/probe/reverse) and, new relative to that manual spreadsheet, for the whole fragment
+  (forward + probe + reverse considered together on the same record). Only sites with a real,
+  fully observed alignment (`blast_full`/`realigned`) are counted; `blast_partial_worst_case`
+  sites are excluded and the excluded count is reported, never silently folded in as if measured.
+  Reuses evidence the specificity assessment already scored (like `taxonomy/rollup.py`'s
+  species/genus/family aggregation) -- no new NCBI calls, and no verdict of its own. New "Variant
+  summary" report.html section and "Oligo variants"/"Fragment variants" xlsx sheets.
+
 ## [1.0.0] - 2026-09-22
 
 Run history and a yearly diff report, and a Docker image.

@@ -274,6 +274,47 @@ td.aln-cell { min-width: 22rem; }
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
 {% endif %}
 
+{% if r.variant_summary and (r.variant_summary.oligos | selectattr('rows') | list) %}
+<h2>Variant summary (assay's own target)</h2>
+<div class="notice"><p><strong>Scope.</strong> Built only from the target tier's own hits that were fully re-aligned across the whole oligo (not worst-case estimates). Lumps identical alignments together and reports each as a percentage of that measured total — a static snapshot of this run's own search, not the population-aware, year-by-year view in Inclusivity below.</p></div>
+
+{% for o in r.variant_summary.oligos %}
+{% if o.rows %}
+<h3>{{ o.role | capitalize }}</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
+  <tbody>
+  {% for row in o.rows %}
+  <tr><td class="aln-cell">{{ row | aln_html }}</td><td class="num">{{ row.count }}</td>
+    <td class="num">{{ '%.1f' % row.percent }}% of {{ o.total_measured }}</td>
+    <td>{{ chip(row.level) }}</td>
+    <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if o.n_excluded_unmeasured %}<p class="meta">{{ o.n_excluded_unmeasured }} further target-tier site(s) for this oligo excluded from this table: not fully re-aligned (worst-case estimate only).</p>{% endif %}
+{% endif %}
+{% endfor %}
+
+<h3>Whole fragment (forward + probe + reverse combined)</h3>
+{% if r.variant_summary.fragments %}
+<div class="scroll"><table>
+  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
+  <tbody>
+  {% for f in r.variant_summary.fragments %}
+  <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
+    <td class="num">{{ f.count }}</td><td class="num">{{ '%.1f' % f.percent }}% of {{ r.variant_summary.fragment_total }}</td>
+    <td>{{ chip(f.level) }}</td>
+    <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>No target-tier predicted product had all three sites (forward, probe, reverse) fully re-aligned on the same record, so no whole-fragment variant table could be built.</p>
+{% endif %}
+{% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier predicted product(s) excluded from this table: no probe site inside the product, or one of the three sites was not fully re-aligned.</p>{% endif %}
+{% endif %}
+
 {% if r.exclusivity %}
 <h2>Exclusivity against the clinical organism list</h2>
 <p>{{ chip(r.exclusivity.verdict.value) }} exclusivity ({{ r.exclusivity.n_resolved }} of {{ r.exclusivity.n_organisms }} organism-list name(s) resolved to a taxonomy ID)</p>
