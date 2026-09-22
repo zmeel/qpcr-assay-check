@@ -97,12 +97,15 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
 def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_verdict(env):
     env.install(world_with(hits="none"))
     r = invoke(env, "--yes")
-    assert r.exit_code == 30, r.output  # exclusivity/inclusivity/history are not available yet
+    assert r.exit_code == 30, r.output  # inclusivity/history are not available yet
     data = json.loads((run_dir(env) / "results.json").read_text())
     assert data["specificity"]["verdict"] == "PASS"
     states = {s["key"]: s["state"] for s in data["sections"]}
     assert states["specificity"] == states["amplicon_prediction"] == "evaluated"
-    assert states["exclusivity"] == states["inclusivity"] == "not_implemented"
+    # exclusivity is implemented (v0.4.0), but this fake never resolves organism names, so its
+    # own tier was never searched: missing evidence, so INCOMPLETE rather than a false PASS.
+    assert states["exclusivity"] == "evaluated" and data["exclusivity"]["verdict"] == "INCOMPLETE"
+    assert states["inclusivity"] == "not_implemented"
     assert "Not yet evaluated" in (run_dir(env) / "report.html").read_text()
 
 
@@ -117,7 +120,11 @@ def test_declining_the_confirmation_sends_nothing(env):
     fake = env.install(world_with())
     r = invoke(env, input="n\n")
     assert r.exit_code == 64 and "Nothing was sent to NCBI" in r.output
-    assert fake.calls == []
+    # Taxonomy name resolution (the exclusivity tier) runs before the confirmation prompt, since
+    # it never sends the oligo sequences -- only organism names from the (reviewable) organism
+    # list -- so declining still leaves it having made ESearch calls; no BLAST submission.
+    assert fake.n_put == 0
+    assert all("Blast.cgi" not in c["url"] for c in fake.calls)
 
 
 def test_a_second_run_reuses_the_cache_and_sends_no_new_searches(env):
@@ -142,3 +149,45 @@ def test_the_email_never_appears_in_the_record(env):
         if path.is_file() and path.suffix in {".json", ".tsv", ".html", ".log"}:
             text = path.read_text(errors="ignore")
             assert "lab@example.org" not in text and "lab%40example.org" not in text, path
+
+
+def test_exclusivity_end_to_end_with_a_real_organism_list(env, tmp_path):
+    """One organism resolves with a hit, one resolves with none, one does not resolve at all."""
+    CT, NG = 813, 485
+    organisms = tmp_path / "organisms.yaml"
+    organisms.write_text(
+        "categories:\n"
+        "  - name: Test panel\n"
+        "    organisms: [Chlamydia trachomatis, Neisseria gonorrhoeae, Mycoplasma pneumoniae]\n"
+    )
+    env.conf.write_text(
+        f"ncbi:\n  cache_dir: {tmp_path / 'cache'}\norganisms:\n  list_file: {organisms}\n"
+    )
+    w = world_with(hits="none")  # human background stays clean; only exclusivity matters here
+    w.name("Chlamydia trachomatis", CT)
+    w.name("Neisseria gonorrhoeae", NG)  # left unregistered on purpose: Mycoplasma stays unresolved
+    offtarget_genome(taxid=CT, acc="OT_CT.1", name="Chlamydia trachomatis", world=w)
+    w.hit(CT, "forward", F, "OT_CT.1", F_START, "+")
+    offtarget_genome(taxid=NG, acc="OT_NG.1", name="Neisseria gonorrhoeae", world=w)
+    env.install(w)
+
+    r = invoke(env, "--yes")
+    assert r.exit_code == 20, r.output  # a critical primer-only site in the exclusivity tier
+
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    excl = data["exclusivity"]
+    assert excl["tier_searched"] is True
+    assert excl["n_organisms"] == 3 and excl["n_resolved"] == 2
+    by_name = {row["organism"]: row for row in excl["rows"]}
+    assert by_name["Chlamydia trachomatis"]["n_sites"] >= 1
+    assert by_name["Chlamydia trachomatis"]["best_site_level"] == "critical"
+    assert by_name["Neisseria gonorrhoeae"]["n_sites"] == 0
+    assert by_name["Neisseria gonorrhoeae"]["resolution"] == "resolved"
+    assert by_name["Mycoplasma pneumoniae"]["resolution"] == "unresolved"
+    assert [u["name"] for u in excl["unresolved"]] == ["Mycoplasma pneumoniae"]
+
+    html = (run_dir(env) / "report.html").read_text()
+    assert "Exclusivity against the clinical organism list" in html
+    assert "Chlamydia trachomatis" in html and "Mycoplasma pneumoniae" in html
+    wb = load_workbook(run_dir(env) / "results.xlsx")
+    assert "Exclusivity" in wb.sheetnames

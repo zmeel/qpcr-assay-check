@@ -87,8 +87,22 @@ def _chunks(items: list[int], size: int) -> list[list[int]]:
     return [items[i : i + size] for i in range(0, len(items), size)]
 
 
-def plan_searches(assay: Assay, cfg: Config) -> SearchPlan:
-    """Tiered, taxon-restricted searches: target, near neighbours, background."""
+def plan_searches(
+    assay: Assay,
+    cfg: Config,
+    *,
+    exclusivity_taxids: list[int] | None = None,
+    exclusivity_unresolved: int = 0,
+) -> SearchPlan:
+    """Tiered, taxon-restricted searches: target, near neighbours, background, exclusivity.
+
+    ``exclusivity_taxids`` are the clinical organism list's names already resolved to taxonomy
+    IDs (see ``taxonomy.resolve``); resolution needs the network, so callers that must plan
+    without it (``--dry-run``) pass ``None`` and this only notes how many names are configured.
+    ``exclusivity_unresolved`` is the count of names that could not be resolved or were ambiguous,
+    for the same note: never guessed, but the search plan (and the reader of it) should know they
+    were skipped.
+    """
     queries = build_queries(assay, cfg)
     batches = split_batches(queries)
     tiers: list[tuple[str, str, list[int]]] = []
@@ -106,9 +120,20 @@ def plan_searches(assay: Assay, cfg: Config) -> SearchPlan:
         tiers.append(("near_neighbours", "Near neighbours and exclusion taxa", near))
     if cfg.search.background_taxids:
         tiers.append(("background", "Background taxa", sorted(set(cfg.search.background_taxids))))
-    plan.notes.append(
-        "The organism-list tier (clinical organisms) arrives in v0.4.0 with taxonomy resolution."
-    )
+    if exclusivity_taxids:
+        tiers.append(("exclusivity", "Clinical organism list", sorted(set(exclusivity_taxids))))
+    elif exclusivity_taxids is None:
+        plan.notes.append(
+            "The exclusivity tier (clinical organism list) is resolved to taxonomy IDs when the "
+            "search actually runs; not shown in --dry-run."
+        )
+    if exclusivity_unresolved:
+        plan.warnings.append(
+            f"{exclusivity_unresolved} organism-list name(s) could not be resolved to exactly one "
+            "taxonomy ID and were left out of the exclusivity tier (see the taxonomy resolution "
+            "report); review and fix them in the organism list rather than relying on this search "
+            "to cover them."
+        )
 
     size = cfg.search.max_taxids_per_search
     for tier, title, taxids in tiers:

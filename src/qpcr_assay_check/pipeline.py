@@ -18,13 +18,15 @@ from .oligo.qc import run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
 from .specificity.models import SpecificityResult
+from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
+from .taxonomy.plan import OrganismListResolution
+from .taxonomy.rollup import TaxonCount
 from .verdict import Verdict, combine, exit_code, verdict_from_status
 
 log = logging.getLogger(__name__)
 
 #: (key, title, version in which the section becomes available)
 PLANNED_SECTIONS: list[tuple[str, str, str]] = [
-    ("exclusivity", "Exclusivity against the clinical organism list", "0.4.0"),
     ("inclusivity", "Inclusivity across the intended target (sampled)", "0.4.0"),
     ("history", "Comparison with the previous run", "1.0.0"),
 ]
@@ -57,6 +59,8 @@ def evaluate(
     now: datetime | None = None,
     specificity: SpecificityResult | None = None,
     search_outcome: SearchOutcome | None = None,
+    organism_resolution: OrganismListResolution | None = None,
+    taxonomy_breakdown: list[TaxonCount] | None = None,
 ) -> RunResult:
     """Run every analysis that exists in this version and assemble the evaluation record."""
     now = (now or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
@@ -89,6 +93,7 @@ def evaluate(
             ),
         )
     ]
+    exclusivity: ExclusivityResult | None = None
     if specificity is not None:
         n = specificity.n_sites
         sections.append(
@@ -113,10 +118,37 @@ def evaluate(
                 note=f"{len(specificity.amplicons)} predicted product(s).",
             )
         )
+        tier_searched = bool(search_outcome) and any(
+            r.tier == "exclusivity" for r in search_outcome.searches
+        )
+        exclusivity = build_exclusivity(
+            organism_resolution,
+            specificity.sites,
+            specificity.amplicons,
+            cfg.specificity.severity,
+            tier_searched=tier_searched,
+        )
+        n_hit = sum(1 for r in exclusivity.rows if r.n_sites)
+        note = f"{exclusivity.n_resolved}/{exclusivity.n_organisms} organism name(s) resolved"
+        note += f"; {n_hit} had at least one relevant hit." if exclusivity.n_resolved else "."
+        if exclusivity.unresolved:
+            note += f" {len(exclusivity.unresolved)} name(s) not resolved (see rationale)."
+        if not tier_searched:
+            note = "The exclusivity tier was not searched in this run."
+        sections.append(
+            SectionResult(
+                key="exclusivity",
+                title="Exclusivity against the clinical organism list",
+                state="evaluated",
+                verdict=exclusivity.verdict,
+                note=note,
+            )
+        )
     else:
         for key, title in (
             ("specificity", "Specificity: off-target primer and probe sites"),
             ("amplicon_prediction", "Predicted off-target products"),
+            ("exclusivity", "Exclusivity against the clinical organism list"),
         ):
             sections.append(
                 SectionResult(
@@ -154,6 +186,15 @@ def evaluate(
             for f in specificity.findings
             if f.severity in ("FAIL", "INCOMPLETE", "WARN")
         ]
+    if exclusivity is not None and exclusivity.unresolved:
+        names = ", ".join(r.name for r in exclusivity.unresolved[:10])
+        n_more = len(exclusivity.unresolved) - 10
+        more = f" (+{n_more} more)" if n_more > 0 else ""
+        findings.append(
+            f"Exclusivity: {len(exclusivity.unresolved)} organism-list name(s) did not resolve to "
+            f"exactly one taxonomy ID and were not searched: {names}{more}. Review the organism "
+            "list; never guessed."
+        )
     if not findings and verdict is Verdict.PASS:
         findings = ["No oligo QC check raised a WARN or FAIL."]
     overall = OverallResult(
@@ -179,6 +220,8 @@ def evaluate(
         config=cfg.model_dump(mode="json"),
         oligo_qc=qc,
         specificity=specificity,
+        exclusivity=exclusivity,
+        taxonomy_breakdown=taxonomy_breakdown or [],
         search=search_outcome.model_dump(mode="json") if search_outcome else None,
         sections=sections,
         overall=overall,

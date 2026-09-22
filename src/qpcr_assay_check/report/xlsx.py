@@ -168,6 +168,33 @@ def write_workbook(result: RunResult, path: Path) -> None:
             [[f.severity, f.topic, f.message] for f in spec.findings],
             0,
         )
+    excl = result.exclusivity
+    if excl is not None:
+        _sheet(
+            wb,
+            "Exclusivity",
+            ["Organism", "Resolution", "Taxonomy ID", "Sites", "Best site", "Best level",
+             "Predicted product"],
+            [
+                [row.organism, row.resolution, row.taxid or "", row.n_sites,
+                 row.best_site_id or "", row.best_site_level or "",
+                 row.amplicon_classification or ("no" if not row.amplicon_predicted else "")]
+                for row in excl.rows
+            ],
+            5,
+        )  # fmt: skip
+    if result.taxonomy_breakdown:
+        _sheet(
+            wb,
+            "Taxonomy breakdown",
+            ["Taxonomy ID", "Scientific name", "Species", "Genus", "Family", "Sites"],
+            [
+                [t.taxid, t.scientific_name, t.species or "", t.genus or "", t.family or "",
+                 t.n_sites]
+                for t in result.taxonomy_breakdown
+            ],
+            None,
+        )  # fmt: skip
     _sheet(
         wb,
         "Sections",

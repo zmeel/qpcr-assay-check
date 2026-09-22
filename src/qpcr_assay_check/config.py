@@ -357,6 +357,13 @@ class SpecificitySettings(_Strict):
         return self
 
 
+class OrganismsSettings(_Strict):
+    """The clinical organism list used for the exclusivity tier (data/clinical_organisms.yaml)."""
+
+    list_file: str | None
+    resolve_synonyms: bool
+
+
 class ReportSettings(_Strict):
     """Report rendering options."""
 
@@ -373,6 +380,7 @@ class Config(_Strict):
     ncbi: NcbiSettings
     search: SearchSettings
     specificity: SpecificitySettings
+    organisms: OrganismsSettings
     report: ReportSettings
 
     @property

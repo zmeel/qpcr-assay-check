@@ -4,15 +4,21 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v0.3.0 (alpha).** A full `run` now sends the oligos to NCBI (tiered, taxon-restricted
-> remote BLAST), fetches the subject window and re-aligns the whole oligo over every relevant hit,
-> predicts off-target products, and judges specificity — genuine `PASS`/`WARN`/`FAIL`, not just
-> `INCOMPLETE`. The overall verdict still ends as `INCOMPLETE`, because exclusivity against a
-> clinical organism list, inclusivity and yearly history are not implemented yet (v0.4.0/v1.0.0).
-> The BLAST client and the re-alignment pruning rules were both checked against the live NCBI
-> servers once (2026-09-21) with no contradictions found — one assay, one tier, a sample, not an
-> exhaustive proof. See `docs/ARCHITECTURE.md` for what was verified and `docs/PROGRESS.md` for
-> what is still open.
+> **Status: v0.3.0 (alpha) plus v0.4.0 work in progress.** A full `run` sends the oligos to NCBI
+> (tiered, taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo
+> over every relevant hit, predicts off-target products, and judges specificity — genuine
+> `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. **New, not yet released as a tagged version:**
+> organism names are now resolved to NCBI taxonomy IDs (never guessed) and searched as a real
+> **exclusivity** tier against a starter clinical organism list, with its own per-organism table,
+> plus a species/genus/family breakdown of every off-target hit. The overall verdict still ends as
+> `INCOMPLETE`, because **inclusivity** and yearly history are not implemented yet (the rest of
+> v0.4.0, and v1.0.0). The BLAST client, the re-alignment pruning rules, taxonomy lineage parsing
+> and the organism-list resolution path have all now been checked against the live NCBI servers
+> (most recently 2026-09-22) — and that live run also **ruled out this project's planned inclusivity
+> design**: combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call
+> does not reliably restrict by date, so phase 4b needs a different approach (see
+> `docs/ARCHITECTURE.md`) before it can be built. See `docs/ARCHITECTURE.md` for everything verified
+> so far and `docs/PROGRESS.md` for what is still open.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -114,6 +120,33 @@ qpcr-assay-check search my-assay/assay.yaml --dry-run   # show exactly what woul
 qpcr-assay-check search my-assay/assay.yaml -o results   # asks before sending anything
 ```
 
+### Exclusivity against a clinical organism list (v0.4.0, in progress)
+
+A full `run` also resolves every organism name in a **clinical organism list** to an NCBI
+taxonomy ID (Entrez Taxonomy, cached; never guessed — ambiguous or unresolved names are reported,
+not silently dropped or picked at random) and searches it as its own **exclusivity** tier, exactly
+like the near-neighbour and background tiers. The report gets a per-organism table (organism,
+resolution, sites, best site, predicted product) and a species/genus/family breakdown of every
+off-target hit across all tiers.
+
+```bash
+qpcr-assay-check init my-assay --example
+# edit my-assay/config.yaml: organisms.list_file, or leave it null for the packaged starter list
+qpcr-assay-check run my-assay/assay.yaml -o results
+```
+
+The packaged list (`organisms.list_file: null`) is `src/qpcr_assay_check/data/clinical_organisms.yaml`:
+a small, hand-picked, **non-authoritative starting point** (sexually transmitted pathogens, atypical
+pneumonia bacteria, *M. tuberculosis* complex and other mycobacteria, common respiratory/other
+viruses, human background) that every laboratory must review and edit for its own assay panel —
+give `organisms.list_file` your own file with the same `categories:`/`organisms:` structure to
+replace it entirely.
+
+Resolving organism names uses the network (Entrez Taxonomy) but never sends the oligo sequences, so
+it runs automatically before the confirmation prompt without needing `--yes`; declining still sends
+no sequences (see `--dry-run`, which shows the organism-list name count but resolves nothing, since
+resolution needs `NCBI_EMAIL`).
+
 You can also define an assay entirely on the command line:
 
 ```bash
@@ -194,7 +227,10 @@ assay to NCBI's public servers** for BLAST searches, and a full `run` also sends
 accessions to NCBI's E-utilities to fetch sequence windows. This matters for proprietary assays.
 Both commands always show the sequences and the planned searches first and ask for confirmation
 (`--yes` skips the question; `--dry-run` sends nothing and needs no credentials). `run --qc-only`
-and `validate` never use the network.
+and `validate` never use the network. A full `run` also sends the organism-list *names* (not the
+oligo sequences) to Entrez Taxonomy to resolve them to taxonomy IDs; this runs automatically,
+without its own confirmation, since it never sends anything proprietary (see
+[Exclusivity](#exclusivity-against-a-clinical-organism-list-v040-in-progress) above).
 
 ### Live smoke test (please run once)
 
@@ -223,6 +259,16 @@ reference genome record, which closes the verification gap noted in the example 
 one minute; a human-restricted search against `core_nt` took **61 minutes**. A `search` with the
 default human background tier therefore takes roughly an hour or more. The default wait limit is
 240 minutes and interrupted searches resume.
+
+**Second live run (2026-09-22), v0.4.0 phase 4a additions:** entrez queries with 11, 40 and 100
+taxids were all accepted (the true upper limit is still unknown, but 100 is a safe planning number);
+taxonomy lineage parsing (species/genus/family) matched real output for all 5 sampled organisms; 38
+of the 40 packaged organism-list names resolved through the real exclusivity-resolution path. One
+important negative result: **combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter
+in a single BLAST call does not reliably restrict by date** (4 of 20 checked hit accessions fell
+outside the requested window) — this rules out this project's originally planned inclusivity
+design; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detail and what it means for
+phase 4b.
 
 ### Live validation of the specificity assessment (v0.3.0)
 
@@ -277,11 +323,26 @@ pruning logic changes, rather than treating this one result as permanent proof.
   unpaired overhang); priming risk is judged from the mismatch positions and clean-3'-nt count,
   never from Tm alone.
 - Specificity covers only the tiers actually searched (intended target, near neighbours,
-  background); the clinical organism list (exclusivity) and inclusivity sampling arrive in v0.4.0.
+  background, exclusivity); inclusivity sampling is not implemented yet.
 - `ENTREZ_QUERY` taxon restriction is effective, not airtight: one "synthetic construct" record
   leaked into 3,715 live human-restricted hits (it carries a human source feature).
-- Taxonomy annotation, the clinical organism list, inclusivity and yearly history are not
-  implemented yet, so a full `run` still ends `INCOMPLETE` overall even when specificity passes.
+- The clinical organism list ships as a small, hand-picked, non-authoritative starting point (see
+  `src/qpcr_assay_check/data/clinical_organisms.yaml`'s own header); every laboratory must review
+  and edit it, or supply its own file, before relying on the exclusivity report.
+- Organism-name resolution never guesses: an ambiguous or unresolved name is reported and left out
+  of the exclusivity search rather than picked at random. Review `results.json`'s
+  `exclusivity.unresolved` (or the report's Exclusivity section) after every run. Checked live
+  (2026-09-22): 38 of the 40 packaged organism-list names resolve; the `[All Names]` synonym
+  fallback does not catch every scientific-name rename (confirmed for "Mycoplasma pneumoniae" →
+  *Mycoplasmoides pneumoniae*, now fixed in the packaged list) — a name that stops resolving is a
+  real possibility worth checking for after any NCBI Taxonomy update, not just a corner case.
+- **Inclusivity's planned design does not work**: combining `ENTREZ_QUERY` taxon restriction with a
+  `[PDAT]` date filter in one BLAST call does not reliably restrict by date (checked live,
+  2026-09-22: 4 of 20 checked hit accessions fell outside the requested window). Phase 4b needs a
+  different approach (get date-windowed accession lists from ESearch instead) before it can be
+  built; see `docs/ARCHITECTURE.md`.
+- Inclusivity sampling and yearly history are not implemented yet, so a full `run` still ends
+  `INCOMPLETE` overall even when specificity and exclusivity pass.
 
 ## Roadmap
 
@@ -289,8 +350,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 |---|---|
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
-| **0.3.0** | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
-| 0.4.0 | Taxonomy, organism list, inclusivity, exclusivity |
+| 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
+| **0.4.0** | Taxonomy resolution, organism list, exclusivity (done, unreleased); inclusivity (planned) |
 | 1.0.0 | Run history, yearly diff report, complete report, Docker, documentation |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.

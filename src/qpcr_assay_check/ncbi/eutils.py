@@ -1,13 +1,15 @@
-"""Minimal E-utilities client (ESearch counts, EFetch sequence windows)."""
+"""Minimal E-utilities client (ESearch counts/UIDs, EFetch sequence windows and taxonomy)."""
 
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .http import NcbiError, NcbiHttp
 
 _COUNT_RE = re.compile(r"<Count>(\d+)</Count>")
+_ID_RE = re.compile(r"<Id>(\d+)</Id>")
 
 
 @dataclass
@@ -29,6 +31,31 @@ class Eutils:
         if not m:
             raise NcbiError(f"Unexpected ESearch response: {resp.text[:200]!r}")
         return int(m.group(1))
+
+    def esearch_ids(self, db: str, term: str, *, retmax: int = 20) -> list[int]:
+        """UIDs matching ``term``. More than ``retmax`` hits still means "more than one", not a
+        silently truncated list: callers must treat that as ambiguous rather than complete."""
+        resp = self.http.request(
+            "GET",
+            f"{self.base_url}/esearch.fcgi",
+            service="eutils",
+            params={"db": db, "term": term, "retmax": retmax},
+        )
+        if "<eSearchResult" not in resp.text:
+            raise NcbiError(f"Unexpected ESearch response: {resp.text[:200]!r}")
+        return [int(i) for i in _ID_RE.findall(resp.text)]
+
+    def fetch_taxonomy(self, taxids: Sequence[int]) -> str:
+        """Taxonomy EFetch XML (``TaxaSet``) for one or more taxonomy IDs."""
+        resp = self.http.request(
+            "GET",
+            f"{self.base_url}/efetch.fcgi",
+            service="eutils",
+            params={"db": "taxonomy", "id": ",".join(str(t) for t in taxids), "retmode": "xml"},
+        )
+        if "<TaxaSet" not in resp.text:
+            raise NcbiError(f"Unexpected Taxonomy EFetch response: {resp.text[:200]!r}")
+        return resp.text
 
     def fetch_fasta(
         self, accession: str, *, start: int | None = None, stop: int | None = None, strand: int = 1

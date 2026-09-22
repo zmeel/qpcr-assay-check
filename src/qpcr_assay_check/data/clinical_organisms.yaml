@@ -1,0 +1,75 @@
+# qpcr-assay-check: starter clinical organism list (exclusivity panel)
+#
+# THIS IS A STARTING POINT, NOT AN AUTHORITATIVE OR COMPLETE LIST. It is a small, hand-picked
+# sample of organisms commonly tested for in Dutch diagnostic microbiology laboratories, grouped
+# for readability only (the grouping has no effect on the search or the report). It does NOT claim
+# to cover every near-neighbour or cross-reactant relevant to any particular assay, and some
+# entries use a traditional/common name that NCBI Taxonomy may have since reclassified under a
+# different scientific name (resolution is attempted with synonyms; anything that still does not
+# resolve, or resolves ambiguously, is reported, never guessed).
+#
+# EVERY LABORATORY MUST REVIEW AND EDIT THIS LIST for its own assay panel before relying on the
+# exclusivity report. Add or remove organisms freely, or point `organisms.list_file` in your
+# configuration at your own file with the same structure instead of this one.
+#
+# Names are organism names (not taxonomy IDs): IDs are resolved from these names at run time via
+# Entrez Taxonomy and cached (see docs/ARCHITECTURE.md).
+
+categories:
+  - name: Sexually transmitted pathogens
+    organisms:
+      - Chlamydia trachomatis
+      - Neisseria gonorrhoeae
+      - Mycoplasma genitalium
+      - Trichomonas vaginalis
+      - Treponema pallidum
+      - Ureaplasma urealyticum
+      - Ureaplasma parvum
+      - Haemophilus ducreyi
+
+  - name: Atypical pneumonia bacteria
+    organisms:
+      # Was "Mycoplasma pneumoniae": that name does not resolve (checked live, 2026-09-22),
+      # neither directly nor through the [All Names] synonym fallback, most likely because of the
+      # 2018 genus rename to Mycoplasmoides. This spelling has NOT itself been confirmed live yet.
+      - Mycoplasmoides pneumoniae
+      - Chlamydia pneumoniae
+      - Legionella pneumophila
+      - Coxiella burnetii
+      - Bordetella pertussis
+
+  - name: Mycobacterium tuberculosis complex and other mycobacteria
+    organisms:
+      - Mycobacterium tuberculosis complex
+      - Mycobacterium avium complex
+      - Mycobacterium avium
+      - Mycobacterium kansasii
+      - Mycobacterium abscessus
+      - Mycobacterium chelonae  # does not resolve (checked live, 2026-09-22); cause not yet known
+      - Mycobacterium fortuitum
+      - Mycobacterium gordonae
+
+  - name: Common respiratory and other viruses
+    organisms:
+      - Influenza A virus
+      - Influenza B virus
+      - Severe acute respiratory syndrome coronavirus 2
+      - Human coronavirus 229E
+      - Human coronavirus OC43
+      - Human coronavirus NL63
+      - Human coronavirus HKU1
+      - Human respiratory syncytial virus
+      - Human metapneumovirus
+      - Human parainfluenza virus 1
+      - Human parainfluenza virus 2
+      - Human parainfluenza virus 3
+      - Human rhinovirus A
+      - Human adenovirus
+      - Human bocavirus 1
+      - Human parechovirus
+      - Epstein-Barr virus
+      - Human cytomegalovirus
+
+  - name: Background
+    organisms:
+      - Homo sapiens

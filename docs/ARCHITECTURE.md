@@ -1,9 +1,13 @@
 # Architecture
 
 Status: v0.3.0 implements steps 1, 2, 5, 6 (from v0.2.0) plus 7 and 8: full-length re-alignment of
-every relevant hit and amplicon pairing, feeding a real specificity verdict. Steps 3, 4, 9 and 10
-(taxonomy, the clinical organism list, inclusivity, exclusivity) and 11's history comparison are
-still the agreed design for later releases, not implemented.
+every relevant hit and amplicon pairing, feeding a real specificity verdict. v0.4.0 phase 4a
+(implemented, not yet tagged/released) adds steps 3 and part of 4: organism names are resolved to
+taxonomy IDs (never guessed) and searched as a real "exclusivity" tier reusing the same specificity
+machinery as the other off-target tiers, with its own per-organism table and a species/genus/family
+rollup of every off-target hit (step 6's aggregation, generalised beyond exclusivity alone). Step 4's
+inclusivity windows, step 9 (inclusivity itself), and step 11's history comparison are still the
+agreed design for later work (phase 4b and v1.0.0), not implemented.
 
 ## Data flow
 
@@ -41,8 +45,8 @@ still the agreed design for later releases, not implemented.
 |---|---|
 | 0.1.0 | Skeleton, input parsing, oligo QC, report skeleton |
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
-| **0.3.0** | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
-| 0.4.0 | Taxonomy, organism list, inclusivity, exclusivity |
+| 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
+| **0.4.0** | Taxonomy resolution, organism list, exclusivity (phase 4a, done); inclusivity (4b, planned) |
 | 1.0.0 | Run history, yearly diff, complete report, Docker, documentation |
 
 ## Design decisions
@@ -75,6 +79,36 @@ still the agreed design for later releases, not implemented.
   positive control, so its absence is itself informative.
 - **Saturation, site-cap truncation and failed fetches are never silently dropped**: they make the
   specificity verdict INCOMPLETE rather than a false PASS.
+- **Exclusivity reuses the specificity tier machinery, not a parallel implementation** (phase 4a):
+  once the organism list is resolved to taxonomy IDs, "exclusivity" is planned, searched and
+  assessed exactly like `near_neighbours`/`background` (it is simply added to
+  `specificity.off_target_tiers`). `taxonomy/exclusivity.py` only adds SPEC.md step 8's own view
+  over that same evidence: one row per organism-list entry (including zero-hit organisms and names
+  that did not resolve), plus its own tier-scoped verdict, rather than a second assessment.
+- **Name resolution never guesses** (`taxonomy/resolve.py`): `[Scientific Name]` first, then (if
+  configured) `[All Names]` for synonyms; exactly one UID is a resolution, more than one is flagged
+  ambiguous, none is unresolved — never picked at random. A tier built from zero resolved names is
+  simply not searched, and the run reports why rather than silently passing.
+- **A tier that was never searched is INCOMPLETE, not a silent PASS**: if every organism-list name
+  fails to resolve, the exclusivity section still renders, explains why, and does not count as
+  evidence of exclusivity.
+- **Species/genus/family aggregation is generic, not exclusivity-specific** (`taxonomy/rollup.py`):
+  it runs over every off-target site regardless of tier, because SPEC.md step 6 ("taxonomy
+  annotation of hits") is not scoped to exclusivity alone. A lineage-fetch failure degrades this
+  aggregation to empty rather than failing the whole evaluation: it is informational, not a
+  required section.
+- **Taxonomy resolution runs before the send-oligos confirmation, without its own gate**: it sends
+  only organism names (from the reviewable, packaged or lab-supplied list), never the assay's own
+  oligo sequences, so it does not need the same confirm/decline protection that oligo sequences do.
+- **Inclusivity (phase 4b) cannot combine `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date
+  filter in one BLAST call** — confirmed unreliable live (see "Verified in a third live run"
+  below: 4 of 20 checked hit accessions fell outside the requested window). The design in
+  SPEC.md step 7 ("BLAST the reference amplicon against nt restricted to the target taxid,
+  stratified into time windows via `ENTREZ_QUERY` date filters") needs revising before
+  implementation: get each window's accession list from ESearch (`[PDAT]` there is independently
+  confirmed reliable), then work from that list directly — e.g. fetch/align only the sampled
+  accessions, or restrict a BLAST search to that specific accession set if the URL API supports it
+  — rather than asking BLAST itself to do the date filtering.
 
 ## NCBI facts checked against current documentation (2026-09-20)
 
@@ -151,16 +185,31 @@ reverse-primer hit, kept verbatim in `tests/fixtures/real_hits_strands.json`. Du
 mismatch at the very 3' terminal base, computed by treating it as an unpaired overhang, was checked
 against primer3 directly (61.6 vs 61.2 °C) rather than against a BLAST hit.
 
-### Still unverified (checked by the next smoke run, needed before v0.4.0)
+### Verified in a third live run (2026-09-22)
 
-How many taxa an Entrez query can hold (13, 40 and 100 are probed); whether `[PDAT]` date windows
-restrict a BLAST search the way they restrict an ESearch; whether alternative databases
-(`human_genomic`, `refseq_genomic`, `refseq_rna`) are accepted by the URL API and faster for the
-human background.
+- **Entrez queries with 11, 40 and 100 taxids were all accepted** by the BLAST URL API (no
+  rejection). The 11-taxid search was let run to completion (5000 hits per oligo, taxon
+  restriction still effective by lineage check); the 40- and 100-taxid searches were only checked
+  for acceptance (RID issued, `Status=READY`/`WAITING` on the first poll), not full correctness.
+  The true upper limit is still unknown, but 100 is a safe planning number, well above the
+  conservative default (`max_taxids_per_search: 20`).
+- `retstart` up to 100,000 still returns identifiers (reconfirmed).
+- **`[PDAT]` date windows do NOT reliably restrict a BLAST search the way they restrict an ESearch.**
+  A BLAST search of the 72 bp N1 amplicon with `ENTREZ_QUERY = "txid2697049[ORGN] AND
+  2020/01/01:2020/01/31[PDAT]"` returned 15 hits; of the first 20 hit accessions, only 16 actually
+  fell inside that window when checked independently via ESearch with the same date filter (4
+  leaked out). **This rules out the inclusivity design this project had assumed** (SPEC.md step 7:
+  "BLAST [the reference amplicon] against nt restricted to the target taxid, stratified into time
+  windows via `ENTREZ_QUERY` date filters") for BLAST calls specifically; ESearch's own `[PDAT]`
+  filtering is independently confirmed reliable (see the `01_esearch_counts` findings below), so
+  phase 4b's design must get its per-window accession lists from ESearch and not lean on BLAST to
+  do the date filtering — see the design note under "Design decisions".
 
 The NCBI Taxonomy page announces that the legacy Taxonomy Browser will be replaced by the NCBI
 Datasets Taxonomy Browser in Fall 2026. That concerns the web interface; whether the Entrez
-Taxonomy E-utilities used in v0.4.0 are affected has not been checked and will be verified then.
+Taxonomy E-utilities used here are affected has not been checked. Alternative databases
+(`human_genomic`, `refseq_genomic`, `refseq_rna`) remain unchecked (`--probe-databases` was not
+used in the runs so far).
 
 ### Verified for v0.3.0 (`scripts/validate_assessment.py`, live, 2026-09-21)
 
@@ -176,3 +225,25 @@ disregarded.
 This is one sample of one tier of one assay, not a proof for every assay or tier: re-run the script
 (varying `--tier` and `--sample`) whenever the alignment or pruning logic changes, and periodically
 otherwise, before trusting a specificity verdict on a different assay.
+
+### Verified for v0.4.0 phase 4a (`scripts/smoke_test.py` steps `03b`/`03c`, live, 2026-09-22)
+
+- **Lineage parsing works.** `taxonomy/resolve.py`'s `Rank`/`LineageEx` parsing was checked against
+  5 real Taxonomy EFetch responses (Homo sapiens, Mus musculus, SARS-CoV-2, Escherichia coli,
+  Staphylococcus aureus): every one returned a populated genus and family. One real subtlety: a
+  taxon's own `Rank` is not always `species` — SARS-CoV-2's is `"no rank"`, with `species` itself
+  coming from its `LineageEx` ancestor (`Betacoronavirus pandemicum`, its formal ICTV/NCBI species).
+  `Lineage.species` correctly reports the ancestor in that case, not the taxon's own name.
+- **The `Mycoplasma pneumoniae` `[All Names]` synonym fallback does NOT resolve it** (`status:
+  "unresolved"`, both `[Scientific Name]` and `[All Names]` returned zero hits). The hypothesis in
+  the previous note — that a 2018 genus rename to *Mycoplasmoides* would be caught by `[All Names]`
+  — was wrong: NCBI's `[All Names]` index apparently does not carry the old genus as a synonym for
+  this species. **Fixed by editing the organism list** to use the current name directly
+  (`Mycoplasmoides pneumoniae`) rather than relying on synonym resolution; this itself needs a live
+  re-check (not yet done) to confirm the new name resolves.
+- **The packaged organism list resolves 38 of 40 names** through the real
+  `taxonomy.plan.resolve_organism_list` path. Unresolved (this run): `Mycoplasma pneumoniae` (see
+  above, now renamed in the list) and `Mycobacterium chelonae` (cause unknown — a plausible,
+  well-established species name; needs investigation, not assumed to be a rename). Both are exactly
+  what the "flag, never guess" design is for: they are left out of the exclusivity search and
+  reported, not silently dropped.

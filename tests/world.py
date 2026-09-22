@@ -63,6 +63,11 @@ class World:
         self.genomes: dict[str, dict] = {}
         self.hits: dict[int, dict[str, list[dict]]] = {}  # taxid -> label -> hit dicts
         self.missing: set[str] = set()  # accessions whose efetch fails
+        self.taxonomy_names: dict[str, int] = {}  # organism name -> taxid, for name resolution
+
+    def name(self, organism_name: str, taxid: int) -> None:
+        """Register an organism name that Entrez Taxonomy ESearch should resolve to ``taxid``."""
+        self.taxonomy_names[organism_name] = taxid
 
     def genome(self, acc: str, taxid: int, sciname: str, seq: str, title: str = "") -> None:
         self.genomes[acc] = {
@@ -193,8 +198,22 @@ class WorldFake(FakeNcbi):
         self.efetch_calls: list[dict] = []
 
     def request(self, method, url, params=None, data=None, timeout=None):
+        if "esearch.fcgi" in url and dict(params or {}).get("db") == "taxonomy":
+            term = str(dict(params or {}).get("term", ""))
+            name = term.rsplit("[", 1)[0]  # strip the "[Scientific Name]"/"[All Names]" field tag
+            taxid = self.world.taxonomy_names.get(name)
+            ids = f"<Id>{taxid}</Id>" if taxid is not None else ""
+            count = 1 if taxid is not None else 0
+            return FakeResponse(
+                200, f"<eSearchResult><Count>{count}</Count><IdList>{ids}</IdList></eSearchResult>"
+            )
         if "efetch.fcgi" in url:
             p = dict(params or {})
+            if p.get("db") == "taxonomy":
+                # Not modelled: an empty (but valid) TaxaSet, so a taxonomy_breakdown lookup
+                # degrades to "no lineage" instead of erroring; not a sequence-window fetch, so
+                # it is not counted in efetch_calls (that counter is about specificity windows).
+                return FakeResponse(200, "<?xml version='1.0'?><TaxaSet></TaxaSet>")
             self.efetch_calls.append(p)
             acc = str(p["id"])
             if acc in self.world.missing or acc not in self.world.genomes:

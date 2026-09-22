@@ -95,7 +95,7 @@ search:
 specificity:
   # Assessment of BLAST hits: full-length re-alignment, site classification, amplicon pairing.
   # ALL of these are starting points, not acceptance criteria: review them for your laboratory.
-  off_target_tiers: [near_neighbours, background]  # hits from these tiers are off-target by construction
+  off_target_tiers: [near_neighbours, background, exclusivity]  # off-target by construction
   max_sites_per_query: 2000        # strongest hits first; beyond this the assessment is INCOMPLETE
   window_padding_nt: 10            # subject bases fetched beyond a partial hit, to allow gaps
   max_amplicon_size: 2000          # predicted products longer than this are ignored
@@ -118,6 +118,14 @@ specificity:
     amplicon_likely_detected: FAIL
     amplicon_not_detected: WARN
   eukaryote_taxids: [9606]         # organisms for which genomic-DNA hits matter to RNA assays
+
+organisms:
+  # The clinical organism list used for the 'exclusivity' search tier and report table.
+  list_file: null                  # null = packaged starter list (data/clinical_organisms.yaml);
+                                    # a STARTING POINT only (see that file's own header) -- give
+                                    # your own path to replace it with your laboratory's own list.
+  resolve_synonyms: true            # also try Entrez's [All Names] when [Scientific Name] finds
+                                     # nothing (taxonomic renames, e.g. Mycoplasma -> Mycoplasmoides)
 
 report:
   include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)
