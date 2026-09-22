@@ -375,15 +375,34 @@ environment issue:
   not new), the hit-list saturating for the (now-smaller, ~38-organism) exclusivity tier at the
   configured `max_sites_per_query` per search chunk, and `Mycobacterium chelonae` still the one
   unresolved organism-list name (consistent with earlier live runs).
-- **Not yet re-verified**: a fresh full run with the fix applied, to confirm the corrected verdict
-  looks sane end to end (the fix was implemented and unit/CLI-tested against a constructed world
-  reproducing the exact bug, but not re-run against live NCBI data after the fix).
+### Verified for v1.0.0 (retry of the full live `run`, with the fix applied, 2026-09-22)
+
+The user rebuilt the image with the fix and re-ran the same full `run` (same cached BLAST results,
+so no new NCBI calls were needed for the unaffected tiers). Confirms both the fix and the
+history/diff feature against real data in one pass:
+
+- **The fix works.** Predicted off-target products dropped from 500 to 0 (that section is now
+  `PASS`), and the "Changes since the previous run" section correctly shows 6028 off-target sites
+  and 500 predicted products "no longer found" — exactly the bogus SARS-CoV-2-self-match evidence
+  disappearing. The exclusivity table's row for it now reads "assay's own intended target —
+  excluded from this search", as designed.
+- **The remaining `FAIL` is a genuine finding, not a bug**: real homology between the CDC N1
+  primers and the human genome (24 critical + 71 warning primer sites in `background`; a similar
+  picture in `exclusivity`, since "Homo sapiens" is *also* separately listed in the packaged
+  organism list — the same organism searched by two different tiers for two different reasons,
+  redundant but not wrong). This is a known, documented characteristic of this published assay.
+- **43 "new" sites in the diff are expected, not concerning**: removing SARS-CoV-2 from the
+  exclusivity tier's taxid list shifted which of the remaining ~38 organisms share a
+  `max_taxids_per_search` chunk, which shifted which hits rank within that chunk's own
+  `max_sites_per_query` cap — surfacing a handful of previously-crowded-out, minor-severity
+  Influenza A warning sites. A real, if minor, side effect of the fix's own correctness, not a
+  new problem.
+- This is also the first live confirmation that history/diff (this same phase's other new feature)
+  correctly attributes a change to its real cause across two runs of real NCBI data, not only the
+  constructed test world.
 
 ### Still unverified for v1.0.0
 
-- **The history/diff feature has not been checked against a real multi-year dataset**, only the
-  constructed test world and hand-built unit fixtures (`tests/test_history.py`,
-  `tests/test_run_full.py::test_history_diff_across_two_runs`). The natural-key matching logic
-  (site/amplicon identity by accession and position) is straightforward and needs no live NCBI
-  behaviour to verify -- it operates entirely on this tool's own already-verified output -- so no
-  smoke-test step was added for it.
+- **History/diff's natural-key matching has now been checked against one real two-run pair**
+  (immediately above), which is a stronger check than the constructed test world alone, though
+  still only one assay and one pair of runs.

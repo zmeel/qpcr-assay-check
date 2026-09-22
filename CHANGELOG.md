@@ -70,12 +70,15 @@ before this is tagged.
   fixed only once the user built and ran the image themselves (2026-09-22). A full network run
   against real NCBI, through the container, was also confirmed by the user and is what surfaced
   the exclusivity/target bug fixed above -- see `docs/ARCHITECTURE.md`.
-- **A fresh full run with the exclusivity/target fix applied has not yet been re-checked against
-  live NCBI data** -- the fix was verified against a constructed test world reproducing the exact
-  bug, and unit-tested, but not re-run live.
-- **History/diff has not been checked against a real multi-year dataset**, only the constructed test
-  world and hand-built unit fixtures. Its natural-key matching operates entirely on this tool's own
-  already-verified output (no new NCBI behaviour involved), so no live smoke-test step was needed.
+- The exclusivity/target fix has been re-checked against live NCBI data by re-running the same
+  assay: predicted off-target products dropped from 500 to 0, and the history/diff section
+  correctly attributed the change (6028 sites and 500 products "no longer found") to the fix. The
+  run's overall verdict is still `FAIL`, now for a real reason (human-genome primer homology, a
+  known characteristic of this published assay) -- see `docs/ARCHITECTURE.md`.
+- **History/diff has been checked against one real two-run pair** (immediately above), stronger
+  than the constructed test world alone, though still only one assay. Its natural-key matching
+  operates entirely on this tool's own already-verified output (no new NCBI behaviour involved),
+  so no live smoke-test step was needed.
 - **The previous run is found by assay slug** (derived from the assay name), not by assay content:
   renaming an assay starts its history over, even if the oligos did not change.
 - A regression that shows up in history's diff already made the specific section (specificity,
