@@ -12,10 +12,13 @@ in; a detailed, reproducible, version-stamped evaluation record comes out (HTML,
 > **exclusivity** tier against a starter clinical organism list, with its own per-organism table,
 > plus a species/genus/family breakdown of every off-target hit. The overall verdict still ends as
 > `INCOMPLETE`, because **inclusivity** and yearly history are not implemented yet (the rest of
-> v0.4.0, and v1.0.0). The BLAST client and the re-alignment pruning rules were checked against the
-> live NCBI servers once (2026-09-21); the new taxonomy lineage parsing has not been (see
-> `scripts/smoke_test.py` steps `03b`/`03c`, added but not yet run live). See
-> `docs/ARCHITECTURE.md` for what was verified and `docs/PROGRESS.md` for what is still open.
+> v0.4.0, and v1.0.0). The BLAST client, the re-alignment pruning rules, taxonomy lineage parsing
+> and the organism-list resolution path have all now been checked against the live NCBI servers
+> (most recently 2026-09-22) — and that live run also **ruled out this project's planned inclusivity
+> design**: combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call
+> does not reliably restrict by date, so phase 4b needs a different approach (see
+> `docs/ARCHITECTURE.md`) before it can be built. See `docs/ARCHITECTURE.md` for everything verified
+> so far and `docs/PROGRESS.md` for what is still open.
 
 In silico analysis **does not replace experimental validation**, and **your laboratory is
 responsible for verifying this software within its own quality system** before relying on it.
@@ -257,6 +260,16 @@ one minute; a human-restricted search against `core_nt` took **61 minutes**. A `
 default human background tier therefore takes roughly an hour or more. The default wait limit is
 240 minutes and interrupted searches resume.
 
+**Second live run (2026-09-22), v0.4.0 phase 4a additions:** entrez queries with 11, 40 and 100
+taxids were all accepted (the true upper limit is still unknown, but 100 is a safe planning number);
+taxonomy lineage parsing (species/genus/family) matched real output for all 5 sampled organisms; 38
+of the 40 packaged organism-list names resolved through the real exclusivity-resolution path. One
+important negative result: **combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter
+in a single BLAST call does not reliably restrict by date** (4 of 20 checked hit accessions fell
+outside the requested window) — this rules out this project's originally planned inclusivity
+design; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detail and what it means for
+phase 4b.
+
 ### Live validation of the specificity assessment (v0.3.0)
 
 `scripts/validate_assessment.py` checks the pruning rules the specificity assessment relies on to
@@ -318,9 +331,16 @@ pruning logic changes, rather than treating this one result as permanent proof.
   and edit it, or supply its own file, before relying on the exclusivity report.
 - Organism-name resolution never guesses: an ambiguous or unresolved name is reported and left out
   of the exclusivity search rather than picked at random. Review `results.json`'s
-  `exclusivity.unresolved` (or the report's Exclusivity section) after every run.
-- Taxonomy lineage parsing (species/genus/family) is new and has not been checked against live
-  NCBI output yet (`scripts/smoke_test.py` steps `03b`/`03c` do this; not yet run).
+  `exclusivity.unresolved` (or the report's Exclusivity section) after every run. Checked live
+  (2026-09-22): 38 of the 40 packaged organism-list names resolve; the `[All Names]` synonym
+  fallback does not catch every scientific-name rename (confirmed for "Mycoplasma pneumoniae" →
+  *Mycoplasmoides pneumoniae*, now fixed in the packaged list) — a name that stops resolving is a
+  real possibility worth checking for after any NCBI Taxonomy update, not just a corner case.
+- **Inclusivity's planned design does not work**: combining `ENTREZ_QUERY` taxon restriction with a
+  `[PDAT]` date filter in one BLAST call does not reliably restrict by date (checked live,
+  2026-09-22: 4 of 20 checked hit accessions fell outside the requested window). Phase 4b needs a
+  different approach (get date-windowed accession lists from ESearch instead) before it can be
+  built; see `docs/ARCHITECTURE.md`.
 - Inclusivity sampling and yearly history are not implemented yet, so a full `run` still ends
   `INCOMPLETE` overall even when specificity and exclusivity pass.
 

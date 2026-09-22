@@ -10,6 +10,14 @@ v0.4.0 phase 4a: taxonomy resolution, the clinical organism list, and a real exc
 report. Phase 4b (inclusivity) is still planned before this is tagged v0.4.0; v1.0.0 (run history,
 yearly diff, Docker, documentation) remains after that.
 
+**Live validation (2026-09-22, `scripts/smoke_test.py` steps `03b`/`03c`):** taxonomy lineage
+parsing matched real output for all 5 sampled organisms; 38 of the 40 packaged organism-list names
+resolved through the real exclusivity-resolution path (2 did not: see Known limitations). Entrez
+queries with up to 100 taxids were accepted. One important negative result, relevant to phase 4b:
+**combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not
+reliably restrict by date** (4 of 20 checked hit accessions fell outside the requested window),
+ruling out this project's originally planned inclusivity design (see `docs/ARCHITECTURE.md`).
+
 ### Added
 - `taxonomy/resolve.py`: resolves organism names to NCBI taxonomy IDs via Entrez Taxonomy
   (`[Scientific Name]`, then `[All Names]` for synonyms), cached; exactly one UID is a resolution,
@@ -32,7 +40,7 @@ yearly diff, Docker, documentation) remains after that.
   sections/sheets/fields.
 - `scripts/smoke_test.py` steps `03b` (lineage parsing, the `Mycoplasma pneumoniae` synonym
   fallback through the real `resolve_name` function) and `03c` (the actual exclusivity-tier
-  resolution path against the packaged organism list) -- both new, unverified until run live.
+  resolution path against the packaged organism list) -- now run live, see above.
 - 30 new tests (taxonomy resolution, organism list loading, exclusivity grouping/verdict,
   species/genus/family rollup, report/workbook rendering, one full CLI end-to-end scenario with a
   real multi-organism resolution). 280 tests total (up from 250); `ruff check`/`ruff format --check`
@@ -43,14 +51,26 @@ yearly diff, Docker, documentation) remains after that.
   Taxonomy automatically, before the send-oligos confirmation, since they are not proprietary.
 - `specificity.off_target_tiers` default now includes `exclusivity`.
 
+### Fixed
+- `data/clinical_organisms.yaml`: "Mycoplasma pneumoniae" does not resolve live, and (unlike the
+  hypothesis in the first draft) the `[All Names]` synonym fallback does not catch its 2018 genus
+  rename either. Renamed the entry to "Mycoplasmoides pneumoniae" directly; this spelling has not
+  itself been confirmed live yet.
+
 ### Known limitations
-- Taxonomy lineage parsing (`Rank`, `LineageEx`) has not been checked against live NCBI output;
-  only the earlier `ScientificName`-only regex check (v0.2.1) has been. Run
-  `scripts/smoke_test.py` (steps `03b`/`03c`) before trusting the exclusivity table or the
-  taxonomy breakdown.
 - The packaged organism list is a small sample, not a claim of completeness for any assay; every
   laboratory must review and edit it (or supply its own file) before relying on the exclusivity
-  report.
+  report. Checked live: 38 of 40 packaged names resolve; "Mycobacterium chelonae" currently does
+  not (cause unknown) and "Mycoplasma pneumoniae" was renamed (see Fixed above, itself unconfirmed).
+- Organism-name resolution can silently regress after an NCBI Taxonomy update (a name that used to
+  resolve stops resolving, as apparently happened for "Mycoplasma pneumoniae"); the `[All Names]`
+  synonym fallback does not catch every rename. Review `results.json`'s `exclusivity.unresolved`
+  after every run, not just when first setting up an organism list.
+- **Inclusivity's originally planned design (SPEC.md step 7) does not work as specified**: combining
+  `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not reliably
+  restrict by date (checked live: 4 of 20 checked hit accessions fell outside the requested window).
+  Phase 4b needs a redesigned approach -- get each window's accession list from ESearch instead,
+  which is independently confirmed reliable -- before it can be implemented.
 - Inclusivity (phase 4b) is not implemented, so a full `run` still ends `INCOMPLETE` overall even
   when specificity and exclusivity both pass.
 

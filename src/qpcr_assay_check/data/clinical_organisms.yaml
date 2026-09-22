@@ -29,7 +29,10 @@ categories:
 
   - name: Atypical pneumonia bacteria
     organisms:
-      - Mycoplasma pneumoniae
+      # Was "Mycoplasma pneumoniae": that name does not resolve (checked live, 2026-09-22),
+      # neither directly nor through the [All Names] synonym fallback, most likely because of the
+      # 2018 genus rename to Mycoplasmoides. This spelling has NOT itself been confirmed live yet.
+      - Mycoplasmoides pneumoniae
       - Chlamydia pneumoniae
       - Legionella pneumophila
       - Coxiella burnetii
@@ -42,7 +45,7 @@ categories:
       - Mycobacterium avium
       - Mycobacterium kansasii
       - Mycobacterium abscessus
-      - Mycobacterium chelonae
+      - Mycobacterium chelonae  # does not resolve (checked live, 2026-09-22); cause not yet known
       - Mycobacterium fortuitum
       - Mycobacterium gordonae
 

@@ -4,10 +4,15 @@ Query format and response shape were checked against the live servers in the v0.
 (``docs/ARCHITECTURE.md``, "Verified in the first live smoke run"): the term
 ``f"{name}[Scientific Name]"`` resolved 12 of 13 tried names to exactly one taxonomy ID, and the
 Taxonomy EFetch XML (``TaxId``, ``ScientificName``, ``Rank``, ``LineageEx/Taxon``) parsed as
-expected. The one miss ("Mycoplasma pneumoniae") is believed to be a scientific-name change (the
-genus was moved to *Mycoplasmoides* in 2018), which is exactly what the ``[All Names]`` synonym
-fallback here is for. The rank/lineage aggregation into species/genus/family below has not itself
-been exercised live and should be checked by the next smoke-test run before this is trusted.
+expected. The rank/lineage aggregation into species/genus/family was checked live in the v0.4.0
+phase 4a smoke test (2026-09-22): 5/5 sampled lineages came back with a populated genus and family.
+
+The one miss ("Mycoplasma pneumoniae") is believed to be a scientific-name change (the genus was
+moved to *Mycoplasmoides* in 2018) -- **but the live smoke test confirmed the ``[All Names]``
+synonym fallback does NOT catch it** (both terms returned zero hits): NCBI's ``[All Names]`` index
+does not appear to carry the old genus as a synonym for this species. The fallback is kept because
+it does help other cases (unverified which), but a genus-level rename like this one still needs the
+organism list updated with the current name directly (see ``data/clinical_organisms.yaml``).
 """
 
 from __future__ import annotations
