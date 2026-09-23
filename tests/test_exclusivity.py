@@ -159,3 +159,57 @@ def test_source_defaults_to_global_when_the_resolution_does_not_say():
 def test_no_resolution_has_no_source_either():
     out = build_exclusivity(None, [], [], SEV, tier_searched=False)
     assert out.source is None
+
+
+# --------------------------------------------------------------- species-level grouping
+# A BLAST hit's own taxid can be a strain-level descendant of an organism-list entry's own
+# (coarser) resolved taxid -- confirmed live for Influenza A (~10% of hits under a
+# species-restricted search carried a distinct, more specific taxid). Without taxon_species,
+# such a hit's evidence would silently never match any row.
+
+FLU, FLU_STRAIN = 11320, 999001  # Influenza A virus; a made-up specific-strain descendant
+
+
+def test_a_hit_on_a_more_specific_descendant_taxid_still_counts_toward_its_species_row():
+    res = resolution(Resolution(name="Influenza A virus", status="resolved", taxid=FLU))
+    sites = [site(FLU_STRAIN, "forward", "critical")]
+    species = {FLU: "Influenza A virus", FLU_STRAIN: "Influenza A virus"}
+    out = build_exclusivity(res, sites, [], SEV, tier_searched=True, taxon_species=species)
+    (row,) = out.rows
+    assert row.n_sites == 1 and row.best_site_level == "critical"
+
+
+def test_without_taxon_species_a_descendant_taxid_hit_is_missed():
+    """The pre-fix behaviour: exact taxid equality only. Documents the gap this fix closes."""
+    res = resolution(Resolution(name="Influenza A virus", status="resolved", taxid=FLU))
+    sites = [site(FLU_STRAIN, "forward", "critical")]
+    out = build_exclusivity(res, sites, [], SEV, tier_searched=True)
+    (row,) = out.rows
+    assert row.n_sites == 0
+
+
+def test_a_hit_with_no_known_species_falls_back_to_exact_taxid_matching():
+    res = resolution(Resolution(name="Influenza A virus", status="resolved", taxid=FLU))
+    sites = [site(FLU_STRAIN, "forward", "critical")]
+    species = {FLU: "Influenza A virus"}  # the hit's own taxid is missing from the map
+    out = build_exclusivity(res, sites, [], SEV, tier_searched=True, taxon_species=species)
+    (row,) = out.rows
+    assert row.n_sites == 0  # never guessed into matching
+
+
+def test_exact_taxid_matches_still_work_with_taxon_species_supplied():
+    res = resolution(Resolution(name="Chlamydia trachomatis", status="resolved", taxid=CT))
+    sites = [site(CT, "forward", "critical")]
+    species = {CT: "Chlamydia trachomatis"}
+    out = build_exclusivity(res, sites, [], SEV, tier_searched=True, taxon_species=species)
+    (row,) = out.rows
+    assert row.n_sites == 1
+
+
+def test_amplicons_are_grouped_by_species_too():
+    res = resolution(Resolution(name="Influenza A virus", status="resolved", taxid=FLU))
+    amps = [amplicon(FLU_STRAIN, "likely_detected")]
+    species = {FLU: "Influenza A virus", FLU_STRAIN: "Influenza A virus"}
+    out = build_exclusivity(res, [], amps, SEV, tier_searched=True, taxon_species=species)
+    (row,) = out.rows
+    assert row.amplicon_predicted and row.amplicon_classification == "likely_detected"

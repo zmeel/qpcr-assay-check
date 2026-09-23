@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Exclusivity table undercounted hits on finely-split taxa** (`taxonomy/exclusivity.py`):
+  `ExclusivityRow.n_sites` grouped hits by exact taxid equality against the organism-list entry's
+  own resolved taxid. A BLAST hit's own `taxid` is whatever specific NCBI Taxonomy record the
+  matched sequence is filed under, which for organisms with strain-level splitting (found live:
+  Influenza A -- roughly 10% of hits under a species-restricted search carried a distinct, more
+  specific descendant taxid, e.g. a named strain) is more specific than the species-level (or
+  higher) taxid an organism-list name resolves to, so those hits were silently missing from their
+  organism's row and count -- while the overall exclusivity tier verdict (which counts every
+  exclusivity-tier hit directly, not grouped by row) was never wrong. Now groups by species name
+  when known (`taxonomy.resolve.fetch_lineages`, reusing the same lineage lookup the taxonomy
+  breakdown already makes -- no new NCBI calls), falling back to the exact taxid exactly as
+  before for anything the lineage lookup doesn't cover, never guessing a match that wasn't
+  actually looked up. Found from a fresh live smoke test run (2026-09-23) whose new Influenza A
+  restriction check (replacing the old ad-hoc human-background check) exposed the exact-taxid
+  vs. taxonomic-subtree discrepancy that a SARS-CoV-2/human-only check would never have surfaced.
+
 ### Added
 - **Variant summary report** (`specificity/variants.py`): a new report section, requested after
   comparing the tool against a lab's own pre-existing manual spreadsheet workflow for the same

@@ -95,8 +95,20 @@ def build_exclusivity(
     *,
     tier_searched: bool,
     target_taxid: int | None = None,
+    taxon_species: dict[int, str] | None = None,
 ) -> ExclusivityResult:
     """Group the exclusivity tier's already-assessed sites/amplicons by organism-list entry.
+
+    A BLAST hit's own ``taxid`` is whatever NCBI Taxonomy record the matched sequence is filed
+    under, which for some organisms is a strain-level taxon more specific than the species-level
+    (or higher) taxid an organism-list name like "Influenza A virus" resolves to (confirmed live:
+    ~10% of a real Influenza A-restricted search's hits carried a distinct, more specific taxid --
+    see docs/ARCHITECTURE.md). Grouping by exact taxid equality alone would silently drop those
+    hits from their organism's row. ``taxon_species`` (taxid -> species name, from
+    ``taxonomy.resolve.fetch_lineages``, covering both the hit taxids and the organism-list's own
+    resolved taxids) lets a hit be matched to a row by species instead when both are known;
+    grouping falls back to the bare taxid for anything missing from that map, exactly as before,
+    never guessing a species that was not actually looked up.
 
     Missing evidence (saturation, fetch failures, hit-list truncation) is reported at the overall
     specificity level, not recomputed per organism here. ``target_taxid``, if given, marks the
@@ -104,16 +116,22 @@ def build_exclusivity(
     that taxid is never searched as part of this tier (see ``search/execute.py``), so its row is
     never populated from ``sites``/``amplicons`` here either, even defensively.
     """
+    taxon_species = taxon_species or {}
+
+    def group_key(taxid: int) -> str:
+        species = taxon_species.get(taxid)
+        return f"species:{species}" if species else f"taxid:{taxid}"
+
     excl_sites = [s for s in sites if s.tier == "exclusivity"]
     excl_amplicons = [a for a in amplicons if a.tier == "exclusivity"]
-    sites_by_taxid: dict[int, list[SiteResult]] = {}
+    sites_by_key: dict[str, list[SiteResult]] = {}
     for s in excl_sites:
         if s.taxid is not None:
-            sites_by_taxid.setdefault(s.taxid, []).append(s)
-    amplicons_by_taxid: dict[int, list[AmpliconResult]] = {}
+            sites_by_key.setdefault(group_key(s.taxid), []).append(s)
+    amplicons_by_key: dict[str, list[AmpliconResult]] = {}
     for a in excl_amplicons:
         if a.taxid is not None:
-            amplicons_by_taxid.setdefault(a.taxid, []).append(a)
+            amplicons_by_key.setdefault(group_key(a.taxid), []).append(a)
 
     resolutions = resolution.resolutions if resolution else []
     rows: list[ExclusivityRow] = []
@@ -123,12 +141,13 @@ def build_exclusivity(
             organism=r.name, taxid=r.taxid, resolution=r.status, is_target=is_target
         )
         if r.taxid is not None and not is_target:
-            hits = sites_by_taxid.get(r.taxid, [])
+            key = group_key(r.taxid)
+            hits = sites_by_key.get(key, [])
             row.n_sites = len(hits)
             if hits:
                 best = _best(hits)
                 row.best_site_id, row.best_site_level = best.id, best.level
-            amps = amplicons_by_taxid.get(r.taxid, [])
+            amps = amplicons_by_key.get(key, [])
             if amps:
                 row.amplicon_predicted = True
                 row.amplicon_classification = (

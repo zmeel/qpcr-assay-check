@@ -288,6 +288,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     from .history.store import find_previous_run
     from .inclusivity.aggregate import compute_inclusivity
     from .ncbi.http import NcbiError
+    from .taxonomy.resolve import fetch_lineages
     from .taxonomy.rollup import taxonomy_breakdown
 
     previous_run = find_previous_run(outdir, assay.slug)
@@ -305,6 +306,23 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         # discard an otherwise-complete specificity verdict.
         log.warning("Could not fetch taxonomy lineages for the breakdown: %s", exc)
         breakdown = []
+    try:
+        # Same lineage lookup the breakdown above needs (cache-backed, so this adds no extra
+        # NCBI calls for taxids already fetched there), plus the exclusivity list's own resolved
+        # taxids: lets a hit filed under a more specific descendant taxid (e.g. a named influenza
+        # strain) than an organism-list entry's own taxid still be grouped onto that entry's row
+        # by species, instead of only ever matching on exact taxid equality (see
+        # taxonomy/exclusivity.py and docs/ARCHITECTURE.md).
+        excl_taxids = remote.organism_resolution.taxids if remote.organism_resolution else []
+        site_taxids = {s.taxid for s in specificity.sites if s.taxid is not None}
+        lineages = fetch_lineages(
+            eutils, remote.cache, sorted(site_taxids | set(excl_taxids)),
+            ttl_days=cfg.ncbi.taxonomy_cache_ttl_days,
+        )  # fmt: skip
+        taxon_species = {t: lin.species for t, lin in lineages.items() if lin.species}
+    except NcbiError as exc:
+        log.warning("Could not fetch taxonomy lineages for exclusivity grouping: %s", exc)
+        taxon_species = {}
     tier_searched = any(r.tier == "target" for r in remote.outcome.searches)
     try:
         inclusivity = compute_inclusivity(
@@ -329,6 +347,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         search_outcome=remote.outcome,
         organism_resolution=remote.organism_resolution,
         taxonomy_breakdown=breakdown,
+        taxon_species=taxon_species,
         inclusivity=inclusivity,
         previous_run=previous_run,
     )

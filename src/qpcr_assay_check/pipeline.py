@@ -58,6 +58,7 @@ def evaluate(
     search_outcome: SearchOutcome | None = None,
     organism_resolution: OrganismListResolution | None = None,
     taxonomy_breakdown: list[TaxonCount] | None = None,
+    taxon_species: dict[int, str] | None = None,
     inclusivity: InclusivityResult | None = None,
     previous_run: RunResult | None = None,
 ) -> RunResult:
@@ -129,6 +130,7 @@ def evaluate(
             cfg.specificity.severity,
             tier_searched=tier_searched,
             target_taxid=assay.target.taxid,
+            taxon_species=taxon_species,
         )
         n_hit = sum(1 for r in exclusivity.rows if r.n_sites)
         note = f"{exclusivity.n_resolved}/{exclusivity.n_organisms} organism name(s) resolved"

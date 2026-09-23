@@ -136,6 +136,16 @@ report and nothing else this project didn't already improve on.
   `assay.target.taxid` out of the resolved taxids before they reach the exclusivity search. The
   organism-list row is still shown (never silently dropped), flagged via
   `ExclusivityRow.is_target`, with no site/amplicon evidence populated for it even defensively.
+- **Exclusivity rows group hits by species when known, not only by exact taxid** (fixed live,
+  2026-09-23, `taxonomy/exclusivity.py`): a BLAST hit's own `taxid` is whatever specific NCBI
+  Taxonomy record the matched sequence is filed under, which can be a strain-level descendant of
+  the (typically species-level) taxid an organism-list name resolves to. `build_exclusivity` now
+  accepts `taxon_species` (taxid -> species name, from `taxonomy.resolve.fetch_lineages`, covering
+  both the hit taxids and the organism list's own resolved taxids -- `cli.py` fetches this once,
+  reusing the same lineage data the taxonomy breakdown already needs, so no new NCBI calls) and
+  groups by species name when both a hit's and a row's taxid are in that map; a taxid missing from
+  the map still falls back to exact-taxid matching exactly as before, so this never invents a
+  match it didn't actually look up.
 - **The exclusivity list can be per-assay, and defaults to preferring that over the global one**
   (unreleased, `Assay.exclusivity_organisms`, `organisms.source`): a single global panel applied
   to every assay doesn't reflect that different assays have different real near neighbours (an STI
@@ -437,3 +447,34 @@ history/diff feature against real data in one pass:
 - **History/diff's natural-key matching has now been checked against one real two-run pair**
   (immediately above), which is a stronger check than the constructed test world alone, though
   still only one assay and one pair of runs.
+
+### Verified in a fourth live smoke run (2026-09-23) -- and a real bug found
+
+Ran with `NCBI_API_KEY` set for the first time (10 req/s instead of 3). Step `06` was changed from
+the earlier runs' ad-hoc human-background check to an Influenza A virus restriction check (the
+human check is now behind `--human`), which surfaced something none of the SARS-CoV-2/human
+checks ever would have:
+
+- **`ENTREZ_QUERY` taxon restriction (`txid11320[ORGN]`) is genuinely effective** -- a rigorous
+  ancestry-based check (`lineage_check`) found **100% of a 300-hit sample** genuinely within the
+  Influenza A subtree.
+- **But only 89.5% (5530/6180) of hit descriptions carry the exact species-level taxid (11320)
+  itself.** The other ~10.5% are filed under distinct, more specific strain-level taxa (e.g.
+  "Influenza A virus (A/Michigan/272/2017(H1N1))"), each its own NCBI taxid, children of 11320.
+  Restriction is not the problem; a naive "does this hit's own taxid literally equal the
+  requested one" check would have looked like ~10% leakage that isn't real.
+- **This exposed a genuine bug**, not just a smoke-test artifact: `taxonomy/exclusivity.py`
+  grouped hits by exactly this kind of naive taxid equality against each organism-list entry's
+  own resolved taxid, so any hit filed under a more specific descendant taxid than the
+  organism-list name resolved to was silently missing from that organism's row and count --
+  roughly a 10% real undercount for a finely-split taxon like influenza. The overall exclusivity
+  tier verdict was never affected (it sums every exclusivity-tier hit directly, not grouped by
+  row) -- only the per-organism breakdown table undercounted. Fixed same-day: see "Design
+  decisions" below and the `[Unreleased]` CHANGELOG entry. Not yet independently re-verified live
+  (the constructed test world's taxonomy EFetch fake always returns an empty `TaxaSet`, so this
+  fix's species-matching branch is only unit-tested so far, not exercised end-to-end against real
+  lineage data).
+- Also reconfirmed, consistent with prior runs: SARS-CoV-2 positive control, reference-position
+  check, `[PDAT]` date-window unreliability for BLAST, ESummary UID-vs-accession re-indexing,
+  multi-taxid list acceptance (11/40/100), and organism-list resolution (39/40, only
+  *Mycobacterium chelonae* still unresolved).
