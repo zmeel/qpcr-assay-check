@@ -119,6 +119,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   are downloaded once more). Verified on the real OZ558241.1/OZ558247.1 vs NC_045512.2, both
   strands. 387 tests pass. Next: user reruns N1 partitioned (expect the 18 as hidden by N) and,
   optionally, C. trachomatis; then merge and tag v1.1.1.
+- User asked for comparable tools (none found combining our scope; SCREENED closest) and for
+  improvement ideas: written up in docs/FEATURE_IDEAS.md (7 ideas, recommended first: panel-level
+  escape detection and scheduled runs with alerts). None started; waiting for the go-ahead.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

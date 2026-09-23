@@ -575,6 +575,7 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | **1.1.1** | Regions wholly hidden by N reported as masked, not as not found |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
+Proposed next features (not started): [docs/FEATURE_IDEAS.md](docs/FEATURE_IDEAS.md).
 
 ## Development
 
