@@ -39,7 +39,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   restriction is unverified (the BLAST FAQ describes Entrez limiting for non-WGS databases only).
   Options put to the user: partitioned remote BLAST (exhaustive over core_nt only, many searches)
   vs streaming NCBI Datasets genome downloads with a local scan for the amplicon region (exhaustive
-  over all assemblies, but needs the "remote NCBI only" hard rule relaxed). Awaiting decision.
+  over all assemblies, but needs the "remote NCBI only" hard rule relaxed). **Decision: both**
+  (Option 2 for exhaustive runs, Option 1 / the current method kept for quick checks), as v1.1.0.
+  Budget questions (bandwidth/time/disk on the NAS) not answered yet: design every limit as a
+  config setting. Order: verification step first (smoke-test additions the user runs locally),
+  then implementation.
 - **Earlier proposal (superseded by the above), not approved:** unbiased variant/inclusivity sampling for targets that
   fill the hit list (e.g. several smaller target searches restricted by submission date or other
   Entrez filters, each under the cap). Check current NCBI docs on what ENTREZ_QUERY supports
