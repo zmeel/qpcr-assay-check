@@ -352,6 +352,14 @@ part of every assembly) -- not verified from here. That motivated the plasmid sp
 "a FASTA description containing 'plasmid' marks a plasmid sequence" is itself unverified until
 the report's "Recognised as plasmid" examples are checked on a live run.
 
+**Third live run (same assay, 2026-09-23):** the 76 found entries were rescanned (well under a
+minute). Target on a plasmid: yes. The recognised plasmid descriptions were genuine plasmid
+records (`NC_007430.1 Chlamydia trachomatis A/HAR-13 plasmid pCTA, complete sequence`,
+`NC_017435.1 ... D-EC plasmid pCTDEC1 ...`, `NC_017433.1 ... D-LC plasmid pCTDLC1 ...`), which
+confirms the description rule for labelled plasmid records. All 281 "not found" assemblies contain
+no sequence labelled as a plasmid; 0 contain one without the region. Limitation kept in the report
+text: a plasmid assembled into an unlabelled draft contig is not recognised as one.
+
 ### Verified in a third live run (2026-09-22)
 
 - **Entrez queries with 11, 40 and 100 taxids were all accepted** by the BLAST URL API (no

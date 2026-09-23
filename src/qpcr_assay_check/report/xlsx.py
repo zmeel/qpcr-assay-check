@@ -294,7 +294,7 @@ def write_workbook(result: RunResult, path: Path) -> None:
                    ["Region found (all 3 sites)", c.found, ""],
                    ["Region cut by a contig end", c.contig_break, ""],
                    ["Region not found", c.not_found, ", ".join(c.not_found_examples)],
-                   *([["  ...no plasmid sequence in the assembly", c.not_found_without_plasmid,
+                   *([["  ...no sequence labelled as a plasmid", c.not_found_without_plasmid,
                        ""],
                       ["  ...plasmid sequence present, region missing (review)",
                        c.not_found_with_plasmid, ", ".join(c.not_found_with_plasmid_examples)]]

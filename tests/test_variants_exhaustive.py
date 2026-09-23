@@ -246,7 +246,7 @@ def test_a_plasmid_target_separates_missing_plasmids_from_a_missing_region(tmp_p
     )  # fmt: skip
     assert any("GCF_103.1" in line and "nvCT" in line for line in result.overall.rationale)
     html = render_report(result, cfg)
-    assert "contain plasmid sequence but not the target region" in html and "GCF_103.1" in html
+    assert "labelled as a plasmid but not the target region" in html and "GCF_103.1" in html
     assert "Inclusivity across the intended target (all genome assemblies)" in html
     write_workbook(result, tmp_path / "r.xlsx")
     rows = list(load_workbook(tmp_path / "r.xlsx")["Variant coverage"].iter_rows(values_only=True))
