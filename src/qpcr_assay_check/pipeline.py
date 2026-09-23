@@ -246,6 +246,7 @@ def evaluate(
             sites=specificity.sites if specificity else [],
             amplicons=specificity.amplicons if specificity else [],
             inclusivity=inclusivity,
+            variant_summary=variant_summary,
         )
         if history.has_previous:
             note = f"Compared to the run on {history.previous_generated_at}: {history.rationale[0]}"

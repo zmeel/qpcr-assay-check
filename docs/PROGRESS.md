@@ -83,8 +83,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   0 with region). 369 tests pass. Next live run: ~76 re-downloads.
 - Third live run: plasmid split works (281 without a labelled plasmid, 0 with plasmid but no
   region; plasmid descriptions genuine). Report wording now says "labelled as a plasmid".
-- Still open for v1.1.0: Option 1 (partitioned BLAST for non-assembly targets / viruses), history
-  diff of variants against the previous run, CHANGELOG release section and tag v1.1.0.
+- History diff of variants done (emerging / newly assessed / no longer seen; WARN on a new
+  variant with a primer 3'-end mismatch or 2+ mismatches). 371 tests pass.
+- Still open for v1.1.0: Option 1 (partitioned BLAST for non-assembly targets / viruses),
+  CHANGELOG release section and tag v1.1.0.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

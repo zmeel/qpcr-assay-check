@@ -14,6 +14,7 @@ from __future__ import annotations
 from ..inclusivity.models import InclusivityResult
 from ..results import RunResult
 from ..specificity.models import AmpliconResult, SiteResult
+from ..specificity.variants import VariantRow, VariantSummary
 from ..verdict import Verdict
 from .models import (
     AmpliconChange,
@@ -21,6 +22,7 @@ from .models import (
     InclusivityYearChange,
     SectionChange,
     SiteChange,
+    VariantChange,
 )
 
 _RANK: dict[Verdict, int] = {
@@ -128,6 +130,57 @@ def _inclusivity_changes(
     return out
 
 
+def _concern(role: str, row: VariantRow) -> bool:
+    defects = row.n_mismatch + row.n_gap
+    if role == "probe":
+        return defects >= 2
+    return defects >= 2 or (defects >= 1 and row.clean_3prime_nt < 5)
+
+
+def _variant_changes(
+    previous: VariantSummary | None, current: VariantSummary | None, previous_date: str
+) -> tuple[list[VariantChange], bool, str]:
+    """Per oligo: variants seen now but not in the previous run, and the reverse."""
+    if previous is None and current is None:
+        return [], False, ""
+    if previous is None or current is None:
+        return [], False, "Variants not compared: only one of the two runs has a variant summary."
+    if previous.source != current.source:
+        return (
+            [],
+            False,
+            (
+                f"Variants not compared: the previous run used '{previous.source}', this run "
+                f"'{current.source}' as the source, so differences would reflect the method."
+            ),
+        )
+    cutoff = previous_date[:10]
+    out: list[VariantChange] = []
+    for role in ("forward", "probe", "reverse"):
+        prev = {r.s_aln: r for o in previous.oligos if o.role == role for r in o.rows}
+        curr = {r.s_aln: r for o in current.oligos if o.role == role for r in o.rows}
+        for key, row in curr.items():
+            if key not in prev:
+                out.append(VariantChange(
+                    kind="new", role=role, q_aln=row.q_aln, s_aln=row.s_aln,  # type: ignore[arg-type]
+                    midline=row.midline, count_after=row.count, percent_after=row.percent,
+                    n_mismatch=row.n_mismatch, n_gap=row.n_gap,
+                    clean_3prime_nt=row.clean_3prime_nt, first_seen=row.first_seen,
+                    example_accession=row.example_accession,
+                    newly_released=(row.first_seen > cutoff) if row.first_seen else None,
+                    concern=_concern(role, row),
+                ))  # fmt: skip
+        for key, row in prev.items():
+            if key not in curr:
+                out.append(VariantChange(
+                    kind="gone", role=role, q_aln=row.q_aln, s_aln=row.s_aln,  # type: ignore[arg-type]
+                    midline=row.midline, count_before=row.count, n_mismatch=row.n_mismatch,
+                    n_gap=row.n_gap, clean_3prime_nt=row.clean_3prime_nt,
+                    first_seen=row.first_seen, example_accession=row.example_accession,
+                ))  # fmt: skip
+    return out, True, ""
+
+
 def _rationale(
     h: HistoryResult, section_changes: list[SectionChange], previous_generated_at: str
 ) -> list[str]:
@@ -157,6 +210,21 @@ def _rationale(
         lines.append(
             f"{len(h.resolved_amplicons)} predicted off-target product(s) no longer found."
         )
+    new_variants = [v for v in h.variant_changes if v.kind == "new"]
+    if new_variants:
+        emerging = sum(1 for v in new_variants if v.newly_released)
+        concern = sum(1 for v in new_variants if v.concern)
+        lines.append(
+            f"{len(new_variants)} oligo sequence variant(s) not seen in the previous run"
+            + (f", {emerging} in assemblies released since then (emerging)" if emerging else "")
+            + (f"; {concern} with a primer 3'-end mismatch or 2+ mismatches" if concern else "")
+            + "."
+        )
+    gone = [v for v in h.variant_changes if v.kind == "gone"]
+    if gone:
+        lines.append(f"{len(gone)} oligo sequence variant(s) of the previous run no longer seen.")
+    if h.variants_note:
+        lines.append(h.variants_note)
     for c in h.inclusivity_changes:
         if c.percent_before is not None and c.percent_after is not None:
             lines.append(
@@ -177,6 +245,7 @@ def compute_history(
     sites: list[SiteResult],
     amplicons: list[AmpliconResult],
     inclusivity: InclusivityResult | None,
+    variant_summary: VariantSummary | None = None,
 ) -> HistoryResult:
     """Diff this run's already-computed sections/evidence against the previous run, if any."""
     if previous is None:
@@ -236,8 +305,13 @@ def compute_history(
         for c in inclusivity_changes
     )
 
+    variant_changes, variants_compared, variants_note = _variant_changes(
+        previous.variant_summary, variant_summary, previous.generated_at
+    )
+
     regressed = (
         section_regressed
+        or any(v.kind == "new" and v.concern for v in variant_changes)
         or any(s.level_after in ("critical", "warning") for s in new_sites)
         or bool(new_amplicons)
         or inclusivity_regressed
@@ -256,6 +330,9 @@ def compute_history(
         new_amplicons=new_amplicons,
         resolved_amplicons=resolved_amplicons,
         inclusivity_changes=inclusivity_changes,
+        variant_changes=variant_changes,
+        variants_compared=variants_compared,
+        variants_note=variants_note,
         verdict=Verdict.WARN if regressed else Verdict.PASS,
         rationale=[],
     )

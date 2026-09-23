@@ -73,6 +73,33 @@ class InclusivityYearChange(BaseModel):
     )
 
 
+class VariantChange(BaseModel):
+    """A sequence variant of one oligo that appeared or disappeared since the previous run."""
+
+    kind: Literal["new", "gone"]
+    role: Literal["forward", "reverse", "probe"]
+    q_aln: str
+    s_aln: str
+    midline: str
+    count_before: int = 0
+    count_after: int = 0
+    percent_after: float | None = None
+    n_mismatch: int
+    n_gap: int
+    clean_3prime_nt: int
+    first_seen: str | None = None
+    example_accession: str
+    newly_released: bool | None = Field(
+        default=None,
+        description="first released after the previous run (an emerging variant), rather than "
+        "newly assessed in an older assembly; None when the release date is unknown",
+    )
+    concern: bool = Field(
+        default=False,
+        description="a primer 3'-end mismatch, or 2+ mismatches/gaps: the history section warns",
+    )
+
+
 class HistoryResult(BaseModel):
     """The diff of this run against the most recent previous run for the same assay."""
 
@@ -89,5 +116,8 @@ class HistoryResult(BaseModel):
     new_amplicons: list[AmpliconChange] = Field(default_factory=list)
     resolved_amplicons: list[AmpliconChange] = Field(default_factory=list)
     inclusivity_changes: list[InclusivityYearChange] = Field(default_factory=list)
+    variant_changes: list[VariantChange] = Field(default_factory=list)
+    variants_compared: bool = False
+    variants_note: str = ""
     verdict: Verdict
     rationale: list[str] = Field(default_factory=list)

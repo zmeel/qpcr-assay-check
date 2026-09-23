@@ -41,6 +41,13 @@ All notable changes to this project are documented here. The format follows
   the xlsx sheets get a "Matching 3' nt" column.
 - **Inclusivity title** says "all genome assemblies" instead of "sampled" when it is built from
   every assembly.
+- **History lists new oligo sequence variants** (`history/diff.py`): each run compares its
+  variant tables with the previous run's, per oligo. A variant not seen before is listed as
+  "emerging" when its first assembly was released after the previous run, or "newly assessed"
+  when it sits in an older assembly this run assessed for the first time; variants no longer
+  seen are listed too. A new variant with a primer 3'-end mismatch or 2+ mismatches/gaps makes the
+  history section WARN. Runs with different variant sources (datasets vs blast_hits) are not
+  compared, and the report says so.
 - **Report states when human background was not searched** (`pipeline.py`, `search/planner.py`):
   setting `search.background_taxids: []` (e.g. to skip the slow, roughly hour-long human search)
   used to drop the background tier silently. The search plan now warns when human (taxid 9606) is

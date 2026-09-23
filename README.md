@@ -207,6 +207,10 @@ contain the region at all (listed, to review), and how many carry more than one 
   `variants.source: blast_hits` to use the target tier's BLAST hits as before (biased toward
   perfect matches when the hit list is full, and the report says so).
 - **Inclusivity** is built from the same assemblies, per release year, when this source is used.
+- **Emerging variants:** the history section compares each run's variant tables with the
+  previous run's and lists new variants, marked "emerging" when their first assembly was released
+  after the previous run. A new variant with a primer 3'-end mismatch or 2+ mismatches makes the
+  history section WARN.
 - What is sent to NCBI: assembly listing requests and genome downloads (no oligo sequences).
 
 ### Exclusivity against a clinical organism list (v0.4.0)

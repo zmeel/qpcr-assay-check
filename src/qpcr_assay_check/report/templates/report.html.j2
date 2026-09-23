@@ -532,6 +532,25 @@ td.aln-cell { min-width: 22rem; }
   </tbody>
 </table></div>
 {% endif %}
+{% if r.history.variant_changes %}
+<h3>Oligo sequence variants since the previous run</h3>
+<p class="meta">"Emerging": the variant's first assembly was released after the previous run. "Newly assessed": it is in an older assembly that this run assessed for the first time (e.g. the previous run had not finished the collection).</p>
+<div class="scroll"><table>
+  <thead><tr><th>Change</th><th>Oligo</th><th>Variant</th><th>Match to the oligo</th><th>Assemblies</th><th>First release</th><th>Example</th></tr></thead>
+  <tbody>
+  {% for v in r.history.variant_changes %}
+  <tr><td>{% if v.kind == 'new' %}{% if v.concern %}<strong>new</strong>{% else %}new{% endif %}<br><span class="meta">{{ 'emerging' if v.newly_released else ('newly assessed' if v.newly_released is not none else 'release date unknown') }}</span>{% else %}no longer seen{% endif %}</td>
+    <td>{{ v.role }}</td>
+    <td class="aln-cell">{{ v | aln_html(0 if v.role == 'probe' else 5) }}</td>
+    <td>{{ match(v, v.role != 'probe') }}</td>
+    <td class="num">{% if v.kind == 'new' %}{{ v.count_after }}{% if v.percent_after is not none %} ({{ pct(v.percent_after) }}){% endif %}{% else %}{{ v.count_before }} before{% endif %}</td>
+    <td>{{ v.first_seen or '' }}</td><td>{{ v.example_accession }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% elif r.history.variants_note %}
+<p class="meta">{{ r.history.variants_note }}</p>
+{% endif %}
 {% endif %}
 {% endif %}
 
