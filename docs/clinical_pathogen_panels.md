@@ -53,6 +53,7 @@ document before treating any of those as settled.**
 | *Bordetella parapertussis* | 519 | Bacterium | |
 | *Mycoplasma pneumoniae* | 2104 | Bacterium | See naming note above |
 | *Chlamydia pneumoniae* | 83558 | Bacterium | See naming note above |
+| *Chlamydia psittaci* | 83554 | Bacterium | See naming note above |
 | *Legionella pneumophila* | 446 | Bacterium | |
 | *Streptococcus pneumoniae* | 1313 | Bacterium | Semi-quantitative in lower-respiratory (pneumonia) panels |
 | *Haemophilus influenzae* | 727 | Bacterium | |
