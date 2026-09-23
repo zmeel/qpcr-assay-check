@@ -160,19 +160,28 @@ report and nothing else this project didn't already improve on.
   `OrganismListResolution`/`ExclusivityResult` and stated in the report, never left for the reader
   to infer from which fields happen to be populated.
 - **The variant summary carries no verdict of its own** (unreleased, `specificity/variants.py`):
-  like `taxonomy/rollup.py`, it is purely a different view of evidence the specificity assessment
-  already scored, so it needs no new `SectionResult` and does not affect `combine()`. It reuses
-  `SiteResult.q_aln`/`s_aln` directly (already computed for every target-tier hit) rather than
-  re-deriving a dot-diff notation, so it needs no new NCBI call and renders through the existing
-  `aln_html` filter.
+  like `taxonomy/rollup.py`, it needs no new `SectionResult` and does not affect `combine()`. It
+  renders `SiteResult.q_aln`/`s_aln` through the existing `aln_html` filter.
+- **Target-tier sites are built separately, for the variant summary only**
+  (`assess_target_sites`): `assess_specificity` only builds sites for `off_target_tiers`, so the
+  first version of the variant summary, which filtered `specificity.sites` for `tier ==
+  "target"`, was always empty on a real run (found in the first live report, 2026-09-23; its unit
+  tests had constructed target sites by hand). Every target-tier HSP with at least
+  `min_identical_bases` identical bases is assessed; partial hits are always fetched and re-aligned
+  (inclusivity's `assess_candidates`, no `can_reach_warning` pruning, since a variant table needs
+  observed bases). The closest site per record and oligo is kept. These sites are passed to
+  `evaluate()` separately and never enter the off-target counts, verdict, hits.tsv or
+  results.json; only the lumped `VariantSummary` is stored. Cost: one cached `efetch` per partial
+  target hit, at most `hitlist_size` per oligo.
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's
   `n_fetch_failed`). Excluded counts are reported, never silently dropped.
-- **The whole-fragment table only includes an amplicon when all three sites (forward, probe,
-  reverse) were fully re-aligned and the probe bound inside it**: an `amplified_not_detected`
-  product (no probe site) is not "the whole fragment" in the sense a lab means it, so it is
-  excluded and counted, not silently treated as a two-oligo fragment.
+- **A whole fragment is the forward, probe and reverse site on the same record**, each fully
+  re-aligned; records missing one of the three are excluded and counted. It deliberately does not
+  require a predicted product: product prediction drops primers that cannot prime (a 3'-end
+  mismatch), which are exactly the variants the table must show, and is capped at
+  `max_amplicons`.
 - **Species/genus/family aggregation is generic, not exclusivity-specific** (`taxonomy/rollup.py`):
   it runs over every off-target site regardless of tier, because SPEC.md step 6 ("taxonomy
   annotation of hits") is not scoped to exclusivity alone. A lineage-fetch failure degrades this

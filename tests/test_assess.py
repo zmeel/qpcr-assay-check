@@ -164,7 +164,8 @@ def test_no_relevant_off_target_hit_passes_for_the_searched_tiers_only(tmp_path)
     res, _, _ = run(w, tmp_path)
     assert res.verdict is Verdict.PASS and res.n_sites["minor"] == 1
     assert "No off-target site or product reached warning level" in res.rationale[0]
-    assert "not included yet" in res.scope  # honest about what was not searched
+    assert "Configured off-target tiers not searched in this run" in res.scope  # honest scope
+    assert "planned for" not in res.scope
 
 
 def test_a_lone_critical_primer_site_fails_and_counts_as_primer_only(tmp_path):

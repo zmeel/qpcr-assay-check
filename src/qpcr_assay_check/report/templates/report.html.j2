@@ -276,7 +276,7 @@ td.aln-cell { min-width: 22rem; }
 
 {% if r.variant_summary and (r.variant_summary.oligos | selectattr('rows') | list) %}
 <h2>Variant summary (assay's own target)</h2>
-<div class="notice"><p><strong>Scope.</strong> Built only from the target tier's own hits that were fully re-aligned across the whole oligo (not worst-case estimates). Lumps identical alignments together and reports each as a percentage of that measured total — a static snapshot of this run's own search, not the population-aware, year-by-year view in Inclusivity below.</p></div>
+<div class="notice"><p><strong>Scope.</strong> Built from the target tier's own BLAST hits: at most {{ r.config.search.hitlist_size }} per oligo, the closest site per record, with partial hits fetched and re-aligned across the whole oligo. Identical alignments are lumped together and each is reported as a percentage of that measured total. When the hit list is full (see Searches) this is BLAST's selection of records, not the whole target population and not a random sample; see Inclusivity below for the year-by-year view against population counts.</p></div>
 
 {% for o in r.variant_summary.oligos %}
 {% if o.rows %}
@@ -310,9 +310,9 @@ td.aln-cell { min-width: 22rem; }
   </tbody>
 </table></div>
 {% else %}
-<p>No target-tier predicted product had all three sites (forward, probe, reverse) fully re-aligned on the same record, so no whole-fragment variant table could be built.</p>
+<p>No target-tier record had all three sites (forward, probe, reverse) fully re-aligned, so no whole-fragment variant table could be built.</p>
 {% endif %}
-{% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier predicted product(s) excluded from this table: no probe site inside the product, or one of the three sites was not fully re-aligned.</p>{% endif %}
+{% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.</p>{% endif %}
 {% endif %}
 
 {% if r.exclusivity %}
@@ -535,7 +535,7 @@ td.aln-cell { min-width: 22rem; }
   <tr><th scope="row">Database searched</th><td>{{ spec.parameters.databases | join(', ') or 'not reported' }}; {{ spec.parameters.blast_versions | join(', ') }}</td></tr>
   <tr><th scope="row">BLAST parameters</th><td>{% for k, v in bp.items() %}{{ k }} = {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
   <tr><th scope="row">Taxon restriction check</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none{% if not loop.last %}<br>{% endif %}{% endfor %}<br>
-    <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight; a lineage-based check is planned for v0.4.0.</span></td></tr>
+    <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight. These counts compare exact taxon IDs only; a hit filed under a descendant strain is counted as “another”, since the restriction itself is not checked by lineage.</span></td></tr>
   <tr><th scope="row">Re-alignment</th><td>Semi-global, affine gaps: match {{ spec.parameters.alignment.match }}, mismatch {{ spec.parameters.alignment.mismatch }},
     gap {{ spec.parameters.alignment.gap_open }} + {{ spec.parameters.alignment.gap_extend }} per base; partial hits completed from sequence windows fetched with E-utilities efetch ({{ spec.parameters.window_padding_nt }} nt padding)</td></tr>
   <tr><th scope="row">Search and RIDs</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.rids | join(', ') }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>

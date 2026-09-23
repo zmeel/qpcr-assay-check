@@ -5,23 +5,37 @@ variant, with a count and a percentage of the assessed total), generalised beyon
 the whole fragment (forward + probe + reverse considered together, when all three bind the same
 record).
 
+The sites come from :func:`assess_target_sites`: every target-tier BLAST hit, with partial hits
+fetched and re-aligned (the off-target assessment never builds target-tier sites). The counts cover
+the hits BLAST returned (at most ``hitlist_size`` per oligo), not the whole target population.
+
 Only sites with a real, fully observed alignment (``source`` ``blast_full`` or ``realigned``) are
 counted. A ``blast_partial_worst_case`` site has assumed-matched flanks, not observed bases;
 showing it as a measured variant would misrepresent an estimate as an observation. Excluded counts
 are reported so this is never silently understated.
 
-This is purely a different view of evidence the specificity assessment already scored (like
-``taxonomy/rollup.py``'s species/genus/family aggregation): it carries no verdict of its own.
+It carries no verdict of its own.
 """
 
 from __future__ import annotations
 
+import itertools
+import logging
 from collections import defaultdict
 
 from pydantic import BaseModel, Field
 
+from ..align import realign
+from ..config import Config
+from ..inclusivity.sites import assess_candidates
 from ..models import Assay
-from .models import Level, SiteResult, SpecificityResult
+from ..ncbi.parser import ParsedSearch
+from ..search.planner import SearchPlan
+from .fetch import WindowFetcher
+from .models import Level, SiteResult
+from .sites import Candidate, make_candidate, role_of
+
+log = logging.getLogger(__name__)
 
 _MEASURED = {"blast_full", "realigned"}
 _RANK = {"critical": 0, "warning": 1, "minor": 2}
@@ -81,8 +95,8 @@ class VariantSummary(BaseModel):
     fragment_total: int = 0
     fragment_excluded_unmeasured: int = Field(
         default=0,
-        description="target-tier predicted products excluded from the fragment table: no probe "
-        "site inside the product, or one of the three sites was not fully re-aligned",
+        description="target-tier records excluded from the fragment table: forward, probe or "
+        "reverse missing among the record's hits, or one of the three not fully re-aligned",
     )
     fragments: list[FragmentVariantRow] = Field(default_factory=list)
 
@@ -121,34 +135,91 @@ def _oligo_variants(target_sites: list[SiteResult], role: str, oligo: str) -> Ol
     )
 
 
-def build_variant_summary(spec: SpecificityResult, assay: Assay) -> VariantSummary:
-    """Build the per-oligo and whole-fragment variant tables from the target tier's own hits."""
-    target_sites = [s for s in spec.sites if s.tier == "target"]
+def assess_target_sites(
+    assay: Assay,
+    cfg: Config,
+    plan: SearchPlan,
+    parsed: dict[str, ParsedSearch],
+    fetcher: WindowFetcher,
+) -> list[SiteResult]:
+    """Full-length sites for every target-tier hit, the best one per record and oligo.
+
+    Partial hits are always fetched and re-aligned (windows are cached), as for inclusivity: a
+    variant table needs the observed bases, not a worst-case bound. A record can carry more than
+    one HSP per oligo (or one per degenerate variant); the closest match is the one that binds.
+    """
+    rules = cfg.specificity
+    scoring = realign.Scoring(
+        rules.alignment.match, rules.alignment.mismatch,
+        rules.alignment.gap_open, rules.alignment.gap_extend,
+    )  # fmt: skip
+    min_identical = cfg.search.relevance.min_identical_bases
+    ids = itertools.count(1)
+    sites: list[SiteResult] = []
+    for ps in plan.searches:
+        if ps.tier != "target" or ps.key not in parsed:
+            continue
+        for label in ps.labels:
+            role = role_of(label)
+            site_rules = rules.probe_site if role == "probe" else rules.primer_site
+            cands: list[Candidate] = [
+                make_candidate("target", label, plan.queries[label], hit, hsp)
+                for hit in parsed[ps.key].queries[label].hits
+                for hsp in hit.hsps
+                if hsp.identity >= min_identical
+            ]
+            n_partial = sum(1 for c in cands if c.partial)
+            log.info(
+                "Variant summary: %d target-tier site(s) for %s, %d partial (fetched and "
+                "re-aligned; windows are cached)", len(cands), label, n_partial,
+            )  # fmt: skip
+            found = assess_candidates(
+                cands, site_rules, fetcher, scoring, rules.window_padding_nt, ids
+            )
+            sites += [s.model_copy(update={"id": f"T{s.id[1:]}"}) for s in found]
+
+    best: dict[tuple[str, str], SiteResult] = {}
+    for s in sites:
+        key = (s.accession, s.role)
+        if key not in best or _closeness(s) < _closeness(best[key]):
+            best[key] = s
+    return sorted(best.values(), key=lambda s: int(s.id[1:]))
+
+
+def _closeness(s: SiteResult) -> tuple[int, int, int, int]:
+    measured = 0 if s.source in _MEASURED else 1
+    return measured, s.n_mismatch + s.n_gap, -s.clean_3prime_nt, int(s.id[1:])
+
+
+def build_variant_summary(target_sites: list[SiteResult], assay: Assay) -> VariantSummary:
+    """Build the per-oligo and whole-fragment variant tables from the target tier's own sites.
+
+    A fragment is the forward, probe and reverse site found on the same record (one per oligo,
+    as :func:`assess_target_sites` returns them), whether or not the primers could prime: a
+    variant with a 3'-end mismatch is exactly what the table must show.
+    """
+    target_sites = [s for s in target_sites if s.tier == "target"]
     oligo_variants = [
         _oligo_variants(target_sites, role, assay.oligos[role]) for role in _ROLES
     ]  # fmt: skip
 
-    by_id = {s.id: s for s in target_sites}
-    target_amplicons = [a for a in spec.amplicons if a.tier == "target"]
+    by_record: dict[str, dict[str, SiteResult]] = defaultdict(dict)
+    for s in target_sites:
+        if s.accession != "unknown":
+            current = by_record[s.accession].get(s.role)
+            if current is None or _closeness(s) < _closeness(current):
+                by_record[s.accession][s.role] = s
 
     fragment_groups: dict[tuple, list[tuple[SiteResult, SiteResult, SiteResult]]] = defaultdict(
         list
     )
     excluded = 0
-    for a in target_amplicons:
-        left, right, probe = by_id.get(a.left_site), by_id.get(a.right_site), None
-        if a.probe_site:
-            probe = by_id.get(a.probe_site)
-        if left is None or right is None or probe is None:
+    for roles in by_record.values():
+        fwd, probe, rev = roles.get("forward"), roles.get("probe"), roles.get("reverse")
+        if fwd is None or probe is None or rev is None:
             excluded += 1
             continue
-        fwd = left if left.role == "forward" else right
-        rev = right if right.role == "reverse" else left
-        if fwd.role != "forward" or rev.role != "reverse":
-            excluded += 1  # defensive: pairing.py should never produce this
-            continue
-        unmeasured = {fwd.source, rev.source, probe.source} - _MEASURED
-        if unmeasured:
+        if {fwd.source, rev.source, probe.source} - _MEASURED:
             excluded += 1
             continue
         key = ((fwd.q_aln, fwd.s_aln), (probe.q_aln, probe.s_aln), (rev.q_aln, rev.s_aln))

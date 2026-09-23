@@ -62,7 +62,7 @@ class RestrictionSummary(BaseModel):
     """What a taxon-restricted search actually returned.
 
     Hit taxa can legitimately be *descendants* (strains) of the requested taxa, so membership in
-    the requested set is only a partial check; a lineage-based check arrives in v0.4.0. Also,
+    the requested set is only a partial check (not checked by lineage). Also,
     ``ENTREZ_QUERY`` filters on the organism *index* of the whole record: in a live human search
     one of 3,715 hits was a "synthetic construct" record that carries a human source feature.
     The restriction is effective, not airtight.

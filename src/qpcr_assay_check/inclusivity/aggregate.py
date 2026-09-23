@@ -177,6 +177,7 @@ def compute_inclusivity(
         )
 
     verdict, rationale = _verdict(oligo_results, rules)
+    rationale += _unassessed_years(oligo_results)
     return InclusivityResult(
         tier_searched=True,
         target_taxid=taxid,
@@ -197,6 +198,20 @@ def compute_inclusivity(
             "live NCBI output as thoroughly as the rest of this tool; see docs/ARCHITECTURE.md.",
         ],
     )
+
+
+def _unassessed_years(oligos: list[InclusivityOligoResult]) -> list[str]:
+    """Years with records at NCBI but no sampled record: stated, never silently left out."""
+    missing: dict[int, tuple[int, list[str]]] = {}
+    for o in oligos:
+        for w in o.windows:
+            if w.sample_size == 0 and w.population_size:
+                missing.setdefault(w.year, (w.population_size, []))[1].append(o.role)
+    return [
+        f"{year}: {population} record(s) at NCBI, but none among the target tier's BLAST hits "
+        f"for {', '.join(roles)}; this year was not assessed."
+        for year, (population, roles) in sorted(missing.items())
+    ]
 
 
 def _verdict(

@@ -20,7 +20,7 @@ from .oligo.qc import run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
 from .search.planner import HUMAN_TAXID
-from .specificity.models import SpecificityResult
+from .specificity.models import SiteResult, SpecificityResult
 from .specificity.variants import VariantSummary, build_variant_summary
 from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
 from .taxonomy.plan import OrganismListResolution
@@ -61,6 +61,7 @@ def evaluate(
     taxonomy_breakdown: list[TaxonCount] | None = None,
     taxon_species: dict[int, str] | None = None,
     inclusivity: InclusivityResult | None = None,
+    target_sites: list[SiteResult] | None = None,
     previous_run: RunResult | None = None,
 ) -> RunResult:
     """Run every analysis that exists in this version and assemble the evaluation record."""
@@ -100,7 +101,8 @@ def evaluate(
         HUMAN_TAXID in r.taxids for r in search_outcome.searches if r.tier != "target"
     )
     if specificity is not None:
-        variant_summary = build_variant_summary(specificity, assay)
+        if target_sites is not None:
+            variant_summary = build_variant_summary(target_sites, assay)
         n = specificity.n_sites
         sections.append(
             SectionResult(

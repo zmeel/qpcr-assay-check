@@ -261,6 +261,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     from .search.planner import plan_searches
     from .specificity.assess import assess_specificity
     from .specificity.fetch import WindowFetcher
+    from .specificity.variants import assess_target_sites
 
     if dry_run:
         plan = plan_searches(assay, cfg)
@@ -325,6 +326,17 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         taxon_species = {}
     tier_searched = any(r.tier == "target" for r in remote.outcome.searches)
     try:
+        target_sites = (
+            assess_target_sites(assay, cfg, remote.plan, remote.parsed, fetcher)
+            if tier_searched
+            else None
+        )
+    except NcbiError as exc:
+        # Informational only (the variant summary has no verdict): a fetch failure here should
+        # not discard an otherwise-complete specificity/exclusivity verdict.
+        log.warning("Could not build the variant summary: %s", exc)
+        target_sites = None
+    try:
         inclusivity = compute_inclusivity(
             assay,
             cfg,
@@ -349,6 +361,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         taxonomy_breakdown=breakdown,
         taxon_species=taxon_species,
         inclusivity=inclusivity,
+        target_sites=target_sites,
         previous_run=previous_run,
     )
 

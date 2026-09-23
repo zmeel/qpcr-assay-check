@@ -13,6 +13,18 @@ verified NCBI facts) at the start of every session. Newest entry first.
   file. That previously dropped the tier silently, so added: a plan warning when 9606 is not in
   `background_taxids`, and a rationale line + specificity-section note in the report when no
   non-target search covered 9606. Verdict unchanged. `ruff check .` clean, 343 tests pass.
+- Live report (v1.0.0, CDC N1, target + exclusivity only, human skipped) confirmed: the human
+  background line appears; the species-grouping fix works (Influenza A 49 sites = 15 warning + 34
+  minor = taxonomy breakdown sum). Fixed from that report: stale "planned for v0.4.0" scope text,
+  and inclusivity now states years with records but no sampled hit (2020: 47,129) as not assessed.
+- **Found: the Variant summary (the PRIMER_PROBE_RAPPORT replacement) is always empty on real
+  runs.** `specificity/assess.py` only builds sites for `off_target_tiers`, so no `tier ==
+  "target"` site ever reaches `build_variant_summary`; the section is hidden. The tests
+  constructed target sites by hand. Fixed with the user's choice "A": `assess_target_sites`
+  assesses every target-tier hit (partials fetched/re-aligned, cached), fragments grouped per
+  record. 348 tests pass. **Not yet seen live**: the next full run should show the section; check
+  the `-v` log line "Variant summary: N target-tier site(s) for forward, M partial" to see how
+  many fetches SARS-CoV-2 costs, and record it in docs/ARCHITECTURE.md.
 - Open: ask the user for the exclusivity search's submitted/finished times from `jobs.json` and
   record the measured duration in `docs/ARCHITECTURE.md`.
 

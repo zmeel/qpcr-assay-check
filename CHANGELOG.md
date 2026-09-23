@@ -15,6 +15,25 @@ All notable changes to this project are documented here. The format follows
   to the specificity section. The verdict itself is unchanged.
 
 ### Fixed
+- **Variant summary was always empty on a real run** (`specificity/variants.py`, `cli.py`,
+  `pipeline.py`): it filtered the specificity sites for the target tier, but the specificity
+  assessment only builds sites for the off-target tiers, so the section (and the "Oligo variants"
+  and "Fragment variants" sheets) never appeared. Found in the first live report. New
+  `assess_target_sites` assesses every target-tier hit (partial hits fetched and re-aligned, the
+  closest site per record and oligo), passed to `evaluate()` separately so it never touches the
+  off-target verdict. The whole-fragment table now groups the three oligos per record instead of
+  per predicted product, so a primer with a 3'-end mismatch still appears. The report's scope
+  note states the hit-list cap.
+- **Stale "planned for v0.4.0" texts** (`specificity/findings.py`, `report.html.j2`): the
+  specificity scope said hits from the clinical organism list were "not included yet", even when
+  the exclusivity tier had just been assessed. It now lists the tiers assessed and any configured
+  off-target tier that was not searched in the run. The Methods row on the taxon restriction check
+  no longer promises a lineage-based check; it says the counts compare exact taxon IDs only.
+- **Inclusivity silently skipped years it could not sample** (`inclusivity/aggregate.py`): a year
+  with records at NCBI but none among the target tier's BLAST hits (found live: SARS-CoV-2, 2020,
+  47,129 records, 0 sampled) was left out of the verdict without a word, under "Every assessed
+  year is at or above the threshold". The rationale now names each such year, its record count and
+  the oligos affected, as not assessed. The verdict is unchanged.
 - **Exclusivity table undercounted hits on finely-split taxa** (`taxonomy/exclusivity.py`):
   `ExclusivityRow.n_sites` grouped hits by exact taxid equality against the organism-list entry's
   own resolved taxid. A BLAST hit's own `taxid` is whatever specific NCBI Taxonomy record the
