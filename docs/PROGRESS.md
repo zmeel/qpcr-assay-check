@@ -31,7 +31,39 @@ verified NCBI facts) at the start of every session. Newest entry first.
   user chose: state the bias whenever the target hit list is full (variant section, xlsx Summary,
   inclusivity rationale), fix the fragment exclusion wording and "<0.1%", and stop underlining the
   probe's 3' end. Done; 353 tests pass.
-- **Proposed next phase, not yet approved:** unbiased variant/inclusivity sampling for targets that
+- **User priority (2026-09-23): variant analysis is the most important part of the tool, it must
+  be as exhaustive as possible, and many targets are bacterial species with far more than 5000
+  records.** Findings while designing: (1) core_nt excludes WGS (draft) genomes, where most
+  bacterial assemblies live, so even an unsaturated core_nt search misses most bacterial data;
+  (2) whether the BLAST URL API can search the WGS database with an ENTREZ_QUERY/organism
+  restriction is unverified (the BLAST FAQ describes Entrez limiting for non-WGS databases only).
+  Options put to the user: partitioned remote BLAST (exhaustive over core_nt only, many searches)
+  vs streaming NCBI Datasets genome downloads with a local scan for the amplicon region (exhaustive
+  over all assemblies, but needs the "remote NCBI only" hard rule relaxed). **Decision: both**
+  (Option 2 for exhaustive runs, Option 1 / the current method kept for quick checks), as v1.1.0.
+  Budget questions (bandwidth/time/disk on the NAS) not answered yet: design every limit as a
+  config setting. Order: verification step first (smoke-test additions the user runs locally),
+  then implementation.
+- Verification step written: `scripts/probe_variant_sources.py` (writes `probe_out/probe_report.json`).
+  Datasets endpoints/parameters taken from NCBI's published OpenAPI spec
+  (raw.githubusercontent.com/ncbi/datasets/master/datasets.openapi.yaml, API v2; reachable from the
+  sandbox, api.ncbi.nlm.nih.gov itself is not): `/genome/taxon/{taxons}/dataset_report`
+  (page_size max 1000, `page_token`, `total_count`, `filters.assembly_version` default `current`),
+  `/genome/accession/{accessions}/download` (max 100 accessions, `include_annotation_type=GENOME_FASTA`,
+  `hydrated=DATA_REPORT_ONLY` gives `fetch.txt`), API key as `api-key` header. The spec states no rate
+  limit; the probe throttles to 2 requests/s and records 429s and rate headers. Also probes: deep
+  random ESearch `retstart`, EFetch `rettype=acc`, BLAST restricted to a 100-accession ENTREZ_QUERY
+  (coverage and leaks), BLAST `DATABASE=wgs` with a species ENTREZ_QUERY.
+- Probe run by the user (2026-09-23): everything worked except E4 (script bug: the query window
+  was past the end of a 7,500 bp plasmid record; fixed to bases 1-300, needs a rerun). Results in
+  docs/ARCHITECTURE.md "Verified for the v1.1.0 design". Key numbers: Datasets rate limit header
+  10/s with key; 1 Mb genome = 312 KB zipped in 0.6 s; GCA/GCF pairs both listed (de-duplicate);
+  assemblies (current, not atypical): C. trachomatis 713, N. gonorrhoeae 53,386, S. pneumoniae
+  96,853, M. tuberculosis 16,451, E. coli 492,216. BLAST with 100 [ACCN] terms: 100/100 found,
+  43 leaks (filter back to the list). Deep ESearch retstart (3.57 M) works.
+- Next: agree v1.1.0 design and budget with the user (download volume for large species), then
+  implement.
+- **Earlier proposal (superseded by the above), not approved:** unbiased variant/inclusivity sampling for targets that
   fill the hit list (e.g. several smaller target searches restricted by submission date or other
   Entrez filters, each under the cap). Check current NCBI docs on what ENTREZ_QUERY supports
   before designing. Also open: make the 5-nt 3'-end window configurable or tie it to

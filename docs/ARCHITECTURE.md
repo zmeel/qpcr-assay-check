@@ -289,6 +289,36 @@ reverse-primer hit, kept verbatim in `tests/fixtures/real_hits_strands.json`. Du
 mismatch at the very 3' terminal base, computed by treating it as an unpaired overhang, was checked
 against primer3 directly (61.6 vs 61.2 °C) rather than against a BLAST hit.
 
+### Verified for the v1.1.0 design (2026-09-23, `scripts/probe_variant_sources.py`, API key set)
+
+NCBI Datasets v2 (endpoints from the published OpenAPI spec, behaviour measured live):
+- `/genome/taxon/{name}/dataset_report` accepts scientific names; `total_count` (all assembly
+  versions / current and not atypical): C. trachomatis 750 / 713, N. gonorrhoeae 53,535 / 53,386,
+  S. pneumoniae 98,633 / 96,853, M. tuberculosis 16,705 / 16,451, E. coli 518,826 / 492,216.
+- `page_size=1000` returned all 750 C. trachomatis reports in one page (2.76 MB, 0.54 s, complete
+  reports). Report keys include `accession`, `paired_accession`, `assembly_info.release_date`,
+  `assembly_info.assembly_level` (Chromosome, Complete Genome, Contig, Scaffold),
+  `assembly_stats.total_sequence_length`, `checkm_info`. GCA and GCF copies of the same assembly
+  are both listed (e.g. GCA_000008725.1 and GCF_000008725.1): de-duplicate before counting.
+- Response headers with the API key: `X-Ratelimit-Limit: 10`. 13 requests at 2/s drew no 429.
+- `/genome/accession/{acc}/download?include_annotation_type=GENOME_FASTA`: a zip with
+  `ncbi_dataset/data/<acc>/<acc>_<name>_genomic.fna` (plus README, jsonl report, catalog,
+  md5sum). A 1.03 Mb draft genome (3 WGS contigs): 311,652 bytes zipped, 0.57 s.
+- `hydrated=DATA_REPORT_ONLY` gives `ncbi_dataset/fetch.txt`: one line per file, tab-separated
+  `URL  0  data/<acc>/<file>.fna`; the URL (`api.ncbi.nlm.nih.gov/datasets/fetch_h/...`) returned
+  the plain, uncompressed FASTA (1,055,612 bytes, `text/plain`, 0.61 s).
+
+E-utilities and BLAST:
+- ESearch `retstart` at 1,034,331 / 1,228,716 / 1,448,773 / 3,571,940 (the last record of
+  SARS-CoV-2 2022, 3,571,941 records) each returned exactly one UID.
+- EFetch `rettype=acc` (POST, 100 UIDs) returned exactly one accession.version per UID.
+- BLAST of the 72 bp N1 amplicon with an ENTREZ_QUERY of 100 `[ACCN]` terms (1,998 characters) was
+  accepted and finished in 43 s: all 100 requested accessions were hit, plus 43 accessions outside
+  the list. The restriction is not exact, so partitioned searches must filter hits back to their
+  own list; coverage of the list was complete.
+- Not yet answered: BLAST against `DATABASE=wgs` with a species ENTREZ_QUERY (the probe's query
+  region was outside the 7,500 bp record ESearch returned first, a plasmid; fixed, needs a rerun).
+
 ### Verified in a third live run (2026-09-22)
 
 - **Entrez queries with 11, 40 and 100 taxids were all accepted** by the BLAST URL API (no

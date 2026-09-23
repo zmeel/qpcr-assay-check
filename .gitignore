@@ -6,6 +6,7 @@
 # Tool output (evaluation records live outside version control by default)
 results/
 smoke_out/
+probe_out/
 validation_out/
 *.log
 .qpcr-cache/
