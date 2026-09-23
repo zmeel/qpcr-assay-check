@@ -21,7 +21,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from ..align import realign
 from ..config import SiteCriteria, SiteRules
@@ -229,21 +229,30 @@ def _result(
         subject_start=start,
         subject_end=end,
         source=source,  # type: ignore[arg-type]
-        q_aln=q_aln,
-        s_aln=s_aln,
-        midline=mid,
-        n_match=m.n_match,
-        n_mismatch=m.n_mismatch,
-        n_gap=m.n_gap,
-        n_ambiguous=m.n_ambiguous,
         n_unaligned=n_unaligned,
-        defect_positions=list(m.defect_positions),
-        mismatches_last5=m.mismatches_last5,
-        mismatches_last3=m.mismatches_last3,
-        terminal_defect=m.terminal_defect,
-        clean_3prime_nt=m.clean_3prime_nt,
-        level=classify(m, rules),
+        **_result_fields(q_aln, s_aln, m, rules, mid=mid),
     )
+
+
+def _result_fields(
+    q_aln: str, s_aln: str, m: realign.Metrics, rules: SiteRules, *, mid: str | None = None
+) -> dict[str, Any]:
+    """The alignment, its metrics and its level, as SiteResult fields."""
+    return {
+        "q_aln": q_aln,
+        "s_aln": s_aln,
+        "midline": mid if mid is not None else realign.midline(q_aln, s_aln),
+        "n_match": m.n_match,
+        "n_mismatch": m.n_mismatch,
+        "n_gap": m.n_gap,
+        "n_ambiguous": m.n_ambiguous,
+        "defect_positions": list(m.defect_positions),
+        "mismatches_last5": m.mismatches_last5,
+        "mismatches_last3": m.mismatches_last3,
+        "terminal_defect": m.terminal_defect,
+        "clean_3prime_nt": m.clean_3prime_nt,
+        "level": classify(m, rules),
+    }
 
 
 def site_from_full(c: Candidate, rules: SiteRules, site_id: str) -> SiteResult:

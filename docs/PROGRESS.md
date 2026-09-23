@@ -61,8 +61,18 @@ verified NCBI facts) at the start of every session. Newest entry first.
   assemblies (current, not atypical): C. trachomatis 713, N. gonorrhoeae 53,386, S. pneumoniae
   96,853, M. tuberculosis 16,451, E. coli 492,216. BLAST with 100 [ACCN] terms: 100/100 found,
   43 leaks (filter back to the list). Deep ESearch retstart (3.57 M) works.
-- Next: agree v1.1.0 design and budget with the user (download volume for large species), then
-  implement.
+- User approved: budget 20,000 assemblies per run (newest first), first target C. trachomatis.
+- **Implemented v1.1.0 exhaustive variant analysis (Option 2)**: `variants/` package
+  (datasets.py client via the shared NcbiHttp with a new throttled `datasets` service and
+  `api-key` header; locate.py seed locator; store.py resumable region store; exhaustive.py
+  collect/assess/inclusivity; models.py coverage), wired into `run` (cli.py) and `evaluate`
+  (pipeline.py); report + xlsx coverage and first/last release dates. Falls back to BLAST hits
+  with a rationale note when no amplicon/assemblies/Datasets error. 364 tests pass (fake Datasets
+  server in tests/fake_datasets.py, incl. a CLI end-to-end run). NOT yet run live.
+- Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
+  the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
+  Not yet done: history diff "new variants since the previous run" (first/last release dates are
+  in; a diff against the previous run's variant rows is still to do).
 - **Earlier proposal (superseded by the above), not approved:** unbiased variant/inclusivity sampling for targets that
   fill the hit list (e.g. several smaller target searches restricted by submission date or other
   Entrez filters, each under the cap). Check current NCBI docs on what ENTREZ_QUERY supports

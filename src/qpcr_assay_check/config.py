@@ -228,6 +228,8 @@ class NcbiSettings(_Strict):
     blast_cache_ttl_days: float
     taxonomy_cache_ttl_days: float
     cache_dir: str | None
+    datasets_url: str
+    datasets_batch_size: int
 
     @model_validator(mode="after")
     def _etiquette(self) -> NcbiSettings:
@@ -237,6 +239,8 @@ class NcbiSettings(_Strict):
             raise ValueError("poll_interval_s must be at least 60 (NCBI usage guideline)")
         if self.max_retries < 0 or self.backoff_base_s <= 0:
             raise ValueError("max_retries must be >= 0 and backoff_base_s > 0")
+        if not 1 <= self.datasets_batch_size <= 100:
+            raise ValueError("datasets_batch_size must be 1-100 (the Datasets API limit)")
         return self
 
 
@@ -388,6 +392,32 @@ class InclusivitySettings(_Strict):
         return self
 
 
+class VariantsSettings(_Strict):
+    """Exhaustive variant analysis of the intended target (v1.1.0).
+
+    ``source: datasets`` lists every genome assembly of the target taxon in NCBI Datasets,
+    downloads them in batches, locates the reference amplicon in each and keeps only that region
+    (plus flanks); the genome itself is discarded. ``source: blast_hits`` keeps the v1.0 behaviour
+    (the target tier's BLAST hits, biased toward perfect matches when the hit list is full).
+    """
+
+    source: Literal["datasets", "blast_hits"]
+    current_assemblies_only: bool
+    exclude_atypical: bool
+    max_assemblies_per_run: int
+    flank_nt: int
+    seed_length: int
+    seed_step: int
+
+    @model_validator(mode="after")
+    def _sane(self) -> VariantsSettings:
+        if self.max_assemblies_per_run < 1:
+            raise ValueError("max_assemblies_per_run must be at least 1")
+        if self.flank_nt < 0 or not 8 <= self.seed_length <= 32 or self.seed_step < 1:
+            raise ValueError("flank_nt >= 0, seed_length 8-32 and seed_step >= 1 are required")
+        return self
+
+
 class ReportSettings(_Strict):
     """Report rendering options."""
 
@@ -406,6 +436,7 @@ class Config(_Strict):
     specificity: SpecificitySettings
     organisms: OrganismsSettings
     inclusivity: InclusivitySettings
+    variants: VariantsSettings
     report: ReportSettings
 
     @property

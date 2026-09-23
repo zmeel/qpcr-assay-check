@@ -1,0 +1,37 @@
+"""Result models of the exhaustive variant analysis (serialised into results.json)."""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+
+class YearCoverage(BaseModel):
+    year: int
+    listed: int = Field(description="assemblies NCBI Datasets lists for this release year")
+    assessed: int = Field(description="of those, assessed so far (this run and earlier runs)")
+
+
+class ExhaustiveCoverage(BaseModel):
+    """How much of the target's assembly collection the variant analysis covers."""
+
+    source: str = "datasets"
+    taxon: int
+    amplicon_length: int
+    amplicon_source: str
+    filters: dict[str, bool]
+    listed_total: int
+    assessed_total: int
+    processed_this_run: int
+    download_failed_this_run: int
+    budget_per_run: int
+    found: int
+    not_found: int
+    contig_break: int = Field(description="region cut by a contig end (draft assemblies)")
+    multi_copy: int = Field(description="assemblies with more than one copy of the region")
+    years: list[YearCoverage] = Field(default_factory=list)
+    listed_at: str
+    not_found_examples: list[str] = Field(default_factory=list)
+
+    @property
+    def complete(self) -> bool:
+        return self.assessed_total >= self.listed_total

@@ -22,6 +22,7 @@ from __future__ import annotations
 import itertools
 import logging
 from collections import defaultdict
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -31,6 +32,7 @@ from ..inclusivity.sites import assess_candidates
 from ..models import Assay
 from ..ncbi.parser import ParsedSearch
 from ..search.planner import SearchPlan
+from ..variants.models import ExhaustiveCoverage
 from .fetch import WindowFetcher
 from .models import Level, SiteResult
 from .sites import Candidate, make_candidate, role_of
@@ -63,6 +65,12 @@ class VariantRow(BaseModel):
     example_accession: str
     example_organism: str | None = None
     example_site_id: str
+    first_seen: str | None = Field(
+        default=None, description="earliest release date of an assembly with this variant"
+    )
+    last_seen: str | None = Field(
+        default=None, description="latest release date of an assembly with this variant"
+    )
 
 
 class OligoVariants(BaseModel):
@@ -111,10 +119,20 @@ class VariantSummary(BaseModel):
         description="the target search returned a full hit list for at least one oligo, so the "
         "tables are biased toward perfect matches (see LIST_FULL_NOTE)",
     )
+    source: Literal["blast_hits", "datasets"] = Field(
+        default="blast_hits",
+        description="blast_hits: the target tier's BLAST hits; datasets: every genome assembly "
+        "of the target in NCBI Datasets (exhaustive, see coverage)",
+    )
+    coverage: ExhaustiveCoverage | None = None
 
 
-def _variant_row(s: SiteResult, count: int, total: int) -> VariantRow:
+def _variant_row(
+    s: SiteResult, count: int, total: int, dates: list[str] | None = None
+) -> VariantRow:
     return VariantRow(
+        first_seen=min(dates) if dates else None,
+        last_seen=max(dates) if dates else None,
         q_aln=s.q_aln,
         s_aln=s.s_aln,
         midline=s.midline,
@@ -129,14 +147,23 @@ def _variant_row(s: SiteResult, count: int, total: int) -> VariantRow:
     )
 
 
-def _oligo_variants(target_sites: list[SiteResult], role: str, oligo: str) -> OligoVariants:
+def _dates(members: list[SiteResult], release_dates: dict[str, str]) -> list[str]:
+    return [release_dates[m.accession] for m in members if m.accession in release_dates]
+
+
+def _oligo_variants(
+    target_sites: list[SiteResult], role: str, oligo: str, release_dates: dict[str, str]
+) -> OligoVariants:
     role_sites = [s for s in target_sites if s.role == role]
     measured = [s for s in role_sites if s.source in _MEASURED]
     groups: dict[tuple[str, str], list[SiteResult]] = defaultdict(list)
     for s in measured:
         groups[(s.q_aln, s.s_aln)].append(s)
     total = len(measured)
-    rows = [_variant_row(members[0], len(members), total) for members in groups.values()]
+    rows = [
+        _variant_row(members[0], len(members), total, _dates(members, release_dates))
+        for members in groups.values()
+    ]
     rows.sort(key=lambda r: (-r.count, r.q_aln))
     return OligoVariants(
         role=role,
@@ -203,16 +230,23 @@ def _closeness(s: SiteResult) -> tuple[int, int, int, int]:
     return measured, s.n_mismatch + s.n_gap, -s.clean_3prime_nt, int(s.id[1:])
 
 
-def build_variant_summary(target_sites: list[SiteResult], assay: Assay) -> VariantSummary:
+def build_variant_summary(
+    target_sites: list[SiteResult],
+    assay: Assay,
+    *,
+    release_dates: dict[str, str] | None = None,
+    coverage: ExhaustiveCoverage | None = None,
+) -> VariantSummary:
     """Build the per-oligo and whole-fragment variant tables from the target tier's own sites.
 
     A fragment is the forward, probe and reverse site found on the same record (one per oligo,
     as :func:`assess_target_sites` returns them), whether or not the primers could prime: a
     variant with a 3'-end mismatch is exactly what the table must show.
     """
+    dates = release_dates or {}
     target_sites = [s for s in target_sites if s.tier == "target"]
     oligo_variants = [
-        _oligo_variants(target_sites, role, assay.oligos[role]) for role in _ROLES
+        _oligo_variants(target_sites, role, assay.oligos[role], dates) for role in _ROLES
     ]  # fmt: skip
 
     by_record: dict[str, dict[str, SiteResult]] = defaultdict(dict)
@@ -242,12 +276,13 @@ def build_variant_summary(target_sites: list[SiteResult], assay: Assay) -> Varia
     for members in fragment_groups.values():
         fwd, probe, rev = members[0]
         count = len(members)
+        seen = _dates([m[0] for m in members], dates)
         level: Level = min((fwd.level, probe.level, rev.level), key=lambda lv: _RANK[lv])
         fragments.append(
             FragmentVariantRow(
-                forward=_variant_row(fwd, count, total_fragments),
-                probe=_variant_row(probe, count, total_fragments),
-                reverse=_variant_row(rev, count, total_fragments),
+                forward=_variant_row(fwd, count, total_fragments, seen),
+                probe=_variant_row(probe, count, total_fragments, seen),
+                reverse=_variant_row(rev, count, total_fragments, seen),
                 count=count,
                 percent=100.0 * count / total_fragments if total_fragments else 0.0,
                 level=level,
@@ -262,4 +297,6 @@ def build_variant_summary(target_sites: list[SiteResult], assay: Assay) -> Varia
         fragment_total=total_fragments,
         fragment_excluded_unmeasured=excluded,
         fragments=fragments,
+        source="datasets" if coverage is not None else "blast_hits",
+        coverage=coverage,
     )

@@ -277,20 +277,36 @@ td.aln-cell { min-width: 22rem; }
 
 {% if r.variant_summary and (r.variant_summary.oligos | selectattr('rows') | list) %}
 <h2>Variant summary (assay's own target)</h2>
+{% set cov = r.variant_summary.coverage %}
+{% if cov %}
+<div class="notice"><p><strong>Scope: every genome assembly{% if not cov.complete %} assessed so far{% endif %}.</strong> Built from the genome assemblies of the target (taxonomy ID {{ cov.taxon }}) in NCBI Datasets: current versions{% if cov.filters.exclude_atypical %}, atypical assemblies excluded{% endif %}, one copy per GenBank/RefSeq pair. Each genome was scanned for the {{ cov.amplicon_length }} bp reference amplicon ({{ cov.amplicon_source }}); the oligos were re-aligned end to end in the best complete copy. These are counts over all assessed assemblies, not a sample. Sequences submitted without a genome assembly (single genes, amplicons) are not part of this collection.</p></div>
+<div class="scroll"><table>
+  <tbody>
+  <tr><th scope="row">Assemblies listed</th><td>{{ cov.listed_total }} (listed {{ cov.listed_at }})</td></tr>
+  <tr><th scope="row">Assessed</th><td>{{ cov.assessed_total }}{% if not cov.complete %} &mdash; <strong>incomplete</strong>: at most {{ cov.budget_per_run }} new assemblies are processed per run, newest first; run again to continue{% endif %}</td></tr>
+  <tr><th scope="row">Processed in this run</th><td>{{ cov.processed_this_run }}{% if cov.download_failed_this_run %}; {{ cov.download_failed_this_run }} download(s) failed and will be retried next run{% endif %}</td></tr>
+  <tr><th scope="row">Amplicon region found</th><td>{{ cov.found }} with all three oligo sites complete</td></tr>
+  <tr><th scope="row">Region cut by a contig end</th><td>{{ cov.contig_break }} (draft assemblies; not counted in the tables)</td></tr>
+  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the genome: the target region may be absent (e.g. a plasmid- or island-borne target), or too divergent to find. Review these.</span></td></tr>
+  <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (the best complete copy is used)</td></tr>
+  </tbody>
+</table></div>
+{% else %}
 <div class="notice"><p><strong>Scope.</strong> Built from the target tier's own BLAST hits: at most {{ r.config.search.hitlist_size }} per oligo, the closest site per record, with partial hits fetched and re-aligned across the whole oligo. Identical alignments are lumped together and each is reported as a percentage of that measured total. When the hit list is full (see Searches) this is BLAST's selection of records, not the whole target population and not a random sample; see Inclusivity below for the year-by-year view against population counts.</p></div>
+{% endif %}
 {% if r.variant_summary.target_list_full %}<div class="notice"><p><strong>Biased toward perfect matches.</strong> {{ list_full_note }}</p></div>{% endif %}
 
 {% for o in r.variant_summary.oligos %}
 {% if o.rows %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
+  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for row in o.rows %}
   <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
     <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
     <td>{{ chip(row.level) }}</td>
-    <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td></tr>
+    <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>
@@ -301,13 +317,13 @@ td.aln-cell { min-width: 22rem; }
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 {% if r.variant_summary.fragments %}
 <div class="scroll"><table>
-  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
+  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for f in r.variant_summary.fragments %}
   <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
     <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
     <td>{{ chip(f.level) }}</td>
-    <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td></tr>
+    <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>

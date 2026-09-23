@@ -72,6 +72,8 @@ ncbi:
   blast_cache_ttl_days: 7          # BLAST results are only reused within a run / a resume
   taxonomy_cache_ttl_days: 30
   cache_dir: null                  # null = per-user cache directory
+  datasets_url: https://api.ncbi.nlm.nih.gov/datasets/v2   # NCBI Datasets v2 (published OpenAPI spec)
+  datasets_batch_size: 20          # assemblies per genome download request (API maximum: 100)
 
 search:
   # Short-oligo BLAST settings (see docs/ARCHITECTURE.md for the NCBI documentation they follow).
@@ -148,6 +150,21 @@ inclusivity:
                                     # population for a well-sequenced target (sample, not census)
   warn_below_percent: 95           # % of the assessed sample at 0-1 mismatch (no 3' mismatch)
   fail_below_percent: 80           # below this, WARN/FAIL; the worst oligo/window decides
+
+variants:
+  # Exhaustive variant analysis of the intended target: the variant summary and inclusivity are
+  # built from EVERY genome assembly of the target taxon in NCBI Datasets (complete and draft),
+  # not from BLAST's best hits. Each genome is downloaded, scanned for the reference amplicon and
+  # discarded; only the amplicon region plus flanks is kept (cached, so later runs only process
+  # assemblies that are new). Needs the reference amplicon (assay 'reference_amplicon', or found
+  # via the oligos in the target 'accession').
+  source: datasets                 # datasets | blast_hits (v1.0: the target tier's BLAST hits)
+  current_assemblies_only: true    # the latest version of each assembly
+  exclude_atypical: true           # NCBI's "atypical" flag (assembly problems)
+  max_assemblies_per_run: 20000    # newest first; the rest follow on later runs (resumable)
+  flank_nt: 50                     # bases kept on each side of the amplicon
+  seed_length: 16                  # exact k-mers of the reference amplicon used to find it
+  seed_step: 4                     #   (every 4th position, both strands)
 
 report:
   include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)

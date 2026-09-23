@@ -181,6 +181,26 @@ report and nothing else this project didn't already improve on.
   is a separate selection among millions of tied perfect matches. The report now says so whenever
   the target list is full; real variant frequencies for such targets need a different sample
   (not yet designed, see PROGRESS.md).
+- **Exhaustive variant analysis from NCBI Datasets genome assemblies** (v1.1.0,
+  `variants/`): the target tier's BLAST hits are BLAST's best matches, so for any target with more
+  records than `hitlist_size` they are biased toward perfect matches (seen live: 5000/5000 perfect
+  for CDC N1). Most bacterial genomes are draft (WGS) assemblies, which `core_nt` does not contain
+  at all. `variants/datasets.py` lists the target's assemblies (`exclude_paired_reports`,
+  `assembly_version=current`, `exclude_atypical`) by release-year window, newest first (the
+  documented `first/last_release_date` filters; `sort.field` values are not documented),
+  downloads genome FASTA in batches (`datasets_batch_size`, max 100), and `variants/locate.py`
+  finds the amplicon by exact k-mer seeds along the whole amplicon on both strands (so primer-site
+  variants are found through the unchanged stretches between the oligos); seeds that agree
+  within 20 bases form one locus. Only the region plus `flank_nt` is stored
+  (`variants/store.py`, one JSON line per assembly, keyed by taxon + amplicon + flank), which
+  makes runs resumable and later runs incremental; genomes are never kept (project rule). Each
+  oligo is re-aligned in its expected window (+-15 bases) of the best complete copy; alignments
+  are memoised by window, since most assemblies share the same sequence. Not found, contig-break
+  and multi-copy assemblies are counted and reported, never dropped. Superseded assembly versions
+  in the store are ignored (highest version per accession wins). Inclusivity becomes exhaustive
+  per release year from the same sites. Throttle: 4 requests/s with an API key (the live limit
+  header said 10), 2/s without (the keyless limit was not measured). The API key is sent as the
+  documented `api-key` header; no tool/email query parameters are sent to Datasets.
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's

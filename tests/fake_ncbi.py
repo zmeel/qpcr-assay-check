@@ -132,7 +132,7 @@ class FakeNcbi:
         self.n_put = 0
         self.status_by_rid: dict[str, list[str]] = {}
 
-    def request(self, method, url, params=None, data=None, timeout=None):
+    def request(self, method, url, params=None, data=None, timeout=None, headers=None):
         payload = dict(data if data is not None else params or {})
         t = self.clock.t if self.clock else None
         self.calls.append({"method": method, "url": url, "payload": payload, "t": t})
@@ -201,7 +201,7 @@ class ScriptedSession:
         self.script = list(script)
         self.calls: list[dict[str, Any]] = []
 
-    def request(self, method, url, params=None, data=None, timeout=None):
+    def request(self, method, url, params=None, data=None, timeout=None, headers=None):
         self.calls.append({"method": method, "url": url, "params": params, "data": data})
         item = self.script.pop(0)
         if isinstance(item, Exception):

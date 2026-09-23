@@ -57,7 +57,7 @@ class ScriptedSession:
         self.script = list(script)
         self.calls: list[dict] = []
 
-    def request(self, method, url, params=None, data=None, timeout=None):
+    def request(self, method, url, params=None, data=None, timeout=None, headers=None):
         self.calls.append({"url": url, "params": dict(params or {})})
         assert self.script, f"unexpected request beyond the script: {url} {params}"
         return FakeResponse(200, self.script.pop(0))

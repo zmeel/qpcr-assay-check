@@ -171,17 +171,43 @@ qpcr-assay-check search my-assay/assay.yaml --dry-run   # show exactly what woul
 qpcr-assay-check search my-assay/assay.yaml -o results   # asks before sending anything
 ```
 
-### Variant summary (unreleased)
+### Variant summary: every genome assembly (unreleased, v1.1.0)
 
-The report also gets a **variant summary**: the target tier's own hits, lumped into unique
-sequence variants and reported as a count and a percentage of the measured total — one table per
-oligo (forward/probe/reverse), plus a whole-fragment table combining forward + probe + reverse
-together when all three bind the same record. Only fully re-aligned hits count (never a
-`blast_partial_worst_case` estimate); excluded counts are always reported, never silently folded
-in. Every target-tier BLAST hit is assessed for it (at most `search.hitlist_size` per oligo);
-partial hits are fetched and re-aligned, one cached `efetch` each. When the hit list is full, the
-table describes BLAST's selection of records, not the whole target population. Like the taxonomy
-breakdown, it carries no verdict of its own.
+The **variant summary** lumps the oligo sites on the intended target into unique sequence
+variants, with a count, a percentage and the first and last release date of the assemblies that
+carry each one: one table per oligo (forward/probe/reverse) and one for the whole fragment
+(forward + probe + reverse on the same genome). Emerging variants show up as rows whose first
+release date is recent.
+
+By default (`variants.source: datasets`) it is built from **every genome assembly of the target
+in NCBI Datasets**, complete and draft: current versions, atypical assemblies excluded, one copy
+per GenBank/RefSeq pair. Each genome is downloaded, scanned for the reference amplicon (exact
+16-base seeds along the amplicon, so a variant with mismatches in a primer is still found through
+the unchanged stretches), and deleted; only the amplicon region and 50 bases of flank on each
+side are kept. The oligos are then re-aligned end to end in that region. These are counts over all
+assessed assemblies, not a sample. The report states per release year how many assemblies NCBI
+lists and how many were assessed, how many had the region cut by a contig end, how many did not
+contain the region at all (listed, to review), and how many carry more than one copy.
+
+- **Budget:** at most `variants.max_assemblies_per_run` (default 20,000) new assemblies per run,
+  newest release year first. A species with more assemblies (e.g. *E. coli*) is completed over
+  several runs; the report says "incomplete" until then. Later runs only process new assemblies.
+- **Keep the cache between runs.** The extracted regions live in the NCBI cache directory. In
+  Docker, point it into the mounted folder, or every run starts again from zero:
+
+  ```yaml
+  ncbi:
+    cache_dir: /work/cache
+  ```
+
+- **Needs the reference amplicon:** the assay's `reference_amplicon`, or a target `accession`
+  in which both primers match exactly.
+- **Genome assemblies only.** Sequences submitted without an assembly (single genes, amplicons)
+  are not in this collection. For such targets, and for viruses with millions of records, set
+  `variants.source: blast_hits` to use the target tier's BLAST hits as before (biased toward
+  perfect matches when the hit list is full, and the report says so).
+- **Inclusivity** is built from the same assemblies, per release year, when this source is used.
+- What is sent to NCBI: assembly listing requests and genome downloads (no oligo sequences).
 
 ### Exclusivity against a clinical organism list (v0.4.0)
 

@@ -7,6 +7,20 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Exhaustive variant analysis from every genome assembly** (`variants/`, v1.1.0): the variant
+  summary and inclusivity are now built from all genome assemblies of the target in NCBI Datasets
+  (complete and draft; current, not atypical, one copy per GenBank/RefSeq pair), not from the
+  target tier's BLAST hits, which are biased toward perfect matches whenever the hit list is full
+  and miss draft (WGS) bacterial genomes entirely. Genomes are downloaded in batches, scanned for
+  the reference amplicon with exact seeds along the whole amplicon (both strands), and discarded;
+  only the region plus flanks is stored, so runs resume and later runs only process new
+  assemblies. Up to `variants.max_assemblies_per_run` (20,000) new assemblies per run, newest
+  first; the report shows coverage per release year (listed vs assessed), contig breaks, genomes
+  without the region (listed) and multi-copy genomes, and each variant's first and last release
+  date. New `variants` config section and `ncbi.datasets_url` / `ncbi.datasets_batch_size`;
+  `variants.source: blast_hits` keeps the previous behaviour. New `Variant coverage` xlsx sheet.
+  Endpoints from NCBI's published Datasets OpenAPI spec, behaviour checked live with
+  `scripts/probe_variant_sources.py`.
 - **Report states when human background was not searched** (`pipeline.py`, `search/planner.py`):
   setting `search.background_taxids: []` (e.g. to skip the slow, roughly hour-long human search)
   used to drop the background tier silently. The search plan now warns when human (taxid 9606) is

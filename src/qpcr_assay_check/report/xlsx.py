@@ -257,10 +257,12 @@ def write_workbook(result: RunResult, path: Path) -> None:
             wb,
             "Oligo variants",
             ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Level",
-             "Mismatches", "Gaps", "Example accession", "Example organism"],
+             "Mismatches", "Gaps", "Example accession", "Example organism",
+             "First release", "Last release"],
             [
                 [o.role, row.s_aln, row.count, round(row.percent, 2), row.level,
-                 row.n_mismatch, row.n_gap, row.example_accession, row.example_organism or ""]
+                 row.n_mismatch, row.n_gap, row.example_accession, row.example_organism or "",
+                 row.first_seen or "", row.last_seen or ""]
                 for o in vs.oligos
                 for row in o.rows
             ],
@@ -270,14 +272,29 @@ def write_workbook(result: RunResult, path: Path) -> None:
             wb,
             "Fragment variants",
             ["Forward", "Probe", "Reverse", "Count", "Fraction (%)", "Level",
-             "Example accession", "Example organism"],
+             "Example accession", "Example organism", "First release", "Last release"],
             [
                 [f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln, f.count, round(f.percent, 2),
-                 f.level, f.example_accession, f.example_organism or ""]
+                 f.level, f.example_accession, f.example_organism or "",
+                 f.forward.first_seen or "", f.forward.last_seen or ""]
                 for f in vs.fragments
             ],
             None,
         )  # fmt: skip
+        if vs.coverage is not None:
+            c = vs.coverage
+            _sheet(
+                wb,
+                "Variant coverage",
+                ["Release year", "Assemblies listed", "Assessed"],
+                [[y.year, y.listed, y.assessed] for y in c.years]
+                + [["Total", c.listed_total, c.assessed_total],
+                   ["Region found (all 3 sites)", c.found, ""],
+                   ["Region cut by a contig end", c.contig_break, ""],
+                   ["Region not found", c.not_found, ", ".join(c.not_found_examples)],
+                   ["More than one copy", c.multi_copy, ""]],
+                None,
+            )  # fmt: skip
     incl = result.inclusivity
     if incl is not None and incl.oligos:
         _sheet(
