@@ -53,7 +53,16 @@ verified NCBI facts) at the start of every session. Newest entry first.
   `hydrated=DATA_REPORT_ONLY` gives `fetch.txt`), API key as `api-key` header. The spec states no rate
   limit; the probe throttles to 2 requests/s and records 429s and rate headers. Also probes: deep
   random ESearch `retstart`, EFetch `rettype=acc`, BLAST restricted to a 100-accession ENTREZ_QUERY
-  (coverage and leaks), BLAST `DATABASE=wgs` with a species ENTREZ_QUERY. Waiting for the user's run.
+  (coverage and leaks), BLAST `DATABASE=wgs` with a species ENTREZ_QUERY.
+- Probe run by the user (2026-09-23): everything worked except E4 (script bug: the query window
+  was past the end of a 7,500 bp plasmid record; fixed to bases 1-300, needs a rerun). Results in
+  docs/ARCHITECTURE.md "Verified for the v1.1.0 design". Key numbers: Datasets rate limit header
+  10/s with key; 1 Mb genome = 312 KB zipped in 0.6 s; GCA/GCF pairs both listed (de-duplicate);
+  assemblies (current, not atypical): C. trachomatis 713, N. gonorrhoeae 53,386, S. pneumoniae
+  96,853, M. tuberculosis 16,451, E. coli 492,216. BLAST with 100 [ACCN] terms: 100/100 found,
+  43 leaks (filter back to the list). Deep ESearch retstart (3.57 M) works.
+- Next: agree v1.1.0 design and budget with the user (download volume for large species), then
+  implement.
 - **Earlier proposal (superseded by the above), not approved:** unbiased variant/inclusivity sampling for targets that
   fill the hit list (e.g. several smaller target searches restricted by submission date or other
   Entrez filters, each under the cap). Check current NCBI docs on what ENTREZ_QUERY supports

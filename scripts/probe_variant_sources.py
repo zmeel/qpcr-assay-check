@@ -403,7 +403,8 @@ def main() -> int:
                           f"{args.species}[ORGN] AND refseq[filter]", retmax=1)  # fmt: skip
             if not ref.get("ids"):
                 return {"skipped": f"no RefSeq record found for {args.species}", "esearch": ref}
-            fasta = eu.fetch_fasta(ref["ids"][0], start=10001, stop=10300)
+            # the first 300 bp: the first RefSeq hit can be a small plasmid (live: 7,500 bp)
+            fasta = eu.fetch_fasta(ref["ids"][0], start=1, stop=300)
             seq = "".join(fasta.splitlines()[1:])
             entrez = f"{args.species}[ORGN]"
             params = blast.build_put_params(cfg, f">probe_region\n{seq}\n", entrez)
