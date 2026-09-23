@@ -206,13 +206,16 @@ contain the region at all (listed, to review), and how many carry more than one 
   are not in this collection. For such targets use `variants.source: blast_partitioned`: every
   NCBI Nucleotide record of the target is listed (ESearch, newest year first, optionally narrowed
   with `variants.nucleotide_query`, e.g. `"25000:32000[SLEN]"` for near-complete SARS-CoV-2
-  genomes) and the reference amplicon is BLASTed against lists of 100 records at a time, so no
-  search can fill its hit list. At most `variants.blast_max_records_per_run` (2,000, i.e. 20
-  searches) per run; a target with millions of records is covered newest first over many runs,
-  and the report says how far it got. This sends the reference amplicon to NCBI BLAST.
+  genomes). Records up to `variants.direct_scan_max_length` (200,000) bases are fetched and
+  scanned directly, like the genome assemblies; longer ones are found by BLASTing the reference
+  amplicon against lists of 100 records at a time, so no search can fill its hit list. At most
+  `variants.blast_max_records_per_run` (2,000) records per run; a target with millions of records
+  is covered newest first over many runs, and the report says how far it got.
   `variants.source: blast_hits` keeps the v1.0 behaviour (the target tier's own hits, biased
   toward perfect matches when the hit list is full, and the report says so).
 - **Inclusivity** is built from the same assemblies, per release year, when this source is used.
+- **Regions hidden by N** (low-coverage sequencing) are found with N-tolerant seeds and reported
+  as masked, with examples; they are not counted as matches or variants.
 - **Emerging variants:** the history section compares each run's variant tables with the
   previous run's and lists new variants, marked "emerging" when their first assembly was released
   after the previous run. A new variant with a primer 3'-end mismatch or 2+ mismatches makes the

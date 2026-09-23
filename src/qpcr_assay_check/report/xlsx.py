@@ -292,7 +292,8 @@ def write_workbook(result: RunResult, path: Path) -> None:
                 [[y.year, y.listed, y.assessed] for y in c.years]
                 + [["Total", c.listed_total, c.assessed_total],
                    ["Region found (all 3 sites)", c.found, ""],
-                   ["Region cut by a contig end", c.contig_break, ""],
+                   ["Region cut by a contig/record end", c.contig_break, ""],
+                   ["Region hidden by N", c.masked, ", ".join(c.masked_examples)],
                    ["Region not found", c.not_found, ", ".join(c.not_found_examples)],
                    *([["  ...no sequence labelled as a plasmid", c.not_found_without_plasmid,
                        ""],

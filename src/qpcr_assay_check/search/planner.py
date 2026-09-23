@@ -147,10 +147,11 @@ def plan_searches(
         )
     if cfg.variants.source == "blast_partitioned":
         plan.notes.append(
-            "Variant analysis (variants.source: blast_partitioned): the reference amplicon is "
-            "also sent to NCBI BLAST, once per list of up to "
-            f"{cfg.variants.blast_records_per_search} Nucleotide records of the target (at most "
-            f"{cfg.variants.blast_max_records_per_run} records per run)."
+            "Variant analysis (variants.source: blast_partitioned): up to "
+            f"{cfg.variants.blast_max_records_per_run} Nucleotide records of the target per run; "
+            f"records up to {cfg.variants.direct_scan_max_length} bases are fetched and scanned "
+            "directly, longer ones are found by sending the reference amplicon to NCBI BLAST, "
+            f"once per list of up to {cfg.variants.blast_records_per_search} records."
         )
     if exclusivity_unresolved:
         plan.warnings.append(

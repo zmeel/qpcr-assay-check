@@ -34,7 +34,7 @@ from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
-from .locate import find_loci
+from .locate import find_loci, find_masked
 from .models import ExhaustiveCoverage, YearCoverage
 from .store import RegionStore, StoredAssembly, StoredLocus, store_path
 
@@ -155,11 +155,11 @@ def _process(
                 failed_accessions.append(rec.accession)
                 continue
             records_ = parse_fasta_records(fasta)
-            loci = find_loci(
-                {name: seq for name, (_d, seq) in records_.items()}, amplicon,
-                seed_length=v.seed_length, seed_step=v.seed_step, flank=v.flank_nt,
-            )  # fmt: skip
-            store.add(rec, loci, {name: d for name, (d, _s) in records_.items()})
+            contigs = {name: seq for name, (_d, seq) in records_.items()}
+            kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt}
+            loci = find_loci(contigs, amplicon, **kw)
+            masked = [] if loci else find_masked(contigs, amplicon, **kw)
+            store.add(rec, loci, {name: d for name, (d, _s) in records_.items()}, masked=masked)
             done += 1
         log.info("  %d / %d assemblies scanned", i + len(chunk), len(records))
     return done, failed, failed_accessions
@@ -188,8 +188,12 @@ def assess(
     amplicon: str,
     sites_in_amplicon: dict[str, tuple[str, int, int]],
     cfg: Config,
-) -> tuple[list[SiteResult], int]:
-    """One site per oligo per assembly (best complete copy); returns sites and contig breaks."""
+) -> tuple[list[SiteResult], int, list[str]]:
+    """One site per oligo per assembly (best complete copy).
+
+    Returns the sites, the number of assemblies whose region is cut by a contig end, and the
+    accessions whose best copy has an N inside an oligo site (masked, not assessed).
+    """
     scoring = realign.Scoring(
         cfg.specificity.alignment.match, cfg.specificity.alignment.mismatch,
         cfg.specificity.alignment.gap_open, cfg.specificity.alignment.gap_extend,
@@ -197,6 +201,7 @@ def assess(
     memo: dict[tuple[str, str], realign.Alignment] = {}
     sites: list[SiteResult] = []
     contig_break = 0
+    masked_site: list[str] = []
     n = 0
     for it in items:
         if it.status != "found":
@@ -224,11 +229,13 @@ def assess(
             rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
             n += 1
             per_role.append(_site(it, locus, role, strand, lo, len(window), aln, rules, n))
-        if len(per_role) == len(ROLES):
-            sites += per_role
-        else:
+        if len(per_role) != len(ROLES):
             contig_break += 1
-    return sites, contig_break
+        elif any("N" in s.s_aln.upper() for s in per_role):
+            masked_site.append(it.accession)  # an N is neither a match nor a variant
+        else:
+            sites += per_role
+    return sites, contig_break, masked_site
 
 
 def _site(it: StoredAssembly, locus: StoredLocus, role: str, strand: str, lo: int, wlen: int,
@@ -384,7 +391,7 @@ def run_exhaustive(
             "nothing to analyse exhaustively."
         )
     items = current_items(store)
-    sites, contig_break = assess(items, assay, amplicon, placed, cfg)
+    sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg)
     not_found = [it for it in items if it.status == "not_found"]
     found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
@@ -421,21 +428,27 @@ def run_exhaustive(
         not_found_with_plasmid_examples=[it.accession for it in with_plasmid[:20]],
         plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
         plasmid_info_recorded=any(it.plasmid_contigs is not None for it in items),
-        found_by_direct_scan=sum(1 for it in items if it.found_by == "direct_scan"),
+        masked=sum(1 for it in items if it.status == "masked") + len(masked_site),
+        masked_examples=(
+            [it.accession for it in items if it.status == "masked"] + masked_site
+        )[:20],
+        found_by_direct_scan=sum(
+            1 for it in items if it.found_by == "direct_scan" and it.status == "found"
+        ),
         not_checked_directly=sum(
             1 for it in not_found if it.assembly_level == "Nucleotide record"
             and it.direct_checked is False
         ),
     )  # fmt: skip
     inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg, source=source)
-    missing = coverage.not_found + coverage.contig_break
+    missing = coverage.not_found + coverage.contig_break + coverage.masked
     if missing:
         inclusivity.rationale.append(
             f"{missing} of {len(items)} assessed "
             f"{'assemblies' if source == 'datasets' else 'records'} are not in the counts above: "
-            f"the target region was not found in {coverage.not_found} and was cut by a contig "
-            f"end in {coverage.contig_break} (see the Variant summary). Per year, 'Assemblies' "
-            "minus 'With region' is that gap."
+            f"the target region was not found in {coverage.not_found}, was hidden by N in "
+            f"{coverage.masked} and was cut by a contig or record end in {coverage.contig_break} "
+            "(see the Variant summary). Per year, 'Assemblies' minus 'With region' is that gap."
         )
     if coverage.target_on_plasmid and coverage.not_found_with_plasmid:
         inclusivity.rationale.append(

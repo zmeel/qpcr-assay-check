@@ -450,7 +450,7 @@ def test_a_full_run_can_use_partitioned_blast_for_the_variant_summary(env, monke
         "search:\n  background_taxids: []\n"
     )
     r = invoke(env, "--yes")
-    assert "reference amplicon is also sent to NCBI BLAST" in r.output, (r.output, r.exception)
+    assert "sending the reference amplicon to NCBI BLAST" in r.output, (r.output, r.exception)
     assert r.exception is None or isinstance(r.exception, SystemExit), repr(r.exception)
     data = json.loads((run_dir(env) / "results.json").read_text())
     vs = data["variant_summary"]

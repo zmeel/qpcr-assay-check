@@ -223,6 +223,13 @@ report and nothing else this project didn't already improve on.
   seed locator before it is called "not found"; records found that way are counted
   (`found_by_direct_scan`), and those that could not be checked are reported. "Not found" entries
   from the first run are scanned again once (`direct_checked` missing).
+  **Second live run (same config):** 286 of 300 found, all by the direct scan and none by BLAST
+  (confirming that the newest records are not in `core_nt`); 14 not found. Two consequences:
+  records up to `direct_scan_max_length` now skip BLAST altogether (direct scan first; BLAST only
+  for longer records, whose "not found" then rests on BLAST alone and is reported as such), and a
+  region hidden by N is detected with N-tolerant seeds (a seed counts only with at least half its
+  bases real, a locus needs two agreeing seeds) and reported as masked. A found region whose
+  oligo site contains N is also masked, since the aligner would otherwise count N as a match.
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's

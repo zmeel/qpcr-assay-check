@@ -13,6 +13,7 @@ never guessed.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Literal
@@ -111,3 +112,43 @@ def _cut(
         contig=contig, strand=strand, start=lo + 1, end=hi, region=region,
         offset=max(0, offset), n_seeds=len(cluster), truncated=truncated,
     )  # fmt: skip
+
+
+def find_masked(
+    contigs: dict[str, str],
+    amplicon: str,
+    *,
+    seed_length: int,
+    seed_step: int,
+    flank: int,
+) -> list[Locus]:
+    """Where :func:`find_loci` found nothing: is the region there, but hidden by N?
+
+    Low-coverage genomes carry runs of N. Each seed is matched with N allowed at any position,
+    but a match counts only when at least half of its bases are real (so a plain N-run matches
+    nothing), and a locus needs at least two agreeing seeds. A region found this way is reported
+    as masked by N, never assessed: an N is neither a match nor a variant.
+    """
+    amp = amplicon.upper()
+    n = len(amp)
+    pairs = seeds(amp, seed_length, seed_step)
+    need = seed_length // 2
+    loci: list[Locus] = []
+    for name, seq in contigs.items():
+        if "N" not in seq:
+            continue
+        votes: dict[str, list[int]] = defaultdict(list)
+        for off, kmer in pairs:
+            for strand, k in (("+", kmer), ("-", iupac.reverse_complement(kmer))):
+                pattern = re.compile("(?=(" + "".join(f"[{b}N]" for b in k) + "))")
+                for m in pattern.finditer(seq):
+                    if len(m.group(1)) - m.group(1).count("N") < need:
+                        continue
+                    pos = m.start()
+                    votes[strand].append(pos - off if strand == "+" else pos + len(k) + off - n)
+        for strand, starts in votes.items():
+            for cluster in _clusters(sorted(starts)):
+                if len(cluster) >= 2:
+                    loci.append(_cut(name, seq, strand, cluster, n, flank))  # type: ignore[arg-type]
+    loci.sort(key=lambda lc: (-lc.n_seeds, lc.contig, lc.start))
+    return loci

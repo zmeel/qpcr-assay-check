@@ -45,7 +45,7 @@ class StoredAssembly(BaseModel):
     organism: str = ""
     taxid: int | None = None
     assembly_level: str = ""
-    status: Literal["found", "not_found"]
+    status: Literal["found", "not_found", "masked"]
     n_loci: int = 0
     loci: list[StoredLocus] = Field(default_factory=list)
     n_contigs: int | None = None
@@ -71,10 +71,12 @@ class StoredAssembly(BaseModel):
         """Stored before a check this version makes: scan it again (once)."""
         if self.plasmid_contigs is None:
             return True
+        # 'not found' Nucleotide records stored before the direct scan existed (None); a record
+        # too long to fetch is stored with False and is not retried every run
         return (
             self.assembly_level == "Nucleotide record"
             and self.status == "not_found"
-            and not self.direct_checked
+            and self.direct_checked is None
         )
 
     @property
@@ -127,18 +129,20 @@ class RegionStore:
         *,
         found_by: str | None = None,
         direct_checked: bool | None = None,
+        masked: list[Locus] | None = None,
     ) -> StoredAssembly:
+        """Store one assembly/record. ``masked``: no clean copy, but the region is there under N."""
         item = StoredAssembly(
             accession=rec.accession,
             release_date=rec.release_date,
             organism=rec.organism,
             taxid=rec.taxid,
             assembly_level=rec.assembly_level,
-            status="found" if loci else "not_found",
-            n_loci=len(loci),
+            status="found" if loci else ("masked" if masked else "not_found"),
+            n_loci=len(loci) if loci else len(masked or []),
             loci=[
                 StoredLocus(**_locus(lc), on_plasmid=_plasmid(descriptions, lc.contig))
-                for lc in loci[:MAX_LOCI_KEPT]
+                for lc in (loci or masked or [])[:MAX_LOCI_KEPT]
             ],
             n_contigs=len(descriptions) if descriptions is not None else None,
             plasmid_contigs=(

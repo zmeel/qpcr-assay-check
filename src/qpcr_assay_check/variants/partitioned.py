@@ -34,7 +34,7 @@ from ..ncbi.parser import Hsp, parse_blast_json
 from ..ncbi.runner import BlastRunner
 from ..specificity.fetch import WindowFetcher
 from .datasets import AssemblyRecord, parse_fasta_records
-from .locate import INDEL_TOLERANCE, Locus, find_loci
+from .locate import INDEL_TOLERANCE, Locus, find_loci, find_masked
 from .models import YearCoverage
 from .store import RegionStore
 
@@ -121,17 +121,24 @@ def collect_partitioned(
                     if processed + len(recs) >= budget:
                         break
                 recs = recs[: budget - processed]
+                # small records (viral genomes, single genes) are fetched and scanned directly:
+                # complete, and independent of the BLAST database (live: the newest SARS-CoV-2
+                # records were not in it yet); only larger ones go to BLAST in accession lists
+                small = [r for r in recs if 0 < r.total_length <= v.direct_scan_max_length]
+                large = [r for r in recs if r not in small]
+                processed += _direct_scan(small, amplicon, cfg, fetcher, store)
                 size = v.blast_records_per_search
-                for i in range(0, len(recs), size):
-                    _search(recs[i : i + size], amplicon, cfg, runner, jobs, fetcher, store)
+                for i in range(0, len(large), size):
+                    _search(large[i : i + size], amplicon, cfg, runner, jobs, fetcher, store)
                     n_searches += 1
-                processed += len(recs)
+                processed += len(large)
             assessed = sum(1 for it in store.items.values() if it.year == year)
             years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year)))
         year -= 1
     log.info(
-        "Variant analysis (partitioned BLAST): %d records listed, %d processed this run in %d "
-        "search(es)", total, processed, n_searches,
+        "Variant analysis (Nucleotide records): %d listed, %d processed this run (%d BLAST "
+        "search(es) for records longer than %d bases)", total, processed, n_searches,
+        v.direct_scan_max_length,
     )  # fmt: skip
     if n_searches > cfg.search.max_searches_warn:
         log.warning(
@@ -186,7 +193,8 @@ def _search(
             store.add(rec, loci, {acc: title}, found_by="blast")
         else:
             missed.append(rec)
-    _direct_scan(missed, amplicon, cfg, fetcher, store)
+    for rec in missed:  # too long to fetch whole: 'not found' is BLAST's word only
+        store.add(rec, [], {rec.accession: ""}, direct_checked=False)
 
 
 def _direct_scan(
@@ -195,33 +203,36 @@ def _direct_scan(
     cfg: Config,
     fetcher: WindowFetcher,
     store: RegionStore,
-) -> None:
-    """Records BLAST did not hit: fetch them and scan for the amplicon before calling them absent.
+) -> int:
+    """Fetch records whole (several per EFetch request) and scan them; returns how many stored.
 
-    Found live (CDC N1, 2026-09-23): all 300 of the newest SARS-CoV-2 records came back without a
-    hit, most likely because they were not yet in the BLAST database. Records longer than
-    ``direct_scan_max_length`` are not fetched and stay "not found" (not checked directly).
+    A record whose fetch failed is not stored, so the next run tries it again.
     """
     v = cfg.variants
-    small = [r for r in recs if 0 < r.total_length <= v.direct_scan_max_length]
-    fetched: dict[str, tuple[str, str]] = {}
-    for i in range(0, len(small), v.direct_scan_batch):
-        chunk = small[i : i + v.direct_scan_batch]
+    kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt}
+    done = 0
+    for i in range(0, len(recs), v.direct_scan_batch):
+        chunk = recs[i : i + v.direct_scan_batch]
         try:
-            text = fetcher.eutils.fetch_fasta_many([r.accession for r in chunk])
+            fetched = parse_fasta_records(
+                fetcher.eutils.fetch_fasta_many([r.accession for r in chunk])
+            )
         except NcbiError as exc:
             log.warning("Could not fetch %d records for a direct scan: %s", len(chunk), exc)
             continue
-        fetched.update(parse_fasta_records(text))
-    for rec in recs:
-        got = fetched.get(rec.accession)
-        if got is None:
-            store.add(rec, [], {rec.accession: ""}, direct_checked=False)
-            continue
-        desc, seq = got
-        loci = find_loci({rec.accession: seq}, amplicon, seed_length=v.seed_length,
-                         seed_step=v.seed_step, flank=v.flank_nt)  # fmt: skip
-        store.add(rec, loci, {rec.accession: desc}, found_by="direct_scan", direct_checked=True)
+        for rec in chunk:
+            got = fetched.get(rec.accession)
+            if got is None:
+                log.warning("EFetch returned no sequence for %s; retried next run", rec.accession)
+                continue
+            desc, seq = got
+            contigs = {rec.accession: seq}
+            loci = find_loci(contigs, amplicon, **kw)
+            masked = [] if loci else find_masked(contigs, amplicon, **kw)
+            store.add(rec, loci, {rec.accession: desc}, found_by="direct_scan",
+                      direct_checked=True, masked=masked)  # fmt: skip
+            done += 1
+    return done
 
 
 def _locus(

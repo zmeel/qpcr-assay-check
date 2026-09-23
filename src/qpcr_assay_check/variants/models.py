@@ -45,6 +45,12 @@ class ExhaustiveCoverage(BaseModel):
         "plasmid-borne target, a possible deletion (as in the Swedish nvCT variant)",
     )
     not_found_with_plasmid_examples: list[str] = Field(default_factory=list)
+    masked: int = Field(
+        default=0,
+        description="region present but hidden by N (low-coverage sequencing): the whole region, "
+        "or an oligo site inside it; not assessed, since an N is neither a match nor a variant",
+    )
+    masked_examples: list[str] = Field(default_factory=list)
     found_by_direct_scan: int = Field(
         default=0,
         description="Nucleotide records: no BLAST hit, region found by fetching the record (for "

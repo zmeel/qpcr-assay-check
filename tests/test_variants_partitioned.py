@@ -57,7 +57,7 @@ def setup(tmp_path, fake, **variants):
 def test_every_record_is_blasted_in_accession_lists_and_leaks_are_ignored(tmp_path):
     leak = FakeRecord("99", "OT999999.1", "2026/01/01", filler(200, 9) + AMP + filler(200, 10))
     fake = FakeNuccore(records(), leaks=[leak])
-    res = setup(tmp_path, fake)()
+    res = setup(tmp_path, fake, direct_scan_max_length=0)()  # every record through BLAST
     c = res.coverage
     assert c.source == "blast_partitioned" and (c.listed_total, c.assessed_total) == (5, 5)
     assert (c.found, c.not_found) == (4, 1) and c.not_found_examples == ["MZ000004.1"]
@@ -70,14 +70,15 @@ def test_every_record_is_blasted_in_accession_lists_and_leaks_are_ignored(tmp_pa
 
 
 def test_a_partial_hit_is_completed_from_the_record(tmp_path):
-    res = setup(tmp_path, FakeNuccore(records()))()
+    res = setup(tmp_path, FakeNuccore(records()), direct_scan_max_length=0)()
     site = next(s for s in res.sites if s.accession == "MZ000003.1" and s.role == "forward")
     assert site.n_mismatch == 0 and site.source == "realigned"  # the trimmed 8 bases re-aligned
 
 
 def test_the_record_budget_and_list_size_are_honoured_and_runs_resume(tmp_path):
     fake = FakeNuccore(records())
-    run = setup(tmp_path, fake, blast_max_records_per_run=2, blast_records_per_search=1)
+    run = setup(tmp_path, fake, blast_max_records_per_run=2, blast_records_per_search=1,
+                direct_scan_max_length=0)  # fmt: skip
     first = run().coverage
     assert (first.processed_this_run, first.assessed_total, first.complete) == (2, 2, False)
     assert len(fake.blast_puts) == 2  # one record per search
@@ -92,7 +93,7 @@ def test_the_search_plan_says_the_amplicon_is_sent_to_blast():
     cfg = load_config()
     cfg.variants.source = "blast_partitioned"
     plan = plan_searches(make_assay(), cfg)
-    assert any("reference amplicon is also sent to NCBI BLAST" in n for n in plan.notes)
+    assert any("sending the reference amplicon to NCBI BLAST" in n for n in plan.notes)
 
 
 def test_records_missing_from_the_blast_database_are_found_by_a_direct_scan(tmp_path):
@@ -147,5 +148,33 @@ def test_the_report_shows_coverage_even_when_no_region_was_found(tmp_path):
     )  # fmt: skip
     html = render_report(result, cfg)
     assert "Scope: every NCBI Nucleotide record" in html
-    assert "No oligo site could be assessed" in html and "Found without a BLAST hit" in html
+    assert "No oligo site could be assessed" in html and "How records were checked" in html
     assert "NCBI Datasets' genome collection" not in html
+
+
+def test_small_records_are_scanned_directly_without_any_blast_search(tmp_path):
+    """Live finding: BLAST found none of the newest 286 genomes that a direct scan found."""
+    fake = FakeNuccore(records())
+    res = setup(tmp_path, fake)()  # default direct_scan_max_length covers these records
+    assert fake.blast_puts == [] and res.coverage.found == 4
+    assert res.coverage.found_by_direct_scan == 4
+
+
+def test_a_region_hidden_by_n_is_reported_as_masked_not_as_a_perfect_match(tmp_path):
+    # AMP = forward (1-20) + spacer (21-50) + probe (51-74) + spacer + reverse
+    in_spacer = AMP[:30] + "N" * 15 + AMP[45:]  # Ns between the oligos: still assessable
+    in_probe = AMP[:55] + "N" * 10 + AMP[65:]  # the probe site reads N: masked
+    speckled = "".join("N" if i % 6 == 5 else b for i, b in enumerate(AMP))  # no exact seed left
+    recs = [
+        FakeRecord(
+            str(i),
+            f"MZ00000{i}.1",
+            f"2026/03/0{i}",
+            filler(300, 2 * i) + amp + filler(300, 2 * i + 1),
+        )
+        for i, amp in ((1, AMP), (2, in_spacer), (3, in_probe), (4, speckled))
+    ] + [FakeRecord("5", "MZ000005.1", "2026/03/05", filler(300, 9) + "N" * 200 + filler(300, 8))]
+    c = setup(tmp_path, FakeNuccore(recs))().coverage
+    assert c.found == 2  # the clean record and the one with Ns only between the oligos
+    assert c.masked == 2 and set(c.masked_examples) == {"MZ000003.1", "MZ000004.1"}
+    assert c.not_found == 1  # a plain N-run with no real bases of the amplicon: not "masked"

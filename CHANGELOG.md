@@ -53,6 +53,13 @@ All notable changes to this project are documented here. The format follows
   (found live: all 300 of the newest SARS-CoV-2 records had no BLAST hit, most likely because they
   were not yet in the BLAST database); the report counts records found this way. The variant
   section now also appears, with its coverage, when no oligo site could be assessed.
+  Records up to `direct_scan_max_length` (200,000 bases) are now fetched and scanned directly
+  without any BLAST search (live: BLAST found none of the 286 newest SARS-CoV-2 genomes that the
+  direct scan found); BLAST is used only for longer records.
+- **Regions hidden by N are reported as masked** (both sources): N-tolerant seeds find a region
+  that low-coverage sequencing turned partly into N, and an oligo site that reads N is no longer
+  counted as a match. Masked genomes/records are listed in the coverage table and left out of the
+  variant tables and inclusivity.
 - **Oligo windows are clamped to the stored region** instead of dropping a site whose padding
   runs past the region's end (a full-length BLAST region has no flanks; an assembly region close
   to a contig end is now assessed instead of being counted as a contig break).

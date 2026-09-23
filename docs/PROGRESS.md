@@ -93,6 +93,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   core_nt); fixed with a direct EFetch scan of records without a hit; old 'not found' entries are
   rescanned once. Variant section now shows its coverage even with zero sites. 379 tests pass.
   Needs one more live run (same config: expect ~300 re-checks, BLAST results from cache).
+- Second live partitioned run: 286/300 found, all by direct scan (0 by BLAST): forward 78.3%
+  one mismatch (pos 11), probe 99.7% one mismatch (pos 3), reverse 96.9% perfect -- the variants
+  the BLAST top-5000 (100% perfect) never showed. User asked for 3 changes, all done: direct scan
+  first for records <= 200 kb (BLAST only for longer ones), N-masked regions/sites reported as
+  masked, wording ('records', 'record end'). 381 tests pass.
 - Still open for v1.1.0: CHANGELOG release section and tag v1.1.0 (after the live check).
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.

@@ -283,7 +283,7 @@ def evaluate(
             f"of the target assessed so far (at most {c.budget_per_run} new ones per run, newest "
             "first). "
             "Run again to continue; the variant tables and inclusivity cover only the assessed "
-            "assemblies until then."
+            f"{'records' if c.source == 'blast_partitioned' else 'assemblies'} until then."
         )
     if (
         variant_coverage is not None
