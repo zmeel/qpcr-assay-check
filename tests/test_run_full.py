@@ -430,3 +430,30 @@ def test_a_full_run_uses_every_genome_assembly_for_the_variant_summary(env, monk
     assert sorted(r["count"] for r in fwd["rows"]) == [1, 1]
     assert data["inclusivity"]["sample_scheme"].startswith("Every genome assembly")
     assert "Scope: every genome assembly" in (run_dir(env) / "report.html").read_text()
+
+
+def test_a_full_run_can_use_partitioned_blast_for_the_variant_summary(env, monkeypatch):
+    """v1.1.0: variants.source blast_partitioned is wired through the CLI."""
+    from qpcr_assay_check.cli import build_assay
+
+    from .fake_nuccore import FakeNuccore, FakeRecord
+    from .world import filler
+
+    amp = build_assay(ROOT_EXAMPLE, {}).reference_amplicon
+    fake = FakeNuccore([
+        FakeRecord("1", "MZ000001.1", "2026/01/02", filler(300, 1) + amp + filler(300, 2)),
+        FakeRecord("2", "MZ000002.1", "2025/03/04", filler(900, 3)),
+    ])  # fmt: skip
+    monkeypatch.setattr("qpcr_assay_check.ncbi.http.requests.Session", lambda: fake)
+    env.conf.write_text(
+        env.conf.read_text() + "variants:\n  source: blast_partitioned\n"
+        "search:\n  background_taxids: []\n"
+    )
+    r = invoke(env, "--yes")
+    assert "reference amplicon is also sent to NCBI BLAST" in r.output, (r.output, r.exception)
+    assert r.exception is None or isinstance(r.exception, SystemExit), repr(r.exception)
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    vs = data["variant_summary"]
+    assert vs["source"] == "blast_partitioned"
+    assert (vs["coverage"]["assessed_total"], vs["coverage"]["found"]) == (2, 1)
+    assert "Scope: every NCBI Nucleotide record" in (run_dir(env) / "report.html").read_text()

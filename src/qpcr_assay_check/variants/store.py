@@ -66,9 +66,15 @@ class StoredAssembly(BaseModel):
         return int(self.release_date[:4])
 
 
-def store_path(cache_dir: Path, taxon: int | str, amplicon: str, flank: int) -> Path:
-    key = content_key({"amplicon": amplicon.upper(), "flank": flank})[:16]
-    return Path(cache_dir) / "variants" / f"{taxon}-{key}.jsonl"
+def store_path(
+    cache_dir: Path, taxon: int | str, amplicon: str, flank: int, source: str = "datasets"
+) -> Path:
+    payload: dict[str, object] = {"amplicon": amplicon.upper(), "flank": flank}
+    if source != "datasets":  # the datasets key predates other sources: keep existing stores
+        payload["source"] = source
+    key = content_key(payload)[:16]
+    suffix = "" if source == "datasets" else f"-{source}"
+    return Path(cache_dir) / "variants" / f"{taxon}-{key}{suffix}.jsonl"
 
 
 class RegionStore:
@@ -77,6 +83,7 @@ class RegionStore:
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
         self.items: dict[str, StoredAssembly] = {}
+        self.aliases: set[str] = set()  # ESearch UIDs already looked up in this run
         if self.path.exists():
             for n, line in enumerate(self.path.read_text(encoding="utf-8").splitlines(), 1):
                 if not line.strip():

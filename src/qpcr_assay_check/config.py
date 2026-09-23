@@ -401,16 +401,23 @@ class VariantsSettings(_Strict):
     (the target tier's BLAST hits, biased toward perfect matches when the hit list is full).
     """
 
-    source: Literal["datasets", "blast_hits"]
+    source: Literal["datasets", "blast_partitioned", "blast_hits"]
     current_assemblies_only: bool
     exclude_atypical: bool
     max_assemblies_per_run: int
     flank_nt: int
     seed_length: int
     seed_step: int
+    nucleotide_query: str | None
+    blast_max_records_per_run: int
+    blast_records_per_search: int
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:
+        if self.blast_max_records_per_run < 1:
+            raise ValueError("blast_max_records_per_run must be at least 1")
+        if not 1 <= self.blast_records_per_search <= 100:
+            raise ValueError("blast_records_per_search must be 1-100 (100 was checked live)")
         if self.max_assemblies_per_run < 1:
             raise ValueError("max_assemblies_per_run must be at least 1")
         if self.flank_nt < 0 or not 8 <= self.seed_length <= 32 or self.seed_step < 1:

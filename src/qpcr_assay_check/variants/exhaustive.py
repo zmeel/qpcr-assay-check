@@ -208,10 +208,12 @@ def assess(
         per_role = []
         for role in ROLES:
             strand, start, end = sites_in_amplicon[role]
-            lo = locus.offset + start - 1 - SITE_PAD
-            hi = locus.offset + end + SITE_PAD
-            if lo < 0 or hi > len(locus.region):
+            # the site +- SITE_PAD, clamped to the region (a full-length BLAST hit carries no
+            # flanks); a site that itself runs off the region cannot be assessed
+            if locus.offset + start - 1 < 0 or locus.offset + end > len(locus.region):
                 break
+            lo = max(0, locus.offset + start - 1 - SITE_PAD)
+            hi = min(len(locus.region), locus.offset + end + SITE_PAD)
             window = locus.region[lo:hi]
             oriented = window if strand == "+" else iupac.reverse_complement(window)
             oligo = assay.oligos[role].upper()
@@ -259,6 +261,8 @@ def exhaustive_inclusivity(
     years: list[YearCoverage],
     assay: Assay,
     cfg: Config,
+    *,
+    source: str = "datasets",
 ) -> InclusivityResult:
     """Per-release-year inclusivity over every assessed assembly (not a sample)."""
     year_of = {it.accession: it.year for it in items}
@@ -287,11 +291,21 @@ def exhaustive_inclusivity(
         target_taxid=assay.target.taxid,
         oligos=oligos,
         sample_scheme=(
-            "Every genome assembly of the target in NCBI Datasets (current versions, one copy per "
-            "GenBank/RefSeq pair), by release year; 'Assemblies' is the number NCBI lists for "
-            "that year and 'With region' the number in which the target region was found and "
-            "assessed. Not a sample: the gap between the two is explained below (region not "
-            "found, cut by a contig end, or not processed yet)."
+            (
+                "Every genome assembly of the target in NCBI Datasets (current versions, one copy "
+                "per GenBank/RefSeq pair), by release year; 'Assemblies' is the number NCBI lists "
+                "for that year"
+            )
+            if source == "datasets"
+            else (
+                "Every NCBI Nucleotide record of the target, by publication year; 'Assemblies' "
+                "is the number of records ESearch lists for that year"
+            )
+        )
+        + (
+            " and 'With region' the number in which the target region was found and assessed. "
+            "Not a sample: the gap between the two is explained below (region not found, cut by "
+            "a contig end, or not processed yet)."
         ),
         verdict=verdict,
         rationale=rationale,
@@ -304,6 +318,9 @@ def exhaustive_inclusivity(
 
 
 # ------------------------------------------------------------------ one call for the CLI
+Collector = Callable[[RegionStore, int, str], tuple[list[YearCoverage], int, int, int, list[str]]]
+
+
 @dataclass
 class ExhaustiveResult:
     """Everything the exhaustive analysis hands to :func:`qpcr_assay_check.pipeline.evaluate`."""
@@ -322,20 +339,35 @@ def run_exhaustive(
     fetch_fasta: Callable[[str], str],
     *,
     now: datetime | None = None,
+    collector: Collector | None = None,
+    source: str = "datasets",
 ) -> ExhaustiveResult:
-    """Collect new assemblies, then assess every stored one. Raises InputError / NcbiError."""
+    """Collect new assemblies (or Nucleotide records), then assess every stored one.
+
+    ``collector`` replaces the NCBI Datasets collection (``source`` names it, e.g.
+    ``blast_partitioned``); it receives the store, the taxon and the amplicon. Raises InputError
+    or NcbiError.
+    """
     taxon = assay.target.taxid
     if taxon is None:
         raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
     amplicon, amp_source = reference_amplicon(assay, fetch_fasta)
     placed = oligo_sites(assay, amplicon, cfg.thresholds.amplicon.max_site_mismatches)
     v = cfg.variants
-    store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt))
-    years, total, processed, failed, _failed = collect(client, store, taxon, amplicon, cfg, now=now)
+    store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt, source))
+    if collector is None:
+        years, total, processed, failed, _f = collect(client, store, taxon, amplicon, cfg, now=now)
+    else:
+        years, total, processed, failed, _f = collector(store, taxon, amplicon)
     if total == 0:
+        what = (
+            "genome assemblies in NCBI Datasets"
+            if source == "datasets"
+            else "Nucleotide records in NCBI"
+        )
         raise InputError(
-            f"NCBI Datasets lists no genome assemblies for taxon {taxon} with the configured "
-            "filters, so there is nothing to analyse exhaustively."
+            f"There are no {what} for taxon {taxon} with the configured filters, so there is "
+            "nothing to analyse exhaustively."
         )
     items = current_items(store)
     sites, contig_break = assess(items, assay, amplicon, placed, cfg)
@@ -348,13 +380,20 @@ def run_exhaustive(
         taxon=taxon,
         amplicon_length=len(amplicon),
         amplicon_source=amp_source,
-        filters={"current_assemblies_only": v.current_assemblies_only,
-                 "exclude_atypical": v.exclude_atypical, "one_copy_per_genbank_refseq_pair": True},
+        source=source,
+        filters=(
+            {"current_assemblies_only": v.current_assemblies_only,
+             "exclude_atypical": v.exclude_atypical, "one_copy_per_genbank_refseq_pair": True}
+            if source == "datasets"
+            else {"nucleotide_query": v.nucleotide_query or ""}
+        ),
         listed_total=total,
         assessed_total=len(items),
         processed_this_run=processed,
         download_failed_this_run=failed,
-        budget_per_run=v.max_assemblies_per_run,
+        budget_per_run=(
+            v.max_assemblies_per_run if source == "datasets" else v.blast_max_records_per_run
+        ),
         found=len(sites) // len(ROLES),
         not_found=len(not_found),
         contig_break=contig_break,
@@ -369,7 +408,7 @@ def run_exhaustive(
         plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
         plasmid_info_recorded=any(it.plasmid_contigs is not None for it in items),
     )  # fmt: skip
-    inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg)
+    inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg, source=source)
     missing = coverage.not_found + coverage.contig_break
     if missing:
         inclusivity.rationale.append(

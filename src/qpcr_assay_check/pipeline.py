@@ -278,8 +278,10 @@ def evaluate(
     if variant_coverage is not None and not variant_coverage.complete:
         c = variant_coverage
         findings.append(
-            f"Variant analysis: {c.assessed_total} of {c.listed_total} genome assemblies of the "
-            f"target assessed so far (at most {c.budget_per_run} new ones per run, newest first). "
+            f"Variant analysis: {c.assessed_total} of {c.listed_total} "
+            f"{'Nucleotide records' if c.source == 'blast_partitioned' else 'genome assemblies'} "
+            f"of the target assessed so far (at most {c.budget_per_run} new ones per run, newest "
+            "first). "
             "Run again to continue; the variant tables and inclusivity cover only the assessed "
             "assemblies until then."
         )

@@ -18,7 +18,7 @@ class ExhaustiveCoverage(BaseModel):
     taxon: int
     amplicon_length: int
     amplicon_source: str
-    filters: dict[str, bool]
+    filters: dict[str, bool | str]
     listed_total: int
     assessed_total: int
     processed_this_run: int

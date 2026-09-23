@@ -201,6 +201,19 @@ report and nothing else this project didn't already improve on.
   per release year from the same sites. Throttle: 4 requests/s with an API key (the live limit
   header said 10), 2/s without (the keyless limit was not measured). The API key is sent as the
   documented `api-key` header; no tool/email query parameters are sent to Datasets.
+- **Partitioned BLAST for targets without genome assemblies** (v1.1.0,
+  `variants/partitioned.py`, `variants.source: blast_partitioned`): ESearch lists the target's
+  Nucleotide records per publication year (PDAT, verified reliable for ESearch), newest first;
+  ESummary maps each UID to `accessionversion` and `createdate` (keyed by UID; the order of an
+  `efetch rettype=acc` answer is not relied on). The reference amplicon is BLASTed (word size 11,
+  E 10, hit list >= 500) with an ENTREZ_QUERY of at most 100 `[ACCN]` terms (live: accepted, 100/100
+  found, 43 leaks); hits are filtered back to the list. A full-length HSP gives the region directly
+  (`hseq` is in the query's orientation, verified); a partial one is completed from an `efetch`
+  window with the seed locator. A record without a hit is "not found" (usually another gene).
+  Records share the region store and assessment with the assembly source (store key includes the
+  source); oligo windows are clamped to the region, since a full-length BLAST region has no
+  flanks. The plan notes that the amplicon is sent to BLAST; more than `max_searches_warn`
+  searches in one run are logged with NCBI's off-peak advice. Not yet run live.
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's

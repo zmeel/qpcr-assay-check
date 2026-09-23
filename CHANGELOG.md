@@ -41,6 +41,17 @@ All notable changes to this project are documented here. The format follows
   the xlsx sheets get a "Matching 3' nt" column.
 - **Inclusivity title** says "all genome assemblies" instead of "sampled" when it is built from
   every assembly.
+- **Partitioned BLAST variant source** (`variants.source: blast_partitioned`,
+  `variants/partitioned.py`): for targets without genome assemblies (viruses, single-gene
+  records), every NCBI Nucleotide record of the target is BLASTed with the reference amplicon in
+  lists of up to 100 accessions, so no search can fill its hit list; hits outside each list are
+  ignored and partial hits are completed from the record. Newest publication year first, at most
+  `blast_max_records_per_run` (2,000) records per run, resumable; optional
+  `variants.nucleotide_query` narrows the record list. Same variant tables, coverage, inclusivity
+  and history as the assembly source. The search plan states that the amplicon is sent to BLAST.
+- **Oligo windows are clamped to the stored region** instead of dropping a site whose padding
+  runs past the region's end (a full-length BLAST region has no flanks; an assembly region close
+  to a contig end is now assessed instead of being counted as a contig break).
 - **History lists new oligo sequence variants** (`history/diff.py`): each run compares its
   variant tables with the previous run's, per oligo. A variant not seen before is listed as
   "emerging" when its first assembly was released after the previous run, or "newly assessed"

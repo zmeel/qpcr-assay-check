@@ -145,6 +145,13 @@ def plan_searches(
             f"The exclusivity tier will search {which}, resolved to taxonomy IDs when the search "
             "actually runs; not shown in --dry-run."
         )
+    if cfg.variants.source == "blast_partitioned":
+        plan.notes.append(
+            "Variant analysis (variants.source: blast_partitioned): the reference amplicon is "
+            "also sent to NCBI BLAST, once per list of up to "
+            f"{cfg.variants.blast_records_per_search} Nucleotide records of the target (at most "
+            f"{cfg.variants.blast_max_records_per_run} records per run)."
+        )
     if exclusivity_unresolved:
         plan.warnings.append(
             f"{exclusivity_unresolved} organism-list name(s) could not be resolved to exactly one "

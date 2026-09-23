@@ -85,8 +85,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   region; plasmid descriptions genuine). Report wording now says "labelled as a plasmid".
 - History diff of variants done (emerging / newly assessed / no longer seen; WARN on a new
   variant with a primer 3'-end mismatch or 2+ mismatches). 371 tests pass.
-- Still open for v1.1.0: Option 1 (partitioned BLAST for non-assembly targets / viruses),
-  CHANGELOG release section and tag v1.1.0.
+- Option 1 done: `variants.source: blast_partitioned` (partitioned BLAST over Nucleotide
+  records). 376 tests pass incl. a CLI end-to-end run against a fake NCBI. NOT yet run live:
+  suggested first live test is CDC N1 with `nucleotide_query: "25000:32000[SLEN]"` and a small
+  `blast_max_records_per_run` (e.g. 300 = 3 searches).
+- Still open for v1.1.0: CHANGELOG release section and tag v1.1.0 (after the live check).
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

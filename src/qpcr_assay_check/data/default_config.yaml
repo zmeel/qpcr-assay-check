@@ -158,13 +158,22 @@ variants:
   # discarded; only the amplicon region plus flanks is kept (cached, so later runs only process
   # assemblies that are new). Needs the reference amplicon (assay 'reference_amplicon', or found
   # via the oligos in the target 'accession').
-  source: datasets                 # datasets | blast_hits (v1.0: the target tier's BLAST hits)
+  source: datasets                 # datasets: every genome assembly (bacteria, most targets)
+                                   # blast_partitioned: every NCBI Nucleotide record, BLASTed in
+                                   #   accession lists (targets without assemblies, e.g. viruses
+                                   #   or single genes; sends the reference amplicon to BLAST)
+                                   # blast_hits: the target tier's own BLAST hits (v1.0; biased
+                                   #   toward perfect matches when the hit list is full)
   current_assemblies_only: true    # the latest version of each assembly
   exclude_atypical: true           # NCBI's "atypical" flag (assembly problems)
   max_assemblies_per_run: 20000    # newest first; the rest follow on later runs (resumable)
   flank_nt: 50                     # bases kept on each side of the amplicon
   seed_length: 16                  # exact k-mers of the reference amplicon used to find it
   seed_step: 4                     #   (every 4th position, both strands)
+  # blast_partitioned only:
+  nucleotide_query: null           # extra Entrez filter for the record list, e.g. "25000:32000[SLEN]"
+  blast_max_records_per_run: 2000  # newest first; one BLAST search per blast_records_per_search
+  blast_records_per_search: 100    # accessions per search (100 checked live; the maximum here)
 
 report:
   include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)

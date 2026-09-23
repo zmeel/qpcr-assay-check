@@ -120,7 +120,7 @@ class VariantSummary(BaseModel):
         description="the target search returned a full hit list for at least one oligo, so the "
         "tables are biased toward perfect matches (see LIST_FULL_NOTE)",
     )
-    source: Literal["blast_hits", "datasets"] = Field(
+    source: Literal["blast_hits", "datasets", "blast_partitioned"] = Field(
         default="blast_hits",
         description="blast_hits: the target tier's BLAST hits; datasets: every genome assembly "
         "of the target in NCBI Datasets (exhaustive, see coverage)",
@@ -299,6 +299,6 @@ def build_variant_summary(
         fragment_total=total_fragments,
         fragment_excluded_unmeasured=excluded,
         fragments=fragments,
-        source="datasets" if coverage is not None else "blast_hits",
+        source=coverage.source if coverage is not None else "blast_hits",  # type: ignore[arg-type]
         coverage=coverage,
     )

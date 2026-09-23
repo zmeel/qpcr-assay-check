@@ -203,9 +203,15 @@ contain the region at all (listed, to review), and how many carry more than one 
 - **Needs the reference amplicon:** the assay's `reference_amplicon`, or a target `accession`
   in which both primers match exactly.
 - **Genome assemblies only.** Sequences submitted without an assembly (single genes, amplicons)
-  are not in this collection. For such targets, and for viruses with millions of records, set
-  `variants.source: blast_hits` to use the target tier's BLAST hits as before (biased toward
-  perfect matches when the hit list is full, and the report says so).
+  are not in this collection. For such targets use `variants.source: blast_partitioned`: every
+  NCBI Nucleotide record of the target is listed (ESearch, newest year first, optionally narrowed
+  with `variants.nucleotide_query`, e.g. `"25000:32000[SLEN]"` for near-complete SARS-CoV-2
+  genomes) and the reference amplicon is BLASTed against lists of 100 records at a time, so no
+  search can fill its hit list. At most `variants.blast_max_records_per_run` (2,000, i.e. 20
+  searches) per run; a target with millions of records is covered newest first over many runs,
+  and the report says how far it got. This sends the reference amplicon to NCBI BLAST.
+  `variants.source: blast_hits` keeps the v1.0 behaviour (the target tier's own hits, biased
+  toward perfect matches when the hit list is full, and the report says so).
 - **Inclusivity** is built from the same assemblies, per release year, when this source is used.
 - **Emerging variants:** the history section compares each run's variant tables with the
   previous run's and lists new variants, marked "emerging" when their first assembly was released
