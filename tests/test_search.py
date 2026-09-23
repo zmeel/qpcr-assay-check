@@ -249,7 +249,21 @@ def test_target_tier_saturation_is_informational_not_a_warning(cli_env, tmp_path
     (search_dir,) = list((cli_env.out / "cdc-2019-ncov-n1").glob("search-*"))
     doc = json.loads((search_dir / "search.json").read_text())
     # This fake never resolves organism names, so the exclusivity tier is never searched either
-    # (a separate, expected warning); no OTHER warning (e.g. from saturation) is present.
-    assert [w for w in doc["warnings"] if "organism-list name" not in w] == []
+    # (a separate, expected warning), and background_taxids is empty so human is not searched
+    # (also expected); no OTHER warning (e.g. from saturation) is present.
+    expected = ("organism-list name", "Human (taxid 9606)")
+    assert [w for w in doc["warnings"] if not any(e in w for e in expected)] == []
     assert any("Expected for a well-sequenced target" in n for n in doc["notes"])
     assert doc["searches"][0]["saturation"][0]["saturated"] is True  # still recorded
+
+
+def test_empty_background_list_drops_the_tier_and_warns_that_human_is_not_searched(cfg, n1):
+    cfg = cfg.model_copy(deep=True)
+    cfg.search.background_taxids = []
+    plan = plan_searches(n1, cfg)
+    assert [s.tier for s in plan.searches] == ["target"]
+    assert any("Human (taxid 9606)" in w for w in plan.warnings)
+
+
+def test_default_background_list_does_not_warn_about_human(cfg, n1):
+    assert not any("Human (taxid 9606)" in w for w in plan_searches(n1, cfg).warnings)

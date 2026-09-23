@@ -19,6 +19,7 @@ from .models import Assay, Status
 from .oligo.qc import run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
+from .search.planner import HUMAN_TAXID
 from .specificity.models import SpecificityResult
 from .specificity.variants import VariantSummary, build_variant_summary
 from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
@@ -95,6 +96,9 @@ def evaluate(
     ]
     exclusivity: ExclusivityResult | None = None
     variant_summary: VariantSummary | None = None
+    human_not_searched = search_outcome is not None and not any(
+        HUMAN_TAXID in r.taxids for r in search_outcome.searches if r.tier != "target"
+    )
     if specificity is not None:
         variant_summary = build_variant_summary(specificity, assay)
         n = specificity.n_sites
@@ -108,6 +112,7 @@ def evaluate(
                     f"{n.get('critical', 0)} critical and {n.get('warning', 0)} warning sites; "
                     f"{specificity.n_fetched} sequence windows used, "
                     f"{specificity.n_fetch_failed} could not be fetched."
+                    + (" Human background was not searched." if human_not_searched else "")
                 ),
             )
         )
@@ -242,6 +247,12 @@ def evaluate(
             for f in specificity.findings
             if f.severity in ("FAIL", "INCOMPLETE", "WARN")
         ]
+    if human_not_searched:
+        findings.append(
+            f"Human background: no search in this run covered human (taxid {HUMAN_TAXID}), so "
+            "off-target binding to human DNA was not evaluated. Add 9606 to "
+            "'search.background_taxids' to include it."
+        )
     if exclusivity is not None and exclusivity.unresolved:
         names = ", ".join(r.name for r in exclusivity.unresolved[:10])
         n_more = len(exclusivity.unresolved) - 10
