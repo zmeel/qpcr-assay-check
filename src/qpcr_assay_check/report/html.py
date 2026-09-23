@@ -10,6 +10,7 @@ from markupsafe import Markup, escape
 
 from ..config import Config
 from ..results import CheckResult, RunResult
+from ..specificity.variants import LIST_FULL_NOTE
 from . import plots
 
 _GROUPS = [
@@ -34,7 +35,7 @@ VERDICT_MEANING = {
 def _seq_html(seq: str, tail: int = 5) -> Markup:
     """5'-…-3' with the last ``tail`` nt (the 3' end) emphasised."""
     s = str(escape(seq))
-    if len(s) > tail:
+    if 0 < tail < len(s):
         s = f'{s[:-tail]}<b class="tail">{s[-tail:]}</b>'
     return Markup(f'<span class="seq">5′-{s}-3′</span>')  # noqa: S704 - content escaped above
 
@@ -45,15 +46,17 @@ def _alignment_html(site: Any, tail: int = 5) -> Markup:
     Columns belonging to the last ``tail`` oligo bases are underlined; mismatched subject bases
     are highlighted, gaps shaded, and unaligned (not re-aligned) positions shown as dots.
     """
+    if getattr(site, "role", None) == "probe":
+        tail = 0  # a hydrolysis probe is not extended: no 3' end to emphasise
     q, s, mid = site.q_aln, site.s_aln, site.midline
     n_oligo = sum(c != "-" for c in q)
     seen = 0
     lines: list[list[str]] = [[], [], []]
     for qc, sc, mc in zip(q, s, mid.ljust(len(q)), strict=True):
-        is_tail = qc != "-" and seen >= n_oligo - tail
+        is_tail = tail > 0 and qc != "-" and seen >= n_oligo - tail
         if qc != "-":
             seen += 1
-        elif seen >= n_oligo - tail:
+        elif tail > 0 and seen >= n_oligo - tail:
             is_tail = True
         if sc == ".":
             klass = "un"
@@ -169,6 +172,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
+        list_full_note=LIST_FULL_NOTE,
         qc=result.oligo_qc,
         assay=result.assay,
         groups=groups,

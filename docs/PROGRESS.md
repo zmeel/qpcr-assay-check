@@ -25,6 +25,17 @@ verified NCBI facts) at the start of every session. Newest entry first.
   record. 348 tests pass. **Not yet seen live**: the next full run should show the section; check
   the `-v` log line "Variant summary: N target-tier site(s) for forward, M partial" to see how
   many fetches SARS-CoV-2 costs, and record it in docs/ARCHITECTURE.md.
+- Second live run with the variant fix (v1.0.0 + PR #12): section now appears, but every target
+  hit is a perfect match (5000/5000 forward and probe, 4999/5000 reverse), 0 partial hits, 2,106
+  complete fragments / 5,862 excluded. Cause: BLAST's top 5000 by score among ~9 M records. The
+  user chose: state the bias whenever the target hit list is full (variant section, xlsx Summary,
+  inclusivity rationale), fix the fragment exclusion wording and "<0.1%", and stop underlining the
+  probe's 3' end. Done; 353 tests pass.
+- **Proposed next phase, not yet approved:** unbiased variant/inclusivity sampling for targets that
+  fill the hit list (e.g. several smaller target searches restricted by submission date or other
+  Entrez filters, each under the cap). Check current NCBI docs on what ENTREZ_QUERY supports
+  before designing. Also open: make the 5-nt 3'-end window configurable or tie it to
+  `primer_site.*.min_clean_3prime_nt` (currently fixed at 5 in code and report text).
 - Open: ask the user for the exclusivity search's submitted/finished times from `jobs.json` and
   record the measured duration in `docs/ARCHITECTURE.md`.
 

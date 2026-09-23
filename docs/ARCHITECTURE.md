@@ -173,6 +173,14 @@ report and nothing else this project didn't already improve on.
   `evaluate()` separately and never enter the off-target counts, verdict, hits.tsv or
   results.json; only the lumped `VariantSummary` is stored. Cost: one cached `efetch` per partial
   target hit, at most `hitlist_size` per oligo.
+  **Measured live (CDC N1, 2026-09-23):** 5000 / 5000 / 5002 target sites for forward /
+  reverse / probe, 0 partial, so 0 extra fetches; every site a perfect match except one `N` in a
+  reverse site. That is the hit-list bias, not the absence of variants: SARS-CoV-2 has about 9
+  million records and BLAST ranks by score, so a full list holds only the best matches. Only 2,106
+  records carried all three oligos among the hits (5,862 excluded), because each oligo's top 5000
+  is a separate selection among millions of tied perfect matches. The report now says so whenever
+  the target list is full; real variant frequencies for such targets need a different sample
+  (not yet designed, see PROGRESS.md).
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's

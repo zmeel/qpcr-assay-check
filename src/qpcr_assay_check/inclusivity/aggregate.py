@@ -178,6 +178,17 @@ def compute_inclusivity(
 
     verdict, rationale = _verdict(oligo_results, rules)
     rationale += _unassessed_years(oligo_results)
+    if any(
+        len(parsed[ps.key].queries[label].hits) >= cfg.search.hitlist_size
+        for ps in target_searches
+        if ps.key in parsed
+        for label in ps.labels
+    ):
+        rationale.append(
+            "The target search's hit list was full, and BLAST lists the best-scoring matches "
+            "first: each year's sample is drawn from those hits, so it is biased toward perfect "
+            "matches and can understate how many records carry mismatches."
+        )
     return InclusivityResult(
         tier_searched=True,
         target_taxid=taxid,

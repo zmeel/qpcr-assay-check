@@ -103,6 +103,12 @@ def evaluate(
     if specificity is not None:
         if target_sites is not None:
             variant_summary = build_variant_summary(target_sites, assay)
+            variant_summary.target_list_full = search_outcome is not None and any(
+                sat.list_full
+                for r in search_outcome.searches
+                if r.tier == "target"
+                for sat in r.saturation
+            )
         n = specificity.n_sites
         sections.append(
             SectionResult(

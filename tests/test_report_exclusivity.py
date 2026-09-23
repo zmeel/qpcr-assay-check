@@ -158,3 +158,66 @@ def test_a_run_with_a_human_search_does_not_flag_it(n1):
 def test_qc_only_runs_do_not_mention_human_background(n1):
     result = evaluate(n1, load_config(), qc_only=True, now=NOW)
     assert not any("Human background" in line for line in result.overall.rationale)
+
+
+# ------------------------------------------------ variant summary: full target hit list, underline
+def _target_record(list_full: bool):
+    from qpcr_assay_check.search.assess import QuerySaturation
+
+    return SearchRecord(
+        tier="target", label="target", taxids=[2697049], entrez_query=None, key="t", rid=None,
+        state="done", blast_version=None, database=None, n_hits={}, restriction=None,
+        saturation=[QuerySaturation(
+            label="forward", n_hits=5000 if list_full else 10, hitlist_size=5000,
+            list_full=list_full, weakest_identity=20, min_relevant_identity=14,
+            saturated=list_full, note="",
+        )],
+    )  # fmt: skip
+
+
+def _variant_result(n1, *, list_full: bool, n_rare: int = 0):
+    from .test_variants import mk_site
+
+    sites = [mk_site(role, acc=f"A{i}.1") for i in range(2000) for role in ("forward", "probe")]
+    sites += [mk_site("forward", acc=f"R{i}.1", s_aln="AAAT", mm=1) for i in range(n_rare)]
+    outcome = _search_outcome()
+    outcome.searches.append(_target_record(list_full))
+    return evaluate(
+        n1, load_config(), now=NOW, specificity=_specificity_with_exclusivity(),
+        organism_resolution=_resolution(), search_outcome=outcome, target_sites=sites,
+    )  # fmt: skip
+
+
+def test_a_full_target_hit_list_marks_the_variant_tables_as_biased(n1, tmp_path):
+    result = _variant_result(n1, list_full=True)
+    assert result.variant_summary.target_list_full
+    html = render_report(result, load_config())
+    assert "Biased toward perfect matches." in html
+    assert "separate selection of records" in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    summary = {
+        r[0].value: r[1].value for r in load_workbook(tmp_path / "r.xlsx")["Summary"].iter_rows()
+    }
+    assert "biased toward perfect matches" in summary["Variant tables"]
+
+
+def test_a_target_hit_list_with_room_to_spare_is_not_marked_biased(n1):
+    result = _variant_result(n1, list_full=False)
+    assert not result.variant_summary.target_list_full
+    assert "Biased toward perfect matches." not in render_report(result, load_config())
+
+
+def test_a_rare_variant_shows_as_below_0_1_percent_not_zero(n1):
+    html = render_report(_variant_result(n1, list_full=False, n_rare=1), load_config())
+    assert "&lt;0.1% of 2001" in html and ">0.0% of 2001" not in html
+
+
+def test_only_primers_get_the_3prime_underline():
+    from qpcr_assay_check.report.html import _alignment_html, _seq_html
+
+    from .test_variants import mk_site
+
+    assert 'class="tail"' in _seq_html("ACGTACGTAC")
+    assert 'class="tail"' not in _seq_html("ACGTACGTAC", 0)
+    assert "tail" in _alignment_html(mk_site("forward"))
+    assert "tail" not in _alignment_html(mk_site("probe"))
