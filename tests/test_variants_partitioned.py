@@ -13,7 +13,7 @@ from qpcr_assay_check.variants.partitioned import collect_partitioned
 from .conftest import CDC_N1_F as F
 from .conftest import make_assay
 from .fake_nuccore import FakeNuccore, FakeRecord
-from .test_variants_exhaustive import AMP, F_VARIANT
+from .test_variants_exhaustive import AMP, F_VARIANT, HIDDEN, REF
 from .world import filler, make_runner
 
 NOW = datetime(2026, 9, 23, tzinfo=UTC)
@@ -34,21 +34,22 @@ def records() -> list[FakeRecord]:
     ]
 
 
-def setup(tmp_path, fake, **variants):
+def setup(tmp_path, fake, *, assay=None, fetch_fasta=lambda a: "", **variants):
     cfg = load_config()
     cfg.variants.source = "blast_partitioned"
     for k, v in variants.items():
         setattr(cfg.variants, k, v)
     runner, jobs, fetcher = make_runner(cfg, tmp_path, fake)
-    assay = make_assay(reference_amplicon=AMP, target={"taxid": 2697049})
+    assay = assay or make_assay(reference_amplicon=AMP, target={"taxid": 2697049})
 
-    def collector(store, taxon, amplicon):
+    def collector(store, taxon, amplicon, context):
         return collect_partitioned(
-            fetcher.eutils, runner, jobs, fetcher, store, taxon, amplicon, cfg, now=NOW
-        )
+            fetcher.eutils, runner, jobs, fetcher, store, taxon, amplicon, cfg, now=NOW,
+            context=context,
+        )  # fmt: skip
 
     def run():
-        return run_exhaustive(assay, cfg, None, tmp_path / "cache", lambda a: "", now=NOW,
+        return run_exhaustive(assay, cfg, None, tmp_path / "cache", fetch_fasta, now=NOW,
                               collector=collector, source="blast_partitioned")  # fmt: skip
 
     return run
@@ -178,3 +179,15 @@ def test_a_region_hidden_by_n_is_reported_as_masked_not_as_a_perfect_match(tmp_p
     assert c.found == 2  # the clean record and the one with Ns only between the oligos
     assert c.masked == 2 and set(c.masked_examples) == {"MZ000003.1", "MZ000004.1"}
     assert c.not_found == 1  # a plain N-run with no real bases of the amplicon: not "masked"
+
+
+def test_a_record_wholly_masked_by_n_is_reported_as_hidden_by_n(tmp_path):
+    """Live (v1.1.0): OZ558241.1 and similar, 1,144 N over the N1 region, called 'not found'."""
+    recs = records() + [FakeRecord("6", "OZ000006.1", "2026/06/01", HIDDEN)]
+    assay = make_assay(
+        reference_amplicon=AMP, target={"taxid": 2697049, "accession": "NC_045512.2"}
+    )
+    run = setup(tmp_path, FakeNuccore(recs), assay=assay, fetch_fasta=lambda a: f">{a}\n{REF}\n")
+    c = run().coverage
+    assert (c.found, c.masked, c.not_found) == (4, 1, 1)
+    assert c.masked_examples == ["OZ000006.1"] and c.not_found_examples == ["MZ000004.1"]

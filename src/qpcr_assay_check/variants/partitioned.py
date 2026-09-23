@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from ..config import Config
@@ -34,7 +35,7 @@ from ..ncbi.parser import Hsp, parse_blast_json
 from ..ncbi.runner import BlastRunner
 from ..specificity.fetch import WindowFetcher
 from .datasets import AssemblyRecord, parse_fasta_records
-from .locate import INDEL_TOLERANCE, Locus, find_loci, find_masked
+from .locate import INDEL_TOLERANCE, Locus, find_loci, scan_region
 from .models import YearCoverage
 from .store import RegionStore
 
@@ -87,8 +88,13 @@ def collect_partitioned(
     cfg: Config,
     *,
     now: datetime | None = None,
+    context: Callable[[], tuple[str, str]] | None = None,
 ) -> tuple[list[YearCoverage], int, int, int, list[str]]:
-    """List, BLAST in accession lists, and store the region of new records."""
+    """List, scan or BLAST, and store the region of new records.
+
+    ``context``: the reference sequence on each side of the amplicon, to recognise a region
+    wholly hidden by N (see :func:`~.locate.find_masked_by_context`).
+    """
     v = cfg.variants
     term = base_term(taxon, v.nucleotide_query)
     total = eutils.esearch_count("nuccore", term)
@@ -126,7 +132,7 @@ def collect_partitioned(
                 # records were not in it yet); only larger ones go to BLAST in accession lists
                 small = [r for r in recs if 0 < r.total_length <= v.direct_scan_max_length]
                 large = [r for r in recs if r not in small]
-                processed += _direct_scan(small, amplicon, cfg, fetcher, store)
+                processed += _direct_scan(small, amplicon, cfg, fetcher, store, context)
                 size = v.blast_records_per_search
                 for i in range(0, len(large), size):
                     _search(large[i : i + size], amplicon, cfg, runner, jobs, fetcher, store)
@@ -203,6 +209,7 @@ def _direct_scan(
     cfg: Config,
     fetcher: WindowFetcher,
     store: RegionStore,
+    context: Callable[[], tuple[str, str]] | None = None,
 ) -> int:
     """Fetch records whole (several per EFetch request) and scan them; returns how many stored.
 
@@ -226,11 +233,10 @@ def _direct_scan(
                 log.warning("EFetch returned no sequence for %s; retried next run", rec.accession)
                 continue
             desc, seq = got
-            contigs = {rec.accession: seq}
-            loci = find_loci(contigs, amplicon, **kw)
-            masked = [] if loci else find_masked(contigs, amplicon, **kw)
+            loci, masked = scan_region({rec.accession: seq}, amplicon, context, **kw)
             store.add(rec, loci, {rec.accession: desc}, found_by="direct_scan",
-                      direct_checked=True, masked=masked)  # fmt: skip
+                      direct_checked=True, masked=masked,
+                      context_checked=context is not None and any(context()))  # fmt: skip
             done += 1
     return done
 

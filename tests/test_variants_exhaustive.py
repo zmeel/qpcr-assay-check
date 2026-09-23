@@ -18,7 +18,7 @@ from qpcr_assay_check.report.html import render_report
 from qpcr_assay_check.report.xlsx import write_workbook
 from qpcr_assay_check.variants.datasets import DatasetsClient
 from qpcr_assay_check.variants.exhaustive import reference_amplicon, run_exhaustive
-from qpcr_assay_check.variants.locate import find_loci
+from qpcr_assay_check.variants.locate import find_loci, find_masked, find_masked_by_context
 from qpcr_assay_check.variants.store import RegionStore
 
 from .conftest import CDC_N1_F as F
@@ -370,3 +370,80 @@ def test_variants_are_not_compared_across_different_sources(tmp_path):
     second = _evaluate(assay, cfg, res, NOW, previous=first)
     assert not second.history.variants_compared and not second.history.variant_changes
     assert "Variants not compared" in second.history.variants_note
+
+
+# ------------------------------------------------------------------ wholly masked (v1.1.1)
+# Live: SARS-CoV-2 records with one run of 1,144 N over the whole N1 region (OZ558241.1) were
+# reported as 'not found'. Synthetic stand-ins: the reference around the amplicon is LEFT/RIGHT.
+LEFT, RIGHT = filler(1000, 50), filler(1000, 51)
+REF = filler(2000, 60) + LEFT + AMP + RIGHT + filler(2000, 61)
+HIDDEN = (
+    filler(2000, 60) + LEFT[:600] + "N" * (400 + len(AMP) + 300) + RIGHT[300:] + filler(2000, 61)
+)
+KW = {"seed_length": 16, "flank": 50}
+
+
+def test_a_region_wholly_hidden_by_n_is_placed_by_the_reference_around_it():
+    assert find_loci({"c": HIDDEN}, AMP, seed_step=4, **KW) == []
+    assert find_masked({"c": HIDDEN}, AMP, seed_step=4, **KW) == []  # no real base to match
+    for seq, strand in ((HIDDEN, "+"), (iupac.reverse_complement(HIDDEN), "-")):
+        (lc,) = find_masked_by_context({"c": seq}, AMP, LEFT, RIGHT, **KW)
+        assert lc.strand == strand
+        assert lc.region[lc.offset : lc.offset + len(AMP)] == "N" * len(AMP)
+    (lc,) = find_masked_by_context({"c": HIDDEN}, AMP, LEFT, RIGHT, **KW)
+    assert lc.start == 3000 - 50 - 20 + 1  # the amplicon starts after 3000 bases; flank + pad
+
+
+def test_real_bases_where_the_amplicon_should_be_are_not_called_masked():
+    divergent = LEFT + filler(len(AMP), 53) + RIGHT + "N" * 200  # absent or too divergent
+    assert find_masked_by_context({"c": divergent}, AMP, LEFT, RIGHT, **KW) == []
+    assert find_masked_by_context({"c": HIDDEN}, AMP, "", "", **KW) == []  # no context: no call
+
+
+def _masked_setup(tmp_path):
+    fake = FakeDatasets([
+        FakeAssembly("GCF_000000001.1", "2024-03-01", genome(1)),
+        FakeAssembly("GCA_000000009.1", "2026-04-01", {"CTG9.1": HIDDEN}),
+        FakeAssembly("GCA_000000004.1", "2026-02-01", {"CTG4.1": filler(6000, 4)}),  # absent
+    ])  # fmt: skip
+    cfg, fake, client, _assay = setup(tmp_path, fake=fake)
+    assay = make_assay(reference_amplicon=AMP, target={"taxid": 813, "accession": "NC_000117.1"})
+    fetched: list[str] = []
+
+    def fetch(acc: str) -> str:
+        fetched.append(acc)
+        return f">{acc}\n{REF}\n"
+
+    def go():
+        return run_exhaustive(assay, cfg, client, tmp_path / "cache", fetch, now=NOW)
+
+    return go, fetched, fake
+
+
+def test_a_wholly_masked_assembly_is_counted_as_hidden_by_n_not_as_not_found(tmp_path):
+    go, fetched, _fake = _masked_setup(tmp_path)
+    c = go().coverage
+    assert (c.found, c.masked, c.not_found) == (1, 1, 1)
+    assert c.masked_examples == ["GCA_000000009.1"] and c.not_found_examples == ["GCA_000000004.1"]
+    assert fetched == ["NC_000117.1"]  # the reference, once, only because something was not found
+    assert go().coverage.masked == 1 and fetched == ["NC_000117.1"]  # nothing rescanned or fetched
+
+
+def test_not_found_entries_stored_before_v1_1_1_are_checked_once_for_a_masked_region(tmp_path):
+    go, fetched, fake = _masked_setup(tmp_path)
+    go()
+    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
+    # as v1.1.0 stored them: the masked one as 'not found', neither with context_checked
+    lines = []
+    for line in path.read_text().splitlines():
+        item = json.loads(line)
+        item.pop("context_checked", None)
+        if item["status"] == "masked":
+            item.update(status="not_found", loci=[], n_loci=0)
+        lines.append(json.dumps(item))
+    path.write_text("\n".join(lines) + "\n")
+    for f in path.parent.glob("*.context.json"):
+        f.unlink()  # and without the cached reference context
+    c = go().coverage
+    assert c.processed_this_run == 2 and (c.masked, c.not_found) == (1, 1)
+    assert go().coverage.processed_this_run == 0  # checked once, not every run

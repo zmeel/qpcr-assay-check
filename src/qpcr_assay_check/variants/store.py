@@ -65,19 +65,24 @@ class StoredAssembly(BaseModel):
         description="Nucleotide records only: a record without a BLAST hit was fetched and "
         "scanned directly before being called 'not found'",
     )
+    context_checked: bool | None = Field(
+        default=None,
+        description="'not found' only: whether the reference sequence around the amplicon was "
+        "searched for a region wholly hidden by N (None: stored before v1.1.1)",
+    )
 
     @property
     def needs_rescan(self) -> bool:
         """Stored before a check this version makes: scan it again (once)."""
         if self.plasmid_contigs is None:
             return True
-        # 'not found' Nucleotide records stored before the direct scan existed (None); a record
-        # too long to fetch is stored with False and is not retried every run
+        if self.status != "not_found" or self.direct_checked is False:
+            return False  # a record too long to fetch (False) is not retried every run
+        # 'not found' Nucleotide records stored before the direct scan existed, and any 'not
+        # found' stored before the check for a region wholly hidden by N (v1.1.1)
         return (
-            self.assembly_level == "Nucleotide record"
-            and self.status == "not_found"
-            and self.direct_checked is None
-        )
+            self.assembly_level == "Nucleotide record" and self.direct_checked is None
+        ) or self.context_checked is None
 
     @property
     def year(self) -> int:
@@ -130,6 +135,7 @@ class RegionStore:
         found_by: str | None = None,
         direct_checked: bool | None = None,
         masked: list[Locus] | None = None,
+        context_checked: bool | None = None,
     ) -> StoredAssembly:
         """Store one assembly/record. ``masked``: no clean copy, but the region is there under N."""
         item = StoredAssembly(
@@ -155,6 +161,7 @@ class RegionStore:
             ][:3],
             found_by=(found_by or "scan") if loci else None,  # type: ignore[arg-type]
             direct_checked=direct_checked,
+            context_checked=context_checked if not loci and not masked else None,
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as fh:

@@ -16,6 +16,7 @@ unfinished first run of a very large species says exactly how far it got.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -34,7 +35,7 @@ from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
-from .locate import find_loci, find_masked
+from .locate import CONTEXT_NT, scan_region
 from .models import ExhaustiveCoverage, YearCoverage
 from .store import RegionStore, StoredAssembly, StoredLocus, store_path
 
@@ -70,6 +71,67 @@ def reference_amplicon(assay: Assay, fetch_fasta: Callable[[str], str]) -> tuple
     )
 
 
+class ReferenceContext:
+    """The reference sequence just before and after the amplicon (sense), from the accession.
+
+    Used only to recognise a region wholly hidden by N, so it is fetched on first use (the first
+    record in which the amplicon is not found) and kept in ``cache_file`` for later runs.
+    ``("", "")`` when the assay names no accession, the fetch fails (retried next run), or the
+    amplicon is not in the accession exactly: a wholly masked region then stays 'not found'.
+    """
+
+    def __init__(
+        self, assay: Assay, amplicon: str, fetch_fasta: Callable[[str], str], cache_file: Path
+    ) -> None:
+        self.acc = assay.target.accession or ""
+        self.amplicon = amplicon.upper()
+        self.fetch_fasta = fetch_fasta
+        self.cache_file = cache_file
+        self._value: tuple[str, str] | None = None
+
+    def __call__(self) -> tuple[str, str]:
+        if self._value is None:
+            self._value = self._load()
+        return self._value
+
+    def _load(self) -> tuple[str, str]:
+        if not self.acc:
+            return "", ""
+        try:
+            cached = json.loads(self.cache_file.read_text(encoding="utf-8"))
+            if cached.get("accession") == self.acc:
+                return cached["left"], cached["right"]
+        except (OSError, ValueError, KeyError):
+            pass
+        try:
+            ctx = reference_context(self.amplicon, parse_fasta(self.fetch_fasta(self.acc)))
+        except NcbiError as exc:
+            log.warning("Could not fetch %s for the sequence around the amplicon: %s", self.acc,
+                        exc)  # fmt: skip
+            return "", ""
+        if not any(ctx):
+            log.warning(
+                "The reference amplicon is not in %s exactly; a region wholly hidden by N will "
+                "be reported as not found.", self.acc,
+            )  # fmt: skip
+        self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+        self.cache_file.write_text(
+            json.dumps({"accession": self.acc, "left": ctx[0], "right": ctx[1]}), encoding="utf-8"
+        )
+        return ctx
+
+
+def reference_context(amplicon: str, seqs: dict[str, str]) -> tuple[str, str]:
+    """Up to ``CONTEXT_NT`` bases before and after the first exact copy of the amplicon."""
+    amp = amplicon.upper()
+    for seq in seqs.values():
+        for s in (seq.upper(), iupac.reverse_complement(seq.upper())):
+            i = s.find(amp)
+            if i >= 0:
+                return s[max(0, i - CONTEXT_NT) : i], s[i + len(amp) : i + len(amp) + CONTEXT_NT]
+    return "", ""
+
+
 def oligo_sites(
     assay: Assay, amplicon: str, max_mismatches: int
 ) -> dict[str, tuple[str, int, int]]:
@@ -95,6 +157,7 @@ def collect(
     cfg: Config,
     *,
     now: datetime | None = None,
+    context: Callable[[], tuple[str, str]] | None = None,
 ) -> tuple[list[YearCoverage], int, int, int, list[str]]:
     """List, download and scan new assemblies; returns per-year coverage and run counters."""
     v = cfg.variants
@@ -117,7 +180,7 @@ def collect(
                     pending.append(rec)
                     if processed + len(pending) >= budget:
                         break
-                p, f, accs = _process(client, store, pending, amplicon, cfg)
+                p, f, accs = _process(client, store, pending, amplicon, cfg, context)
                 processed, failed = processed + p, failed + f
                 failed_accessions += accs
             assessed = sum(1 for it in store.items.values() if it.year == year)
@@ -136,6 +199,7 @@ def _process(
     records: list[AssemblyRecord],
     amplicon: str,
     cfg: Config,
+    context: Callable[[], tuple[str, str]] | None = None,
 ) -> tuple[int, int, list[str]]:
     batch = cfg.ncbi.datasets_batch_size
     v = cfg.variants
@@ -157,9 +221,9 @@ def _process(
             records_ = parse_fasta_records(fasta)
             contigs = {name: seq for name, (_d, seq) in records_.items()}
             kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt}
-            loci = find_loci(contigs, amplicon, **kw)
-            masked = [] if loci else find_masked(contigs, amplicon, **kw)
-            store.add(rec, loci, {name: d for name, (d, _s) in records_.items()}, masked=masked)
+            loci, masked = scan_region(contigs, amplicon, context, **kw)
+            store.add(rec, loci, {name: d for name, (d, _s) in records_.items()}, masked=masked,
+                      context_checked=context is not None and any(context()))  # fmt: skip
             done += 1
         log.info("  %d / %d assemblies scanned", i + len(chunk), len(records))
     return done, failed, failed_accessions
@@ -341,7 +405,10 @@ def exhaustive_inclusivity(
 
 
 # ------------------------------------------------------------------ one call for the CLI
-Collector = Callable[[RegionStore, int, str], tuple[list[YearCoverage], int, int, int, list[str]]]
+Collector = Callable[
+    [RegionStore, int, str, Callable[[], tuple[str, str]]],
+    tuple[list[YearCoverage], int, int, int, list[str]],
+]
 
 
 @dataclass
@@ -368,20 +435,31 @@ def run_exhaustive(
     """Collect new assemblies (or Nucleotide records), then assess every stored one.
 
     ``collector`` replaces the NCBI Datasets collection (``source`` names it, e.g.
-    ``blast_partitioned``); it receives the store, the taxon and the amplicon. Raises InputError
+    ``blast_partitioned``); it receives the store, the taxon, the amplicon and the reference
+    sequence on each side of it. Raises InputError
     or NcbiError.
     """
     taxon = assay.target.taxid
     if taxon is None:
         raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
-    amplicon, amp_source = reference_amplicon(assay, fetch_fasta)
+    fetched: dict[str, str] = {}
+
+    def fetch_once(acc: str) -> str:  # the amplicon and its context come from one record
+        if acc not in fetched:
+            fetched[acc] = fetch_fasta(acc)
+        return fetched[acc]
+
+    amplicon, amp_source = reference_amplicon(assay, fetch_once)
     placed = oligo_sites(assay, amplicon, cfg.thresholds.amplicon.max_site_mismatches)
     v = cfg.variants
     store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt, source))
+    context = ReferenceContext(assay, amplicon, fetch_once, store.path.with_suffix(".context.json"))
     if collector is None:
-        years, total, processed, failed, _f = collect(client, store, taxon, amplicon, cfg, now=now)
+        years, total, processed, failed, _f = collect(
+            client, store, taxon, amplicon, cfg, now=now, context=context
+        )
     else:
-        years, total, processed, failed, _f = collector(store, taxon, amplicon)
+        years, total, processed, failed, _f = collector(store, taxon, amplicon, context)
     if total == 0:
         what = (
             "genome assemblies in NCBI Datasets"

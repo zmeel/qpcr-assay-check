@@ -4,7 +4,7 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v1.1.0 (alpha, 2026-09-23).** A full `run` sends the oligos to NCBI (tiered,
+> **Status: v1.1.1 (alpha, 2026-09-23).** A full `run` sends the oligos to NCBI (tiered,
 > taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
 > every relevant hit, predicts off-target products, and judges specificity — genuine
 > `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
@@ -215,7 +215,10 @@ contain the region at all (listed, to review), and how many carry more than one 
   toward perfect matches when the hit list is full, and the report says so).
 - **Inclusivity** is built from the same assemblies, per release year, when this source is used.
 - **Regions hidden by N** (low-coverage sequencing) are found with N-tolerant seeds and reported
-  as masked, with examples; they are not counted as matches or variants.
+  as masked, with examples; they are not counted as matches or variants. A region that is N from
+  end to end (v1.1.1; live: SARS-CoV-2 records with 1,144 N over N1) is placed by the reference
+  sequence on either side of the amplicon, taken once from the assay's `target.accession` and
+  cached; without an accession it is still counted as not found.
 - **Emerging variants:** the history section compares each run's variant tables with the
   previous run's and lists new variants, marked "emerging" when their first assembly was released
   after the previous run. A new variant with a primer 3'-end mismatch or 2+ mismatches makes the
@@ -568,7 +571,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
 | 0.4.0 | Taxonomy resolution, organism list, exclusivity, inclusivity |
 | 1.0.0 | Run history, yearly diff report, Docker — all confirmed live |
-| **1.1.0** | Exhaustive variant analysis (NCBI Datasets genomes; Nucleotide records by direct scan + partitioned BLAST), N-masked regions, new-variant history — confirmed live |
+| 1.1.0 | Exhaustive variant analysis (NCBI Datasets genomes; Nucleotide records by direct scan + partitioned BLAST), N-masked regions, new-variant history — confirmed live |
+| **1.1.1** | Regions wholly hidden by N reported as masked, not as not found |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 

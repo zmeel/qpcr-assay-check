@@ -230,6 +230,15 @@ report and nothing else this project didn't already improve on.
   region hidden by N is detected with N-tolerant seeds (a seed counts only with at least half its
   bases real, a locus needs two agreeing seeds) and reported as masked. A found region whose
   oligo site contains N is also masked, since the aligner would otherwise count N as a match.
+  A region that is N from end to end leaves no real base for those seeds (live, v1.1.0:
+  OZ558241.1 and nine similar SARS-CoV-2 records, one N run over 27317-28460 covering N1 at
+  about 28287-28358, reported as 'not found'). Since v1.1.1 the reference sequence on each side
+  of the amplicon (1,000 nt, from the assay's `target.accession`, fetched only when a record
+  is not found and cached next to the region store) is located with exact seeds (every 8 nt,
+  at least 3 agreeing); if at least half of the window where the amplicon should be is N, the
+  record is masked. A window of real bases stays 'not found'. 'Not found' entries stored
+  before v1.1.1 (`context_checked` absent) are scanned once more; checked on the real records
+  OZ558241.1 and OZ558247.1 against NC_045512.2, on both strands.
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's
