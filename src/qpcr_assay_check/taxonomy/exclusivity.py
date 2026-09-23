@@ -53,6 +53,12 @@ class ExclusivityResult(BaseModel):
     unresolved: list[Resolution]
     n_organisms: int
     n_resolved: int
+    source: Literal["assay", "global"] | None = Field(
+        default=None,
+        description="Which exclusivity list this run used: this assay's own "
+        "'exclusivity_organisms', or the global/packaged list. None when the tier was never "
+        "searched, so no list was ever loaded.",
+    )
 
 
 def _best(sites: list[SiteResult]) -> SiteResult:
@@ -151,4 +157,5 @@ def build_exclusivity(
         unresolved=resolution.unresolved if resolution else [],
         n_organisms=len(resolutions),
         n_resolved=sum(1 for r in resolutions if r.status == "resolved"),
+        source=resolution.source if resolution else None,
     )

@@ -193,6 +193,29 @@ qpcr-assay-check init my-assay --example
 qpcr-assay-check run my-assay/assay.yaml -o results
 ```
 
+**Per-assay exclusivity panels.** A single global list applied to every assay is often the wrong
+panel — an STI assay and a respiratory assay do not have the same near neighbours. Give an assay
+its own panel with `exclusivity_organisms` in its `assay.yaml`:
+
+```yaml
+exclusivity_organisms:
+  - Mycoplasma genitalium
+  - Trichomonas vaginalis
+  - Ureaplasma urealyticum
+```
+
+`organisms.source` in `config.yaml` decides which list a run actually uses:
+- `assay` (the default): the assay's own `exclusivity_organisms` when it defines one; an assay
+  that leaves it empty falls back to the global list below, so existing assays keep working
+  unchanged until they opt in.
+- `global`: always the list from `organisms.list_file` (or the packaged starter list), even for an
+  assay that defines its own `exclusivity_organisms` — for a lab that wants one shared panel across
+  every assay regardless of what individual assay files contain.
+
+The report states which one a run actually used (an "Exclusivity list source" line in
+`results.xlsx`'s Summary sheet, `exclusivity.source` in `results.json`, and a notice at the top of
+the Exclusivity section in `report.html`), so this is never silently ambiguous after the fact.
+
 For a broader reference when curating your own organism list, see
 [`docs/clinical_pathogen_panels.md`](docs/clinical_pathogen_panels.md): human pathogens typically
 detected by real-time PCR, grouped by syndromic panel (respiratory, GI, meningitis/encephalitis,

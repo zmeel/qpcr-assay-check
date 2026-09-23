@@ -10,6 +10,7 @@ from ..config import Config
 from ..models import Assay
 from ..ncbi import blast
 from ..oligo import iupac
+from ..taxonomy.organisms import load_organism_list, organism_list_source
 
 MAX_BATCH_BASES = 1000  # NCBI: merge short queries into one search of up to 1,000 bases
 
@@ -123,9 +124,17 @@ def plan_searches(
     if exclusivity_taxids:
         tiers.append(("exclusivity", "Clinical organism list", sorted(set(exclusivity_taxids))))
     elif exclusivity_taxids is None:
+        source = organism_list_source(cfg, assay)
+        n_names = len(load_organism_list(cfg, assay).names)
+        which = (
+            f"this assay's own 'exclusivity_organisms' list ({n_names} name(s))"
+            if source == "assay"
+            else f"the global organism list ({n_names} name(s), 'organisms.list_file' or the "
+            "packaged starter list)"
+        )
         plan.notes.append(
-            "The exclusivity tier (clinical organism list) is resolved to taxonomy IDs when the "
-            "search actually runs; not shown in --dry-run."
+            f"The exclusivity tier will search {which}, resolved to taxonomy IDs when the search "
+            "actually runs; not shown in --dry-run."
         )
     if exclusivity_unresolved:
         plan.warnings.append(

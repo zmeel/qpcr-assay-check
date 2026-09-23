@@ -229,6 +229,70 @@ def test_exclusivity_end_to_end_with_a_real_organism_list(env, tmp_path):
     assert "Exclusivity" in wb.sheetnames
 
 
+def test_exclusivity_uses_the_assay_s_own_list_by_default(env, tmp_path):
+    """organisms.source defaults to "assay": an assay with its own exclusivity_organisms is
+    searched against that list instead of the global one, with no organisms.list_file needed."""
+    CT = 813
+    assay_yaml = tmp_path / "assay.yaml"
+    assay_yaml.write_text(
+        ROOT_EXAMPLE.read_text() + "\nexclusivity_organisms:\n  - Chlamydia trachomatis\n"
+    )
+    w = world_with(hits="none")
+    w.name("Chlamydia trachomatis", CT)
+    offtarget_genome(taxid=CT, acc="OT_CT.1", name="Chlamydia trachomatis", world=w)
+    w.hit(CT, "forward", F, "OT_CT.1", F_START, "+")
+    env.install(w)
+
+    r = runner.invoke(
+        app, ["run", str(assay_yaml), "--config", str(env.conf), "-o", str(env.out), "--yes"]
+    )
+    assert r.exit_code == 20, r.output  # a critical primer-only site in the exclusivity tier
+
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    excl = data["exclusivity"]
+    assert excl["source"] == "assay"
+    assert excl["n_organisms"] == 1
+    by_name = {row["organism"]: row for row in excl["rows"]}
+    assert by_name["Chlamydia trachomatis"]["n_sites"] >= 1
+
+    html = (run_dir(env) / "report.html").read_text()
+    assert "Source: this assay" in html
+
+
+def test_organisms_source_global_ignores_the_assay_s_own_list(env, tmp_path):
+    """organisms.source: global always uses the configured global list, even when the assay
+    defines its own exclusivity_organisms."""
+    NG = 485
+    organisms = tmp_path / "organisms.yaml"
+    organisms.write_text(
+        "categories:\n  - name: Global panel\n    organisms: [Neisseria gonorrhoeae]\n"
+    )
+    env.conf.write_text(
+        f"ncbi:\n  cache_dir: {tmp_path / 'cache'}\n"
+        f"organisms:\n  source: global\n  list_file: {organisms}\n"
+    )
+    assay_yaml = tmp_path / "assay.yaml"
+    assay_yaml.write_text(
+        ROOT_EXAMPLE.read_text() + "\nexclusivity_organisms:\n  - Chlamydia trachomatis\n"
+    )
+    w = world_with(hits="none")
+    w.name("Neisseria gonorrhoeae", NG)
+    env.install(w)
+
+    r = runner.invoke(
+        app, ["run", str(assay_yaml), "--config", str(env.conf), "-o", str(env.out), "--yes"]
+    )
+    assert r.exit_code == 30, r.output  # clean but INCOMPLETE: first run, no evidence anywhere
+
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    excl = data["exclusivity"]
+    assert excl["source"] == "global"
+    assert [row["organism"] for row in excl["rows"]] == ["Neisseria gonorrhoeae"]
+
+    html = (run_dir(env) / "report.html").read_text()
+    assert "Source: the global list" in html
+
+
 def test_exclusivity_excludes_the_assay_s_own_target_even_when_listed(env, tmp_path):
     """A live full run found: the packaged organism list includes SARS-CoV-2 itself (a
     respiratory panel commonly tests for it alongside other pathogens), which for a SARS-CoV-2

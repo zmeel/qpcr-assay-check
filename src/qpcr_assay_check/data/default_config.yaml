@@ -121,9 +121,19 @@ specificity:
 
 organisms:
   # The clinical organism list used for the 'exclusivity' search tier and report table.
+  source: assay                    # assay = use the assay.yaml's own 'exclusivity_organisms' list
+                                    #   when it defines one (a panel tailored to that assay's own
+                                    #   target); falls back to the global list below for any assay
+                                    #   that leaves 'exclusivity_organisms' empty, so this is safe
+                                    #   to leave as the default even before every assay has its own
+                                    #   list.
+                                    # global = always use the list below, ignoring any per-assay
+                                    #   'exclusivity_organisms', even if the assay defines one.
   list_file: null                  # null = packaged starter list (data/clinical_organisms.yaml);
                                     # a STARTING POINT only (see that file's own header) -- give
                                     # your own path to replace it with your laboratory's own list.
+                                    # Used when 'source: global', or as the fallback under
+                                    # 'source: assay' for an assay with no list of its own.
   resolve_synonyms: true            # also try Entrez's [All Names] when [Scientific Name] finds
                                      # nothing (taxonomic renames, e.g. Mycoplasma -> Mycoplasmoides)
 

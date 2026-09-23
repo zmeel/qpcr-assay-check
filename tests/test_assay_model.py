@@ -65,6 +65,22 @@ def test_taxid_lists_are_deduplicated_and_sorted():
     assert a.exclusion_taxids == [562, 9606]
 
 
+def test_exclusivity_organisms_defaults_to_empty():
+    assert make_assay().exclusivity_organisms == []
+
+
+def test_exclusivity_organisms_are_deduplicated_and_stripped_keeping_first_order():
+    a = make_assay(
+        exclusivity_organisms=["  Chlamydia trachomatis  ", "Chlamydia trachomatis", "Homo sapiens"]
+    )
+    assert a.exclusivity_organisms == ["Chlamydia trachomatis", "Homo sapiens"]
+
+
+def test_an_empty_string_exclusivity_organism_is_rejected():
+    with pytest.raises(ValidationError, match="must not be empty"):
+        make_assay(exclusivity_organisms=["Chlamydia trachomatis", "  "])
+
+
 def test_worst_status():
     assert worst([Status.PASS, Status.WARN, Status.INFO]) is Status.WARN
     assert worst([Status.PASS, Status.FAIL, Status.WARN]) is Status.FAIL

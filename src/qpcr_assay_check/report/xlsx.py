@@ -105,6 +105,11 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ["Tool version", result.tool["version"]],
             ["Inputs hash (SHA-256)", result.inputs_hash],
             ["Data sent to NCBI", "yes" if result.network_used else "no"],
+            *(
+                [["Exclusivity list source", result.exclusivity.source or "not determined"]]
+                if result.exclusivity is not None
+                else []
+            ),
             *[["Rationale", line] for line in result.overall.rationale],
         ],
         None,

@@ -141,3 +141,21 @@ def test_without_a_target_taxid_no_row_is_flagged():
     res = resolution(Resolution(name="Chlamydia trachomatis", status="resolved", taxid=CT))
     out = build_exclusivity(res, [], [], SEV, tier_searched=True, target_taxid=None)
     assert all(not row.is_target for row in out.rows)
+
+
+def test_the_resolution_s_source_is_carried_onto_the_result():
+    res = resolution(Resolution(name="Chlamydia trachomatis", status="resolved", taxid=CT))
+    res.source = "assay"
+    out = build_exclusivity(res, [], [], SEV, tier_searched=True)
+    assert out.source == "assay"
+
+
+def test_source_defaults_to_global_when_the_resolution_does_not_say():
+    res = resolution(Resolution(name="Chlamydia trachomatis", status="resolved", taxid=CT))
+    out = build_exclusivity(res, [], [], SEV, tier_searched=True)
+    assert out.source == "global"
+
+
+def test_no_resolution_has_no_source_either():
+    out = build_exclusivity(None, [], [], SEV, tier_searched=False)
+    assert out.source is None

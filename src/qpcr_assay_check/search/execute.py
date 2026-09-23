@@ -59,7 +59,7 @@ def _resolve_and_plan(
     excl_taxids = None
     excl_unresolved = 0
     if only_tiers is None or "exclusivity" in only_tiers:
-        resolution = resolve_organism_list(cfg, Eutils(http, cfg.ncbi.eutils_url), cache)
+        resolution = resolve_organism_list(cfg, Eutils(http, cfg.ncbi.eutils_url), cache, assay)
         excl_unresolved = len(resolution.unresolved)
         # The organism list may legitimately include the assay's own intended target (e.g. a
         # respiratory panel listing SARS-CoV-2 alongside the pathogens a SARS-CoV-2 assay is

@@ -318,8 +318,14 @@ td.aln-cell { min-width: 22rem; }
 {% if r.exclusivity %}
 <h2>Exclusivity against the clinical organism list</h2>
 <p>{{ chip(r.exclusivity.verdict.value) }} exclusivity ({{ r.exclusivity.n_resolved }} of {{ r.exclusivity.n_organisms }} organism-list name(s) resolved to a taxonomy ID)</p>
-<div class="notice"><p><strong>Starting point.</strong> The organism list is a starting point the laboratory must review and edit (see the packaged
-  <code>data/clinical_organisms.yaml</code> or your own <code>organisms.list_file</code>); it does not claim to be complete for any particular assay.</p></div>
+{% if r.exclusivity.source == 'assay' %}
+<div class="notice"><p><strong>Source: this assay's own list.</strong> This run used the <code>exclusivity_organisms</code>
+  list from this assay's own <code>assay.yaml</code> (<code>organisms.source: assay</code>, the default, prefers it over the global list
+  whenever the assay defines one). It is not itself claimed to be complete — review and edit it like any other assay input.</p></div>
+{% else %}
+<div class="notice"><p><strong>Source: the global list.</strong> {% if r.exclusivity.source == 'global' %}This run used the shared, global organism list{% else %}The organism list{% endif %} — a starting point the laboratory must review and edit (see the packaged
+  <code>data/clinical_organisms.yaml</code> or your own <code>organisms.list_file</code>); it does not claim to be complete for any particular assay. To use a panel tailored to this assay instead, give it its own <code>exclusivity_organisms</code> list in <code>assay.yaml</code> (used automatically under the default <code>organisms.source: assay</code>).</p></div>
+{% endif %}
 {% if not r.exclusivity.tier_searched %}
 <p>The exclusivity tier was not searched in this run (no organism name resolved to a taxonomy ID, or the tier was excluded from this run), so this section is INCOMPLETE.</p>
 {% else %}

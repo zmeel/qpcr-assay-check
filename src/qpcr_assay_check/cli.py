@@ -47,6 +47,8 @@ target:                   # REQUIRED: give a taxonomy ID and/or a reference acce
   gene:
 # reference_amplicon: ""  # optional sense-strand amplicon (enables amplicon checks)
 oligo_source: ""          # where these sequences come from (publication, vendor, in-house)
+# exclusivity_organisms:  # optional: this assay's own exclusivity panel (organism names), used
+#   - ""                  # instead of the global list when organisms.source is "assay" (default)
 """
 
 

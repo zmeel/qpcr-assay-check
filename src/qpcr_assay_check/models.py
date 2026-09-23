@@ -124,6 +124,13 @@ class Assay(BaseModel):
     target: Target
     near_neighbour_taxids: list[int] = Field(default_factory=list)
     exclusion_taxids: list[int] = Field(default_factory=list)
+    exclusivity_organisms: list[str] = Field(
+        default_factory=list,
+        description="This assay's own exclusivity panel (organism names, resolved to taxonomy "
+        "IDs the same way as the global list). Used for the exclusivity tier when "
+        "'organisms.source' is 'assay' (the default) and this list is non-empty; see "
+        "config.yaml's 'organisms' section.",
+    )
     reference_amplicon: str | None = Field(
         default=None,
         description="Optional reference amplicon (sense strand); enables amplicon QC in v0.1.0.",
@@ -174,6 +181,17 @@ class Assay(BaseModel):
         if any(t <= 0 for t in v):
             raise ValueError("taxonomy IDs must be positive integers")
         return sorted(set(v))
+
+    @field_validator("exclusivity_organisms")
+    @classmethod
+    def _exclusivity_organisms(cls, v: list[str]) -> list[str]:
+        seen: dict[str, None] = {}
+        for name in v:
+            name = name.strip()
+            if not name:
+                raise ValueError("exclusivity_organisms entries must not be empty")
+            seen.setdefault(name, None)
+        return list(seen)
 
     @property
     def oligos(self) -> dict[str, str]:

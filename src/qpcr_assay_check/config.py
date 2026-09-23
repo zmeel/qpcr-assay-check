@@ -360,6 +360,7 @@ class SpecificitySettings(_Strict):
 class OrganismsSettings(_Strict):
     """The clinical organism list used for the exclusivity tier (data/clinical_organisms.yaml)."""
 
+    source: Literal["assay", "global"]
     list_file: str | None
     resolve_synonyms: bool
 

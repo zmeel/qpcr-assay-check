@@ -136,6 +136,19 @@ report and nothing else this project didn't already improve on.
   `assay.target.taxid` out of the resolved taxids before they reach the exclusivity search. The
   organism-list row is still shown (never silently dropped), flagged via
   `ExclusivityRow.is_target`, with no site/amplicon evidence populated for it even defensively.
+- **The exclusivity list can be per-assay, and defaults to preferring that over the global one**
+  (unreleased, `Assay.exclusivity_organisms`, `organisms.source`): a single global panel applied
+  to every assay doesn't reflect that different assays have different real near neighbours (an STI
+  assay and a respiratory assay share almost none). `taxonomy/organisms.organism_list_source(cfg,
+  assay)` is the single place that decides: `"assay"` only when `organisms.source` is `"assay"`
+  (the packaged default) *and* the assay's own `exclusivity_organisms` is non-empty; `"global"`
+  otherwise -- deliberately including the default-config case where an assay simply hasn't been
+  given its own list yet, so every existing assay keeps its current (global-list) behaviour
+  unchanged until it opts in, rather than this being a breaking change. `organisms.source:
+  "global"` overrides an assay's own list entirely, for a lab that wants one shared panel
+  regardless of what individual assay files contain. The resolved source is carried onto
+  `OrganismListResolution`/`ExclusivityResult` and stated in the report, never left for the reader
+  to infer from which fields happen to be populated.
 - **The variant summary carries no verdict of its own** (unreleased, `specificity/variants.py`):
   like `taxonomy/rollup.py`, it is purely a different view of evidence the specificity assessment
   already scored, so it needs no new `SectionResult` and does not affect `combine()`. It reuses

@@ -18,6 +18,16 @@ All notable changes to this project are documented here. The format follows
   Reuses evidence the specificity assessment already scored (like `taxonomy/rollup.py`'s
   species/genus/family aggregation) -- no new NCBI calls, and no verdict of its own. New "Variant
   summary" report.html section and "Oligo variants"/"Fragment variants" xlsx sheets.
+- **Per-assay exclusivity panels**: `Assay.exclusivity_organisms`, a new optional field in
+  `assay.yaml`, lets one assay carry its own exclusivity organism list instead of always using the
+  single global/packaged one -- requested because a global panel applied to every assay doesn't
+  reflect that different assays have different real near neighbours. New `organisms.source`
+  config setting (`"assay"`, the default, prefers the assay's own list when it defines one and
+  falls back to the global list otherwise so existing assays keep working unchanged; `"global"`
+  always uses the global list regardless of what the assay defines) decides which list a run
+  actually uses. `ExclusivityResult.source` and `results.xlsx`'s Summary sheet record which one
+  was used, and `report.html`'s Exclusivity section states it explicitly, so this is never
+  silently ambiguous after the fact.
 
 ## [1.0.0] - 2026-09-22
 
