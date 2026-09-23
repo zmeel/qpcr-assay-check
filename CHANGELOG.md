@@ -6,7 +6,75 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-23
+
+Exhaustive variant analysis of the intended target, replacing the saturated target-tier BLAST
+hit list as the source of the variant summary and inclusivity.
+
 ### Added
+- **Exhaustive variant analysis from every genome assembly** (`variants/`, v1.1.0): the variant
+  summary and inclusivity are now built from all genome assemblies of the target in NCBI Datasets
+  (complete and draft; current, not atypical, one copy per GenBank/RefSeq pair), not from the
+  target tier's BLAST hits, which are biased toward perfect matches whenever the hit list is full
+  and miss draft (WGS) bacterial genomes entirely. Genomes are downloaded in batches, scanned for
+  the reference amplicon with exact seeds along the whole amplicon (both strands), and discarded;
+  only the region plus flanks is stored, so runs resume and later runs only process new
+  assemblies. Up to `variants.max_assemblies_per_run` (20,000) new assemblies per run, newest
+  first; the report shows coverage per release year (listed vs assessed), contig breaks, genomes
+  without the region (listed) and multi-copy genomes, and each variant's first and last release
+  date. New `variants` config section and `ncbi.datasets_url` / `ncbi.datasets_batch_size`;
+  `variants.source: blast_hits` keeps the previous behaviour. New `Variant coverage` xlsx sheet.
+  Endpoints from NCBI's published Datasets OpenAPI spec, behaviour checked live with
+  `scripts/probe_variant_sources.py`.
+- **Plasmid-borne targets: "region not found" split in two** (`variants/`): a genome assembly
+  without the target region either holds no plasmid sequence at all (common; many assemblies are
+  chromosome only, and that says nothing about the strain) or holds plasmid sequence but not the
+  region, which may be a deletion the assay would miss (as with the Swedish nvCT variant). When
+  the region is found on plasmid sequences, the report, the xlsx coverage sheet, the inclusivity
+  rationale and the overall rationale now count and list the second group separately. Plasmid
+  sequences are recognised by "plasmid" in their FASTA description; examples are shown in the
+  report so the rule can be checked. "Not found" entries stored before this change are scanned
+  again automatically. Found live: C. trachomatis cryptic-plasmid assay, 281 of 357 assemblies
+  without the region. Every entry stored without plasmid information (found or not) is scanned
+  again once, so the target's own location is known.
+- **Exhaustive inclusivity explains its gap**: columns read 'Assemblies' / 'With region', and the
+  rationale states how many assemblies are not counted because the region was not found or was
+  cut by a contig end (live: 2021, 154 assemblies, none with the region).
+- **Variant tables describe the match in words**: "perfect match", or the number of mismatches and
+  gaps and whether the primer's 3' end is intact, in place of the off-target "critical/warning"
+  levels (which read as a problem for the target). The fragment table shows mismatches per oligo;
+  the xlsx sheets get a "Matching 3' nt" column.
+- **Inclusivity title** says "all genome assemblies" instead of "sampled" when it is built from
+  every assembly.
+- **Partitioned BLAST variant source** (`variants.source: blast_partitioned`,
+  `variants/partitioned.py`): for targets without genome assemblies (viruses, single-gene
+  records), every NCBI Nucleotide record of the target is BLASTed with the reference amplicon in
+  lists of up to 100 accessions, so no search can fill its hit list; hits outside each list are
+  ignored and partial hits are completed from the record. Newest publication year first, at most
+  `blast_max_records_per_run` (2,000) records per run, resumable; optional
+  `variants.nucleotide_query` narrows the record list. Same variant tables, coverage, inclusivity
+  and history as the assembly source. The search plan states that the amplicon is sent to BLAST.
+  Records BLAST does not hit are fetched and scanned directly before being called "not found"
+  (found live: all 300 of the newest SARS-CoV-2 records had no BLAST hit, most likely because they
+  were not yet in the BLAST database); the report counts records found this way. The variant
+  section now also appears, with its coverage, when no oligo site could be assessed.
+  Records up to `direct_scan_max_length` (200,000 bases) are now fetched and scanned directly
+  without any BLAST search (live: BLAST found none of the 286 newest SARS-CoV-2 genomes that the
+  direct scan found); BLAST is used only for longer records.
+- **Regions hidden by N are reported as masked** (both sources): N-tolerant seeds find a region
+  that low-coverage sequencing turned partly into N, and an oligo site that reads N is no longer
+  counted as a match. Masked genomes/records are listed in the coverage table and left out of the
+  variant tables and inclusivity.
+- **Oligo windows are clamped to the stored region** instead of dropping a site whose padding
+  runs past the region's end (a full-length BLAST region has no flanks; an assembly region close
+  to a contig end is now assessed instead of being counted as a contig break).
+- **History lists new oligo sequence variants** (`history/diff.py`): each run compares its
+  variant tables with the previous run's, per oligo. A variant not seen before is listed as
+  "emerging" when its first assembly was released after the previous run, or "newly assessed"
+  when it sits in an older assembly this run assessed for the first time; variants no longer
+  seen are listed too. A new variant with a primer 3'-end mismatch or 2+ mismatches/gaps makes the
+  history section WARN. Runs with different variant sources (datasets vs blast_hits) are not
+  compared, and the report says so.
 - **Report states when human background was not searched** (`pipeline.py`, `search/planner.py`):
   setting `search.background_taxids: []` (e.g. to skip the slow, roughly hour-long human search)
   used to drop the background tier silently. The search plan now warns when human (taxid 9606) is
@@ -15,6 +83,10 @@ All notable changes to this project are documented here. The format follows
   to the specificity section. The verdict itself is unchanged.
 
 ### Fixed
+- **Nucleotide-record wording and history noise**: with `variants.source: blast_partitioned` the
+  inclusivity title, column, gap note, history table and xlsx coverage sheet say "records" and
+  "record end" instead of "assemblies" and "contig end"; history no longer lists an inclusivity
+  line whose rounded percentage is unchanged (e.g. only more records assessed).
 - **Variant summary and inclusivity did not say that a full hit list favours perfect matches**
   (`specificity/variants.py`, `inclusivity/aggregate.py`, report): found live on CDC N1, where all
   5000 target hits per oligo were perfect matches (about 9 million SARS-CoV-2 records; BLAST lists

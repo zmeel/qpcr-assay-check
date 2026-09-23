@@ -22,6 +22,10 @@ RETRY_STATUS = {429, 500, 502, 503, 504}
 # that limit still produced HTTP 429 in a live run (bursts on the server side), so stay well below.
 EUTILS_INTERVAL_NO_KEY = 0.5  # about 2 requests/second
 EUTILS_INTERVAL_KEY = 0.15  # about 6-7 requests/second
+# NCBI Datasets v2 answered with "X-Ratelimit-Limit: 10" when an API key was sent (live probe,
+# 2026-09-23); the limit without a key was not measured, so stay at the E-utilities keyless pace.
+DATASETS_INTERVAL_KEY = 0.25  # about 4 requests/second
+DATASETS_INTERVAL_NO_KEY = 0.5
 
 
 class NcbiError(QpcrAssayCheckError):
@@ -76,13 +80,19 @@ class NcbiHttp:
         self._sleep = sleep or (lambda s: time.sleep(s))
         self._jitter = jitter or (lambda: random.random())
         eutils_interval = EUTILS_INTERVAL_KEY if creds.api_key else EUTILS_INTERVAL_NO_KEY
+        datasets_interval = DATASETS_INTERVAL_KEY if creds.api_key else DATASETS_INTERVAL_NO_KEY
         self._limiters = {
             "blast": RateLimiter(settings.blast_min_interval_s, clock=clock, sleep=sleep),
             "eutils": RateLimiter(eutils_interval, clock=clock, sleep=sleep),
+            "datasets": RateLimiter(datasets_interval, clock=clock, sleep=sleep),
         }
 
     def _identify(self, service: str, payload: dict[str, Any]) -> dict[str, Any]:
         out = dict(payload)
+        if service == "datasets":
+            # The Datasets API documents no tool/email parameters; the key goes in a header and
+            # the User-Agent identifies the tool.
+            return out
         out["tool"] = self.settings.tool
         out["email"] = self.creds.email
         if service == "eutils" and self.creds.api_key:
@@ -105,14 +115,20 @@ class NcbiHttp:
         body = self._identify(service, dict(data)) if data is not None else None
         if query is None and body is None:
             query = self._identify(service, {})
+        headers = (
+            {"api-key": self.creds.api_key}  # datasets.openapi.yaml: ApiKeyAuthHeader
+            if service == "datasets" and self.creds.api_key
+            else None
+        )
         last_problem = ""
         for attempt in range(s.max_retries + 1):
             limiter.wait()
             try:
                 log.debug("NCBI %s %s (attempt %d)", method, url, attempt + 1)
                 resp = self.session.request(
-                    method, url, params=query, data=body, timeout=s.request_timeout_s
-                )
+                    method, url, params=query, data=body, timeout=s.request_timeout_s,
+                    headers=headers,
+                )  # fmt: skip
             except (requests.ConnectionError, requests.Timeout) as exc:
                 last_problem = f"{type(exc).__name__}: {self.creds.redact(str(exc))}"
             else:

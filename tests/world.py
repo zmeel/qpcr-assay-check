@@ -202,7 +202,7 @@ class WorldFake(FakeNcbi):
         self.world = world
         self.efetch_calls: list[dict] = []
 
-    def request(self, method, url, params=None, data=None, timeout=None):
+    def request(self, method, url, params=None, data=None, timeout=None, headers=None):
         if "esearch.fcgi" in url and dict(params or {}).get("db") == "taxonomy":
             term = str(dict(params or {}).get("term", ""))
             name = term.rsplit("[", 1)[0]  # strip the "[Scientific Name]"/"[All Names]" field tag

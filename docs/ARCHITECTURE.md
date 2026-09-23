@@ -181,6 +181,55 @@ report and nothing else this project didn't already improve on.
   is a separate selection among millions of tied perfect matches. The report now says so whenever
   the target list is full; real variant frequencies for such targets need a different sample
   (not yet designed, see PROGRESS.md).
+- **Exhaustive variant analysis from NCBI Datasets genome assemblies** (v1.1.0,
+  `variants/`): the target tier's BLAST hits are BLAST's best matches, so for any target with more
+  records than `hitlist_size` they are biased toward perfect matches (seen live: 5000/5000 perfect
+  for CDC N1). Most bacterial genomes are draft (WGS) assemblies, which `core_nt` does not contain
+  at all. `variants/datasets.py` lists the target's assemblies (`exclude_paired_reports`,
+  `assembly_version=current`, `exclude_atypical`) by release-year window, newest first (the
+  documented `first/last_release_date` filters; `sort.field` values are not documented),
+  downloads genome FASTA in batches (`datasets_batch_size`, max 100), and `variants/locate.py`
+  finds the amplicon by exact k-mer seeds along the whole amplicon on both strands (so primer-site
+  variants are found through the unchanged stretches between the oligos); seeds that agree
+  within 20 bases form one locus. Only the region plus `flank_nt` is stored
+  (`variants/store.py`, one JSON line per assembly, keyed by taxon + amplicon + flank), which
+  makes runs resumable and later runs incremental; genomes are never kept (project rule). Each
+  oligo is re-aligned in its expected window (+-15 bases) of the best complete copy; alignments
+  are memoised by window, since most assemblies share the same sequence. Not found, contig-break
+  and multi-copy assemblies are counted and reported, never dropped. Superseded assembly versions
+  in the store are ignored (highest version per accession wins). Inclusivity becomes exhaustive
+  per release year from the same sites. Throttle: 4 requests/s with an API key (the live limit
+  header said 10), 2/s without (the keyless limit was not measured). The API key is sent as the
+  documented `api-key` header; no tool/email query parameters are sent to Datasets.
+- **Partitioned BLAST for targets without genome assemblies** (v1.1.0,
+  `variants/partitioned.py`, `variants.source: blast_partitioned`): ESearch lists the target's
+  Nucleotide records per publication year (PDAT, verified reliable for ESearch), newest first;
+  ESummary maps each UID to `accessionversion` and `createdate` (keyed by UID; the order of an
+  `efetch rettype=acc` answer is not relied on). The reference amplicon is BLASTed (word size 11,
+  E 10, hit list >= 500) with an ENTREZ_QUERY of at most 100 `[ACCN]` terms (live: accepted, 100/100
+  found, 43 leaks); hits are filtered back to the list. A full-length HSP gives the region directly
+  (`hseq` is in the query's orientation, verified); a partial one is completed from an `efetch`
+  window with the seed locator. A record without a hit is "not found" (usually another gene).
+  Records share the region store and assessment with the assembly source (store key includes the
+  source); oligo windows are clamped to the region, since a full-length BLAST region has no
+  flanks. The plan notes that the amplicon is sent to BLAST; more than `max_searches_warn`
+  searches in one run are logged with NCBI's off-peak advice.
+  **First live run (2026-09-23, CDC N1, `nucleotide_query: 25000:32000[SLEN]`, 300 records):**
+  9,194,157 records listed; 3 searches of ~2 minutes each, all accepted; all 300 of the newest
+  records (2026, e.g. QB036213.1) came back without a hit. Most likely cause (not confirmed): the
+  newest records are not in `core_nt` yet (the earlier 100/100 check used 2022 records). Fix: a
+  record without a BLAST hit and at most `direct_scan_max_length` long is fetched whole (EFetch
+  POST, `direct_scan_batch` records per request, matched by FASTA header) and scanned with the
+  seed locator before it is called "not found"; records found that way are counted
+  (`found_by_direct_scan`), and those that could not be checked are reported. "Not found" entries
+  from the first run are scanned again once (`direct_checked` missing).
+  **Second live run (same config):** 286 of 300 found, all by the direct scan and none by BLAST
+  (confirming that the newest records are not in `core_nt`); 14 not found. Two consequences:
+  records up to `direct_scan_max_length` now skip BLAST altogether (direct scan first; BLAST only
+  for longer records, whose "not found" then rests on BLAST alone and is reported as such), and a
+  region hidden by N is detected with N-tolerant seeds (a seed counts only with at least half its
+  bases real, a locus needs two agreeing seeds) and reported as masked. A found region whose
+  oligo site contains N is also masked, since the aligner would otherwise count N as a match.
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's
@@ -318,6 +367,27 @@ E-utilities and BLAST:
   own list; coverage of the list was complete.
 - Not yet answered: BLAST against `DATABASE=wgs` with a species ENTREZ_QUERY (the probe's query
   region was outside the 7,500 bp record ESearch returned first, a plasmid; fixed, needs a rerun).
+
+### First live run of the exhaustive variant analysis (2026-09-23, C. trachomatis, v1.1.0 dev)
+
+User's own cryptic-plasmid assay (87 bp reference amplicon). NCBI Datasets listed 357 assemblies
+(current, not atypical, one per GenBank/RefSeq pair; 713 without that de-duplication), all 357
+downloaded and scanned in one run, 0 failed downloads. Region found (all three sites complete)
+in 76, not found in 281, contig break 0, more than one copy 3. Variants among the 76: forward
+69.7% perfect, 27.6% one mismatch at position 12 (2005-2023), 2.6% two mismatches; probe 98.7%
+perfect; reverse 100% perfect; no variant touches a primer's 3' end. The 281 "not found" included
+GCF_000008725.1 (D/UW-3/CX), which is most likely a chromosome-only assembly (the plasmid is not
+part of every assembly) -- not verified from here. That motivated the plasmid split: the rule
+"a FASTA description containing 'plasmid' marks a plasmid sequence" is itself unverified until
+the report's "Recognised as plasmid" examples are checked on a live run.
+
+**Third live run (same assay, 2026-09-23):** the 76 found entries were rescanned (well under a
+minute). Target on a plasmid: yes. The recognised plasmid descriptions were genuine plasmid
+records (`NC_007430.1 Chlamydia trachomatis A/HAR-13 plasmid pCTA, complete sequence`,
+`NC_017435.1 ... D-EC plasmid pCTDEC1 ...`, `NC_017433.1 ... D-LC plasmid pCTDLC1 ...`), which
+confirms the description rule for labelled plasmid records. All 281 "not found" assemblies contain
+no sequence labelled as a plasmid; 0 contain one without the region. Limitation kept in the report
+text: a plasmid assembled into an unlabelled draft contig is not recognised as one.
 
 ### Verified in a third live run (2026-09-22)
 

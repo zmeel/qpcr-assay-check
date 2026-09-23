@@ -4,7 +4,7 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v1.0.0 (alpha, tagged 2026-09-22).** A full `run` sends the oligos to NCBI (tiered,
+> **Status: v1.1.0 (alpha, 2026-09-23).** A full `run` sends the oligos to NCBI (tiered,
 > taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
 > every relevant hit, predicts off-target products, and judges specificity — genuine
 > `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
@@ -171,17 +171,56 @@ qpcr-assay-check search my-assay/assay.yaml --dry-run   # show exactly what woul
 qpcr-assay-check search my-assay/assay.yaml -o results   # asks before sending anything
 ```
 
-### Variant summary (unreleased)
+### Variant summary: every genome assembly or Nucleotide record (v1.1.0)
 
-The report also gets a **variant summary**: the target tier's own hits, lumped into unique
-sequence variants and reported as a count and a percentage of the measured total — one table per
-oligo (forward/probe/reverse), plus a whole-fragment table combining forward + probe + reverse
-together when all three bind the same record. Only fully re-aligned hits count (never a
-`blast_partial_worst_case` estimate); excluded counts are always reported, never silently folded
-in. Every target-tier BLAST hit is assessed for it (at most `search.hitlist_size` per oligo);
-partial hits are fetched and re-aligned, one cached `efetch` each. When the hit list is full, the
-table describes BLAST's selection of records, not the whole target population. Like the taxonomy
-breakdown, it carries no verdict of its own.
+The **variant summary** lumps the oligo sites on the intended target into unique sequence
+variants, with a count, a percentage and the first and last release date of the assemblies that
+carry each one: one table per oligo (forward/probe/reverse) and one for the whole fragment
+(forward + probe + reverse on the same genome). Emerging variants show up as rows whose first
+release date is recent.
+
+By default (`variants.source: datasets`) it is built from **every genome assembly of the target
+in NCBI Datasets**, complete and draft: current versions, atypical assemblies excluded, one copy
+per GenBank/RefSeq pair. Each genome is downloaded, scanned for the reference amplicon (exact
+16-base seeds along the amplicon, so a variant with mismatches in a primer is still found through
+the unchanged stretches), and deleted; only the amplicon region and 50 bases of flank on each
+side are kept. The oligos are then re-aligned end to end in that region. These are counts over all
+assessed assemblies, not a sample. The report states per release year how many assemblies NCBI
+lists and how many were assessed, how many had the region cut by a contig end, how many did not
+contain the region at all (listed, to review), and how many carry more than one copy.
+
+- **Budget:** at most `variants.max_assemblies_per_run` (default 20,000) new assemblies per run,
+  newest release year first. A species with more assemblies (e.g. *E. coli*) is completed over
+  several runs; the report says "incomplete" until then. Later runs only process new assemblies.
+- **Keep the cache between runs.** The extracted regions live in the NCBI cache directory. In
+  Docker, point it into the mounted folder, or every run starts again from zero:
+
+  ```yaml
+  ncbi:
+    cache_dir: /work/cache
+  ```
+
+- **Needs the reference amplicon:** the assay's `reference_amplicon`, or a target `accession`
+  in which both primers match exactly.
+- **Genome assemblies only.** Sequences submitted without an assembly (single genes, amplicons)
+  are not in this collection. For such targets use `variants.source: blast_partitioned`: every
+  NCBI Nucleotide record of the target is listed (ESearch, newest year first, optionally narrowed
+  with `variants.nucleotide_query`, e.g. `"25000:32000[SLEN]"` for near-complete SARS-CoV-2
+  genomes). Records up to `variants.direct_scan_max_length` (200,000) bases are fetched and
+  scanned directly, like the genome assemblies; longer ones are found by BLASTing the reference
+  amplicon against lists of 100 records at a time, so no search can fill its hit list. At most
+  `variants.blast_max_records_per_run` (2,000) records per run; a target with millions of records
+  is covered newest first over many runs, and the report says how far it got.
+  `variants.source: blast_hits` keeps the v1.0 behaviour (the target tier's own hits, biased
+  toward perfect matches when the hit list is full, and the report says so).
+- **Inclusivity** is built from the same assemblies, per release year, when this source is used.
+- **Regions hidden by N** (low-coverage sequencing) are found with N-tolerant seeds and reported
+  as masked, with examples; they are not counted as matches or variants.
+- **Emerging variants:** the history section compares each run's variant tables with the
+  previous run's and lists new variants, marked "emerging" when their first assembly was released
+  after the previous run. A new variant with a primer 3'-end mismatch or 2+ mismatches makes the
+  history section WARN.
+- What is sent to NCBI: assembly listing requests and genome downloads (no oligo sequences).
 
 ### Exclusivity against a clinical organism list (v0.4.0)
 
@@ -266,7 +305,7 @@ year — `population_size` is always shown alongside `sample_size` so the two ar
 A target tier that was never searched, or a year with no dated hits, is INCOMPLETE for that scope
 rather than a silent PASS.
 
-### Run history and changes since the last run (v1.0.0, in progress)
+### Run history and changes since the last run (v1.0.0)
 
 Every full `run` looks for the most recently generated `results.json` under the same output
 directory and assay name (`<outdir>/<assay-slug>/*/results.json`, sorted by the record's own
@@ -528,7 +567,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
 | 0.4.0 | Taxonomy resolution, organism list, exclusivity, inclusivity |
-| **1.0.0** | Run history, yearly diff report, Docker — all confirmed live |
+| 1.0.0 | Run history, yearly diff report, Docker — all confirmed live |
+| **1.1.0** | Exhaustive variant analysis (NCBI Datasets genomes; Nucleotide records by direct scan + partitioned BLAST), N-masked regions, new-variant history — confirmed live |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 

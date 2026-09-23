@@ -256,12 +256,18 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     actually runs (needs the network and NCBI_EMAIL), so a --dry-run plan cannot show them; it
     shows the organism-list name count instead (see planner.plan_searches).
     """
+    from .ncbi.blast import BlastApi
     from .ncbi.eutils import Eutils
+    from .ncbi.jobs import JobStore
+    from .ncbi.runner import BlastRunner
     from .search.execute import run_remote_search
     from .search.planner import plan_searches
     from .specificity.assess import assess_specificity
     from .specificity.fetch import WindowFetcher
     from .specificity.variants import assess_target_sites
+    from .variants.datasets import DatasetsClient
+    from .variants.exhaustive import run_exhaustive
+    from .variants.partitioned import collect_partitioned
 
     if dry_run:
         plan = plan_searches(assay, cfg)
@@ -325,9 +331,41 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         log.warning("Could not fetch taxonomy lineages for exclusivity grouping: %s", exc)
         taxon_species = {}
     tier_searched = any(r.tier == "target" for r in remote.outcome.searches)
+    exhaustive, variant_note = None, None
+    if cfg.variants.source in ("datasets", "blast_partitioned"):
+        # Every genome assembly (datasets) or every Nucleotide record (blast_partitioned) of the
+        # target (v1.1.0), not the target tier's BLAST hits, which are BLAST's best matches and
+        # so biased toward perfect ones when the hit list is full.
+        collector = None
+        if cfg.variants.source == "blast_partitioned":
+            runner = BlastRunner(
+                BlastApi(remote.http, cfg.ncbi.blast_url), remote.cache,
+                JobStore(remote.cache.root / "variants" / "jobs-partitioned.json"), cfg.ncbi,
+                cfg.search.result_format,
+            )  # fmt: skip
+
+            def collector(store: Any, taxon: int, amplicon: str) -> Any:
+                return collect_partitioned(
+                    eutils, runner, runner.store, fetcher, store, taxon, amplicon, cfg
+                )
+
+        try:
+            exhaustive = run_exhaustive(
+                assay, cfg, DatasetsClient(remote.http, cfg.ncbi.datasets_url),
+                remote.cache.root, eutils.fetch_fasta,
+                collector=collector, source=cfg.variants.source,
+            )  # fmt: skip
+        except (InputError, NcbiError) as exc:
+            variant_note = (
+                f"the exhaustive analysis was not run ({exc}); the variant tables and "
+                "inclusivity use the target tier's BLAST hits instead."
+            )
+            log.warning("%s", variant_note)
     try:
         target_sites = (
-            assess_target_sites(assay, cfg, remote.plan, remote.parsed, fetcher)
+            exhaustive.sites
+            if exhaustive is not None
+            else assess_target_sites(assay, cfg, remote.plan, remote.parsed, fetcher)
             if tier_searched
             else None
         )
@@ -337,15 +375,19 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         log.warning("Could not build the variant summary: %s", exc)
         target_sites = None
     try:
-        inclusivity = compute_inclusivity(
-            assay,
-            cfg,
-            remote.plan,
-            remote.parsed,
-            fetcher,
-            eutils,
-            remote.cache,
-            tier_searched=tier_searched,
+        inclusivity = (
+            exhaustive.inclusivity
+            if exhaustive is not None
+            else compute_inclusivity(
+                assay,
+                cfg,
+                remote.plan,
+                remote.parsed,
+                fetcher,
+                eutils,
+                remote.cache,
+                tier_searched=tier_searched,
+            )
         )
     except NcbiError as exc:
         # Informational only (not a required section): a date-lookup failure should not
@@ -362,6 +404,9 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         taxon_species=taxon_species,
         inclusivity=inclusivity,
         target_sites=target_sites,
+        variant_coverage=exhaustive.coverage if exhaustive is not None else None,
+        release_dates=exhaustive.release_dates if exhaustive is not None else None,
+        variant_note=variant_note,
         previous_run=previous_run,
     )
 

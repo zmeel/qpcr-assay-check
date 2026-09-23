@@ -395,3 +395,65 @@ def test_a_full_run_fills_the_variant_summary_from_the_target_tier(env):
     assert "Variant summary (assay's own target)" in (d / "report.html").read_text()
     sheets = set(load_workbook(d / "results.xlsx").sheetnames)
     assert {"Oligo variants", "Fragment variants"} <= sheets
+
+
+def test_a_full_run_uses_every_genome_assembly_for_the_variant_summary(env, monkeypatch):
+    """v1.1.0: with variants.source datasets (the default) the CLI wires in the exhaustive path."""
+    from qpcr_assay_check.cli import build_assay
+    from qpcr_assay_check.oligo import iupac
+
+    from .fake_datasets import FakeAssembly, FakeDatasets
+    from .world import filler, mutate
+
+    amp = build_assay(ROOT_EXAMPLE, {}).reference_amplicon
+    variant = amp.replace(F, mutate(F, [20]), 1)
+    datasets = FakeDatasets([
+        FakeAssembly("GCF_1.1", "2025-01-01", {"c1": filler(2000, 1) + amp + filler(2000, 2)}),
+        FakeAssembly("GCA_2.1", "2026-01-01",
+                     {"c2": iupac.reverse_complement(filler(2000, 3) + variant + filler(2000, 4))}),
+    ])  # fmt: skip
+    world = WorldFake(world_with(hits="none"))
+
+    class Both:
+        headers: dict = {}
+
+        def request(self, method, url, **kw):
+            fake = datasets if "/datasets/v2" in url else world
+            return fake.request(method, url, **kw)
+
+    monkeypatch.setattr("qpcr_assay_check.ncbi.http.requests.Session", Both)
+    invoke(env, "--yes")
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    vs = data["variant_summary"]
+    assert vs["source"] == "datasets" and vs["coverage"]["assessed_total"] == 2
+    fwd = next(o for o in vs["oligos"] if o["role"] == "forward")
+    assert sorted(r["count"] for r in fwd["rows"]) == [1, 1]
+    assert data["inclusivity"]["sample_scheme"].startswith("Every genome assembly")
+    assert "Scope: every genome assembly" in (run_dir(env) / "report.html").read_text()
+
+
+def test_a_full_run_can_use_partitioned_blast_for_the_variant_summary(env, monkeypatch):
+    """v1.1.0: variants.source blast_partitioned is wired through the CLI."""
+    from qpcr_assay_check.cli import build_assay
+
+    from .fake_nuccore import FakeNuccore, FakeRecord
+    from .world import filler
+
+    amp = build_assay(ROOT_EXAMPLE, {}).reference_amplicon
+    fake = FakeNuccore([
+        FakeRecord("1", "MZ000001.1", "2026/01/02", filler(300, 1) + amp + filler(300, 2)),
+        FakeRecord("2", "MZ000002.1", "2025/03/04", filler(900, 3)),
+    ])  # fmt: skip
+    monkeypatch.setattr("qpcr_assay_check.ncbi.http.requests.Session", lambda: fake)
+    env.conf.write_text(
+        env.conf.read_text() + "variants:\n  source: blast_partitioned\n"
+        "search:\n  background_taxids: []\n"
+    )
+    r = invoke(env, "--yes")
+    assert "sending the reference amplicon to NCBI BLAST" in r.output, (r.output, r.exception)
+    assert r.exception is None or isinstance(r.exception, SystemExit), repr(r.exception)
+    data = json.loads((run_dir(env) / "results.json").read_text())
+    vs = data["variant_summary"]
+    assert vs["source"] == "blast_partitioned"
+    assert (vs["coverage"]["assessed_total"], vs["coverage"]["found"]) == (2, 1)
+    assert "Scope: every NCBI Nucleotide record" in (run_dir(env) / "report.html").read_text()

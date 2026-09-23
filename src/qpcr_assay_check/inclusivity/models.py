@@ -41,6 +41,10 @@ class InclusivityResult(BaseModel):
     """Everything the inclusivity assessment found."""
 
     tier_searched: bool
+    exhaustive: bool = Field(
+        default=False,
+        description="built from every genome assembly of the target (v1.1.0), not a sample",
+    )
     target_taxid: int | None = None
     oligos: list[InclusivityOligoResult] = Field(default_factory=list)
     sample_scheme: str = ""

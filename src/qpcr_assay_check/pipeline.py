@@ -25,6 +25,7 @@ from .specificity.variants import VariantSummary, build_variant_summary
 from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
 from .taxonomy.plan import OrganismListResolution
 from .taxonomy.rollup import TaxonCount
+from .variants.models import ExhaustiveCoverage
 from .verdict import Verdict, combine, exit_code, verdict_from_status
 
 log = logging.getLogger(__name__)
@@ -36,10 +37,21 @@ def inputs_hash(assay: Assay, cfg: Config) -> str:
     # so they must not change the hash that identifies "the same evaluation".
     payload = {
         "assay": assay.model_dump(mode="json"),
-        "config": cfg.model_dump(mode="json", exclude={"ncbi", "report"}),
+        "config": cfg.model_dump(
+            mode="json",
+            exclude={"ncbi": True, "report": True, "variants": {"max_assemblies_per_run"}},
+        ),  # fmt: skip
     }
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _inclusivity_title(inclusivity: InclusivityResult | None) -> str:
+    if inclusivity is not None and inclusivity.exhaustive:
+        if inclusivity.sample_scheme.startswith("Every NCBI Nucleotide record"):
+            return "Inclusivity across the intended target (all Nucleotide records)"
+        return "Inclusivity across the intended target (all genome assemblies)"
+    return "Inclusivity across the intended target (sampled)"
 
 
 def _rationale(qc_findings: list[str], not_evaluated: list[str]) -> list[str]:
@@ -62,6 +74,9 @@ def evaluate(
     taxon_species: dict[int, str] | None = None,
     inclusivity: InclusivityResult | None = None,
     target_sites: list[SiteResult] | None = None,
+    variant_coverage: ExhaustiveCoverage | None = None,
+    release_dates: dict[str, str] | None = None,
+    variant_note: str | None = None,
     previous_run: RunResult | None = None,
 ) -> RunResult:
     """Run every analysis that exists in this version and assemble the evaluation record."""
@@ -102,12 +117,18 @@ def evaluate(
     )
     if specificity is not None:
         if target_sites is not None:
-            variant_summary = build_variant_summary(target_sites, assay)
-            variant_summary.target_list_full = search_outcome is not None and any(
-                sat.list_full
-                for r in search_outcome.searches
-                if r.tier == "target"
-                for sat in r.saturation
+            variant_summary = build_variant_summary(
+                target_sites, assay, release_dates=release_dates, coverage=variant_coverage
+            )
+            variant_summary.target_list_full = (
+                variant_coverage is None
+                and bool(search_outcome)
+                and any(
+                    sat.list_full
+                    for r in search_outcome.searches
+                    if r.tier == "target"
+                    for sat in r.saturation
+                )
             )
         n = specificity.n_sites
         sections.append(
@@ -191,7 +212,7 @@ def evaluate(
         sections.append(
             SectionResult(
                 key="inclusivity",
-                title="Inclusivity across the intended target (sampled)",
+                title=_inclusivity_title(inclusivity),
                 state="evaluated",
                 verdict=inclusivity.verdict,
                 note=note,
@@ -201,7 +222,7 @@ def evaluate(
         sections.append(
             SectionResult(
                 key="inclusivity",
-                title="Inclusivity across the intended target (sampled)",
+                title=_inclusivity_title(inclusivity),
                 state="skipped",
                 verdict=None,
                 note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
@@ -227,6 +248,7 @@ def evaluate(
             sites=specificity.sites if specificity else [],
             amplicons=specificity.amplicons if specificity else [],
             inclusivity=inclusivity,
+            variant_summary=variant_summary,
         )
         if history.has_previous:
             note = f"Compared to the run on {history.previous_generated_at}: {history.rationale[0]}"
@@ -255,6 +277,32 @@ def evaluate(
             for f in specificity.findings
             if f.severity in ("FAIL", "INCOMPLETE", "WARN")
         ]
+    if variant_coverage is not None and not variant_coverage.complete:
+        c = variant_coverage
+        findings.append(
+            f"Variant analysis: {c.assessed_total} of {c.listed_total} "
+            f"{'Nucleotide records' if c.source == 'blast_partitioned' else 'genome assemblies'} "
+            f"of the target assessed so far (at most {c.budget_per_run} new ones per run, newest "
+            "first). "
+            "Run again to continue; the variant tables and inclusivity cover only the assessed "
+            f"{'records' if c.source == 'blast_partitioned' else 'assemblies'} until then."
+        )
+    if (
+        variant_coverage is not None
+        and variant_coverage.target_on_plasmid
+        and variant_coverage.not_found_with_plasmid
+    ):
+        c = variant_coverage
+        findings.append(
+            f"Variant analysis: {c.not_found_with_plasmid} genome assembl"
+            f"{'y contains' if c.not_found_with_plasmid == 1 else 'ies contain'} plasmid "
+            "sequence but not the target region (e.g. "
+            f"{', '.join(c.not_found_with_plasmid_examples[:5])}). The target lies on a plasmid, "
+            "so this may be a deletion that the assay would miss (as with the Swedish nvCT "
+            "variant), or an incomplete plasmid assembly: review these records."
+        )
+    if variant_note:
+        findings.append(f"Variant analysis: {variant_note}")
     if human_not_searched:
         findings.append(
             f"Human background: no search in this run covered human (taxid {HUMAN_TAXID}), so "

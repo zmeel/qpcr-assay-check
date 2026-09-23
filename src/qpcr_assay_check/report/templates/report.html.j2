@@ -89,6 +89,7 @@ td.aln-cell { min-width: 22rem; }
 <body>
 <main>
 {% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
+{% macro match(row, primer) %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
 {% macro pct(value) %}{% if 0 < value < 0.05 %}&lt;0.1%{% else %}{{ '%.1f' % value }}%{% endif %}{% endmacro %}
 
 <header>
@@ -275,22 +276,44 @@ td.aln-cell { min-width: 22rem; }
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
 {% endif %}
 
-{% if r.variant_summary and (r.variant_summary.oligos | selectattr('rows') | list) %}
+{% if r.variant_summary and ((r.variant_summary.oligos | selectattr('rows') | list) or r.variant_summary.coverage) %}
 <h2>Variant summary (assay's own target)</h2>
+{% set cov = r.variant_summary.coverage %}
+{% if cov %}
+{% if cov.source == 'blast_partitioned' %}<div class="notice"><p><strong>Scope: every NCBI Nucleotide record{% if not cov.complete %} assessed so far{% endif %}.</strong> Built from the Nucleotide records of the target (taxonomy ID {{ cov.taxon }}){% if cov.filters.nucleotide_query %}, narrowed by <code>{{ cov.filters.nucleotide_query }}</code>{% endif %}, newest publication year first. The {{ cov.amplicon_length }} bp reference amplicon ({{ cov.amplicon_source }}) was BLASTed against lists of at most {{ r.config.variants.blast_records_per_search }} of these records at a time, so no search could fill its hit list; hits outside each list were ignored, and partial hits were completed from the record itself. These are counts over all assessed records, not a sample. A record without the region is usually a different gene or a partial sequence, not a missing target.</p></div>
+{% else %}<div class="notice"><p><strong>Scope: every genome assembly{% if not cov.complete %} assessed so far{% endif %}.</strong> Built from the genome assemblies of the target (taxonomy ID {{ cov.taxon }}) in NCBI Datasets: current versions{% if cov.filters.exclude_atypical %}, atypical assemblies excluded{% endif %}, one copy per GenBank/RefSeq pair. Each genome was scanned for the {{ cov.amplicon_length }} bp reference amplicon ({{ cov.amplicon_source }}); the oligos were re-aligned end to end in the best complete copy. These are counts over all assessed assemblies, not a sample. Sequences submitted without a genome assembly (single genes, amplicons) are not part of this collection.</p></div>{% endif %}
+<div class="scroll"><table>
+  <tbody>
+  <tr><th scope="row">{{ 'Records' if cov.source == 'blast_partitioned' else 'Assemblies' }} listed</th><td>{{ cov.listed_total }} (listed {{ cov.listed_at }})</td></tr>
+  <tr><th scope="row">Assessed</th><td>{{ cov.assessed_total }}{% if not cov.complete %} &mdash; <strong>incomplete</strong>: at most {{ cov.budget_per_run }} new {{ 'records' if cov.source == 'blast_partitioned' else 'assemblies' }} are processed per run, newest first; run again to continue{% endif %}</td></tr>
+  <tr><th scope="row">Processed in this run</th><td>{{ cov.processed_this_run }}{% if cov.download_failed_this_run %}; {{ cov.download_failed_this_run }} download(s) failed and will be retried next run{% endif %}</td></tr>
+  <tr><th scope="row">Amplicon region found</th><td>{{ cov.found }} with all three oligo sites complete</td></tr>
+  <tr><th scope="row">Region cut by a {{ 'record' if cov.source == 'blast_partitioned' else 'contig' }} end</th><td>{{ cov.contig_break }} ({{ 'the record ends inside the amplicon' if cov.source == 'blast_partitioned' else 'draft assemblies' }}; not counted in the tables)</td></tr>
+  <tr><th scope="row">Region hidden by N</th><td>{{ cov.masked }}{% if cov.masked_examples %}<br><span class="meta">e.g. {{ cov.masked_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">The region is there, but the whole region or an oligo site in it reads N (low-coverage sequencing): not counted in the tables, since an N is neither a match nor a variant.</span></td></tr>
+  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the {{ 'record' if cov.source == 'blast_partitioned' else 'genome' }}: the target region may be absent, or too divergent to find.</span>
+    {% if cov.plasmid_info_recorded and not cov.target_on_plasmid %}<br>of which {{ cov.not_found_without_plasmid }} contain no sequence labelled as a plasmid and {{ cov.not_found_with_plasmid }} contain plasmid sequence{% if cov.target_on_plasmid is none %} (whether the target lies on a plasmid is not known yet){% endif %}.{% endif %}
+    {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no sequence labelled as a plasmid (many assemblies hold only the chromosome, which says nothing about the strain; in a draft assembly a plasmid can also sit in an unlabelled contig, so a deletion there would be counted here), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain a sequence labelled as a plasmid but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') }}{% endif %}.{% endif %}</td></tr>
+  {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') }}</span>{% endif %}</td></tr>{% endif %}
+  {% if cov.source == 'blast_partitioned' %}<tr><th scope="row">How records were checked</th><td>{{ cov.found_by_direct_scan }} with the region found by fetching and scanning the record itself (records up to {{ r.config.variants.direct_scan_max_length }} bases); longer records by BLAST in accession lists{% if cov.not_checked_directly %}<br><strong>{{ cov.not_checked_directly }}</strong> longer record(s) had no BLAST hit and were not scanned directly: their "not found" rests on BLAST alone{% endif %}</td></tr>{% endif %}
+  <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (the best complete copy is used)</td></tr>
+  </tbody>
+</table></div>
+{% else %}
 <div class="notice"><p><strong>Scope.</strong> Built from the target tier's own BLAST hits: at most {{ r.config.search.hitlist_size }} per oligo, the closest site per record, with partial hits fetched and re-aligned across the whole oligo. Identical alignments are lumped together and each is reported as a percentage of that measured total. When the hit list is full (see Searches) this is BLAST's selection of records, not the whole target population and not a random sample; see Inclusivity below for the year-by-year view against population counts.</p></div>
+{% endif %}
 {% if r.variant_summary.target_list_full %}<div class="notice"><p><strong>Biased toward perfect matches.</strong> {{ list_full_note }}</p></div>{% endif %}
 
 {% for o in r.variant_summary.oligos %}
 {% if o.rows %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
+  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Match to the oligo</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for row in o.rows %}
   <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
     <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
-    <td>{{ chip(row.level) }}</td>
-    <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td></tr>
+    <td>{{ match(row, o.role != 'probe') }}</td>
+    <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>
@@ -298,16 +321,17 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 {% endfor %}
 
+{% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 {% if r.variant_summary.fragments %}
 <div class="scroll"><table>
-  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
+  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Mismatches (F / P / R)</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for f in r.variant_summary.fragments %}
   <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
     <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
-    <td>{{ chip(f.level) }}</td>
-    <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td></tr>
+    <td>{{ f.forward.n_mismatch + f.forward.n_gap }} / {{ f.probe.n_mismatch + f.probe.n_gap }} / {{ f.reverse.n_mismatch + f.reverse.n_gap }}</td>
+    <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>
@@ -358,7 +382,8 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 
 {% if r.inclusivity %}
-<h2>Inclusivity across the intended target (sampled)</h2>
+{% set nuc = r.inclusivity.exhaustive and r.inclusivity.sample_scheme.startswith('Every NCBI Nucleotide record') %}
+<h2>Inclusivity across the intended target ({{ ('all Nucleotide records' if nuc else 'all genome assemblies') if r.inclusivity.exhaustive else 'sampled' }})</h2>
 <p>{{ chip(r.inclusivity.verdict.value) }} inclusivity</p>
 {% if not r.inclusivity.tier_searched %}
 <p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
@@ -367,7 +392,7 @@ td.aln-cell { min-width: 22rem; }
 {% for o in r.inclusivity.oligos %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Year</th><th>Population</th><th>Sample</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
+  <thead><tr><th>Year</th><th>{{ ('Records' if nuc else 'Assemblies') if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
   <tbody>
   {% for w in o.windows %}
   <tr><td class="num">{{ w.year }}</td><td class="num">{{ w.population_size if w.population_size is not none else '–' }}</td>
@@ -511,6 +536,25 @@ td.aln-cell { min-width: 22rem; }
   {% endfor %}
   </tbody>
 </table></div>
+{% endif %}
+{% if r.history.variant_changes %}
+<h3>Oligo sequence variants since the previous run</h3>
+<p class="meta">"Emerging": the variant's first record (assembly or Nucleotide record) was released after the previous run. "Newly assessed": it is in an older record that this run assessed for the first time (e.g. the previous run had not finished the collection).</p>
+<div class="scroll"><table>
+  <thead><tr><th>Change</th><th>Oligo</th><th>Variant</th><th>Match to the oligo</th><th>Records</th><th>First release</th><th>Example</th></tr></thead>
+  <tbody>
+  {% for v in r.history.variant_changes %}
+  <tr><td>{% if v.kind == 'new' %}{% if v.concern %}<strong>new</strong>{% else %}new{% endif %}<br><span class="meta">{{ 'emerging' if v.newly_released else ('newly assessed' if v.newly_released is not none else 'release date unknown') }}</span>{% else %}no longer seen{% endif %}</td>
+    <td>{{ v.role }}</td>
+    <td class="aln-cell">{{ v | aln_html(0 if v.role == 'probe' else 5) }}</td>
+    <td>{{ match(v, v.role != 'probe') }}</td>
+    <td class="num">{% if v.kind == 'new' %}{{ v.count_after }}{% if v.percent_after is not none %} ({{ pct(v.percent_after) }}){% endif %}{% else %}{{ v.count_before }} before{% endif %}</td>
+    <td>{{ v.first_seen or '' }}</td><td>{{ v.example_accession }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% elif r.history.variants_note %}
+<p class="meta">{{ r.history.variants_note }}</p>
 {% endif %}
 {% endif %}
 {% endif %}

@@ -219,6 +219,19 @@ def test_inclusivity_improvement_alone_does_not_warn():
     assert (c.percent_before, c.percent_after) == (50.0, 100.0)
 
 
+def test_more_records_at_the_same_rounded_rate_stays_out_of_the_summary():
+    prev_incl = _incl({"forward": [_window(2026, sample_size=300, n_perfect=297)]})
+    curr_incl = _incl({"forward": [_window(2026, sample_size=600, n_perfect=595)]})
+    previous = _minimal_run(inclusivity=prev_incl)
+    h = compute_history(
+        previous, inputs_hash="h1", section_verdicts={}, section_titles={}, sites=[],
+        amplicons=[], inclusivity=curr_incl,
+    )  # fmt: skip
+    (c,) = h.inclusivity_changes  # still in the table, with both sample sizes
+    assert (c.sample_size_before, c.sample_size_after) == (300, 600)
+    assert not any(line.startswith("Inclusivity, forward") for line in h.rationale)
+
+
 def test_find_previous_run_picks_the_most_recently_generated_one(tmp_path):
     old = _minimal_run(run_id="a-old", generated_at="2024-01-01T00:00:00Z")
     new = _minimal_run(run_id="a-new", generated_at="2025-06-01T00:00:00Z")

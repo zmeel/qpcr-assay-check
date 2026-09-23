@@ -256,11 +256,13 @@ def write_workbook(result: RunResult, path: Path) -> None:
         _sheet(
             wb,
             "Oligo variants",
-            ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Level",
-             "Mismatches", "Gaps", "Example accession", "Example organism"],
+            ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Mismatches",
+             "Gaps", "Matching 3' nt", "Example accession", "Example organism",
+             "First release", "Last release"],
             [
-                [o.role, row.s_aln, row.count, round(row.percent, 2), row.level,
-                 row.n_mismatch, row.n_gap, row.example_accession, row.example_organism or ""]
+                [o.role, row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
+                 row.clean_3prime_nt, row.example_accession, row.example_organism or "",
+                 row.first_seen or "", row.last_seen or ""]
                 for o in vs.oligos
                 for row in o.rows
             ],
@@ -269,15 +271,41 @@ def write_workbook(result: RunResult, path: Path) -> None:
         _sheet(
             wb,
             "Fragment variants",
-            ["Forward", "Probe", "Reverse", "Count", "Fraction (%)", "Level",
-             "Example accession", "Example organism"],
+            ["Forward", "Probe", "Reverse", "Count", "Fraction (%)", "Mismatches (F/P/R)",
+             "Example accession", "Example organism", "First release", "Last release"],
             [
                 [f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln, f.count, round(f.percent, 2),
-                 f.level, f.example_accession, f.example_organism or ""]
+                 f"{f.forward.n_mismatch + f.forward.n_gap}/{f.probe.n_mismatch + f.probe.n_gap}/"
+                 f"{f.reverse.n_mismatch + f.reverse.n_gap}",
+                 f.example_accession, f.example_organism or "",
+                 f.forward.first_seen or "", f.forward.last_seen or ""]
                 for f in vs.fragments
             ],
             None,
         )  # fmt: skip
+        if vs.coverage is not None:
+            c = vs.coverage
+            _sheet(
+                wb,
+                "Variant coverage",
+                ["Release year",
+                 "Records listed" if c.source == "blast_partitioned" else "Assemblies listed",
+                 "Assessed"],
+                [[y.year, y.listed, y.assessed] for y in c.years]
+                + [["Total", c.listed_total, c.assessed_total],
+                   ["Region found (all 3 sites)", c.found, ""],
+                   ["Region cut by a record end" if c.source == "blast_partitioned"
+                    else "Region cut by a contig end", c.contig_break, ""],
+                   ["Region hidden by N", c.masked, ", ".join(c.masked_examples)],
+                   ["Region not found", c.not_found, ", ".join(c.not_found_examples)],
+                   *([["  ...no sequence labelled as a plasmid", c.not_found_without_plasmid,
+                       ""],
+                      ["  ...plasmid sequence present, region missing (review)",
+                       c.not_found_with_plasmid, ", ".join(c.not_found_with_plasmid_examples)]]
+                     if c.target_on_plasmid else []),
+                   ["More than one copy", c.multi_copy, ""]],
+                None,
+            )  # fmt: skip
     incl = result.inclusivity
     if incl is not None and incl.oligos:
         _sheet(

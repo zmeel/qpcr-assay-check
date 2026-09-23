@@ -27,7 +27,7 @@ class SmokeFake(FakeNcbi):
     report_path: Path | None = None
     report_at_first_put: dict | None = None
 
-    def request(self, method, url, params=None, data=None, timeout=None):
+    def request(self, method, url, params=None, data=None, timeout=None, headers=None):
         if "Blast.cgi" in url and (data or {}).get("CMD") == "Put" and self.n_put == 0:
             if self.report_path and self.report_path.exists():
                 self.report_at_first_put = json.loads(self.report_path.read_text())

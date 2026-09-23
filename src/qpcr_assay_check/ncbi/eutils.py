@@ -47,6 +47,18 @@ class Eutils:
             raise NcbiError(f"Unexpected ESearch response: {resp.text[:200]!r}")
         return [int(i) for i in _ID_RE.findall(resp.text)]
 
+    def esearch_page(self, db: str, term: str, *, retstart: int, retmax: int) -> list[str]:
+        """One page of UIDs (``retstart``/``retmax``); deep offsets were checked live (3.57 M)."""
+        resp = self.http.request(
+            "GET",
+            f"{self.base_url}/esearch.fcgi",
+            service="eutils",
+            params={"db": db, "term": term, "retstart": retstart, "retmax": retmax},
+        )
+        if "<eSearchResult" not in resp.text:
+            raise NcbiError(f"Unexpected ESearch response: {resp.text[:200]!r}")
+        return _ID_RE.findall(resp.text)
+
     def esummary(self, db: str, ids: Sequence[str]) -> dict[str, dict[str, Any]]:
         """ESummary (JSON, version 2.0) document summaries for ``ids``, keyed by the ID string.
 
@@ -82,6 +94,20 @@ class Eutils:
         if "<TaxaSet" not in resp.text:
             raise NcbiError(f"Unexpected Taxonomy EFetch response: {resp.text[:200]!r}")
         return resp.text
+
+    def fetch_fasta_many(self, accessions: Sequence[str]) -> str:
+        """Multi-FASTA of several whole records (POST; records are matched by their header)."""
+        resp = self.http.request(
+            "POST",
+            f"{self.base_url}/efetch.fcgi",
+            service="eutils",
+            data={"db": "nuccore", "id": ",".join(accessions), "rettype": "fasta",
+                  "retmode": "text"},
+        )  # fmt: skip
+        text = resp.text
+        if accessions and not text.lstrip().startswith(">"):
+            raise NcbiError(f"Unexpected EFetch response: {text[:200]!r}")
+        return text
 
     def fetch_fasta(
         self, accession: str, *, start: int | None = None, stop: int | None = None, strand: int = 1
