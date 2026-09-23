@@ -280,7 +280,13 @@ def exhaustive_inclusivity(
         oligos.append(InclusivityOligoResult(role=role, oligo=assay.oligos[role], windows=windows))
     verdict, rationale = _verdict(oligos, cfg.inclusivity)
     rationale += [
-        f"{y.year}: {y.listed} assembl{'y' if y.listed == 1 else 'ies'} listed, "
+        f"{y.year}: {y.listed} "
+        + (
+            f"assembl{'y' if y.listed == 1 else 'ies'}"
+            if source == "datasets"
+            else f"record{'' if y.listed == 1 else 's'}"
+        )
+        + " listed, "
         f"{y.assessed} assessed so far; the rest follow on later runs."
         for y in sorted(years, key=lambda y: y.year)
         if y.year in shown and y.assessed < y.listed
@@ -309,11 +315,19 @@ def exhaustive_inclusivity(
         ),
         verdict=verdict,
         rationale=rationale,
-        limitations=[
-            "Assemblies are grouped by NCBI release year, not by sample collection date.",
-            "Only genome assemblies are covered; sequences submitted without an assembly (single "
-            "genes, amplicons) are not part of NCBI Datasets' genome collection.",
-        ],
+        limitations=(
+            [
+                "Assemblies are grouped by NCBI release year, not by sample collection date.",
+                "Only genome assemblies are covered; sequences submitted without an assembly "
+                "(single genes, amplicons) are not part of NCBI Datasets' genome collection.",
+            ]
+            if source == "datasets"
+            else [
+                "Records are grouped by NCBI publication year, not by sample collection date.",
+                "Records that do not contain the target region (other genes, partial sequences) "
+                "are counted as 'not found' and are not part of the per-year counts.",
+            ]
+        ),
     )
 
 
@@ -407,15 +421,21 @@ def run_exhaustive(
         not_found_with_plasmid_examples=[it.accession for it in with_plasmid[:20]],
         plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
         plasmid_info_recorded=any(it.plasmid_contigs is not None for it in items),
+        found_by_direct_scan=sum(1 for it in items if it.found_by == "direct_scan"),
+        not_checked_directly=sum(
+            1 for it in not_found if it.assembly_level == "Nucleotide record"
+            and it.direct_checked is False
+        ),
     )  # fmt: skip
     inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg, source=source)
     missing = coverage.not_found + coverage.contig_break
     if missing:
         inclusivity.rationale.append(
-            f"{missing} of {len(items)} assessed assemblies are not in the counts above: the "
-            f"target region was not found in {coverage.not_found} and was cut by a contig end in "
-            f"{coverage.contig_break} (see the Variant summary). Per year, 'Assemblies' minus "
-            "'With region' is that gap."
+            f"{missing} of {len(items)} assessed "
+            f"{'assemblies' if source == 'datasets' else 'records'} are not in the counts above: "
+            f"the target region was not found in {coverage.not_found} and was cut by a contig "
+            f"end in {coverage.contig_break} (see the Variant summary). Per year, 'Assemblies' "
+            "minus 'With region' is that gap."
         )
     if coverage.target_on_plasmid and coverage.not_found_with_plasmid:
         inclusivity.rationale.append(

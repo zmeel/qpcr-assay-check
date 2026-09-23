@@ -89,6 +89,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   records). 376 tests pass incl. a CLI end-to-end run against a fake NCBI. NOT yet run live:
   suggested first live test is CDC N1 with `nucleotide_query: "25000:32000[SLEN]"` and a small
   `blast_max_records_per_run` (e.g. 300 = 3 searches).
+- First live partitioned run: 300/300 newest records without a BLAST hit (likely not yet in
+  core_nt); fixed with a direct EFetch scan of records without a hit; old 'not found' entries are
+  rescanned once. Variant section now shows its coverage even with zero sites. 379 tests pass.
+  Needs one more live run (same config: expect ~300 re-checks, BLAST results from cache).
 - Still open for v1.1.0: CHANGELOG release section and tag v1.1.0 (after the live check).
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.

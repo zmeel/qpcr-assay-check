@@ -95,6 +95,20 @@ class Eutils:
             raise NcbiError(f"Unexpected Taxonomy EFetch response: {resp.text[:200]!r}")
         return resp.text
 
+    def fetch_fasta_many(self, accessions: Sequence[str]) -> str:
+        """Multi-FASTA of several whole records (POST; records are matched by their header)."""
+        resp = self.http.request(
+            "POST",
+            f"{self.base_url}/efetch.fcgi",
+            service="eutils",
+            data={"db": "nuccore", "id": ",".join(accessions), "rettype": "fasta",
+                  "retmode": "text"},
+        )  # fmt: skip
+        text = resp.text
+        if accessions and not text.lstrip().startswith(">"):
+            raise NcbiError(f"Unexpected EFetch response: {text[:200]!r}")
+        return text
+
     def fetch_fasta(
         self, accession: str, *, start: int | None = None, stop: int | None = None, strand: int = 1
     ) -> str:

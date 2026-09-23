@@ -26,6 +26,7 @@ class FakeRecord:
     seq: str
     title: str = "Organism sequence"
     partial: bool = False  # BLAST reports only part of the amplicon
+    in_blast_db: bool = True  # False: too new for the BLAST database (live finding, 2026-09-23)
 
 
 @dataclass
@@ -33,6 +34,7 @@ class FakeNuccore:
     records: list[FakeRecord]
     leaks: list[FakeRecord] = field(default_factory=list)  # hit by BLAST, never listed
     blast_puts: list[str] = field(default_factory=list)
+    efetch_ids: list[str] = field(default_factory=list)
     headers: dict = field(default_factory=dict)
     _queries: dict[str, tuple[str, list[str]]] = field(default_factory=dict)
 
@@ -44,7 +46,7 @@ class FakeNuccore:
         if "esummary.fcgi" in url:
             return self._esummary(p)
         if "efetch.fcgi" in url:
-            return self._efetch(p)
+            return self._efetch({**p, **d})
         if "Blast.cgi" in url:
             if d.get("CMD") == "Put":
                 rid = f"RID{len(self._queries) + 1:04d}"
@@ -87,6 +89,11 @@ class FakeNuccore:
         return FakeResponse(200, json.dumps({"result": result}))
 
     def _efetch(self, p: dict) -> FakeResponse:
+        self.efetch_ids.append(str(p["id"]))
+        ids = str(p["id"]).split(",")
+        if len(ids) > 1 or "seq_start" not in p:  # whole records, possibly several
+            recs = [r for r in self.records if r.accession in ids]
+            return FakeResponse(200, "".join(f">{r.accession} {r.title}\n{r.seq}\n" for r in recs))
         r = next(r for r in self.records if r.accession == p["id"])
         lo, hi = int(p.get("seq_start", 1)), int(p.get("seq_stop", len(r.seq)))
         return FakeResponse(200, f">{r.accession} {r.title}\n{r.seq[lo - 1 : hi]}\n")
@@ -101,7 +108,8 @@ class FakeNuccore:
                                        "query_len": 20, "hits": []}},
             }} for i, label in enumerate(accs, 1)]})  # fmt: skip
         hits = []
-        wanted = [r for r in self.records if r.accession in accs] + list(self.leaks)
+        wanted = [r for r in self.records if r.accession in accs and r.in_blast_db]
+        wanted += list(self.leaks)
         for r in wanted:
             hsp = _ungapped(query, r)
             if hsp is None:

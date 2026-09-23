@@ -411,6 +411,8 @@ class VariantsSettings(_Strict):
     nucleotide_query: str | None
     blast_max_records_per_run: int
     blast_records_per_search: int
+    direct_scan_max_length: int
+    direct_scan_batch: int
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:

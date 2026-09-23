@@ -28,11 +28,12 @@ from datetime import UTC, datetime
 from ..config import Config
 from ..ncbi import blast
 from ..ncbi.eutils import Eutils
+from ..ncbi.http import NcbiError
 from ..ncbi.jobs import Job, JobStore
 from ..ncbi.parser import Hsp, parse_blast_json
 from ..ncbi.runner import BlastRunner
 from ..specificity.fetch import WindowFetcher
-from .datasets import AssemblyRecord
+from .datasets import AssemblyRecord, parse_fasta_records
 from .locate import INDEL_TOLERANCE, Locus, find_loci
 from .models import YearCoverage
 from .store import RegionStore
@@ -170,6 +171,7 @@ def _search(
                 hsps.setdefault(d.accession_version, []).extend(
                     (h, hit.length, d.title or "") for h in hit.hsps
                 )
+    missed: list[AssemblyRecord] = []
     for acc, rec in by_acc.items():
         loci: list[Locus] = []
         found = sorted(hsps.get(acc, []), key=lambda x: -x[0].bit_score)
@@ -180,7 +182,46 @@ def _search(
                 abs(locus.start - lc.start) <= INDEL_TOLERANCE for lc in loci
             ):
                 loci.append(locus)
-        store.add(rec, loci, {acc: title})
+        if loci:
+            store.add(rec, loci, {acc: title}, found_by="blast")
+        else:
+            missed.append(rec)
+    _direct_scan(missed, amplicon, cfg, fetcher, store)
+
+
+def _direct_scan(
+    recs: list[AssemblyRecord],
+    amplicon: str,
+    cfg: Config,
+    fetcher: WindowFetcher,
+    store: RegionStore,
+) -> None:
+    """Records BLAST did not hit: fetch them and scan for the amplicon before calling them absent.
+
+    Found live (CDC N1, 2026-09-23): all 300 of the newest SARS-CoV-2 records came back without a
+    hit, most likely because they were not yet in the BLAST database. Records longer than
+    ``direct_scan_max_length`` are not fetched and stay "not found" (not checked directly).
+    """
+    v = cfg.variants
+    small = [r for r in recs if 0 < r.total_length <= v.direct_scan_max_length]
+    fetched: dict[str, tuple[str, str]] = {}
+    for i in range(0, len(small), v.direct_scan_batch):
+        chunk = small[i : i + v.direct_scan_batch]
+        try:
+            text = fetcher.eutils.fetch_fasta_many([r.accession for r in chunk])
+        except NcbiError as exc:
+            log.warning("Could not fetch %d records for a direct scan: %s", len(chunk), exc)
+            continue
+        fetched.update(parse_fasta_records(text))
+    for rec in recs:
+        got = fetched.get(rec.accession)
+        if got is None:
+            store.add(rec, [], {rec.accession: ""}, direct_checked=False)
+            continue
+        desc, seq = got
+        loci = find_loci({rec.accession: seq}, amplicon, seed_length=v.seed_length,
+                         seed_step=v.seed_step, flank=v.flank_nt)  # fmt: skip
+        store.add(rec, loci, {rec.accession: desc}, found_by="direct_scan", direct_checked=True)
 
 
 def _locus(

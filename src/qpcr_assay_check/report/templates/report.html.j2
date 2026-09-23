@@ -276,7 +276,7 @@ td.aln-cell { min-width: 22rem; }
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
 {% endif %}
 
-{% if r.variant_summary and (r.variant_summary.oligos | selectattr('rows') | list) %}
+{% if r.variant_summary and ((r.variant_summary.oligos | selectattr('rows') | list) or r.variant_summary.coverage) %}
 <h2>Variant summary (assay's own target)</h2>
 {% set cov = r.variant_summary.coverage %}
 {% if cov %}
@@ -293,6 +293,7 @@ td.aln-cell { min-width: 22rem; }
     {% if cov.plasmid_info_recorded and not cov.target_on_plasmid %}<br>of which {{ cov.not_found_without_plasmid }} contain no sequence labelled as a plasmid and {{ cov.not_found_with_plasmid }} contain plasmid sequence{% if cov.target_on_plasmid is none %} (whether the target lies on a plasmid is not known yet){% endif %}.{% endif %}
     {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no sequence labelled as a plasmid (many assemblies hold only the chromosome, which says nothing about the strain; in a draft assembly a plasmid can also sit in an unlabelled contig, so a deletion there would be counted here), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain a sequence labelled as a plasmid but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') }}{% endif %}.{% endif %}</td></tr>
   {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') }}</span>{% endif %}</td></tr>{% endif %}
+  {% if cov.source == 'blast_partitioned' %}<tr><th scope="row">Found without a BLAST hit</th><td>{{ cov.found_by_direct_scan }} (the record was fetched and scanned directly; for example too new for the BLAST database){% if cov.not_checked_directly %}<br><strong>{{ cov.not_checked_directly }}</strong> record(s) without a BLAST hit could not be checked directly (too long, or the fetch failed): their "not found" is not confirmed{% endif %}</td></tr>{% endif %}
   <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (the best complete copy is used)</td></tr>
   </tbody>
 </table></div>
@@ -319,6 +320,7 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 {% endfor %}
 
+{% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 {% if r.variant_summary.fragments %}
 <div class="scroll"><table>

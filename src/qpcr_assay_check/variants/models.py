@@ -45,6 +45,16 @@ class ExhaustiveCoverage(BaseModel):
         "plasmid-borne target, a possible deletion (as in the Swedish nvCT variant)",
     )
     not_found_with_plasmid_examples: list[str] = Field(default_factory=list)
+    found_by_direct_scan: int = Field(
+        default=0,
+        description="Nucleotide records: no BLAST hit, region found by fetching the record (for "
+        "example, too new for the BLAST database)",
+    )
+    not_checked_directly: int = Field(
+        default=0,
+        description="Nucleotide records without a BLAST hit that were not fetched and scanned "
+        "(longer than direct_scan_max_length, or the fetch failed)",
+    )
     plasmid_info_recorded: bool = Field(
         default=False,
         description="plasmid sequences were counted for at least one assembly (so the split of "

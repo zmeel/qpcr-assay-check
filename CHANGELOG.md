@@ -49,6 +49,10 @@ All notable changes to this project are documented here. The format follows
   `blast_max_records_per_run` (2,000) records per run, resumable; optional
   `variants.nucleotide_query` narrows the record list. Same variant tables, coverage, inclusivity
   and history as the assembly source. The search plan states that the amplicon is sent to BLAST.
+  Records BLAST does not hit are fetched and scanned directly before being called "not found"
+  (found live: all 300 of the newest SARS-CoV-2 records had no BLAST hit, most likely because they
+  were not yet in the BLAST database); the report counts records found this way. The variant
+  section now also appears, with its coverage, when no oligo site could be assessed.
 - **Oligo windows are clamped to the stored region** instead of dropping a site whose padding
   runs past the region's end (a full-length BLAST region has no flanks; an assembly region close
   to a contig end is now assessed instead of being counted as a contig break).

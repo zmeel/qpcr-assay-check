@@ -55,11 +55,27 @@ class StoredAssembly(BaseModel):
         "stored before v1.1.0's plasmid check)",
     )
     plasmid_examples: list[str] = Field(default_factory=list)
+    found_by: Literal["scan", "blast", "direct_scan"] | None = Field(
+        default=None,
+        description="scan: genome scanned (assembly source); blast: a BLAST hit; direct_scan: "
+        "no BLAST hit, found by fetching the record itself (e.g. not yet in the BLAST database)",
+    )
+    direct_checked: bool | None = Field(
+        default=None,
+        description="Nucleotide records only: a record without a BLAST hit was fetched and "
+        "scanned directly before being called 'not found'",
+    )
 
     @property
     def needs_rescan(self) -> bool:
-        """Stored before plasmid sequences were counted: scan it again (once)."""
-        return self.plasmid_contigs is None
+        """Stored before a check this version makes: scan it again (once)."""
+        if self.plasmid_contigs is None:
+            return True
+        return (
+            self.assembly_level == "Nucleotide record"
+            and self.status == "not_found"
+            and not self.direct_checked
+        )
 
     @property
     def year(self) -> int:
@@ -108,6 +124,9 @@ class RegionStore:
         rec: AssemblyRecord,
         loci: list[Locus],
         descriptions: dict[str, str] | None = None,
+        *,
+        found_by: str | None = None,
+        direct_checked: bool | None = None,
     ) -> StoredAssembly:
         item = StoredAssembly(
             accession=rec.accession,
@@ -130,6 +149,8 @@ class RegionStore:
             plasmid_examples=[
                 f"{name} {d}"[:160] for name, d in (descriptions or {}).items() if is_plasmid(d)
             ][:3],
+            found_by=(found_by or "scan") if loci else None,  # type: ignore[arg-type]
+            direct_checked=direct_checked,
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as fh:

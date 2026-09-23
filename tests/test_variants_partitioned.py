@@ -93,3 +93,59 @@ def test_the_search_plan_says_the_amplicon_is_sent_to_blast():
     cfg.variants.source = "blast_partitioned"
     plan = plan_searches(make_assay(), cfg)
     assert any("reference amplicon is also sent to NCBI BLAST" in n for n in plan.notes)
+
+
+def test_records_missing_from_the_blast_database_are_found_by_a_direct_scan(tmp_path):
+    """Live finding: all 300 newest SARS-CoV-2 records had no BLAST hit (not in core_nt yet)."""
+    recs = records()
+    for r in recs:
+        r.in_blast_db = False
+    fake = FakeNuccore(recs)
+    res = setup(tmp_path, fake)()
+    c = res.coverage
+    assert (c.found, c.not_found, c.found_by_direct_scan, c.not_checked_directly) == (4, 1, 4, 0)
+    fwd = sorted((s.accession, s.n_mismatch) for s in res.sites if s.role == "forward")
+    assert fwd == [("MZ000001.1", 0), ("MZ000002.1", 1), ("MZ000003.1", 0), ("MZ000005.1", 0)]
+    assert any("," in ids for ids in fake.efetch_ids)  # several records per EFetch request
+
+
+def test_old_not_found_records_without_a_direct_check_are_scanned_again(tmp_path):
+    import json
+
+    recs = records()
+    for r in recs:
+        r.in_blast_db = False
+    fake = FakeNuccore(recs)
+    run = setup(tmp_path, fake)
+    run()
+    (path,) = (tmp_path / "cache" / "variants").glob("*-blast_partitioned.jsonl")
+    lines = []
+    for line in path.read_text().splitlines():  # as the first live run stored them
+        item = json.loads(line)
+        item.update(status="not_found", loci=[], n_loci=0, found_by=None)
+        item.pop("direct_checked")
+        lines.append(json.dumps(item))
+    path.write_text("\n".join(lines) + "\n")
+    c = run().coverage
+    assert c.processed_this_run == 5 and c.found == 4
+
+
+def test_the_report_shows_coverage_even_when_no_region_was_found(tmp_path):
+    from qpcr_assay_check.pipeline import evaluate
+    from qpcr_assay_check.report.html import render_report
+
+    from .test_variants_exhaustive import _empty_specificity
+
+    recs = [FakeRecord("4", "MZ000004.1", "2025/07/01", filler(900, 4))]
+    res = setup(tmp_path, FakeNuccore(recs))()
+    cfg = load_config()
+    cfg.variants.source = "blast_partitioned"
+    result = evaluate(
+        make_assay(reference_amplicon=AMP, target={"taxid": 2697049}), cfg, now=NOW,
+        target_sites=res.sites, variant_coverage=res.coverage, release_dates=res.release_dates,
+        inclusivity=res.inclusivity, specificity=_empty_specificity(),
+    )  # fmt: skip
+    html = render_report(result, cfg)
+    assert "Scope: every NCBI Nucleotide record" in html
+    assert "No oligo site could be assessed" in html and "Found without a BLAST hit" in html
+    assert "NCBI Datasets' genome collection" not in html

@@ -213,7 +213,16 @@ report and nothing else this project didn't already improve on.
   Records share the region store and assessment with the assembly source (store key includes the
   source); oligo windows are clamped to the region, since a full-length BLAST region has no
   flanks. The plan notes that the amplicon is sent to BLAST; more than `max_searches_warn`
-  searches in one run are logged with NCBI's off-peak advice. Not yet run live.
+  searches in one run are logged with NCBI's off-peak advice.
+  **First live run (2026-09-23, CDC N1, `nucleotide_query: 25000:32000[SLEN]`, 300 records):**
+  9,194,157 records listed; 3 searches of ~2 minutes each, all accepted; all 300 of the newest
+  records (2026, e.g. QB036213.1) came back without a hit. Most likely cause (not confirmed): the
+  newest records are not in `core_nt` yet (the earlier 100/100 check used 2022 records). Fix: a
+  record without a BLAST hit and at most `direct_scan_max_length` long is fetched whole (EFetch
+  POST, `direct_scan_batch` records per request, matched by FASTA header) and scanned with the
+  seed locator before it is called "not found"; records found that way are counted
+  (`found_by_direct_scan`), and those that could not be checked are reported. "Not found" entries
+  from the first run are scanned again once (`direct_checked` missing).
 - **Only fully re-aligned sites count as a measured variant**: a `blast_partial_worst_case` site's
   unaligned flanks are an assumed-conservative estimate, not an observed base, so counting it as a
   variant would misrepresent an estimate as a measurement (the same reasoning as inclusivity's
