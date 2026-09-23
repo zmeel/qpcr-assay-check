@@ -104,7 +104,8 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Nucleotide records (inclusivity title and column, gap note, history table, xlsx), and history no
   longer lists "99% -> 99%" lines when only more records were assessed (they stay in the table).
   382 tests pass.
-- Still open for v1.1.0: CHANGELOG release section and tag v1.1.0 (after the live check).
+- v1.1.0 closed: CHANGELOG release section, version 1.1.0 in pyproject/README. The annotated tag
+  `v1.1.0` is created by the user on main after merging (tag pushes are blocked here, HTTP 403).
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

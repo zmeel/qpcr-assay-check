@@ -4,7 +4,7 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v1.0.0 (alpha, tagged 2026-09-22).** A full `run` sends the oligos to NCBI (tiered,
+> **Status: v1.1.0 (alpha, 2026-09-23).** A full `run` sends the oligos to NCBI (tiered,
 > taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
 > every relevant hit, predicts off-target products, and judges specificity — genuine
 > `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
@@ -171,7 +171,7 @@ qpcr-assay-check search my-assay/assay.yaml --dry-run   # show exactly what woul
 qpcr-assay-check search my-assay/assay.yaml -o results   # asks before sending anything
 ```
 
-### Variant summary: every genome assembly (unreleased, v1.1.0)
+### Variant summary: every genome assembly or Nucleotide record (v1.1.0)
 
 The **variant summary** lumps the oligo sites on the intended target into unique sequence
 variants, with a count, a percentage and the first and last release date of the assemblies that
@@ -305,7 +305,7 @@ year — `population_size` is always shown alongside `sample_size` so the two ar
 A target tier that was never searched, or a year with no dated hits, is INCOMPLETE for that scope
 rather than a silent PASS.
 
-### Run history and changes since the last run (v1.0.0, in progress)
+### Run history and changes since the last run (v1.0.0)
 
 Every full `run` looks for the most recently generated `results.json` under the same output
 directory and assay name (`<outdir>/<assay-slug>/*/results.json`, sorted by the record's own
@@ -567,7 +567,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.2.0 | Remote BLAST backend: batching, cache, resumable jobs, parser, smoke test |
 | 0.3.0 | Full-length re-alignment, mismatch Tm/ΔG, amplicon pairing, specificity verdicts |
 | 0.4.0 | Taxonomy resolution, organism list, exclusivity, inclusivity |
-| **1.0.0** | Run history, yearly diff report, Docker — all confirmed live |
+| 1.0.0 | Run history, yearly diff report, Docker — all confirmed live |
+| **1.1.0** | Exhaustive variant analysis (NCBI Datasets genomes; Nucleotide records by direct scan + partitioned BLAST), N-masked regions, new-variant history — confirmed live |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 

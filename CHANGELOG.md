@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-23
+
+Exhaustive variant analysis of the intended target, replacing the saturated target-tier BLAST
+hit list as the source of the variant summary and inclusivity.
+
 ### Added
 - **Exhaustive variant analysis from every genome assembly** (`variants/`, v1.1.0): the variant
   summary and inclusivity are now built from all genome assemblies of the target in NCBI Datasets
