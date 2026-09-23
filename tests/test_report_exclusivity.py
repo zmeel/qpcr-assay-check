@@ -131,3 +131,30 @@ def test_workbook_gets_exclusivity_and_taxonomy_sheets(n1, tmp_path):
     assert rows["Mycoplasma pneumoniae"][1].value == "unresolved"
     tax_rows = list(wb["Taxonomy breakdown"].iter_rows(min_row=2))
     assert tax_rows[0][1].value == "Chlamydia trachomatis"
+
+
+def test_a_run_without_a_human_search_says_so_in_the_rationale_and_report(n1):
+    result = _result(n1)  # the search outcome has an exclusivity tier only
+    assert any("Human background" in line for line in result.overall.rationale)
+    spec = next(s for s in result.sections if s.key == "specificity")
+    assert "Human background was not searched" in spec.note
+    assert "off-target binding to human DNA was not evaluated" in render_report(
+        result, load_config()
+    )
+
+
+def test_a_run_with_a_human_search_does_not_flag_it(n1):
+    outcome = _search_outcome()
+    outcome.searches.append(
+        outcome.searches[0].model_copy(update={"tier": "background", "taxids": [9606]})
+    )
+    result = evaluate(
+        n1, load_config(), now=NOW, specificity=_specificity_with_exclusivity(),
+        organism_resolution=_resolution(), search_outcome=outcome,
+    )  # fmt: skip
+    assert not any("Human background" in line for line in result.overall.rationale)
+
+
+def test_qc_only_runs_do_not_mention_human_background(n1):
+    result = evaluate(n1, load_config(), qc_only=True, now=NOW)
+    assert not any("Human background" in line for line in result.overall.rationale)

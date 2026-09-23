@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Report states when human background was not searched** (`pipeline.py`, `search/planner.py`):
+  setting `search.background_taxids: []` (e.g. to skip the slow, roughly hour-long human search)
+  used to drop the background tier silently. The search plan now warns when human (taxid 9606) is
+  not in `background_taxids`, and a full run whose searches (other than the target tier) did not
+  cover 9606 adds a "Human background: ... not evaluated" line to the overall rationale and a note
+  to the specificity section. The verdict itself is unchanged.
+
 ### Fixed
 - **Exclusivity table undercounted hits on finely-split taxa** (`taxonomy/exclusivity.py`):
   `ExclusivityRow.n_sites` grouped hits by exact taxid equality against the organism-list entry's

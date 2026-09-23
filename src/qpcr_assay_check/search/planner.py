@@ -84,6 +84,9 @@ def split_batches(
     return batches
 
 
+HUMAN_TAXID = 9606
+
+
 def _chunks(items: list[int], size: int) -> list[list[int]]:
     return [items[i : i + size] for i in range(0, len(items), size)]
 
@@ -121,6 +124,12 @@ def plan_searches(
         tiers.append(("near_neighbours", "Near neighbours and exclusion taxa", near))
     if cfg.search.background_taxids:
         tiers.append(("background", "Background taxa", sorted(set(cfg.search.background_taxids))))
+    if HUMAN_TAXID not in cfg.search.background_taxids:
+        plan.warnings.append(
+            f"Human (taxid {HUMAN_TAXID}) is not in 'search.background_taxids', so no human "
+            "background search is planned; the report will state that off-target binding to "
+            "human DNA was not evaluated."
+        )
     if exclusivity_taxids:
         tiers.append(("exclusivity", "Clinical organism list", sorted(set(exclusivity_taxids))))
     elif exclusivity_taxids is None:

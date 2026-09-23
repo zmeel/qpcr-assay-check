@@ -3,6 +3,19 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-23 — Report states when human background was skipped
+
+- The user ran a full live `run` with a per-assay `exclusivity_organisms` list (Chlamydia
+  trachomatis, Influenza A virus): 3 searches (target, human background, exclusivity). It ran for
+  over 1.5 h, the exclusivity search (txid813 OR txid11320) still running at the time; timing not
+  yet reported back. Explained that searches run sequentially and progress lines need `-v`.
+- User asked how to skip the human background: `search.background_taxids: []` in a `--config`
+  file. That previously dropped the tier silently, so added: a plan warning when 9606 is not in
+  `background_taxids`, and a rationale line + specificity-section note in the report when no
+  non-target search covered 9606. Verdict unchanged. `ruff check .` clean, 343 tests pass.
+- Open: ask the user for the exclusivity search's submitted/finished times from `jobs.json` and
+  record the measured duration in `docs/ARCHITECTURE.md`.
+
 ## 2026-09-23 — Live smoke test finds and fixes a real exclusivity undercount bug
 
 The user uploaded two smoke-test reports this session. The first was the very first-ever run

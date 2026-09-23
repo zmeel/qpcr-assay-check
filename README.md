@@ -136,6 +136,9 @@ window (`efetch`, padded for gaps) and semi-globally re-aligns the *whole* oligo
 past BLAST's seed are not missed. Hits that provably cannot reach even a "warning" level (from
 BLAST's own scoring bound) are not fetched, to keep a background-tier run to a practical number of
 `efetch` calls; `scripts/validate_assessment.py` checks that bound against real NCBI hits.
+To skip the human background search (it takes about an hour), set `search.background_taxids: []`
+in a `--config` file. The search plan then warns, and the report's rationale states that
+off-target binding to human DNA was not evaluated.
 Forward/reverse hits on the same accession, facing each other within `specificity.max_amplicon_size`,
 are paired into predicted products, and classified as likely detected / amplified but not detected /
 primer-only depending on whether the probe also binds. Amplicon pairing only expands the *primary*
