@@ -62,6 +62,7 @@ class VariantRow(BaseModel):
     level: Level
     n_mismatch: int
     n_gap: int
+    clean_3prime_nt: int = Field(default=0, description="perfectly matching bases at the 3' end")
     example_accession: str
     example_organism: str | None = None
     example_site_id: str
@@ -141,6 +142,7 @@ def _variant_row(
         level=s.level,
         n_mismatch=s.n_mismatch,
         n_gap=s.n_gap,
+        clean_3prime_nt=s.clean_3prime_nt,
         example_accession=s.accession,
         example_organism=s.organism,
         example_site_id=s.id,

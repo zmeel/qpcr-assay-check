@@ -21,6 +21,7 @@ class FakeAssembly:
     level: str = "Contig"
     organism: str = "Chlamydia trachomatis"
     taxid: int = 813
+    descriptions: dict[str, str] = field(default_factory=dict)  # contig -> FASTA description
 
 
 class FakeResponse:
@@ -95,7 +96,10 @@ class FakeDatasets:
                 a = by_acc.get(acc)
                 if a is None or acc in self.missing_from_download:
                     continue
-                fasta = "".join(f">{name} fake contig\n{seq}\n" for name, seq in a.contigs.items())
+                fasta = "".join(
+                    f">{name} {a.descriptions.get(name, 'fake contig')}\n{seq}\n"
+                    for name, seq in a.contigs.items()
+                )
                 zf.writestr(f"ncbi_dataset/data/{acc}/{acc}_fake_genomic.fna", fasta)
         return FakeResponse(200, buf.getvalue(), "application/zip")
 

@@ -17,7 +17,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from ..ncbi.cache import content_key
-from .datasets import AssemblyRecord
+from .datasets import AssemblyRecord, is_plasmid
 from .locate import Locus
 
 log = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ class StoredLocus(BaseModel):
     offset: int
     n_seeds: int
     truncated: bool
+    on_plasmid: bool | None = None
 
 
 class StoredAssembly(BaseModel):
@@ -47,6 +48,18 @@ class StoredAssembly(BaseModel):
     status: Literal["found", "not_found"]
     n_loci: int = 0
     loci: list[StoredLocus] = Field(default_factory=list)
+    n_contigs: int | None = None
+    plasmid_contigs: int | None = Field(
+        default=None,
+        description="sequences whose FASTA description names a plasmid (None: not recorded, "
+        "stored before v1.1.0's plasmid check)",
+    )
+    plasmid_examples: list[str] = Field(default_factory=list)
+
+    @property
+    def needs_rescan(self) -> bool:
+        """A 'not found' stored before plasmid sequences were counted: scan it again."""
+        return self.status == "not_found" and self.plasmid_contigs is None
 
     @property
     def year(self) -> int:
@@ -78,7 +91,17 @@ class RegionStore:
     def __contains__(self, accession: str) -> bool:
         return accession in self.items
 
-    def add(self, rec: AssemblyRecord, loci: list[Locus]) -> StoredAssembly:
+    def done(self, accession: str) -> bool:
+        """Stored and complete: nothing left to download for this assembly."""
+        item = self.items.get(accession)
+        return item is not None and not item.needs_rescan
+
+    def add(
+        self,
+        rec: AssemblyRecord,
+        loci: list[Locus],
+        descriptions: dict[str, str] | None = None,
+    ) -> StoredAssembly:
         item = StoredAssembly(
             accession=rec.accession,
             release_date=rec.release_date,
@@ -87,13 +110,31 @@ class RegionStore:
             assembly_level=rec.assembly_level,
             status="found" if loci else "not_found",
             n_loci=len(loci),
-            loci=[StoredLocus(**_locus(lc)) for lc in loci[:MAX_LOCI_KEPT]],
+            loci=[
+                StoredLocus(**_locus(lc), on_plasmid=_plasmid(descriptions, lc.contig))
+                for lc in loci[:MAX_LOCI_KEPT]
+            ],
+            n_contigs=len(descriptions) if descriptions is not None else None,
+            plasmid_contigs=(
+                sum(1 for d in descriptions.values() if is_plasmid(d))
+                if descriptions is not None
+                else None
+            ),
+            plasmid_examples=[
+                f"{name} {d}"[:160] for name, d in (descriptions or {}).items() if is_plasmid(d)
+            ][:3],
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as fh:
             fh.write(item.model_dump_json() + "\n")
         self.items[item.accession] = item
         return item
+
+
+def _plasmid(descriptions: dict[str, str] | None, contig: str) -> bool | None:
+    if descriptions is None or contig not in descriptions:
+        return None
+    return is_plasmid(descriptions[contig])
 
 
 def _locus(lc: Locus) -> dict[str, Any]:

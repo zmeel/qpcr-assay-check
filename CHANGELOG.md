@@ -21,6 +21,22 @@ All notable changes to this project are documented here. The format follows
   `variants.source: blast_hits` keeps the previous behaviour. New `Variant coverage` xlsx sheet.
   Endpoints from NCBI's published Datasets OpenAPI spec, behaviour checked live with
   `scripts/probe_variant_sources.py`.
+- **Plasmid-borne targets: "region not found" split in two** (`variants/`): a genome assembly
+  without the target region either holds no plasmid sequence at all (common; many assemblies are
+  chromosome only, and that says nothing about the strain) or holds plasmid sequence but not the
+  region, which may be a deletion the assay would miss (as with the Swedish nvCT variant). When
+  the region is found on plasmid sequences, the report, the xlsx coverage sheet, the inclusivity
+  rationale and the overall rationale now count and list the second group separately. Plasmid
+  sequences are recognised by "plasmid" in their FASTA description; examples are shown in the
+  report so the rule can be checked. "Not found" entries stored before this change are scanned
+  again automatically. Found live: C. trachomatis cryptic-plasmid assay, 281 of 357 assemblies
+  without the region.
+- **Variant tables describe the match in words**: "perfect match", or the number of mismatches and
+  gaps and whether the primer's 3' end is intact, in place of the off-target "critical/warning"
+  levels (which read as a problem for the target). The fragment table shows mismatches per oligo;
+  the xlsx sheets get a "Matching 3' nt" column.
+- **Inclusivity title** says "all genome assemblies" instead of "sampled" when it is built from
+  every assembly.
 - **Report states when human background was not searched** (`pipeline.py`, `search/planner.py`):
   setting `search.background_taxids: []` (e.g. to skip the slow, roughly hour-long human search)
   used to drop the background tier silently. The search plan now warns when human (taxid 9606) is

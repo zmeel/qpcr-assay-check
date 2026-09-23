@@ -89,6 +89,7 @@ td.aln-cell { min-width: 22rem; }
 <body>
 <main>
 {% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
+{% macro match(row, primer) %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
 {% macro pct(value) %}{% if 0 < value < 0.05 %}&lt;0.1%{% else %}{{ '%.1f' % value }}%{% endif %}{% endmacro %}
 
 <header>
@@ -287,7 +288,9 @@ td.aln-cell { min-width: 22rem; }
   <tr><th scope="row">Processed in this run</th><td>{{ cov.processed_this_run }}{% if cov.download_failed_this_run %}; {{ cov.download_failed_this_run }} download(s) failed and will be retried next run{% endif %}</td></tr>
   <tr><th scope="row">Amplicon region found</th><td>{{ cov.found }} with all three oligo sites complete</td></tr>
   <tr><th scope="row">Region cut by a contig end</th><td>{{ cov.contig_break }} (draft assemblies; not counted in the tables)</td></tr>
-  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the genome: the target region may be absent (e.g. a plasmid- or island-borne target), or too divergent to find. Review these.</span></td></tr>
+  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the genome: the target region may be absent, or too divergent to find.</span>
+    {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no plasmid sequence at all (many assemblies hold only the chromosome: this says nothing about the strain), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain plasmid sequence but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') }}{% endif %}.{% endif %}</td></tr>
+  {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') }}</span>{% endif %}</td></tr>{% endif %}
   <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (the best complete copy is used)</td></tr>
   </tbody>
 </table></div>
@@ -300,12 +303,12 @@ td.aln-cell { min-width: 22rem; }
 {% if o.rows %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
+  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Match to the oligo</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for row in o.rows %}
   <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
     <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
-    <td>{{ chip(row.level) }}</td>
+    <td>{{ match(row, o.role != 'probe') }}</td>
     <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
@@ -317,12 +320,12 @@ td.aln-cell { min-width: 22rem; }
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 {% if r.variant_summary.fragments %}
 <div class="scroll"><table>
-  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
+  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Mismatches (F / P / R)</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for f in r.variant_summary.fragments %}
   <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
     <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
-    <td>{{ chip(f.level) }}</td>
+    <td>{{ f.forward.n_mismatch + f.forward.n_gap }} / {{ f.probe.n_mismatch + f.probe.n_gap }} / {{ f.reverse.n_mismatch + f.reverse.n_gap }}</td>
     <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
@@ -374,7 +377,7 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 
 {% if r.inclusivity %}
-<h2>Inclusivity across the intended target (sampled)</h2>
+<h2>Inclusivity across the intended target ({{ 'all genome assemblies' if r.inclusivity.exhaustive else 'sampled' }})</h2>
 <p>{{ chip(r.inclusivity.verdict.value) }} inclusivity</p>
 {% if not r.inclusivity.tier_searched %}
 <p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>

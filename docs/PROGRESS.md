@@ -69,7 +69,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (pipeline.py); report + xlsx coverage and first/last release dates. Falls back to BLAST hits
   with a rationale note when no amplicon/assemblies/Datasets error. 364 tests pass (fake Datasets
   server in tests/fake_datasets.py, incl. a CLI end-to-end run). NOT yet run live.
-- Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
+- Live C. trachomatis run (user's cryptic-plasmid assay): 357/357 assemblies processed, 76 with
+  the region, 281 not found (see ARCHITECTURE.md). User asked for three changes, all done:
+  plasmid split of "not found" (with automatic re-scan of old not-found entries), variant tables
+  in words instead of critical/warning, inclusivity title. 367 tests pass. Next live run should
+  show ~281 re-downloads, and the report's "Recognised as plasmid" examples must be checked to
+  confirm the description rule.
+- (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are
   in; a diff against the previous run's variant rows is still to do).

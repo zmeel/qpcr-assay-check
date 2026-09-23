@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -205,3 +206,82 @@ def _empty_specificity():
     from .test_report_exclusivity import _specificity_with_exclusivity
 
     return _specificity_with_exclusivity()
+
+
+# ------------------------------------------------------------------ plasmid-borne targets
+CHROM = "chromosome, complete genome"
+PLASMID = "plasmid pCT, complete sequence"
+
+
+def plasmid_assemblies() -> list[FakeAssembly]:
+    def asm(acc, date, plasmid_seq):
+        contigs = {f"{acc}_chr": filler(4000, hash(acc) % 1000)}
+        desc = {f"{acc}_chr": f"Chlamydia trachomatis {CHROM}"}
+        if plasmid_seq is not None:
+            contigs[f"{acc}_pl"] = plasmid_seq
+            desc[f"{acc}_pl"] = f"Chlamydia trachomatis {PLASMID}"
+        return FakeAssembly(acc, date, contigs, descriptions=desc)
+
+    return [
+        asm("GCF_100.1", "2025-01-01", filler(500, 1) + AMP + filler(500, 2)),
+        asm("GCF_101.1", "2025-02-01", filler(500, 3) + AMP + filler(500, 4)),
+        asm("GCF_102.1", "2025-03-01", None),  # chromosome only: says nothing about the strain
+        asm("GCF_103.1", "2026-01-01", filler(1200, 5)),  # plasmid without the region: review
+    ]
+
+
+def test_a_plasmid_target_separates_missing_plasmids_from_a_missing_region(tmp_path):
+    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets(plasmid_assemblies()))
+    res = run(tmp_path, cfg, client, assay)
+    c = res.coverage
+    assert c.target_on_plasmid is True and c.found == 2 and c.not_found == 2
+    assert (c.not_found_without_plasmid, c.not_found_with_plasmid) == (1, 1)
+    assert c.not_found_with_plasmid_examples == ["GCF_103.1"]
+    assert any(PLASMID in h for h in c.plasmid_header_examples)
+    assert any("plasmid sequence but not the target region" in r for r in res.inclusivity.rationale)
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    assert any("GCF_103.1" in line and "nvCT" in line for line in result.overall.rationale)
+    html = render_report(result, cfg)
+    assert "contain plasmid sequence but not the target region" in html and "GCF_103.1" in html
+    assert "Inclusivity across the intended target (all genome assemblies)" in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    rows = list(load_workbook(tmp_path / "r.xlsx")["Variant coverage"].iter_rows(values_only=True))
+    assert any(
+        str(r[0]).strip().startswith("...plasmid sequence present") and r[1] == 1 for r in rows
+    )
+
+
+def test_not_found_entries_stored_before_the_plasmid_check_are_scanned_again(tmp_path):
+    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets(plasmid_assemblies()))
+    run(tmp_path, cfg, client, assay)
+    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
+    # rewrite the store as an older version would have: no plasmid counts on 'not found' lines
+    lines = []
+    for line in path.read_text().splitlines():
+        item = json.loads(line)
+        if item["status"] == "not_found":
+            item.pop("plasmid_contigs"), item.pop("n_contigs"), item.pop("plasmid_examples")
+        lines.append(json.dumps(item))
+    path.write_text("\n".join(lines) + "\n")
+    before = len(fake.downloads)
+    c = run(tmp_path, cfg, client, assay).coverage
+    assert c.processed_this_run == 2 and len(fake.downloads) > before  # only the two 'not found'
+    assert (c.not_found_without_plasmid, c.not_found_with_plasmid) == (1, 1)
+
+
+def test_variant_tables_describe_the_match_in_words(tmp_path):
+    cfg, fake, client, assay = setup(tmp_path)
+    res = run(tmp_path, cfg, client, assay)
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    html = render_report(result, cfg)
+    assert "Match to the oligo" in html and "perfect match" in html
+    assert "mismatch in the 3′ end" in html  # the forward variant has a 3'-terminal mismatch
+    assert "Mismatches (F / P / R)" in html

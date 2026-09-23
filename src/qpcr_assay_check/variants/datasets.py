@@ -153,15 +153,31 @@ class DatasetsClient:
 
 def parse_fasta(text: str) -> dict[str, str]:
     """``{record id: upper-case sequence}`` of a multi-FASTA text."""
-    out: dict[str, str] = {}
-    name, chunks = None, []
+    return {name: seq for name, (_desc, seq) in parse_fasta_records(text).items()}
+
+
+def parse_fasta_records(text: str) -> dict[str, tuple[str, str]]:
+    """``{record id: (header description, upper-case sequence)}`` of a multi-FASTA text."""
+    out: dict[str, tuple[str, str]] = {}
+    name: str | None = None
+    desc, chunks = "", []
     for line in text.splitlines():
         if line.startswith(">"):
             if name is not None:
-                out[name] = "".join(chunks).upper()
-            name, chunks = line[1:].split(maxsplit=1)[0] if len(line) > 1 else "", []
+                out[name] = (desc, "".join(chunks).upper())
+            parts = line[1:].split(maxsplit=1)
+            name, desc, chunks = (
+                (parts[0] if parts else ""),
+                (parts[1] if len(parts) > 1 else ""),
+                [],
+            )
         elif name is not None:
             chunks.append(line.strip())
     if name is not None:
-        out[name] = "".join(chunks).upper()
+        out[name] = (desc, "".join(chunks).upper())
     return out
+
+
+def is_plasmid(description: str) -> bool:
+    """Does a FASTA header description name a plasmid? (INSDC definition lines say "plasmid")."""
+    return "plasmid" in description.lower()

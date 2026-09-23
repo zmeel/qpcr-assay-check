@@ -46,6 +46,12 @@ def inputs_hash(assay: Assay, cfg: Config) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def _inclusivity_title(inclusivity: InclusivityResult | None) -> str:
+    if inclusivity is not None and inclusivity.exhaustive:
+        return "Inclusivity across the intended target (all genome assemblies)"
+    return "Inclusivity across the intended target (sampled)"
+
+
 def _rationale(qc_findings: list[str], not_evaluated: list[str]) -> list[str]:
     lines = list(qc_findings)
     if not_evaluated:
@@ -204,7 +210,7 @@ def evaluate(
         sections.append(
             SectionResult(
                 key="inclusivity",
-                title="Inclusivity across the intended target (sampled)",
+                title=_inclusivity_title(inclusivity),
                 state="evaluated",
                 verdict=inclusivity.verdict,
                 note=note,
@@ -214,7 +220,7 @@ def evaluate(
         sections.append(
             SectionResult(
                 key="inclusivity",
-                title="Inclusivity across the intended target (sampled)",
+                title=_inclusivity_title(inclusivity),
                 state="skipped",
                 verdict=None,
                 note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
@@ -275,6 +281,20 @@ def evaluate(
             f"target assessed so far (at most {c.budget_per_run} new ones per run, newest first). "
             "Run again to continue; the variant tables and inclusivity cover only the assessed "
             "assemblies until then."
+        )
+    if (
+        variant_coverage is not None
+        and variant_coverage.target_on_plasmid
+        and variant_coverage.not_found_with_plasmid
+    ):
+        c = variant_coverage
+        findings.append(
+            f"Variant analysis: {c.not_found_with_plasmid} genome assembl"
+            f"{'y contains' if c.not_found_with_plasmid == 1 else 'ies contain'} plasmid "
+            "sequence but not the target region (e.g. "
+            f"{', '.join(c.not_found_with_plasmid_examples[:5])}). The target lies on a plasmid, "
+            "so this may be a deletion that the assay would miss (as with the Swedish nvCT "
+            "variant), or an incomplete plasmid assembly: review these records."
         )
     if variant_note:
         findings.append(f"Variant analysis: {variant_note}")

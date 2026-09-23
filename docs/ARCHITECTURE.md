@@ -339,6 +339,19 @@ E-utilities and BLAST:
 - Not yet answered: BLAST against `DATABASE=wgs` with a species ENTREZ_QUERY (the probe's query
   region was outside the 7,500 bp record ESearch returned first, a plasmid; fixed, needs a rerun).
 
+### First live run of the exhaustive variant analysis (2026-09-23, C. trachomatis, v1.1.0 dev)
+
+User's own cryptic-plasmid assay (87 bp reference amplicon). NCBI Datasets listed 357 assemblies
+(current, not atypical, one per GenBank/RefSeq pair; 713 without that de-duplication), all 357
+downloaded and scanned in one run, 0 failed downloads. Region found (all three sites complete)
+in 76, not found in 281, contig break 0, more than one copy 3. Variants among the 76: forward
+69.7% perfect, 27.6% one mismatch at position 12 (2005-2023), 2.6% two mismatches; probe 98.7%
+perfect; reverse 100% perfect; no variant touches a primer's 3' end. The 281 "not found" included
+GCF_000008725.1 (D/UW-3/CX), which is most likely a chromosome-only assembly (the plasmid is not
+part of every assembly) -- not verified from here. That motivated the plasmid split: the rule
+"a FASTA description containing 'plasmid' marks a plasmid sequence" is itself unverified until
+the report's "Recognised as plasmid" examples are checked on a live run.
+
 ### Verified in a third live run (2026-09-22)
 
 - **Entrez queries with 11, 40 and 100 taxids were all accepted** by the BLAST URL API (no

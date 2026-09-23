@@ -33,7 +33,7 @@ from ..oligo import iupac
 from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
-from .datasets import AssemblyRecord, DatasetsClient, parse_fasta
+from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .locate import find_loci
 from .models import ExhaustiveCoverage, YearCoverage
 from .store import RegionStore, StoredAssembly, StoredLocus, store_path
@@ -112,7 +112,7 @@ def collect(
             if processed < budget:
                 pending: list[AssemblyRecord] = []
                 for rec in client.year(taxon, year, **flt):
-                    if rec.accession in store:
+                    if store.done(rec.accession):
                         continue
                     pending.append(rec)
                     if processed + len(pending) >= budget:
@@ -154,11 +154,12 @@ def _process(
                 failed += 1
                 failed_accessions.append(rec.accession)
                 continue
+            records_ = parse_fasta_records(fasta)
             loci = find_loci(
-                parse_fasta(fasta), amplicon,
+                {name: seq for name, (_d, seq) in records_.items()}, amplicon,
                 seed_length=v.seed_length, seed_step=v.seed_step, flank=v.flank_nt,
             )  # fmt: skip
-            store.add(rec, loci)
+            store.add(rec, loci, {name: d for name, (d, _s) in records_.items()})
             done += 1
         log.info("  %d / %d assemblies scanned", i + len(chunk), len(records))
     return done, failed, failed_accessions
@@ -282,6 +283,7 @@ def exhaustive_inclusivity(
     ]
     return InclusivityResult(
         tier_searched=True,
+        exhaustive=True,
         target_taxid=assay.target.taxid,
         oligos=oligos,
         sample_scheme=(
@@ -337,6 +339,10 @@ def run_exhaustive(
     items = current_items(store)
     sites, contig_break = assess(items, assay, amplicon, placed, cfg)
     not_found = [it for it in items if it.status == "not_found"]
+    found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
+    known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
+    on_plasmid = (sum(known) * 2 >= len(known)) if known else None
+    with_plasmid = [it for it in not_found if it.plasmid_contigs]
     coverage = ExhaustiveCoverage(
         taxon=taxon,
         amplicon_length=len(amplicon),
@@ -355,10 +361,24 @@ def run_exhaustive(
         years=years,
         listed_at=(now or datetime.now(UTC)).isoformat(timespec="seconds"),
         not_found_examples=[it.accession for it in not_found[:20]],
+        target_on_plasmid=on_plasmid,
+        not_found_without_plasmid=sum(1 for it in not_found if it.plasmid_contigs == 0),
+        not_found_with_plasmid=len(with_plasmid),
+        not_found_with_plasmid_examples=[it.accession for it in with_plasmid[:20]],
+        plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
     )  # fmt: skip
+    inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg)
+    if coverage.target_on_plasmid and coverage.not_found_with_plasmid:
+        inclusivity.rationale.append(
+            f"{coverage.not_found_with_plasmid} assembl"
+            f"{'y carries' if coverage.not_found_with_plasmid == 1 else 'ies carry'} plasmid "
+            "sequence but not the target region; they are not in the counts above. If the region "
+            "is really deleted there (not just an incomplete plasmid assembly), the assay would "
+            "miss those strains."
+        )
     return ExhaustiveResult(
         sites=sites,
         coverage=coverage,
-        inclusivity=exhaustive_inclusivity(sites, items, years, assay, cfg),
+        inclusivity=inclusivity,
         release_dates={it.accession: it.release_date for it in items},
     )

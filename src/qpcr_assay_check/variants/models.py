@@ -31,6 +31,24 @@ class ExhaustiveCoverage(BaseModel):
     years: list[YearCoverage] = Field(default_factory=list)
     listed_at: str
     not_found_examples: list[str] = Field(default_factory=list)
+    target_on_plasmid: bool | None = Field(
+        default=None,
+        description="most copies of the region that were found lie on sequences described as a "
+        "plasmid (None: nothing found, or not recorded)",
+    )
+    not_found_without_plasmid: int = Field(
+        default=0, description="region not found, and the assembly contains no plasmid sequence"
+    )
+    not_found_with_plasmid: int = Field(
+        default=0,
+        description="region not found although the assembly contains plasmid sequence(s): for a "
+        "plasmid-borne target, a possible deletion (as in the Swedish nvCT variant)",
+    )
+    not_found_with_plasmid_examples: list[str] = Field(default_factory=list)
+    plasmid_header_examples: list[str] = Field(
+        default_factory=list,
+        description="FASTA descriptions recognised as plasmids, shown so the rule can be checked",
+    )
 
     @property
     def complete(self) -> bool:
