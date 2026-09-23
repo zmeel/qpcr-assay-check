@@ -48,6 +48,8 @@ def inputs_hash(assay: Assay, cfg: Config) -> str:
 
 def _inclusivity_title(inclusivity: InclusivityResult | None) -> str:
     if inclusivity is not None and inclusivity.exhaustive:
+        if inclusivity.sample_scheme.startswith("Every NCBI Nucleotide record"):
+            return "Inclusivity across the intended target (all Nucleotide records)"
         return "Inclusivity across the intended target (all genome assemblies)"
     return "Inclusivity across the intended target (sampled)"
 

@@ -226,7 +226,11 @@ def _rationale(
     if h.variants_note:
         lines.append(h.variants_note)
     for c in h.inclusivity_changes:
-        if c.percent_before is not None and c.percent_after is not None:
+        if (
+            c.percent_before is not None
+            and c.percent_after is not None
+            and round(c.percent_before) != round(c.percent_after)
+        ):  # a shift below 1 point (e.g. only more records assessed) stays in the table
             lines.append(
                 f"Inclusivity, {c.role} {c.year}: {c.percent_before:.0f}% -> "
                 f"{c.percent_after:.0f}% at 0-1 mismatch."

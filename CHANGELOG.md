@@ -78,6 +78,10 @@ All notable changes to this project are documented here. The format follows
   to the specificity section. The verdict itself is unchanged.
 
 ### Fixed
+- **Nucleotide-record wording and history noise**: with `variants.source: blast_partitioned` the
+  inclusivity title, column, gap note, history table and xlsx coverage sheet say "records" and
+  "record end" instead of "assemblies" and "contig end"; history no longer lists an inclusivity
+  line whose rounded percentage is unchanged (e.g. only more records assessed).
 - **Variant summary and inclusivity did not say that a full hit list favours perfect matches**
   (`specificity/variants.py`, `inclusivity/aggregate.py`, report): found live on CDC N1, where all
   5000 target hits per oligo were perfect matches (about 9 million SARS-CoV-2 records; BLAST lists

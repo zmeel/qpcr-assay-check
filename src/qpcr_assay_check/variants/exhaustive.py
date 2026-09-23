@@ -311,14 +311,16 @@ def exhaustive_inclusivity(
             )
             if source == "datasets"
             else (
-                "Every NCBI Nucleotide record of the target, by publication year; 'Assemblies' "
-                "is the number of records ESearch lists for that year"
+                "Every NCBI Nucleotide record of the target, by publication year; 'Records' "
+                "is the number ESearch lists for that year"
             )
         )
         + (
             " and 'With region' the number in which the target region was found and assessed. "
-            "Not a sample: the gap between the two is explained below (region not found, cut by "
-            "a contig end, or not processed yet)."
+            "Not a sample: the gap between the two is explained below (region not found, hidden "
+            "by N, cut by a "
+            + ("contig" if source == "datasets" else "record")
+            + " end, or not processed yet)."
         ),
         verdict=verdict,
         rationale=rationale,
@@ -443,12 +445,15 @@ def run_exhaustive(
     inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg, source=source)
     missing = coverage.not_found + coverage.contig_break + coverage.masked
     if missing:
+        unit, end, col = (
+            ("assemblies", "contig", "Assemblies") if source == "datasets"
+            else ("records", "record", "Records")
+        )  # fmt: skip
         inclusivity.rationale.append(
-            f"{missing} of {len(items)} assessed "
-            f"{'assemblies' if source == 'datasets' else 'records'} are not in the counts above: "
+            f"{missing} of {len(items)} assessed {unit} are not in the counts above: "
             f"the target region was not found in {coverage.not_found}, was hidden by N in "
-            f"{coverage.masked} and was cut by a contig or record end in {coverage.contig_break} "
-            "(see the Variant summary). Per year, 'Assemblies' minus 'With region' is that gap."
+            f"{coverage.masked} and was cut by a {end} end in {coverage.contig_break} "
+            f"(see the Variant summary). Per year, '{col}' minus 'With region' is that gap."
         )
     if coverage.target_on_plasmid and coverage.not_found_with_plasmid:
         inclusivity.rationale.append(

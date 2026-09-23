@@ -290,7 +290,7 @@ td.aln-cell { min-width: 22rem; }
   <tr><th scope="row">Amplicon region found</th><td>{{ cov.found }} with all three oligo sites complete</td></tr>
   <tr><th scope="row">Region cut by a {{ 'record' if cov.source == 'blast_partitioned' else 'contig' }} end</th><td>{{ cov.contig_break }} ({{ 'the record ends inside the amplicon' if cov.source == 'blast_partitioned' else 'draft assemblies' }}; not counted in the tables)</td></tr>
   <tr><th scope="row">Region hidden by N</th><td>{{ cov.masked }}{% if cov.masked_examples %}<br><span class="meta">e.g. {{ cov.masked_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">The region is there, but the whole region or an oligo site in it reads N (low-coverage sequencing): not counted in the tables, since an N is neither a match nor a variant.</span></td></tr>
-  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the genome: the target region may be absent, or too divergent to find.</span>
+  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the {{ 'record' if cov.source == 'blast_partitioned' else 'genome' }}: the target region may be absent, or too divergent to find.</span>
     {% if cov.plasmid_info_recorded and not cov.target_on_plasmid %}<br>of which {{ cov.not_found_without_plasmid }} contain no sequence labelled as a plasmid and {{ cov.not_found_with_plasmid }} contain plasmid sequence{% if cov.target_on_plasmid is none %} (whether the target lies on a plasmid is not known yet){% endif %}.{% endif %}
     {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no sequence labelled as a plasmid (many assemblies hold only the chromosome, which says nothing about the strain; in a draft assembly a plasmid can also sit in an unlabelled contig, so a deletion there would be counted here), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain a sequence labelled as a plasmid but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') }}{% endif %}.{% endif %}</td></tr>
   {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') }}</span>{% endif %}</td></tr>{% endif %}
@@ -382,7 +382,8 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 
 {% if r.inclusivity %}
-<h2>Inclusivity across the intended target ({{ 'all genome assemblies' if r.inclusivity.exhaustive else 'sampled' }})</h2>
+{% set nuc = r.inclusivity.exhaustive and r.inclusivity.sample_scheme.startswith('Every NCBI Nucleotide record') %}
+<h2>Inclusivity across the intended target ({{ ('all Nucleotide records' if nuc else 'all genome assemblies') if r.inclusivity.exhaustive else 'sampled' }})</h2>
 <p>{{ chip(r.inclusivity.verdict.value) }} inclusivity</p>
 {% if not r.inclusivity.tier_searched %}
 <p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
@@ -391,7 +392,7 @@ td.aln-cell { min-width: 22rem; }
 {% for o in r.inclusivity.oligos %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Year</th><th>{{ 'Assemblies' if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
+  <thead><tr><th>Year</th><th>{{ ('Records' if nuc else 'Assemblies') if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
   <tbody>
   {% for w in o.windows %}
   <tr><td class="num">{{ w.year }}</td><td class="num">{{ w.population_size if w.population_size is not none else '–' }}</td>
@@ -538,9 +539,9 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 {% if r.history.variant_changes %}
 <h3>Oligo sequence variants since the previous run</h3>
-<p class="meta">"Emerging": the variant's first assembly was released after the previous run. "Newly assessed": it is in an older assembly that this run assessed for the first time (e.g. the previous run had not finished the collection).</p>
+<p class="meta">"Emerging": the variant's first record (assembly or Nucleotide record) was released after the previous run. "Newly assessed": it is in an older record that this run assessed for the first time (e.g. the previous run had not finished the collection).</p>
 <div class="scroll"><table>
-  <thead><tr><th>Change</th><th>Oligo</th><th>Variant</th><th>Match to the oligo</th><th>Assemblies</th><th>First release</th><th>Example</th></tr></thead>
+  <thead><tr><th>Change</th><th>Oligo</th><th>Variant</th><th>Match to the oligo</th><th>Records</th><th>First release</th><th>Example</th></tr></thead>
   <tbody>
   {% for v in r.history.variant_changes %}
   <tr><td>{% if v.kind == 'new' %}{% if v.concern %}<strong>new</strong>{% else %}new{% endif %}<br><span class="meta">{{ 'emerging' if v.newly_released else ('newly assessed' if v.newly_released is not none else 'release date unknown') }}</span>{% else %}no longer seen{% endif %}</td>

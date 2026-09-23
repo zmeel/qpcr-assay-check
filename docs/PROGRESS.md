@@ -98,6 +98,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   the BLAST top-5000 (100% perfect) never showed. User asked for 3 changes, all done: direct scan
   first for records <= 200 kb (BLAST only for longer ones), N-masked regions/sites reported as
   masked, wording ('records', 'record end'). 381 tests pass.
+- Third live partitioned run (store kept, 600 records): 582 found by direct scan, 2 hidden by N
+  (QB007216.1, QB015174.1), 18 not found (OZ5582xx; the 14 earlier ones were not re-checked since
+  the store was kept). Fixed from that report: remaining 'assemblies'/'contig' wording for
+  Nucleotide records (inclusivity title and column, gap note, history table, xlsx), and history no
+  longer lists "99% -> 99%" lines when only more records were assessed (they stay in the table).
+  382 tests pass.
 - Still open for v1.1.0: CHANGELOG release section and tag v1.1.0 (after the live check).
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
