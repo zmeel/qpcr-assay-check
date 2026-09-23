@@ -44,6 +44,16 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Budget questions (bandwidth/time/disk on the NAS) not answered yet: design every limit as a
   config setting. Order: verification step first (smoke-test additions the user runs locally),
   then implementation.
+- Verification step written: `scripts/probe_variant_sources.py` (writes `probe_out/probe_report.json`).
+  Datasets endpoints/parameters taken from NCBI's published OpenAPI spec
+  (raw.githubusercontent.com/ncbi/datasets/master/datasets.openapi.yaml, API v2; reachable from the
+  sandbox, api.ncbi.nlm.nih.gov itself is not): `/genome/taxon/{taxons}/dataset_report`
+  (page_size max 1000, `page_token`, `total_count`, `filters.assembly_version` default `current`),
+  `/genome/accession/{accessions}/download` (max 100 accessions, `include_annotation_type=GENOME_FASTA`,
+  `hydrated=DATA_REPORT_ONLY` gives `fetch.txt`), API key as `api-key` header. The spec states no rate
+  limit; the probe throttles to 2 requests/s and records 429s and rate headers. Also probes: deep
+  random ESearch `retstart`, EFetch `rettype=acc`, BLAST restricted to a 100-accession ENTREZ_QUERY
+  (coverage and leaks), BLAST `DATABASE=wgs` with a species ENTREZ_QUERY. Waiting for the user's run.
 - **Earlier proposal (superseded by the above), not approved:** unbiased variant/inclusivity sampling for targets that
   fill the hit list (e.g. several smaller target searches restricted by submission date or other
   Entrez filters, each under the cap). Check current NCBI docs on what ENTREZ_QUERY supports
