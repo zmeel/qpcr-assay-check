@@ -89,6 +89,7 @@ td.aln-cell { min-width: 22rem; }
 <body>
 <main>
 {% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
+{% macro pct(value) %}{% if 0 < value < 0.05 %}&lt;0.1%{% else %}{{ '%.1f' % value }}%{% endif %}{% endmacro %}
 
 <header>
   <h1>{{ assay.assay_name }}</h1>
@@ -134,7 +135,7 @@ td.aln-cell { min-width: 22rem; }
   <tbody>
     <tr><th scope="row">Forward primer</th><td>{{ assay.forward | seq_html }} <span class="meta">{{ assay.forward | length }} nt</span></td></tr>
     <tr><th scope="row">Reverse primer</th><td>{{ assay.reverse | seq_html }} <span class="meta">{{ assay.reverse | length }} nt</span></td></tr>
-    <tr><th scope="row">Probe</th><td>{{ assay.probe | seq_html }} <span class="meta">{{ assay.probe | length }} nt</span></td></tr>
+    <tr><th scope="row">Probe</th><td>{{ assay.probe | seq_html(0) }} <span class="meta">{{ assay.probe | length }} nt</span></td></tr>
     <tr><th scope="row">Reporter / quencher</th><td>{{ assay.probe_reporter or 'not specified' }} / {{ assay.probe_quencher or 'not specified' }}</td></tr>
     <tr><th scope="row">Probe modifications</th><td>{{ assay.probe_modifications | join(', ') or 'none declared' }}</td></tr>
     <tr><th scope="row">Template</th><td>{{ assay.template_type.value }}{% if assay.template_type.value == 'RNA' %} (reverse transcription step assumed){% endif %}</td></tr>
@@ -146,7 +147,7 @@ td.aln-cell { min-width: 22rem; }
     {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes }}</td></tr>{% endif %}
   </tbody>
 </table></div>
-<p class="meta">The last five nucleotides of each sequence, the 3′ end, are underlined.</p>
+<p class="meta">The last five nucleotides of each primer, the 3′ end the polymerase extends, are underlined. The probe is not extended, so it has no underline.</p>
 {% set degenerate = qc.oligos | selectattr('degenerate') | list %}
 {% if degenerate %}
 <p>Degenerate oligos were expanded and every variant was evaluated; the worst variant decides each status:
@@ -277,6 +278,7 @@ td.aln-cell { min-width: 22rem; }
 {% if r.variant_summary and (r.variant_summary.oligos | selectattr('rows') | list) %}
 <h2>Variant summary (assay's own target)</h2>
 <div class="notice"><p><strong>Scope.</strong> Built from the target tier's own BLAST hits: at most {{ r.config.search.hitlist_size }} per oligo, the closest site per record, with partial hits fetched and re-aligned across the whole oligo. Identical alignments are lumped together and each is reported as a percentage of that measured total. When the hit list is full (see Searches) this is BLAST's selection of records, not the whole target population and not a random sample; see Inclusivity below for the year-by-year view against population counts.</p></div>
+{% if r.variant_summary.target_list_full %}<div class="notice"><p><strong>Biased toward perfect matches.</strong> {{ list_full_note }}</p></div>{% endif %}
 
 {% for o in r.variant_summary.oligos %}
 {% if o.rows %}
@@ -285,8 +287,8 @@ td.aln-cell { min-width: 22rem; }
   <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
   <tbody>
   {% for row in o.rows %}
-  <tr><td class="aln-cell">{{ row | aln_html }}</td><td class="num">{{ row.count }}</td>
-    <td class="num">{{ '%.1f' % row.percent }}% of {{ o.total_measured }}</td>
+  <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
+    <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
     <td>{{ chip(row.level) }}</td>
     <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td></tr>
   {% endfor %}
@@ -302,8 +304,8 @@ td.aln-cell { min-width: 22rem; }
   <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Level</th><th>Example</th></tr></thead>
   <tbody>
   {% for f in r.variant_summary.fragments %}
-  <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
-    <td class="num">{{ f.count }}</td><td class="num">{{ '%.1f' % f.percent }}% of {{ r.variant_summary.fragment_total }}</td>
+  <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
+    <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
     <td>{{ chip(f.level) }}</td>
     <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td></tr>
   {% endfor %}
@@ -312,7 +314,7 @@ td.aln-cell { min-width: 22rem; }
 {% else %}
 <p>No target-tier record had all three sites (forward, probe, reverse) fully re-aligned, so no whole-fragment variant table could be built.</p>
 {% endif %}
-{% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.</p>{% endif %}
+{% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.{% if r.variant_summary.target_list_full %} With a full hit list, each oligo's hits are a separate selection of records, so most records appear in only one or two of the three lists.{% endif %}</p>{% endif %}
 {% endif %}
 
 {% if r.exclusivity %}
@@ -403,7 +405,7 @@ td.aln-cell { min-width: 22rem; }
 <h2>Closest off-target sites</h2>
 {% if shown_sites %}
 <p class="meta">Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
-  shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The 3′ end (last 5 nucleotides) is underlined.</p>
+  shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The primer 3′ end (last 5 nucleotides) is underlined.</p>
 <div class="scroll"><table>
   <thead><tr><th>Level</th><th>Oligo</th><th>Subject</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th></tr></thead>
   <tbody>

@@ -37,6 +37,13 @@ from .sites import Candidate, make_candidate, role_of
 
 log = logging.getLogger(__name__)
 
+LIST_FULL_NOTE = (
+    "The target search's hit list was full: the target has more records than BLAST returns. "
+    "BLAST lists the best-scoring matches first, so these hits are biased toward perfect matches; "
+    "variants with mismatches can be under-represented or missing entirely, and the percentages "
+    "are not the prevalence of each variant in the target population."
+)
+
 _MEASURED = {"blast_full", "realigned"}
 _RANK = {"critical": 0, "warning": 1, "minor": 2}
 _ROLES = ("forward", "probe", "reverse")
@@ -99,6 +106,11 @@ class VariantSummary(BaseModel):
         "reverse missing among the record's hits, or one of the three not fully re-aligned",
     )
     fragments: list[FragmentVariantRow] = Field(default_factory=list)
+    target_list_full: bool = Field(
+        default=False,
+        description="the target search returned a full hit list for at least one oligo, so the "
+        "tables are biased toward perfect matches (see LIST_FULL_NOTE)",
+    )
 
 
 def _variant_row(s: SiteResult, count: int, total: int) -> VariantRow:

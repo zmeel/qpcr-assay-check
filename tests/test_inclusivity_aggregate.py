@@ -138,3 +138,26 @@ def test_a_year_with_records_but_no_sampled_hit_is_stated_as_not_assessed(tmp_pa
     assert not any(r.startswith(("2021:", "2024:")) for r in result.rationale)
     # the reverse and probe oligos have no hits in 2020/2023 here either, and say so
     assert any(r.startswith("2020:") and "reverse, probe" in r for r in result.rationale)
+
+
+def test_a_full_target_hit_list_is_stated_as_a_bias_toward_perfect_matches(tmp_path):
+    default = run(tmp_path / "default", build_world())  # default hitlist_size: list not full
+    assert not any("hit list was full" in r for r in default.rationale)
+
+    from qpcr_assay_check.config import load_config as _load
+
+    cfg = _load()
+    cfg.search.hitlist_size = 1  # the reference record alone fills the forward hit list
+    assay = make_assay(target={"taxid": TARGET, "accession": REF})
+    runner_, store, fetcher = make_runner(cfg, tmp_path / "small", WorldFake(build_world()))
+    plan = plan_searches(assay, cfg)
+    parsed: dict = {}
+    run_search(
+        plan, cfg, runner_, store, tmp_path / "small" / "s", inputs_hash="h", keep=parsed,
+        keep_tiers={"target"},
+    )  # fmt: skip
+    result = compute_inclusivity(
+        assay, cfg, plan, parsed, fetcher, fetcher.eutils, fetcher.cache,
+        tier_searched=True, now=NOW,
+    )  # fmt: skip
+    assert any("hit list was full" in r and "biased toward perfect" in r for r in result.rationale)

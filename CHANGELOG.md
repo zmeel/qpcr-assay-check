@@ -15,6 +15,16 @@ All notable changes to this project are documented here. The format follows
   to the specificity section. The verdict itself is unchanged.
 
 ### Fixed
+- **Variant summary and inclusivity did not say that a full hit list favours perfect matches**
+  (`specificity/variants.py`, `inclusivity/aggregate.py`, report): found live on CDC N1, where all
+  5000 target hits per oligo were perfect matches (about 9 million SARS-CoV-2 records; BLAST lists
+  the best-scoring first). When the target hit list is full, the variant section, the xlsx Summary
+  sheet and the inclusivity rationale now state that the hits are biased toward perfect matches and
+  the percentages are not prevalence. The fragment table's exclusion note explains that each
+  oligo's hits are then a separate selection of records. A single record in thousands shows as
+  "<0.1%" instead of "0.0%" (xlsx: two decimals).
+- **Probe 3' end was underlined like a primer's** (report): a hydrolysis probe is not extended, so
+  only the primers' last five nucleotides are underlined now.
 - **Variant summary was always empty on a real run** (`specificity/variants.py`, `cli.py`,
   `pipeline.py`): it filtered the specificity sites for the target tier, but the specificity
   assessment only builds sites for the off-target tiers, so the section (and the "Oligo variants"

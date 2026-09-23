@@ -10,6 +10,7 @@ from openpyxl.utils import get_column_letter
 
 from ..history.models import HistoryResult
 from ..results import RunResult
+from ..specificity.variants import LIST_FULL_NOTE
 
 _FILL = {
     "PASS": "D7EFE3",
@@ -111,6 +112,11 @@ def write_workbook(result: RunResult, path: Path) -> None:
                 else []
             ),
             *[["Rationale", line] for line in result.overall.rationale],
+            *(
+                [["Variant tables", LIST_FULL_NOTE]]
+                if result.variant_summary is not None and result.variant_summary.target_list_full
+                else []
+            ),
         ],
         None,
     )
@@ -253,7 +259,7 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Level",
              "Mismatches", "Gaps", "Example accession", "Example organism"],
             [
-                [o.role, row.s_aln, row.count, round(row.percent, 1), row.level,
+                [o.role, row.s_aln, row.count, round(row.percent, 2), row.level,
                  row.n_mismatch, row.n_gap, row.example_accession, row.example_organism or ""]
                 for o in vs.oligos
                 for row in o.rows
@@ -266,7 +272,7 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ["Forward", "Probe", "Reverse", "Count", "Fraction (%)", "Level",
              "Example accession", "Example organism"],
             [
-                [f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln, f.count, round(f.percent, 1),
+                [f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln, f.count, round(f.percent, 2),
                  f.level, f.example_accession, f.example_organism or ""]
                 for f in vs.fragments
             ],
