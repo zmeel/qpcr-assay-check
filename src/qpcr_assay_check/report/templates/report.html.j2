@@ -535,7 +535,7 @@ td.aln-cell { min-width: 22rem; }
   <tr><th scope="row">Database searched</th><td>{{ spec.parameters.databases | join(', ') or 'not reported' }}; {{ spec.parameters.blast_versions | join(', ') }}</td></tr>
   <tr><th scope="row">BLAST parameters</th><td>{% for k, v in bp.items() %}{{ k }} = {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
   <tr><th scope="row">Taxon restriction check</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none{% if not loop.last %}<br>{% endif %}{% endfor %}<br>
-    <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight; a lineage-based check is planned for v0.4.0.</span></td></tr>
+    <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight. These counts compare exact taxon IDs only; a hit filed under a descendant strain is counted as “another”, since the restriction itself is not checked by lineage.</span></td></tr>
   <tr><th scope="row">Re-alignment</th><td>Semi-global, affine gaps: match {{ spec.parameters.alignment.match }}, mismatch {{ spec.parameters.alignment.mismatch }},
     gap {{ spec.parameters.alignment.gap_open }} + {{ spec.parameters.alignment.gap_extend }} per base; partial hits completed from sequence windows fetched with E-utilities efetch ({{ spec.parameters.window_padding_nt }} nt padding)</td></tr>
   <tr><th scope="row">Search and RIDs</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.rids | join(', ') }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>

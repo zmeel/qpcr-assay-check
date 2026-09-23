@@ -125,3 +125,16 @@ def test_no_target_tier_search_is_incomplete(tmp_path):
         tier_searched=False, now=NOW,
     )  # fmt: skip
     assert result.verdict is Verdict.INCOMPLETE and result.oligos == []
+
+
+def test_a_year_with_records_but_no_sampled_hit_is_stated_as_not_assessed(tmp_path):
+    world = build_world()
+    world.date("OT000030.1", "2022/03/01")  # a 2022 record at NCBI that BLAST did not return
+    result = run(tmp_path, world)
+    line = next(r for r in result.rationale if r.startswith("2022:"))
+    assert "1 record(s) at NCBI" in line and "not assessed" in line
+    assert "forward, reverse, probe" in line
+    # years with no records at all are not flagged: there was nothing to assess
+    assert not any(r.startswith(("2021:", "2024:")) for r in result.rationale)
+    # the reverse and probe oligos have no hits in 2020/2023 here either, and say so
+    assert any(r.startswith("2020:") and "reverse, probe" in r for r in result.rationale)

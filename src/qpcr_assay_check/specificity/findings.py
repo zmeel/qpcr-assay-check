@@ -65,10 +65,12 @@ def build_findings(
     sev = rules.severity
     out: list[Finding] = []
 
-    scope = (
-        f"Off-target tiers assessed: {', '.join(off_tiers_seen) or 'none'}. Hits from the clinical "
-        "organism list are not included yet (planned for v0.4.0)."
-    )
+    scope = f"Off-target tiers assessed: {', '.join(off_tiers_seen) or 'none'}."
+    not_searched = [t for t in rules.off_target_tiers if t not in off_tiers_seen]
+    if not_searched:
+        scope += (
+            f" Configured off-target tiers not searched in this run: {', '.join(not_searched)}."
+        )
     out.append(Finding(severity="INFO", message=scope, topic="search"))
     if not off_tiers_seen:
         out.append(
