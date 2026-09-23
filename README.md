@@ -193,6 +193,12 @@ qpcr-assay-check init my-assay --example
 qpcr-assay-check run my-assay/assay.yaml -o results
 ```
 
+For a broader reference when curating your own organism list, see
+[`docs/clinical_pathogen_panels.md`](docs/clinical_pathogen_panels.md): human pathogens typically
+detected by real-time PCR, grouped by syndromic panel (respiratory, GI, meningitis/encephalitis,
+bloodstream infection, STI, and more). It is general reference material, not itself wired into the
+tool — see its own disclaimer.
+
 The packaged list (`organisms.list_file: null`) is `src/qpcr_assay_check/data/clinical_organisms.yaml`:
 a small, hand-picked, **non-authoritative starting point** (sexually transmitted pathogens, atypical
 pneumonia bacteria, *M. tuberculosis* complex and other mycobacteria, common respiratory/other
