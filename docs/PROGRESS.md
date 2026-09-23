@@ -31,7 +31,16 @@ verified NCBI facts) at the start of every session. Newest entry first.
   user chose: state the bias whenever the target hit list is full (variant section, xlsx Summary,
   inclusivity rationale), fix the fragment exclusion wording and "<0.1%", and stop underlining the
   probe's 3' end. Done; 353 tests pass.
-- **Proposed next phase, not yet approved:** unbiased variant/inclusivity sampling for targets that
+- **User priority (2026-09-23): variant analysis is the most important part of the tool, it must
+  be as exhaustive as possible, and many targets are bacterial species with far more than 5000
+  records.** Findings while designing: (1) core_nt excludes WGS (draft) genomes, where most
+  bacterial assemblies live, so even an unsaturated core_nt search misses most bacterial data;
+  (2) whether the BLAST URL API can search the WGS database with an ENTREZ_QUERY/organism
+  restriction is unverified (the BLAST FAQ describes Entrez limiting for non-WGS databases only).
+  Options put to the user: partitioned remote BLAST (exhaustive over core_nt only, many searches)
+  vs streaming NCBI Datasets genome downloads with a local scan for the amplicon region (exhaustive
+  over all assemblies, but needs the "remote NCBI only" hard rule relaxed). Awaiting decision.
+- **Earlier proposal (superseded by the above), not approved:** unbiased variant/inclusivity sampling for targets that
   fill the hit list (e.g. several smaller target searches restricted by submission date or other
   Entrez filters, each under the cap). Check current NCBI docs on what ENTREZ_QUERY supports
   before designing. Also open: make the 5-nt 3'-end window configurable or tie it to
