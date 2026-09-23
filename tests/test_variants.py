@@ -1,9 +1,9 @@
 """Variant-summary lumping (per oligo and per whole fragment), tested on directly constructed
-sites and amplicons -- mirrors tests/test_pairing.py's style."""
+sites -- mirrors tests/test_pairing.py's style. The end-to-end path from a target-tier search
+(assess_target_sites) is tested at the bottom, on a constructed world."""
 
-from qpcr_assay_check.specificity.models import AmpliconResult, SiteResult, SpecificityResult
+from qpcr_assay_check.specificity.models import SiteResult
 from qpcr_assay_check.specificity.variants import build_variant_summary
-from qpcr_assay_check.verdict import Verdict
 
 from .conftest import make_assay
 
@@ -37,27 +37,9 @@ def mk_site(
     )  # fmt: skip
 
 
-def mk_amp(left, right, probe=None, *, tier="target", acc="X.1"):
-    return AmpliconResult(
-        id=f"A{left.id}{right.id}", tier=tier, accession=acc, taxid=1, organism="Org",
-        roles=f"{left.role}/{right.role}", left_site=left.id, right_site=right.id,
-        start=1, end=100, length=100, probe_site=probe.id if probe else None,
-        classification="likely_detected" if probe else "amplified_not_detected",
-        record_type="genomic",
-    )  # fmt: skip
-
-
-def spec(sites=None, amplicons=None):
-    return SpecificityResult(
-        verdict=Verdict.PASS, verdict_sites=Verdict.PASS, verdict_amplicons=Verdict.PASS,
-        rationale=[], findings=[], counts=[], n_sites={}, sites=sites or [],
-        amplicons=amplicons or [],
-    )  # fmt: skip
-
-
 def test_identical_sites_lump_into_one_variant_at_100_percent():
     sites = [mk_site("forward"), mk_site("forward"), mk_site("forward")]
-    summary = build_variant_summary(spec(sites), ASSAY)
+    summary = build_variant_summary(sites, ASSAY)
     fwd = next(o for o in summary.oligos if o.role == "forward")
     assert fwd.total_measured == 3
     assert len(fwd.rows) == 1
@@ -71,7 +53,7 @@ def test_a_different_alignment_is_a_separate_row_with_its_own_fraction():
         mk_site("forward", s_aln="AAAA", midline="||||", mm=0),
         mk_site("forward", s_aln="AAAT", midline="||| ", mm=1),
     ]
-    summary = build_variant_summary(spec(sites), ASSAY)
+    summary = build_variant_summary(sites, ASSAY)
     fwd = next(o for o in summary.oligos if o.role == "forward")
     assert fwd.total_measured == 3
     assert [r.count for r in fwd.rows] == [2, 1]  # sorted, most common first
@@ -83,7 +65,7 @@ def test_worst_case_sites_are_excluded_from_the_table_and_counted_separately():
         mk_site("probe", source="blast_full"),
         mk_site("probe", source="blast_partial_worst_case"),
     ]
-    summary = build_variant_summary(spec(sites), ASSAY)
+    summary = build_variant_summary(sites, ASSAY)
     probe = next(o for o in summary.oligos if o.role == "probe")
     assert probe.total_measured == 1
     assert probe.n_excluded_unmeasured == 1
@@ -92,16 +74,25 @@ def test_worst_case_sites_are_excluded_from_the_table_and_counted_separately():
 
 def test_non_target_tier_sites_are_ignored():
     sites = [mk_site("forward", tier="background"), mk_site("forward", tier="near_neighbours")]
-    summary = build_variant_summary(spec(sites), ASSAY)
+    summary = build_variant_summary(sites, ASSAY)
     fwd = next(o for o in summary.oligos if o.role == "forward")
     assert fwd.total_measured == 0
     assert fwd.rows == []
 
 
+def triple(acc, *, mm_probe=0, probe_source="blast_full", tier="target", levels=None):
+    lf, lp, lr = levels or ("critical", "critical", "critical")
+    return [
+        mk_site("forward", acc=acc, tier=tier, level=lf),
+        mk_site("probe", acc=acc, tier=tier, s_aln="AAAA" if mm_probe == 0 else "AAAT",
+                mm=mm_probe, source=probe_source, level=lp),
+        mk_site("reverse", acc=acc, tier=tier, level=lr),
+    ]  # fmt: skip
+
+
 def test_a_complete_fragment_is_lumped_across_all_three_oligos():
-    f, p, r = mk_site("forward"), mk_site("probe"), mk_site("reverse")
-    amp = mk_amp(f, r, p)
-    summary = build_variant_summary(spec([f, p, r], [amp]), ASSAY)
+    f, p, r = triple("A.1")
+    summary = build_variant_summary([f, p, r], ASSAY)
     assert summary.fragment_total == 1
     assert len(summary.fragments) == 1
     row = summary.fragments[0]
@@ -109,55 +100,93 @@ def test_a_complete_fragment_is_lumped_across_all_three_oligos():
     assert row.forward.s_aln == f.s_aln and row.reverse.s_aln == r.s_aln
 
 
-def test_an_amplicon_without_a_probe_site_is_excluded_from_the_fragment_table():
-    f, r = mk_site("forward"), mk_site("reverse")
-    amp = mk_amp(f, r)  # no probe -> amplified_not_detected, no probe_site
-    summary = build_variant_summary(spec([f, r], [amp]), ASSAY)
+def test_a_record_without_a_probe_site_is_excluded_from_the_fragment_table():
+    sites = [mk_site("forward", acc="A.1"), mk_site("reverse", acc="A.1")]
+    summary = build_variant_summary(sites, ASSAY)
     assert summary.fragments == []
     assert summary.fragment_excluded_unmeasured == 1
 
 
 def test_a_fragment_with_one_worst_case_site_is_excluded():
-    f = mk_site("forward")
-    p = mk_site("probe", source="blast_partial_worst_case")
-    r = mk_site("reverse")
-    amp = mk_amp(f, r, p)
-    summary = build_variant_summary(spec([f, p, r], [amp]), ASSAY)
+    summary = build_variant_summary(triple("A.1", probe_source="blast_partial_worst_case"), ASSAY)
     assert summary.fragments == []
     assert summary.fragment_excluded_unmeasured == 1
 
 
-def test_two_amplicons_with_the_same_three_variants_lump_together():
-    def triple(mm_probe=0):
-        f = mk_site("forward")
-        p = mk_site("probe", s_aln="AAAA" if mm_probe == 0 else "AAAT", mm=mm_probe)
-        r = mk_site("reverse")
-        return f, p, r, mk_amp(f, r, p)
-
-    f1, p1, r1, a1 = triple()
-    f2, p2, r2, a2 = triple()
-    f3, p3, r3, a3 = triple(mm_probe=1)
-    summary = build_variant_summary(spec([f1, p1, r1, f2, p2, r2, f3, p3, r3], [a1, a2, a3]), ASSAY)
+def test_two_records_with_the_same_three_variants_lump_together():
+    sites = triple("A.1") + triple("B.1") + triple("C.1", mm_probe=1)
+    summary = build_variant_summary(sites, ASSAY)
     assert summary.fragment_total == 3
     assert [f.count for f in summary.fragments] == [2, 1]
 
 
+def test_sites_on_different_records_never_form_one_fragment():
+    sites = [mk_site("forward", acc="A.1"), mk_site("probe", acc="B.1"),
+             mk_site("reverse", acc="C.1")]  # fmt: skip
+    summary = build_variant_summary(sites, ASSAY)
+    assert summary.fragments == [] and summary.fragment_excluded_unmeasured == 3
+
+
+def test_a_3prime_mismatch_primer_still_forms_a_fragment():
+    """Unlike product prediction, a fragment does not require the primers to be able to prime."""
+    f, p, r = triple("A.1")
+    f = f.model_copy(update={"s_aln": "AAAT", "n_mismatch": 1, "terminal_defect": True,
+                             "clean_3prime_nt": 0})  # fmt: skip
+    summary = build_variant_summary([f, p, r], ASSAY)
+    assert summary.fragment_total == 1 and summary.fragments[0].forward.s_aln == "AAAT"
+
+
 def test_fragment_level_is_the_worst_of_the_three_constituent_sites():
-    f = mk_site("forward", level="critical")
-    p = mk_site("probe", level="minor")
-    r = mk_site("reverse", level="warning")
-    amp = mk_amp(f, r, p)
-    summary = build_variant_summary(spec([f, p, r], [amp]), ASSAY)
+    sites = triple("A.1", levels=("critical", "minor", "warning"))
+    summary = build_variant_summary(sites, ASSAY)
     assert summary.fragments[0].level == "critical"
 
 
-def test_non_target_tier_amplicons_are_ignored():
-    f, p, r = (
-        mk_site("forward", tier="background"),
-        mk_site("probe", tier="background"),
-        mk_site("reverse", tier="background"),
-    )
-    amp = mk_amp(f, r, p, tier="background")
-    summary = build_variant_summary(spec([f, p, r], [amp]), ASSAY)
+def test_non_target_tier_sites_never_form_a_fragment():
+    summary = build_variant_summary(triple("A.1", tier="background"), ASSAY)
     assert summary.fragment_total == 0
     assert summary.fragments == []
+
+
+# ------------------------------------------------ end to end: target-tier search -> variant table
+def test_target_tier_hits_are_assessed_and_a_trimmed_3prime_variant_is_re_aligned(tmp_path):
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.oligo import iupac
+    from qpcr_assay_check.search.orchestrate import run_search
+    from qpcr_assay_check.search.planner import plan_searches
+    from qpcr_assay_check.specificity.variants import assess_target_sites
+
+    from .conftest import CDC_N1_F as F
+    from .conftest import CDC_N1_P as P
+    from .conftest import CDC_N1_R as R
+    from .world import World, WorldFake, make_runner, mutate
+
+    target, ref, var = 2697049, "NC_045512.2", "OT000099.1"
+    w = World()
+    for acc, fwd in ((ref, F), (var, mutate(F, [20]))):  # var: 3'-terminal forward mismatch
+        seq = "T" * 50 + fwd + "T" * 30 + P + "T" * 30 + iupac.reverse_complement(R) + "T" * 50
+        w.genome(acc, target, "SARS-CoV-2", seq)
+        w.hit(target, "forward", F, acc, 51, "+", trim3=1 if acc == var else 0)
+        w.hit(target, "probe", P, acc, 51 + len(F) + 30, "+")
+        w.hit(target, "reverse", R, acc, 51 + len(F) + 30 + len(P) + 30, "-")
+
+    cfg = load_config()
+    cfg.search.background_taxids = []
+    assay = make_assay(target={"taxid": target, "accession": ref})
+    runner, store, fetcher = make_runner(cfg, tmp_path, WorldFake(w))
+    plan = plan_searches(assay, cfg)
+    parsed: dict = {}
+    run_search(
+        plan, cfg, runner, store, tmp_path / "s", inputs_hash="h", keep=parsed,
+        keep_tiers={"target"},
+    )  # fmt: skip
+
+    sites = assess_target_sites(assay, cfg, plan, parsed, fetcher)
+    assert len(sites) == 6  # one per record and oligo
+    trimmed = next(s for s in sites if s.accession == var and s.role == "forward")
+    assert trimmed.source == "realigned" and trimmed.n_mismatch == 1 and trimmed.terminal_defect
+
+    summary = build_variant_summary(sites, assay)
+    fwd = next(o for o in summary.oligos if o.role == "forward")
+    assert fwd.total_measured == 2 and [r.count for r in fwd.rows] == [1, 1]
+    assert summary.fragment_total == 2 and summary.fragment_excluded_unmeasured == 0

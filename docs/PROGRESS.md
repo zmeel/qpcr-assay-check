@@ -20,7 +20,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - **Found: the Variant summary (the PRIMER_PROBE_RAPPORT replacement) is always empty on real
   runs.** `specificity/assess.py` only builds sites for `off_target_tiers`, so no `tier ==
   "target"` site ever reaches `build_variant_summary`; the section is hidden. The tests
-  constructed target sites by hand. Fix approach awaiting the user's choice.
+  constructed target sites by hand. Fixed with the user's choice "A": `assess_target_sites`
+  assesses every target-tier hit (partials fetched/re-aligned, cached), fragments grouped per
+  record. 348 tests pass. **Not yet seen live**: the next full run should show the section; check
+  the `-v` log line "Variant summary: N target-tier site(s) for forward, M partial" to see how
+  many fetches SARS-CoV-2 costs, and record it in docs/ARCHITECTURE.md.
 - Open: ask the user for the exclusivity search's submitted/finished times from `jobs.json` and
   record the measured duration in `docs/ARCHITECTURE.md`.
 

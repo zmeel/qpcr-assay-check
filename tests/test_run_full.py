@@ -381,3 +381,17 @@ def test_history_diff_across_two_runs(env, tmp_path, monkeypatch):
     assert run1_id in html
     wb = load_workbook(run2_path.parent / "results.xlsx")
     assert "History" in wb.sheetnames
+
+
+def test_a_full_run_fills_the_variant_summary_from_the_target_tier(env):
+    """Live finding: the section was always empty, because no target-tier site was ever built."""
+    env.install(world_with(hits="none"))
+    invoke(env, "--yes")
+    d = run_dir(env)
+    vs = json.loads((d / "results.json").read_text())["variant_summary"]
+    by_role = {o["role"]: o for o in vs["oligos"]}
+    assert all(by_role[role]["total_measured"] >= 1 for role in ("forward", "probe", "reverse"))
+    assert vs["fragment_total"] >= 1
+    assert "Variant summary (assay's own target)" in (d / "report.html").read_text()
+    sheets = set(load_workbook(d / "results.xlsx").sheetnames)
+    assert {"Oligo variants", "Fragment variants"} <= sheets

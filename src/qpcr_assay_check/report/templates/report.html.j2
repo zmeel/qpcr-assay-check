@@ -276,7 +276,7 @@ td.aln-cell { min-width: 22rem; }
 
 {% if r.variant_summary and (r.variant_summary.oligos | selectattr('rows') | list) %}
 <h2>Variant summary (assay's own target)</h2>
-<div class="notice"><p><strong>Scope.</strong> Built only from the target tier's own hits that were fully re-aligned across the whole oligo (not worst-case estimates). Lumps identical alignments together and reports each as a percentage of that measured total — a static snapshot of this run's own search, not the population-aware, year-by-year view in Inclusivity below.</p></div>
+<div class="notice"><p><strong>Scope.</strong> Built from the target tier's own BLAST hits: at most {{ r.config.search.hitlist_size }} per oligo, the closest site per record, with partial hits fetched and re-aligned across the whole oligo. Identical alignments are lumped together and each is reported as a percentage of that measured total. When the hit list is full (see Searches) this is BLAST's selection of records, not the whole target population and not a random sample; see Inclusivity below for the year-by-year view against population counts.</p></div>
 
 {% for o in r.variant_summary.oligos %}
 {% if o.rows %}
@@ -310,9 +310,9 @@ td.aln-cell { min-width: 22rem; }
   </tbody>
 </table></div>
 {% else %}
-<p>No target-tier predicted product had all three sites (forward, probe, reverse) fully re-aligned on the same record, so no whole-fragment variant table could be built.</p>
+<p>No target-tier record had all three sites (forward, probe, reverse) fully re-aligned, so no whole-fragment variant table could be built.</p>
 {% endif %}
-{% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier predicted product(s) excluded from this table: no probe site inside the product, or one of the three sites was not fully re-aligned.</p>{% endif %}
+{% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.</p>{% endif %}
 {% endif %}
 
 {% if r.exclusivity %}

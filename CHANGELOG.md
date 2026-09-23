@@ -15,6 +15,15 @@ All notable changes to this project are documented here. The format follows
   to the specificity section. The verdict itself is unchanged.
 
 ### Fixed
+- **Variant summary was always empty on a real run** (`specificity/variants.py`, `cli.py`,
+  `pipeline.py`): it filtered the specificity sites for the target tier, but the specificity
+  assessment only builds sites for the off-target tiers, so the section (and the "Oligo variants"
+  and "Fragment variants" sheets) never appeared. Found in the first live report. New
+  `assess_target_sites` assesses every target-tier hit (partial hits fetched and re-aligned, the
+  closest site per record and oligo), passed to `evaluate()` separately so it never touches the
+  off-target verdict. The whole-fragment table now groups the three oligos per record instead of
+  per predicted product, so a primer with a 3'-end mismatch still appears. The report's scope
+  note states the hit-list cap.
 - **Stale "planned for v0.4.0" texts** (`specificity/findings.py`, `report.html.j2`): the
   specificity scope said hits from the clinical organism list were "not included yet", even when
   the exclusivity tier had just been assessed. It now lists the tiers assessed and any configured

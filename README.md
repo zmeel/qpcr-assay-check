@@ -178,8 +178,10 @@ sequence variants and reported as a count and a percentage of the measured total
 oligo (forward/probe/reverse), plus a whole-fragment table combining forward + probe + reverse
 together when all three bind the same record. Only fully re-aligned hits count (never a
 `blast_partial_worst_case` estimate); excluded counts are always reported, never silently folded
-in. This reuses evidence the specificity assessment already scored — no new NCBI call — and, like
-the taxonomy breakdown, carries no verdict of its own.
+in. Every target-tier BLAST hit is assessed for it (at most `search.hitlist_size` per oligo);
+partial hits are fetched and re-aligned, one cached `efetch` each. When the hit list is full, the
+table describes BLAST's selection of records, not the whole target population. Like the taxonomy
+breakdown, it carries no verdict of its own.
 
 ### Exclusivity against a clinical organism list (v0.4.0)
 
