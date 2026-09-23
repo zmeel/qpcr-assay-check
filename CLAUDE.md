@@ -8,7 +8,9 @@ Read both at the start of every session. Update PROGRESS.md before ending a sess
   If unverified, check current NCBI docs and state what you found, or use a clearly
   labelled placeholder and tell me.
 - All example-assay sequences must be verified against the source publication.
-- Remote NCBI only: no local BLAST database. No form scraping.
+- Remote NCBI only for searches: no local BLAST database. Downloading genome sequences from
+  NCBI Datasets for the exhaustive variant analysis is allowed; keep only the extracted target
+  regions, never a local database. No form scraping.
 - NCBI email/API key come only from env vars (NCBI_EMAIL, NCBI_API_KEY). Never commit
   secrets; keep .env gitignored.
 - Respect NCBI etiquette: tool/email params, throttling, backoff, polite polling.
