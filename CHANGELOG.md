@@ -30,7 +30,11 @@ All notable changes to this project are documented here. The format follows
   sequences are recognised by "plasmid" in their FASTA description; examples are shown in the
   report so the rule can be checked. "Not found" entries stored before this change are scanned
   again automatically. Found live: C. trachomatis cryptic-plasmid assay, 281 of 357 assemblies
-  without the region.
+  without the region. Every entry stored without plasmid information (found or not) is scanned
+  again once, so the target's own location is known.
+- **Exhaustive inclusivity explains its gap**: columns read 'Assemblies' / 'With region', and the
+  rationale states how many assemblies are not counted because the region was not found or was
+  cut by a contig end (live: 2021, 154 assemblies, none with the region).
 - **Variant tables describe the match in words**: "perfect match", or the number of mismatches and
   gaps and whether the primer's 3' end is intact, in place of the off-target "critical/warning"
   levels (which read as a problem for the target). The fragment table shows mismatches per oligo;

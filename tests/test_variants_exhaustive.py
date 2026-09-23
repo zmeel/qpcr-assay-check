@@ -285,3 +285,39 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
     assert "Match to the oligo" in html and "perfect match" in html
     assert "mismatch in the 3′ end" in html  # the forward variant has a 3'-terminal mismatch
     assert "Mismatches (F / P / R)" in html
+
+
+def test_found_entries_without_plasmid_info_are_rescanned_so_the_split_can_be_shown(tmp_path):
+    """Live finding: found entries from the first v1.1.0 run had no plasmid info, which hid it."""
+    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets(plasmid_assemblies()))
+    run(tmp_path, cfg, client, assay)
+    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
+    lines = []
+    for line in path.read_text().splitlines():
+        item = json.loads(line)
+        for key in ("plasmid_contigs", "n_contigs", "plasmid_examples"):
+            item.pop(key)
+        for lc in item["loci"]:
+            lc.pop("on_plasmid")
+        lines.append(json.dumps(item))
+    path.write_text("\n".join(lines) + "\n")
+    c = run(tmp_path, cfg, client, assay).coverage
+    assert c.processed_this_run == 4 and c.target_on_plasmid is True
+    assert (c.not_found_without_plasmid, c.not_found_with_plasmid) == (1, 1)
+    assert run(tmp_path, cfg, client, assay).coverage.processed_this_run == 0  # only once
+
+
+def test_exhaustive_inclusivity_explains_assemblies_without_the_region(tmp_path):
+    cfg, fake, client, assay = setup(tmp_path)
+    res = run(tmp_path, cfg, client, assay)
+    assert any(
+        "2 of 5 assessed assemblies are not in the counts above" in r
+        for r in res.inclusivity.rationale
+    )
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    html = render_report(result, cfg)
+    assert "<th>Assemblies</th><th>With region</th>" in html

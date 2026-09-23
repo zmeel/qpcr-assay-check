@@ -288,9 +288,10 @@ def exhaustive_inclusivity(
         oligos=oligos,
         sample_scheme=(
             "Every genome assembly of the target in NCBI Datasets (current versions, one copy per "
-            "GenBank/RefSeq pair), by release year; 'Population' is the number of assemblies "
-            "listed for that year and 'Sample' the number assessed so far. Not a sample: any gap "
-            "between the two is coverage still to be processed."
+            "GenBank/RefSeq pair), by release year; 'Assemblies' is the number NCBI lists for "
+            "that year and 'With region' the number in which the target region was found and "
+            "assessed. Not a sample: the gap between the two is explained below (region not "
+            "found, cut by a contig end, or not processed yet)."
         ),
         verdict=verdict,
         rationale=rationale,
@@ -366,8 +367,17 @@ def run_exhaustive(
         not_found_with_plasmid=len(with_plasmid),
         not_found_with_plasmid_examples=[it.accession for it in with_plasmid[:20]],
         plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
+        plasmid_info_recorded=any(it.plasmid_contigs is not None for it in items),
     )  # fmt: skip
     inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg)
+    missing = coverage.not_found + coverage.contig_break
+    if missing:
+        inclusivity.rationale.append(
+            f"{missing} of {len(items)} assessed assemblies are not in the counts above: the "
+            f"target region was not found in {coverage.not_found} and was cut by a contig end in "
+            f"{coverage.contig_break} (see the Variant summary). Per year, 'Assemblies' minus "
+            "'With region' is that gap."
+        )
     if coverage.target_on_plasmid and coverage.not_found_with_plasmid:
         inclusivity.rationale.append(
             f"{coverage.not_found_with_plasmid} assembl"

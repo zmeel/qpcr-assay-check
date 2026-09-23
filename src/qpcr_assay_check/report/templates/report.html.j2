@@ -289,6 +289,7 @@ td.aln-cell { min-width: 22rem; }
   <tr><th scope="row">Amplicon region found</th><td>{{ cov.found }} with all three oligo sites complete</td></tr>
   <tr><th scope="row">Region cut by a contig end</th><td>{{ cov.contig_break }} (draft assemblies; not counted in the tables)</td></tr>
   <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the genome: the target region may be absent, or too divergent to find.</span>
+    {% if cov.plasmid_info_recorded and not cov.target_on_plasmid %}<br>of which {{ cov.not_found_without_plasmid }} contain no plasmid sequence and {{ cov.not_found_with_plasmid }} contain plasmid sequence{% if cov.target_on_plasmid is none %} (whether the target lies on a plasmid is not known yet){% endif %}.{% endif %}
     {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no plasmid sequence at all (many assemblies hold only the chromosome: this says nothing about the strain), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain plasmid sequence but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') }}{% endif %}.{% endif %}</td></tr>
   {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') }}</span>{% endif %}</td></tr>{% endif %}
   <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (the best complete copy is used)</td></tr>
@@ -386,7 +387,7 @@ td.aln-cell { min-width: 22rem; }
 {% for o in r.inclusivity.oligos %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Year</th><th>Population</th><th>Sample</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
+  <thead><tr><th>Year</th><th>{{ 'Assemblies' if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
   <tbody>
   {% for w in o.windows %}
   <tr><td class="num">{{ w.year }}</td><td class="num">{{ w.population_size if w.population_size is not none else '–' }}</td>

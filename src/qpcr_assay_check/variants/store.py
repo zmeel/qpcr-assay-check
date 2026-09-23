@@ -58,8 +58,8 @@ class StoredAssembly(BaseModel):
 
     @property
     def needs_rescan(self) -> bool:
-        """A 'not found' stored before plasmid sequences were counted: scan it again."""
-        return self.status == "not_found" and self.plasmid_contigs is None
+        """Stored before plasmid sequences were counted: scan it again (once)."""
+        return self.plasmid_contigs is None
 
     @property
     def year(self) -> int:

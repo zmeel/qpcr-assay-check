@@ -75,6 +75,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   in words instead of critical/warning, inclusivity title. 367 tests pass. Next live run should
   show ~281 re-downloads, and the report's "Recognised as plasmid" examples must be checked to
   confirm the description rule.
+- Second live C. trachomatis run: 2 minutes, 281 re-downloads, 0 failures. The plasmid split did
+  NOT show: the 76 'found' entries had no plasmid info (not rescanned), so target_on_plasmid was
+  unknown and the split was hidden. Fixed: every entry without plasmid info is rescanned once;
+  the split counts are shown whenever recorded. Also: inclusivity for the exhaustive source now
+  labels columns 'Assemblies' / 'With region' and explains the gap (e.g. 2021: 154 assemblies,
+  0 with region). 369 tests pass. Next live run: ~76 re-downloads.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

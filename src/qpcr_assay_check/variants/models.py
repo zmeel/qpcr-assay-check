@@ -45,6 +45,11 @@ class ExhaustiveCoverage(BaseModel):
         "plasmid-borne target, a possible deletion (as in the Swedish nvCT variant)",
     )
     not_found_with_plasmid_examples: list[str] = Field(default_factory=list)
+    plasmid_info_recorded: bool = Field(
+        default=False,
+        description="plasmid sequences were counted for at least one assembly (so the split of "
+        "'region not found' can be shown)",
+    )
     plasmid_header_examples: list[str] = Field(
         default_factory=list,
         description="FASTA descriptions recognised as plasmids, shown so the rule can be checked",
