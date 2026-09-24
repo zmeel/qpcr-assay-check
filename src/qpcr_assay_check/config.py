@@ -413,6 +413,7 @@ class VariantsSettings(_Strict):
     blast_records_per_search: int
     direct_scan_max_length: int
     direct_scan_batch: int
+    probe_channels: Literal["any", "all"] = "any"  # probes with different reporters (channels)
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:

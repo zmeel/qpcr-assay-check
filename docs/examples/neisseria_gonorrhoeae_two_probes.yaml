@@ -1,12 +1,10 @@
 # Example assay: Neisseria gonorrhoeae, one primer pair with two alternative FAM-MGB probes.
 #
 # STATUS
-#   Uses the v1.3.0 format (named oligos, several per role; README "Several oligos per role").
-#   Accepted from v1.3.0 step 1: QC, dimers across the mix, placement of each probe in its own
-#   fragment, specificity per oligo, best alternative per record. Coverage per oligo, escape lists,
-#   the best copy of this multi-copy target, and region finding from both fragments follow in
-#   step 2 (the variant analysis uses the first fragment until then). Settings for this assay
-#   are in its own 'settings:' section at the end; no separate config file needed.
+#   v1.3.0 format: named oligos, several per role (README "Several oligos per role"). The variant
+#   analysis judges each genome by its best-binding copy of this multi-copy target, reports
+#   coverage per oligo and the escapes, and tries NG-fragment-P2 where NG-fragment-P1 finds
+#   nothing. Settings for this assay are in its own 'settings:' section at the end.
 #
 # PROVENANCE
 #   Sequences supplied by the user (2026-09-24); not checked against a publication or kit insert.

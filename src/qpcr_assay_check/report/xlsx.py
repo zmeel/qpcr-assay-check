@@ -344,6 +344,29 @@ def write_workbook(result: RunResult, path: Path) -> None:
                    ["More than one copy", c.multi_copy, ""]],
                 None,
             )  # fmt: skip
+            cc = c.copies
+            if cc is not None and cc.genomes:
+                _sheet(
+                    wb,
+                    "Copies and coverage",
+                    ["Item", "Oligo / reporter", "Genomes", "Only this oligo", "Examples"],
+                    [["Genomes assessed", "", cc.genomes, "", ""],
+                     ["More than one copy", f"at most {cc.max_copies}", cc.multi_copy, "", ""],
+                     ["Best copy not the first found", "", cc.best_copy_not_first, "", ""],
+                     ["With a detectable copy", "", cc.with_detectable_copy, "", ""],
+                     ["Escapes (no detectable copy)", "", cc.escapes, "",
+                      ", ".join(cc.escape_examples)],
+                     *[[f"Covers ({o.role})", o.name + (f" {o.reporter}" if o.reporter else ""),
+                        o.covered, o.only, ""] for o in cc.oligos],
+                     *[[f"None of the {role} oligos", "", n, "",
+                        ", ".join(cc.role_none_examples.get(role, []))]
+                       for role, n in cc.role_none.items()],
+                     *[["Channel", ch.reporter + ": " + ", ".join(ch.probes), ch.covered, "", ""]
+                       for ch in cc.channels],
+                     ["Any channel", cc.probe_channels, cc.any_channel, "", ""],
+                     ["All channels", "", cc.all_channels, "", ""]],
+                    None,
+                )  # fmt: skip
     incl = result.inclusivity
     if incl is not None and incl.oligos:
         _sheet(

@@ -151,4 +151,5 @@ settings:                                  # only what differs from the defaults
 #   blast_records_per_search: 100
 #   direct_scan_max_length: 200000
 #   direct_scan_batch: 20
+#   probe_channels: any            # probes with different reporters: any | all channels must detect
 # --- settings reference end ---

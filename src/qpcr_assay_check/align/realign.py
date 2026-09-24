@@ -181,3 +181,58 @@ def midline(q_aln: str, s_aln: str) -> str:
         else:
             out.append("|" if sc_ in "ACGT" else ":")
     return "".join(out)
+
+
+@dataclass(frozen=True)
+class HomopolymerShift:
+    """The subject differs from the oligo only by the length of one single-base run."""
+
+    base: str
+    oligo_run: int  # run length in the oligo
+    subject_run: int  # run length in the subject
+    alignment: Alignment
+
+    @property
+    def label(self) -> str:
+        return (
+            f"poly-{self.base} run {self.oligo_run}→{self.subject_run} (homopolymer length variant)"
+        )
+
+
+def homopolymer_shift(
+    oligo: str, subject: str, *, min_run: int = 4, max_shift: int = 3
+) -> HomopolymerShift | None:
+    """If ``subject`` holds the oligo with one base run longer or shorter, align it that way.
+
+    Such a site is otherwise aligned with mismatches at the end of the run (a gap costs more
+    than two mismatches under BLAST-like scoring), which can look like a 3'-end defect although
+    the 3' end pairs. Only an exact match of the run-length variant counts; the gap is placed at
+    the 5' side of the run (any position in the run is equivalent), keeping the 3' end intact.
+    The smallest shift wins.
+    """
+    q, s = oligo.upper(), subject.upper()
+    runs = []
+    i = 0
+    while i < len(q):
+        j = i
+        while j < len(q) and q[j] == q[i]:
+            j += 1
+        if j - i >= min_run and q[i] in "ACGT":
+            runs.append((i, j - i))
+        i = j
+    for shift in sorted((d for d in range(-max_shift, max_shift + 1) if d), key=abs):
+        for start, length in runs:
+            if length + shift < 2:
+                continue
+            variant = q[:start] + q[start] * (length + shift) + q[start + length :]
+            at = s.find(variant)
+            if at < 0:
+                continue
+            seg = s[at : at + len(variant)]
+            if shift > 0:  # the subject's run is longer: extra subject bases against oligo gaps
+                q_aln, s_aln = q[:start] + "-" * shift + q[start:], seg
+            else:  # shorter: oligo bases against subject gaps
+                q_aln, s_aln = q, seg[:start] + "-" * (-shift) + seg[start:]
+            aln = Alignment(q_aln, s_aln, at, at + len(variant), 0)
+            return HomopolymerShift(q[start], length, length + shift, aln)
+    return None

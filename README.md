@@ -406,9 +406,17 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
   an alternative that fits no reference is a warning when another oligo of its role fits.
 - Specificity searches every oligo under its own name; predicted products pair any forward with
   any reverse primer. Variant tables name the alternative seen in each row.
-- Not yet (v1.3.0 step 2): coverage per oligo and per probe channel, escape lists, choosing the
-  best copy of a multi-copy target, and using more than the first reference amplicon to find the
-  region in the variant analysis.
+- Multi-copy targets: every stored copy of the region is assessed with every oligo, and each
+  genome is judged by the copy the assay binds best (a PCR needs one copy it can amplify). The
+  report's "Copies, coverage per oligo, and escapes" table shows copies per genome, how many
+  genomes each oligo covers (and covers alone), genomes no oligo of a role covers, probe channels
+  (`variants.probe_channels: any | all`) and the escapes: genomes without any detectable copy
+  (at most 1 mismatch, no gap, no mismatch in the last 5 nt).
+- Further reference amplicons are tried when the first finds nothing (region store unchanged, so
+  adding a lineage reference keeps the regions already stored).
+- A site that differs only by the length of a single-base run (e.g. a poly-T of 9 instead of 7)
+  is aligned as a bulge with the 3' end intact and labelled "homopolymer length variant", rather
+  than shown as 3'-end mismatches. Homopolymer lengths are also a known sequencing-error hotspot.
 - Worked example (user-supplied sequences):
   [`docs/examples/neisseria_gonorrhoeae_two_probes.yaml`](docs/examples/neisseria_gonorrhoeae_two_probes.yaml).
 

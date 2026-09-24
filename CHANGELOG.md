@@ -20,6 +20,21 @@ All notable changes to this project are documented here. The format follows
   it. Existing assay files work unchanged; saved records load again. Worked example:
   `docs/examples/neisseria_gonorrhoeae_two_probes.yaml` (now accepted by the tool).
 
+- **Multi-copy targets, coverage per oligo, escapes** (`variants/exhaustive.py`, report,
+  workbook; v1.3.0 step 2): every stored copy of the region is assessed with every alternative
+  oligo, and each genome is judged by the copy the assay binds best (earlier versions used the
+  copy found most confidently, which understated inclusivity for multi-copy targets such as the
+  N. gonorrhoeae assay: 22,248 of 22,255 genomes had more than one copy). New report table and
+  "Copies and coverage" sheet: copies per genome, genomes whose best copy differs from the first
+  found, coverage per oligo and "only this oligo", genomes no oligo of a role covers, probe
+  channels by reporter with `variants.probe_channels: any | all`, and the escapes (no
+  detectable copy). Up to 20 copies per genome are now stored (5 before).
+- **Homopolymer run-length variants** (`align/realign.py`): a site that differs from the oligo
+  only by the length of one single-base run is aligned as a bulge with the 3' end intact and
+  labelled, instead of being shown as 3'-end mismatches (live: NG-R's poly-A/T site).
+- **Several reference amplicons in the variant analysis**: further references are tried where
+  the first finds nothing; the region store stays keyed by the first reference, so stored
+  regions are kept, and 'not found' entries are rechecked once when a reference is added.
 - **Settings per assay** (`models.py`, `config.py`, CLI, report): an optional `settings:` section
   in the assay file, in config.yaml's structure, applied over the defaults and any `--config`
   file, so every assay-specific choice (annealing temperature, background taxa, variant source,

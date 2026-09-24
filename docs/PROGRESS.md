@@ -83,8 +83,16 @@ verified NCBI facts) at the start of every session. Newest entry first.
   only what differs) over the long commented template: template and NG example rewritten that
   way; every other option moved to a commented reference block at the end of the template
   (tests parse that block: all options present, defaults exact).
-- Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
-  several references in the variant analysis) after the user's go-ahead.
+- Live NG datasets run finished (22,255 of 51,572 assemblies assessed; 2024 alone lists 41,117):
+  region found in all, 22,248 multi-copy; reverse inclusivity 45-70% on the first-found copy.
+  NG-P1 perfect 93.8%, NG-P2 covers its lineage. Reverse variants are mostly poly-A/T length.
+- v1.3.0 step 2 implemented (user go-ahead): best-binding copy per genome over every stored copy
+  and every alternative oligo; CopyCoverage (copies, best-not-first, coverage per oligo/only,
+  none per role, probe channels with variants.probe_channels any|all, escapes); homopolymer
+  run-length variants aligned as a bulge and labelled; further reference amplicons tried when the
+  first finds nothing (store keyed by the first, not-found rechecked once); MAX_LOCI_KEPT 20.
+  429 tests pass. Next: user reruns NG (stored regions reused; the new analysis applies to all
+  22,255 stored genomes), then v1.3.0 release.
 
 ## 2026-09-23 — Report states when human background was skipped
 

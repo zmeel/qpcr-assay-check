@@ -49,6 +49,9 @@ class SiteResult(BaseModel):
     tm_c: float | None = None
     dg_kcal: float | None = None
     delta_tm_c: float | None = Field(default=None, description="duplex Tm minus perfect-match Tm")
+    note: str = Field(
+        default="", description="e.g. a homopolymer run-length variant aligned as a bulge"
+    )
     level: Level
 
 

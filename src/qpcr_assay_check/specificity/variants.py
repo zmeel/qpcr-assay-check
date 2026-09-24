@@ -60,6 +60,7 @@ class VariantRow(BaseModel):
     s_aln: str
     midline: str
     oligo_name: str = Field(default="", description="the oligo (of the role's alternatives) seen")
+    note: str = Field(default="", description="e.g. a homopolymer run-length variant")
     count: int
     percent: float
     level: Level
@@ -141,6 +142,7 @@ def _variant_row(
         s_aln=s.s_aln,
         midline=s.midline,
         oligo_name=_DEGENERATE.sub("", s.query),
+        note=s.note,
         count=count,
         percent=100.0 * count / total if total else 0.0,
         level=s.level,

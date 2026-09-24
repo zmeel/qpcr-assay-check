@@ -90,7 +90,7 @@ td.aln-cell { min-width: 22rem; }
 <body>
 <main>
 {% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
-{% macro match(row, primer) %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro match(row, primer) %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
 {% macro pct(value) %}{% if 0 < value < 0.05 %}&lt;0.1%{% else %}{{ '%.1f' % value }}%{% endif %}{% endmacro %}
 
 <header>
@@ -302,9 +302,42 @@ td.aln-cell { min-width: 22rem; }
     {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no sequence labelled as a plasmid (many assemblies hold only the chromosome, which says nothing about the strain; in a draft assembly a plasmid can also sit in an unlabelled contig, so a deletion there would be counted here), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain a sequence labelled as a plasmid but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') | ncbi }}{% endif %}.{% endif %}</td></tr>
   {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') | ncbi }}</span>{% endif %}</td></tr>{% endif %}
   {% if cov.source == 'blast_partitioned' %}<tr><th scope="row">How records were checked</th><td>{{ cov.found_by_direct_scan }} with the region found by fetching and scanning the record itself (records up to {{ r.config.variants.direct_scan_max_length }} bases); longer records by BLAST in accession lists{% if cov.not_checked_directly %}<br><strong>{{ cov.not_checked_directly }}</strong> longer record(s) had no BLAST hit and were not scanned directly: their "not found" rests on BLAST alone{% endif %}</td></tr>{% endif %}
-  <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (the best complete copy is used)</td></tr>
+  <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (each genome is judged by the copy the assay binds best; see below)</td></tr>
   </tbody>
 </table></div>
+{% set cc = cov.copies %}
+{% if cc and cc.genomes %}
+<h3>Copies, coverage per oligo, and escapes</h3>
+<p class="meta">Every stored copy of the region is assessed with every oligo of the mix. A site is <em>detectable</em> with at most 1 mismatch, no gap and no mismatch in its last 5 nucleotides (the inclusivity criterion); a copy is detectable when every role is; each genome is judged by its best copy, as the PCR needs only one copy it can amplify. The variant tables below use that best copy.</p>
+<div class="scroll"><table><tbody>
+  <tr><th scope="row">Genomes assessed</th><td>{{ cc.genomes }}; {{ cc.multi_copy }} with more than one copy (at most {{ cc.max_copies }}){% if cc.copies_capped %}<br><span class="meta">{{ cc.copies_capped }} stored before v1.3.0 with at most 5 of their copies; the rest were not kept.</span>{% endif %}</td></tr>
+  <tr><th scope="row">Best copy not the first found</th><td>{{ cc.best_copy_not_first }}<br><span class="meta">genomes whose best-binding copy differs from the copy found most confidently (earlier versions assessed only that one)</span></td></tr>
+  <tr><th scope="row">With a detectable copy</th><td>{{ cc.with_detectable_copy }} of {{ cc.genomes }} ({{ pct(100.0 * cc.with_detectable_copy / cc.genomes) }})</td></tr>
+  <tr><th scope="row"><strong>Escapes</strong></th><td><strong>{{ cc.escapes }}</strong> genome(s) without a detectable copy{% if cc.escape_examples %}<br><span class="meta">e.g. {{ cc.escape_examples[:10] | join(', ') | ncbi }}</span>{% endif %}</td></tr>
+</tbody></table></div>
+<div class="scroll"><table>
+  <thead><tr><th>Role</th><th>Oligo</th><th>Covers (best copy)</th><th>Only this oligo</th></tr></thead>
+  <tbody>
+  {% for role in ['forward', 'reverse', 'probe'] %}
+  {% for o in cc.oligos if o.role == role %}
+  <tr><td>{{ role }}</td><td>{{ o.name }}{% if o.reporter %} <span class="meta">{{ o.reporter }}</span>{% endif %}</td><td class="num">{{ o.covered }} ({{ pct(100.0 * o.covered / cc.genomes) }})</td><td class="num">{% if assay.by_role(role) | length > 1 %}{{ o.only }}{% else %}–{% endif %}</td></tr>
+  {% endfor %}
+  <tr><td>{{ role }}</td><td><em>none of them</em></td><td class="num"><strong>{{ cc.role_none[role] }}</strong>{% if cc.role_none_examples[role] %}<br><span class="meta">e.g. {{ cc.role_none_examples[role][:5] | join(', ') | ncbi }}</span>{% endif %}</td><td></td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if cc.channels | length > 1 %}
+<p><strong>Probe channels</strong> (probes with different reporters detect different regions; counted as detected when <strong>{{ 'any channel' if cc.probe_channels == 'any' else 'every channel' }}</strong> detects, setting <code>variants.probe_channels</code>):</p>
+<div class="scroll"><table>
+  <thead><tr><th>Reporter</th><th>Probes</th><th>Genomes detected</th></tr></thead>
+  <tbody>
+  {% for ch in cc.channels %}<tr><td>{{ ch.reporter }}</td><td>{{ ch.probes | join(', ') }}</td><td class="num">{{ ch.covered }}</td></tr>{% endfor %}
+  <tr><td colspan="2">any channel</td><td class="num">{{ cc.any_channel }}</td></tr>
+  <tr><td colspan="2">all channels</td><td class="num">{{ cc.all_channels }}</td></tr>
+  </tbody>
+</table></div>
+{% endif %}
+{% endif %}
 {% else %}
 <div class="notice"><p><strong>Scope.</strong> Built from the target tier's own BLAST hits: at most {{ r.config.search.hitlist_size }} per oligo, the closest site per record, with partial hits fetched and re-aligned across the whole oligo. Identical alignments are lumped together and each is reported as a percentage of that measured total. When the hit list is full (see Searches) this is BLAST's selection of records, not the whole target population and not a random sample; see Inclusivity below for the year-by-year view against population counts.</p></div>
 {% endif %}

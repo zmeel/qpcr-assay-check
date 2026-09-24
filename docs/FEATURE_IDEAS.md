@@ -89,7 +89,7 @@ probes tolerate mismatches differently from plain probes.
 - Labelled as a computed suggestion for the laboratory to evaluate, not a validated redesign;
   the assay definition is never changed by the tool.
 
-## 8. Several oligos per role, named oligos, multi-copy targets (v1.3.0; step 1 done)
+## 8. Several oligos per role, named oligos, multi-copy targets (v1.3.0; done)
 
 Some assays use more than one forward primer, reverse primer or probe for the same target, when
 the differences between lineages are too big for a wobble base. Confirmed by the user
