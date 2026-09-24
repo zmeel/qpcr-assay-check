@@ -412,6 +412,12 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
   genomes each oligo covers (and covers alone), genomes no oligo of a role covers, probe channels
   (`variants.probe_channels: any | all`) and the escapes: genomes without any detectable copy
   (at most 1 mismatch, no gap, no mismatch in the last 5 nt).
+- Homopolymer bulges (a site that differs only by the length of a single-base run, no mismatch)
+  are **not** counted as detectable by default (strict). `variants.homopolymer_bulges_detectable:
+  true` counts them; the report shows the genomes with a detectable copy under both rules either
+  way, since only a wet-lab check can show whether such a site amplifies.
+- Genomes stored before v1.3.0 kept at most 5 copies; they are downloaded and scanned again once
+  (within the per-run maximum), so every copy (up to 20) is assessed.
 - Further reference amplicons are tried when the first finds nothing (region store unchanged, so
   adding a lineage reference keeps the regions already stored).
 - A site that differs only by the length of a single-base run (e.g. a poly-T of 9 instead of 7)

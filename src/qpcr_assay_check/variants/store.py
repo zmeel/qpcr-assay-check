@@ -78,9 +78,14 @@ class StoredAssembly(BaseModel):
     )
 
     @property
+    def copies_capped(self) -> bool:
+        """Found, with fewer copies stored than kept now (stores before v1.3.0 kept 5)."""
+        return self.status == "found" and len(self.loci) < min(self.n_loci, MAX_LOCI_KEPT)
+
+    @property
     def needs_rescan(self) -> bool:
         """Stored before a check this version makes: scan it again (once)."""
-        if self.plasmid_contigs is None:
+        if self.plasmid_contigs is None or self.copies_capped:
             return True
         if self.status != "not_found" or self.direct_checked is False:
             return False  # a record too long to fetch (False) is not retried every run

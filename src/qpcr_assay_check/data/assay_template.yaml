@@ -152,4 +152,5 @@ settings:                                  # only what differs from the defaults
 #   direct_scan_max_length: 200000
 #   direct_scan_batch: 20
 #   probe_channels: any            # probes with different reporters: any | all channels must detect
+#   homopolymer_bulges_detectable: false  # true: a site differing only by a run length (poly-A 7->8) counts as detectable
 # --- settings reference end ---

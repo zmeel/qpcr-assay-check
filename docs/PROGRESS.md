@@ -93,6 +93,15 @@ verified NCBI facts) at the start of every session. Newest entry first.
   first finds nothing (store keyed by the first, not-found rechecked once); MAX_LOCI_KEPT 20.
   429 tests pass. Next: user reruns NG (stored regions reused; the new analysis applies to all
   22,255 stored genomes), then v1.3.0 release.
+- Live NG run after step 2 (27,255 of 51,572 assessed): 84.6% with a detectable copy, 4,201
+  escapes; NG-R covers 84.7%, mostly lost to poly-A 7->8/9 bulges. 12,735 genomes had been stored
+  with at most 5 copies. The user chose: (1) a setting for bulges, strict by default, both counts
+  shown; (2) download the capped genomes again.
+- Done: `variants.homopolymer_bulges_detectable` (default false); report/workbook show both
+  counts. Found genomes with fewer stored copies than min(copies found, 20) now need a rescan
+  (once; a genome with more than 20 copies is not rescanned every run); the per-year log counts
+  only complete entries as "already stored". 434 tests pass. Next: user reruns NG (the ~12,735
+  rescans use the per-run budget), then the v1.3.0 release.
 
 ## 2026-09-23 — Report states when human background was skipped
 

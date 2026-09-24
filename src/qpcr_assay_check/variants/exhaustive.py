@@ -201,7 +201,9 @@ def collect(
                     pending.append(rec)
                     if processed + len(pending) >= budget:
                         break
-                stored = sum(1 for it in store.items.values() if it.year == year)
+                stored = sum(
+                    1 for it in store.items.values() if it.year == year and store.done(it.accession)
+                )
                 log.info(
                     "%d: %d assemblies listed, %d already stored, %d to scan in this run%s",
                     year, n_year, stored, len(pending),
@@ -286,17 +288,24 @@ class GenomeCall:
     n_copies: int
     n_detectable: int
     best_is_first: bool
+    n_detectable_other_rule: int  # copies detectable under the other homopolymer-bulge rule
     oligo_good: dict[str, bool]  # oligo name -> detectable on the best copy
     role_good: dict[str, bool]
 
 
-def detectable(s: SiteResult) -> bool:
-    """At most 1 mismatch, no gap, no mismatch in the last 5 nt (the inclusivity criterion)."""
-    return s.n_gap == 0 and s.n_mismatch <= 1 and s.mismatches_last5 == 0
+def detectable(s: SiteResult, bulges: bool = False) -> bool:
+    """At most 1 mismatch, no gap, no mismatch in the last 5 nt (the inclusivity criterion).
+
+    ``bulges``: also accept a site that differs only by the length of a single-base run (a
+    labelled homopolymer bulge without any mismatch); strict (False) by default.
+    """
+    if s.n_gap == 0:
+        return s.n_mismatch <= 1 and s.mismatches_last5 == 0
+    return bulges and bool(s.note) and s.n_mismatch == 0
 
 
-def _closeness_key(s: SiteResult) -> tuple[int, int, int]:
-    return (0 if detectable(s) else 1, s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
+def _closeness_key(s: SiteResult, bulges: bool = False) -> tuple[int, int, int]:
+    return (0 if detectable(s, bulges) else 1, s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
 
 
 def assess(
@@ -326,6 +335,7 @@ def assess(
     )  # fmt: skip
     memo: dict[tuple[str, str], tuple[realign.Alignment, str]] = {}
     channel_rule = cfg.variants.probe_channels
+    bulges = cfg.variants.homopolymer_bulges_detectable
     sites: list[SiteResult] = []
     contig_break = 0
     masked_site: list[str] = []
@@ -336,13 +346,13 @@ def assess(
         copies = []
         for locus in (lc for lc in it.loci if not lc.truncated):
             windows = per_ref[locus.ref] if locus.ref < len(per_ref) else per_ref[0]
-            copy = _assess_copy(it, locus, assay, windows, cfg, scoring, memo, channel_rule)
+            copy = _assess_copy(it, locus, assay, windows, cfg, scoring, memo, channel_rule, bulges)
             if copy is not None:
                 copies.append(copy)
         if not copies:
             contig_break += 1
             continue
-        best_i = min(range(len(copies)), key=lambda i: _copy_key(copies[i][0]))
+        best_i = min(range(len(copies)), key=lambda i: _copy_key(copies[i][0], bulges))
         chosen, all_sites = copies[best_i]
         if any("N" in s.s_aln.upper() for s in chosen.values()):
             masked_site.append(it.accession)  # an N is neither a match nor a variant
@@ -355,19 +365,30 @@ def assess(
                 GenomeCall(
                     accession=it.accession,
                     n_copies=len(copies),
-                    n_detectable=sum(all(detectable(x) for x in c.values()) for c, _a in copies),
+                    n_detectable=sum(
+                        all(detectable(x, bulges) for x in c.values()) for c, _a in copies
+                    ),
                     best_is_first=best_i == 0,
-                    oligo_good={name: detectable(x) for name, x in all_sites.items()},
-                    role_good={r: detectable(chosen[r]) for r in ROLES},
+                    n_detectable_other_rule=sum(
+                        all(
+                            detectable(
+                                _role_site(assay, r, a, channel_rule, not bulges), not bulges
+                            )
+                            for r in ROLES
+                        )
+                        for _c, a in copies
+                    ),  # fmt: skip
+                    oligo_good={name: detectable(x, bulges) for name, x in all_sites.items()},
+                    role_good={r: detectable(chosen[r], bulges) for r in ROLES},
                 )
             )
     return sites, contig_break, masked_site
 
 
-def _copy_key(chosen: dict[str, SiteResult]) -> tuple[int, int, int]:
+def _copy_key(chosen: dict[str, SiteResult], bulges: bool = False) -> tuple[int, int, int]:
     roles = list(chosen.values())
     return (
-        sum(not detectable(x) for x in roles),
+        sum(not detectable(x, bulges) for x in roles),
         sum(x.n_mismatch + x.n_gap for x in roles),
         -sum(x.clean_3prime_nt for x in roles),
     )
@@ -382,6 +403,7 @@ def _assess_copy(
     scoring: realign.Scoring,
     memo: dict[tuple[str, str], tuple[realign.Alignment, str]],
     channel_rule: str,
+    bulges: bool = False,
 ) -> tuple[dict[str, SiteResult], dict[str, SiteResult]] | None:
     """Per role the site that counts on this copy, and every oligo's site; None if cut off."""
     chosen: dict[str, SiteResult] = {}
@@ -403,7 +425,7 @@ def _assess_copy(
                 memo[key] = _align(key[0], oriented, scoring, rules)
             aln, note = memo[key]
             every[o.name] = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
-        chosen[role] = _role_site(assay, role, every, channel_rule)
+        chosen[role] = _role_site(assay, role, every, channel_rule, bulges)
     return chosen, every
 
 
@@ -427,29 +449,43 @@ def _align(
 
 
 def _role_site(
-    assay: Assay, role: str, every: dict[str, SiteResult], channel_rule: str
+    assay: Assay, role: str, every: dict[str, SiteResult], channel_rule: str, bulges: bool = False
 ) -> SiteResult:
     """The site that counts for a role: its best alternative; for probes in several reporter
     channels, the best of each channel, then any (best) or all (worst) channels."""
     members = assay.by_role(role)
+
+    def key(s: SiteResult) -> tuple[int, int, int]:
+        return _closeness_key(s, bulges)
+
     if role != "probe" or channel_rule == "any":
-        return min((every[o.name] for o in members), key=_closeness_key)
+        return min((every[o.name] for o in members), key=key)
     channels: dict[str, list[SiteResult]] = defaultdict(list)
     for o in members:
         channels[o.reporter or "unspecified"].append(every[o.name])
-    per_channel = [min(v, key=_closeness_key) for v in channels.values()]
-    return max(per_channel, key=_closeness_key)
+    per_channel = [min(v, key=key) for v in channels.values()]
+    return max(per_channel, key=key)
 
 
-def copy_coverage(calls: list[GenomeCall], assay: Assay, rule: str) -> CopyCoverage:
-    """Copies, coverage per oligo and per probe channel, and the escape list."""
+def copy_coverage(
+    calls: list[GenomeCall], assay: Assay, rule: str, bulges: bool = False
+) -> CopyCoverage:
+    """Copies, coverage per oligo and per probe channel, and the escape list.
+
+    ``bulges`` is the homopolymer-bulge rule used; the count under the other rule is kept too.
+    """
+    other = sum(c.n_detectable_other_rule > 0 for c in calls)
+    configured = sum(c.n_detectable > 0 for c in calls)
     out = CopyCoverage(
         genomes=len(calls),
         multi_copy=sum(c.n_copies > 1 for c in calls),
         max_copies=max((c.n_copies for c in calls), default=0),
         best_copy_not_first=sum(not c.best_is_first for c in calls),
-        with_detectable_copy=sum(c.n_detectable > 0 for c in calls),
+        with_detectable_copy=configured,
         probe_channels=rule,
+        homopolymer_bulges_detectable=bulges,
+        with_detectable_copy_strict=other if bulges else configured,
+        with_detectable_copy_bulges=configured if bulges else other,
     )
     escapes = [c.accession for c in calls if not all(c.role_good.values())]
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
@@ -722,11 +758,9 @@ def run_exhaustive(
             1 for it in not_found if it.assembly_level == "Nucleotide record"
             and it.direct_checked is False
         ),
-        copies=copy_coverage(calls, assay, v.probe_channels),
+        copies=copy_coverage(calls, assay, v.probe_channels, v.homopolymer_bulges_detectable),
     )  # fmt: skip
-    coverage.copies.copies_capped = sum(
-        1 for it in items if it.status == "found" and it.n_loci > len(it.loci)
-    )
+    coverage.copies.copies_capped = sum(1 for it in items if it.copies_capped)
     inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg, source=source)
     missing = coverage.not_found + coverage.contig_break + coverage.masked
     if missing:

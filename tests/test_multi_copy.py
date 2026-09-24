@@ -142,6 +142,59 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     assert "Copies, coverage per oligo, and escapes" in html and "none of them" in html
     assert "poly-A run 4→5 (homopolymer length variant)" in html
     assert "Probe channels" in html and "any channel" in html
+    assert "not counted (strict)" in html and "if homopolymer bulges are tolerated" in html
     write_workbook(result, tmp_path / "r.xlsx")
     ws = load_workbook(tmp_path / "r.xlsx")["Copies and coverage"]
     assert any(c.value == "Escapes (no detectable copy)" for c in ws["A"])
+
+
+def test_homopolymer_bulges_are_strict_by_default_and_both_counts_are_reported(tmp_path):
+    longer_run = F.replace("AAAA", "AAAAA", 1)  # the only difference: poly-A 4 -> 5
+    genomes = [FakeAssembly("GCA_000000112.1", "2026-02-01",
+                            copies(12, AMP.replace(F, longer_run)))]  # fmt: skip
+    strict = run(tmp_path, genomes).coverage.copies
+    assert strict.homopolymer_bulges_detectable is False
+    assert strict.with_detectable_copy == 0 and strict.escapes == 1
+    assert (strict.with_detectable_copy_strict, strict.with_detectable_copy_bulges) == (0, 1)
+    tolerant = run(tmp_path, genomes,
+                   variants={"homopolymer_bulges_detectable": True}).coverage.copies  # fmt: skip
+    assert tolerant.with_detectable_copy == 1 and tolerant.escapes == 0
+    assert (tolerant.with_detectable_copy_strict, tolerant.with_detectable_copy_bulges) == (0, 1)
+
+
+def test_a_bulge_with_a_mismatch_is_never_detectable():
+    from qpcr_assay_check.variants.exhaustive import detectable
+
+    site = type("S", (), {"n_gap": 1, "n_mismatch": 1, "mismatches_last5": 0, "note": "poly-A"})
+    assert not detectable(site, True) and not detectable(site, False)  # type: ignore[arg-type]
+
+
+def test_genomes_stored_with_the_old_copy_limit_are_downloaded_again_once(tmp_path, monkeypatch):
+    from qpcr_assay_check.variants import store as store_mod
+
+    def once():
+        cfg, fake, client, _ = setup(tmp_path, fake=FakeDatasets(
+            [FakeAssembly("GCA_000000113.1", "2026-02-01", copies(13, *[AMP] * 7))]))  # fmt: skip
+        assay = make_assay(reference_amplicon=AMP, target={"taxid": 813})
+        res = run_exhaustive(assay, cfg, client, tmp_path / "cache", _no_fetch, now=NOW)
+        c = res.coverage.copies
+        return c.max_copies, c.copies_capped, len(fake.downloads)
+
+    monkeypatch.setattr(store_mod, "MAX_LOCI_KEPT", 5)  # a store written before v1.3.0
+    assert once() == (5, 0, 1)
+    monkeypatch.setattr(store_mod, "MAX_LOCI_KEPT", 20)
+    assert once() == (7, 0, 1)  # downloaded again: every copy is stored now
+    assert once() == (7, 0, 0)  # and only once
+
+
+def test_a_genome_with_more_copies_than_kept_is_not_rescanned_every_run():
+    from qpcr_assay_check.variants.store import MAX_LOCI_KEPT, StoredAssembly
+
+    base = {"accession": "GCA_1.1", "release_date": "2026-01-01", "status": "found",
+            "plasmid_contigs": 0}  # fmt: skip
+    loci = [{"contig": "c", "strand": "+", "start": 1, "end": 2, "region": "A", "offset": 0,
+             "n_seeds": 1, "truncated": False}]  # fmt: skip
+    old = StoredAssembly(**base, n_loci=8, loci=loci * 5)
+    many = StoredAssembly(**base, n_loci=MAX_LOCI_KEPT + 5, loci=loci * MAX_LOCI_KEPT)
+    assert old.needs_rescan and old.copies_capped
+    assert not many.needs_rescan and not many.copies_capped

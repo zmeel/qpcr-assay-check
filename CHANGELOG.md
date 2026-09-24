@@ -28,7 +28,12 @@ All notable changes to this project are documented here. The format follows
   "Copies and coverage" sheet: copies per genome, genomes whose best copy differs from the first
   found, coverage per oligo and "only this oligo", genomes no oligo of a role covers, probe
   channels by reporter with `variants.probe_channels: any | all`, and the escapes (no
-  detectable copy). Up to 20 copies per genome are now stored (5 before).
+  detectable copy). Up to 20 copies per genome are now stored (5 before); genomes stored with
+  the old limit are downloaded and scanned again once, within the per-run maximum.
+- **`variants.homopolymer_bulges_detectable`** (default `false`, strict): whether a site that
+  differs only by a single-base run length, without any mismatch, counts as detectable for the
+  best copy, coverage and escapes. The report and workbook show the genomes with a detectable
+  copy under both rules.
 - **Homopolymer run-length variants** (`align/realign.py`): a site that differs from the oligo
   only by the length of one single-base run is aligned as a bulge with the 3' end intact and
   labelled, instead of being shown as 3'-end mismatches (live: NG-R's poly-A/T site).

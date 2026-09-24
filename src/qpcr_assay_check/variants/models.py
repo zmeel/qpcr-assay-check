@@ -63,6 +63,17 @@ class CopyCoverage(BaseModel):
     probe_channels: str = Field(
         default="any", description="setting: which channels a genome needs to count as detected"
     )
+    homopolymer_bulges_detectable: bool = Field(
+        default=False,
+        description="setting: whether a site that differs only by a single-base run length "
+        "counts as detectable (the counts above use this rule)",
+    )
+    with_detectable_copy_strict: int = Field(
+        default=0, description="genomes with a detectable copy when bulges do not count"
+    )
+    with_detectable_copy_bulges: int = Field(
+        default=0, description="genomes with a detectable copy when bulges count"
+    )
 
 
 class ExhaustiveCoverage(BaseModel):

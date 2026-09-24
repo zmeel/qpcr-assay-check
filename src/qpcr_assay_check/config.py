@@ -414,6 +414,7 @@ class VariantsSettings(_Strict):
     direct_scan_max_length: int
     direct_scan_batch: int
     probe_channels: Literal["any", "all"] = "any"  # probes with different reporters (channels)
+    homopolymer_bulges_detectable: bool = False  # strict: a run-length variant is not detectable
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:
