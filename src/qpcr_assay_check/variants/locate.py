@@ -6,7 +6,9 @@ amplicon starts on the contig; occurrences that agree (within a small indel tole
 locus. Seeds are spread over the whole amplicon, so a variant with mismatches inside a primer or
 probe site is still found through the unchanged stretches between them -- which is the point of
 the analysis. A region with no exact ``seed_length``-mer left anywhere is reported as not found,
-never guessed.
+never guessed. A region hidden by N is reported as masked: partly masked through N-tolerant seeds
+(:func:`find_masked`), wholly masked through the reference sequence on either side of the
+amplicon (:func:`find_masked_by_context`).
 
 ``str.find`` does the scanning (C speed), so a 5 Mb genome takes well under a second.
 """
@@ -15,13 +17,18 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from typing import Literal
 
 from ..oligo import iupac
 
 INDEL_TOLERANCE = 20  # seed-implied starts this close together are one locus
 MAX_OCCURRENCES_PER_SEED = 50  # repeated k-mers beyond this are not informative
+CONTEXT_NT = 1000  # reference sequence taken on each side of the amplicon to anchor a masked one
+CONTEXT_SEED_STEP = 8
+MIN_CONTEXT_SEEDS = 3  # agreeing context seeds needed to place the amplicon
+MIN_MASKED_FRACTION = 0.5  # share of N in the expected amplicon window to call it masked
 
 
 @dataclass(frozen=True)
@@ -71,18 +78,23 @@ def find_loci(
     pairs = seeds(amp, seed_length, seed_step)
     loci: list[Locus] = []
     for name, seq in contigs.items():
-        votes: dict[str, list[int]] = defaultdict(list)
-        for off, kmer in pairs:
-            for pos in _occurrences(seq, kmer):  # sense: amplicon starts at pos - off
-                votes["+"].append(pos - off)
-            rc = iupac.reverse_complement(kmer)
-            for pos in _occurrences(seq, rc):  # antisense: amplicon ends at pos + k + off - 1
-                votes["-"].append(pos + len(kmer) + off - n)
-        for strand, starts in votes.items():
+        for strand, starts in _votes(seq, pairs, n).items():
             for cluster in _clusters(sorted(starts)):
                 loci.append(_cut(name, seq, strand, cluster, n, flank))  # type: ignore[arg-type]
     loci.sort(key=lambda lc: (-lc.n_seeds, lc.truncated, lc.contig, lc.start))
     return loci
+
+
+def _votes(seq: str, pairs: list[tuple[int, str]], n: int) -> dict[str, list[int]]:
+    """Per strand, the forward-strand start each seed occurrence implies for an ``n``-long query."""
+    votes: dict[str, list[int]] = defaultdict(list)
+    for off, kmer in pairs:
+        for pos in _occurrences(seq, kmer):  # sense: the query starts at pos - off
+            votes["+"].append(pos - off)
+        rc = iupac.reverse_complement(kmer)
+        for pos in _occurrences(seq, rc):  # antisense: the query ends at pos + k + off - 1
+            votes["-"].append(pos + len(kmer) + off - n)
+    return votes
 
 
 def _clusters(starts: list[int]) -> list[list[int]]:
@@ -152,3 +164,79 @@ def find_masked(
                     loci.append(_cut(name, seq, strand, cluster, n, flank))  # type: ignore[arg-type]
     loci.sort(key=lambda lc: (-lc.n_seeds, lc.contig, lc.start))
     return loci
+
+
+def find_masked_by_context(
+    contigs: dict[str, str],
+    amplicon: str,
+    left: str,
+    right: str,
+    *,
+    seed_length: int,
+    flank: int,
+) -> list[Locus]:
+    """Where even :func:`find_masked` found nothing: is the whole region one run of N?
+
+    A low-coverage genome can read N over the amplicon and far beyond it, leaving no real base to
+    match (live: SARS-CoV-2 records with 1,144 N over the N1 region). ``left`` and ``right`` are
+    the reference sequence just before and after the amplicon (sense orientation). Where either
+    is found (exact seeds, at least ``MIN_CONTEXT_SEEDS`` agreeing), it tells where the amplicon
+    should be; if at least half of that window is N, the region is reported as masked. A window
+    of real bases that the amplicon's seeds did not match stays 'not found' (divergent or
+    absent): only N counts as masked.
+    """
+    n = len(amplicon)
+    loci: list[Locus] = []
+    for name, seq in contigs.items():
+        if seq.count("N") < n * MIN_MASKED_FRACTION:
+            continue
+        spans: list[tuple[int, str, int]] = []  # (support, strand, amplicon start, forward 0-based)
+        for side, ctx in (("left", left.upper()), ("right", right.upper())):
+            if len(ctx) < seed_length:
+                continue
+            pairs = seeds(ctx, seed_length, CONTEXT_SEED_STEP)
+            for strand, starts in _votes(seq, pairs, len(ctx)).items():
+                for cluster in _clusters(sorted(starts)):
+                    if len(cluster) < MIN_CONTEXT_SEEDS:
+                        continue
+                    at = sorted(cluster)[len(cluster) // 2]  # context occupies [at, at + len)
+                    sense_before = (side == "left") == (strand == "+")
+                    start = at + len(ctx) if sense_before else at - n
+                    spans.append((len(cluster), strand, start))
+        seen: list[tuple[str, int]] = []
+        for support, strand, start in sorted(spans, reverse=True):
+            if any(s == strand and abs(start - x) <= INDEL_TOLERANCE for s, x in seen):
+                continue
+            seen.append((strand, start))
+            lo, hi = max(0, start), min(len(seq), start + n)
+            if hi - lo < n * MIN_MASKED_FRACTION:  # mostly beyond the record's end
+                continue
+            if seq[lo:hi].count("N") >= n * MIN_MASKED_FRACTION:
+                lc = _cut(name, seq, strand, [start], n, flank)  # type: ignore[arg-type]
+                loci.append(replace(lc, n_seeds=support))
+    loci.sort(key=lambda lc: (-lc.n_seeds, lc.contig, lc.start))
+    return loci
+
+
+def scan_region(
+    contigs: dict[str, str],
+    amplicon: str,
+    context: Callable[[], tuple[str, str]] | None = None,
+    *,
+    seed_length: int,
+    seed_step: int,
+    flank: int,
+) -> tuple[list[Locus], list[Locus]]:
+    """``(loci, masked)``: every clean copy of the region, or else where it is hidden by N.
+
+    ``context`` returns the reference sequence on each side of the amplicon; it is called only
+    when nothing else was found, so it can fetch lazily.
+    """
+    kw = {"seed_length": seed_length, "flank": flank}
+    loci = find_loci(contigs, amplicon, seed_step=seed_step, **kw)
+    if loci:
+        return loci, []
+    masked = find_masked(contigs, amplicon, seed_step=seed_step, **kw)
+    if not masked and context is not None and any(ctx := context()):
+        masked = find_masked_by_context(contigs, amplicon, *ctx, **kw)
+    return [], masked

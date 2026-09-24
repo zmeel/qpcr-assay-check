@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-23
+
+### Fixed
+- **A region wholly hidden by N was reported as 'not found'** (`variants/locate.py`,
+  `variants/exhaustive.py`, `variants/partitioned.py`): low-coverage genomes can read N over the
+  amplicon and far beyond it, leaving no real base for the N-tolerant seeds (live: OZ558241.1
+  and nine similar SARS-CoV-2 records, 1,144 N over the N1 region). The reference sequence on
+  each side of the amplicon (1,000 nt from the assay's `target.accession`, fetched only when a
+  record is not found, cached next to the region store) now places the region; if it is mostly
+  N there, the record counts as hidden by N. 'Not found' entries stored by v1.1.0 are scanned
+  once more; the report's 'not found' and 'hidden by N' notes say how this is decided.
+
 ## [1.1.0] - 2026-09-23
 
 Exhaustive variant analysis of the intended target, replacing the saturated target-tier BLAST

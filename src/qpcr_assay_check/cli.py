@@ -344,10 +344,11 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
                 cfg.search.result_format,
             )  # fmt: skip
 
-            def collector(store: Any, taxon: int, amplicon: str) -> Any:
+            def collector(store: Any, taxon: int, amplicon: str, context: Any) -> Any:
                 return collect_partitioned(
-                    eutils, runner, runner.store, fetcher, store, taxon, amplicon, cfg
-                )
+                    eutils, runner, runner.store, fetcher, store, taxon, amplicon, cfg,
+                    context=context,
+                )  # fmt: skip
 
         try:
             exhaustive = run_exhaustive(
