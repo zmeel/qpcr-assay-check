@@ -63,7 +63,7 @@ Report readability: grouped off-target variants and links to NCBI.
   accession, and "Taxonomy ID" columns, are hyperlinks too. Links load nothing until clicked, so
   the report stays self-contained; RIDs are not linked (a RID is only stable for about 36 hours; docs/ARCHITECTURE.md).
 
-## [1.1.1] - 2026-09-23
+## [1.1.1] - 2026-09-24
 
 ### Fixed
 - **A region wholly hidden by N was reported as 'not found'** (`variants/locate.py`,
