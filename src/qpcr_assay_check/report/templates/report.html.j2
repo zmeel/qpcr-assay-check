@@ -64,6 +64,7 @@ pre { font-family: var(--mono); font-size: .78rem; background: var(--panel); bor
 details { margin: .75rem 0; }
 summary { cursor: pointer; font-family: var(--sans); font-size: .9rem; }
 summary:focus-visible, a:focus-visible { outline: 3px solid #3B5B7A; outline-offset: 2px; }
+a[href^="https://www.ncbi"] { color: #2A5B8A; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 figure { margin: 1rem 0; } figcaption { font-size: .85rem; color: var(--muted); font-family: var(--sans); }
 .notice { background: var(--panel); border: 1px solid var(--rule); padding: .9rem 1.1rem; }
 .notice p { margin: .35rem 0; }
@@ -110,7 +111,7 @@ td.aln-cell { min-width: 22rem; }
     <p>{{ verdict_meaning }}</p>
     {% if r.overall.rationale %}
     <ul>
-      {% for line in r.overall.rationale %}<li>{{ line }}</li>{% endfor %}
+      {% for line in r.overall.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}
     </ul>
     {% endif %}
   </div>
@@ -124,7 +125,7 @@ td.aln-cell { min-width: 22rem; }
   <tr>
     <td>{{ s.title }}</td>
     <td>{% if s.verdict %}{{ chip(s.verdict.value) }}{% else %}<span class="chip s-none">Not evaluated</span>{% endif %}</td>
-    <td class="note">{{ s.note }}</td>
+    <td class="note">{{ s.note | ncbi }}</td>
   </tr>
   {% endfor %}
   </tbody>
@@ -141,11 +142,11 @@ td.aln-cell { min-width: 22rem; }
     <tr><th scope="row">Probe modifications</th><td>{{ assay.probe_modifications | join(', ') or 'none declared' }}</td></tr>
     <tr><th scope="row">Template</th><td>{{ assay.template_type.value }}{% if assay.template_type.value == 'RNA' %} (reverse transcription step assumed){% endif %}</td></tr>
     <tr><th scope="row">Intended target</th><td>
-      {% if assay.target.taxid %}taxonomy ID {{ assay.target.taxid }}{% endif %}
-      {% if assay.target.accession %}{% if assay.target.taxid %}; {% endif %}reference {{ assay.target.accession }}{% endif %}
+      {% if assay.target.taxid %}taxonomy ID {{ assay.target.taxid | taxon }}{% endif %}
+      {% if assay.target.accession %}{% if assay.target.taxid %}; {% endif %}reference {{ assay.target.accession | ncbi }}{% endif %}
       {% if assay.target.gene %}; gene {{ assay.target.gene }}{% endif %}</td></tr>
     {% if assay.oligo_source %}<tr><th scope="row">Oligo source</th><td>{{ assay.oligo_source }}</td></tr>{% endif %}
-    {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes }}</td></tr>{% endif %}
+    {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes | ncbi }}</td></tr>{% endif %}
   </tbody>
 </table></div>
 <p class="meta">The last five nucleotides of each primer, the 3′ end the polymerase extends, are underlined. The probe is not extended, so it has no underline.</p>
@@ -238,7 +239,7 @@ td.aln-cell { min-width: 22rem; }
   <thead><tr><th>Tier</th><th>Taxa (NCBI taxonomy ID)</th><th>Searches</th><th>Hits per query</th><th>Hit list saturated</th><th>RIDs</th></tr></thead>
   <tbody>
   {% for t in search_rows %}
-  <tr><td>{{ t.tier }}</td><td class="num">{{ t.taxids | join(', ') }}</td><td class="num">{{ t.n }}</td>
+  <tr><td>{{ t.tier }}</td><td class="num">{{ t.taxids | map('taxon') | join(', ') }}</td><td class="num">{{ t.n }}</td>
     <td>{% for k, v in t.hits.items() %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
     <td>{% if t.saturated %}{{ chip('INCOMPLETE') }} {{ t.saturated | join(', ') }}{% else %}no{% endif %}</td>
     <td class="num">{{ t.rids | join(', ') }}</td></tr>
@@ -263,9 +264,9 @@ td.aln-cell { min-width: 22rem; }
   <thead><tr><th>ID</th><th>Tier</th><th>Organism / record</th><th>Position</th><th>Length</th><th>Primers</th><th>Probe</th><th>Class</th></tr></thead>
   <tbody>
   {% for a in spec.amplicons %}
-  <tr><td>{{ a.id }}</td><td>{{ a.tier }}</td><td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession }} ({{ a.record_type }})</span></td>
+  <tr><td>{{ a.id }}</td><td>{{ a.tier }}</td><td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession | ncbi }} ({{ a.record_type }})</span></td>
     <td class="num">{{ a.start }}–{{ a.end }}</td><td class="num">{{ a.length }} bp</td><td>{{ a.roles }}</td>
-    <td>{{ a.probe_site or 'no site' }}</td><td>{{ chip(a.classification) }}{% if a.note %}<br><span class="meta">{{ a.note }}</span>{% endif %}</td></tr>
+    <td>{{ a.probe_site or 'no site' }}</td><td>{{ chip(a.classification) }}{% if a.note %}<br><span class="meta">{{ a.note | ncbi }}</span>{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
@@ -289,11 +290,11 @@ td.aln-cell { min-width: 22rem; }
   <tr><th scope="row">Processed in this run</th><td>{{ cov.processed_this_run }}{% if cov.download_failed_this_run %}; {{ cov.download_failed_this_run }} download(s) failed and will be retried next run{% endif %}</td></tr>
   <tr><th scope="row">Amplicon region found</th><td>{{ cov.found }} with all three oligo sites complete</td></tr>
   <tr><th scope="row">Region cut by a {{ 'record' if cov.source == 'blast_partitioned' else 'contig' }} end</th><td>{{ cov.contig_break }} ({{ 'the record ends inside the amplicon' if cov.source == 'blast_partitioned' else 'draft assemblies' }}; not counted in the tables)</td></tr>
-  <tr><th scope="row">Region hidden by N</th><td>{{ cov.masked }}{% if cov.masked_examples %}<br><span class="meta">e.g. {{ cov.masked_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">The region is there, but the whole region or an oligo site in it reads N (low-coverage sequencing): not counted in the tables, since an N is neither a match nor a variant. A region that is N from end to end is placed by the reference sequence on either side of the amplicon (from the assay's target accession).</span></td></tr>
-  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the {{ 'record' if cov.source == 'blast_partitioned' else 'genome' }}: the target region may be absent, or too divergent to find. Where the reference sequence around the amplicon was found, the region there reads real bases, not N; without a target accession in the assay, a region wholly hidden by N is also counted here.</span>
+  <tr><th scope="row">Region hidden by N</th><td>{{ cov.masked }}{% if cov.masked_examples %}<br><span class="meta">e.g. {{ cov.masked_examples[:10] | join(', ') | ncbi }}</span>{% endif %}<br><span class="meta">The region is there, but the whole region or an oligo site in it reads N (low-coverage sequencing): not counted in the tables, since an N is neither a match nor a variant. A region that is N from end to end is placed by the reference sequence on either side of the amplicon (from the assay's target accession).</span></td></tr>
+  <tr><th scope="row">Region not found</th><td>{{ cov.not_found }}{% if cov.not_found_examples %}<br><span class="meta">e.g. {{ cov.not_found_examples[:10] | join(', ') | ncbi }}</span>{% endif %}<br><span class="meta">No exact {{ r.config.variants.seed_length }}-base stretch of the amplicon anywhere in the {{ 'record' if cov.source == 'blast_partitioned' else 'genome' }}: the target region may be absent, or too divergent to find. Where the reference sequence around the amplicon was found, the region there reads real bases, not N; without a target accession in the assay, a region wholly hidden by N is also counted here.</span>
     {% if cov.plasmid_info_recorded and not cov.target_on_plasmid %}<br>of which {{ cov.not_found_without_plasmid }} contain no sequence labelled as a plasmid and {{ cov.not_found_with_plasmid }} contain plasmid sequence{% if cov.target_on_plasmid is none %} (whether the target lies on a plasmid is not known yet){% endif %}.{% endif %}
-    {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no sequence labelled as a plasmid (many assemblies hold only the chromosome, which says nothing about the strain; in a draft assembly a plasmid can also sit in an unlabelled contig, so a deletion there would be counted here), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain a sequence labelled as a plasmid but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') }}{% endif %}.{% endif %}</td></tr>
-  {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') }}</span>{% endif %}</td></tr>{% endif %}
+    {% if cov.target_on_plasmid %}<br>of which <strong>{{ cov.not_found_without_plasmid }}</strong> contain no sequence labelled as a plasmid (many assemblies hold only the chromosome, which says nothing about the strain; in a draft assembly a plasmid can also sit in an unlabelled contig, so a deletion there would be counted here), and <strong>{{ cov.not_found_with_plasmid }}</strong> contain a sequence labelled as a plasmid but not the target region{% if cov.not_found_with_plasmid %} &mdash; <strong>review these</strong>: a possible deletion the assay would miss (as with the Swedish nvCT variant), or an incomplete plasmid assembly: {{ cov.not_found_with_plasmid_examples[:10] | join(', ') | ncbi }}{% endif %}.{% endif %}</td></tr>
+  {% if cov.target_on_plasmid is not none %}<tr><th scope="row">Target on a plasmid</th><td>{{ 'yes' if cov.target_on_plasmid else 'no' }} (where the region was found, it lies on a sequence whose description {{ 'names' if cov.target_on_plasmid else 'does not name' }} a plasmid){% if cov.plasmid_header_examples %}<br><span class="meta">Recognised as plasmid, e.g.: {{ cov.plasmid_header_examples[:3] | join('; ') | ncbi }}</span>{% endif %}</td></tr>{% endif %}
   {% if cov.source == 'blast_partitioned' %}<tr><th scope="row">How records were checked</th><td>{{ cov.found_by_direct_scan }} with the region found by fetching and scanning the record itself (records up to {{ r.config.variants.direct_scan_max_length }} bases); longer records by BLAST in accession lists{% if cov.not_checked_directly %}<br><strong>{{ cov.not_checked_directly }}</strong> longer record(s) had no BLAST hit and were not scanned directly: their "not found" rests on BLAST alone{% endif %}</td></tr>{% endif %}
   <tr><th scope="row">More than one copy</th><td>{{ cov.multi_copy }} (the best complete copy is used)</td></tr>
   </tbody>
@@ -313,7 +314,7 @@ td.aln-cell { min-width: 22rem; }
   <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
     <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
     <td>{{ match(row, o.role != 'probe') }}</td>
-    <td>{{ row.example_accession }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
+    <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>
@@ -331,7 +332,7 @@ td.aln-cell { min-width: 22rem; }
   <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
     <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
     <td>{{ f.forward.n_mismatch + f.forward.n_gap }} / {{ f.probe.n_mismatch + f.probe.n_gap }} / {{ f.reverse.n_mismatch + f.reverse.n_gap }}</td>
-    <td>{{ f.example_accession }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
+    <td>{{ f.example_accession | ncbi }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>
@@ -361,7 +362,7 @@ td.aln-cell { min-width: 22rem; }
   {% for row in r.exclusivity.rows %}
   <tr><td>{{ row.organism }}</td>
     <td>{% if row.resolution == 'resolved' %}resolved{% else %}{{ chip('INCOMPLETE') }} {{ row.resolution }}{% endif %}</td>
-    <td class="num">{{ row.taxid or '–' }}</td>
+    <td class="num">{{ (row.taxid | taxon) if row.taxid else '–' }}</td>
     {% if row.is_target %}
     <td class="note" colspan="3">assay's own intended target — excluded from this search (a
       match here is expected and is not evidence of cross-reactivity)</td>
@@ -405,10 +406,10 @@ td.aln-cell { min-width: 22rem; }
 {% endfor %}
 {% if r.inclusivity.rationale %}
 <h3>Rationale</h3>
-<ul>{% for line in r.inclusivity.rationale %}<li>{{ line }}</li>{% endfor %}</ul>
+<ul>{% for line in r.inclusivity.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}</ul>
 {% endif %}
 {% if r.inclusivity.limitations %}
-<p class="meta">{% for l in r.inclusivity.limitations %}{{ l }} {% endfor %}</p>
+<p class="meta">{% for l in r.inclusivity.limitations %}{{ l | ncbi }} {% endfor %}</p>
 {% endif %}
 {% endif %}
 {% endif %}
@@ -421,30 +422,34 @@ td.aln-cell { min-width: 22rem; }
   <thead><tr><th>Organism</th><th>Species</th><th>Genus</th><th>Family</th><th>Sites</th></tr></thead>
   <tbody>
   {% for t in r.taxonomy_breakdown %}
-  <tr><td>{{ t.scientific_name or 'taxid ' + t.taxid | string }}</td><td>{{ t.species or '–' }}</td><td>{{ t.genus or '–' }}</td><td>{{ t.family or '–' }}</td><td class="num">{{ t.n_sites }}</td></tr>
+  <tr><td>{{ t.scientific_name or 'taxid' }}<br><span class="meta">taxid {{ t.taxid | taxon }}</span></td><td>{{ t.species or '–' }}</td><td>{{ t.genus or '–' }}</td><td>{{ t.family or '–' }}</td><td class="num">{{ t.n_sites }}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
 {% endif %}
 
 <h2>Closest off-target sites</h2>
-{% if shown_sites %}
-<p class="meta">Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
-  shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The primer 3′ end (last 5 nucleotides) is underlined.</p>
+{% if shown_variants %}
+<p class="meta">Off-target sites grouped by oligo and alignment: sites where an oligo aligns identically bind the same way, so each row is one binding variant, with how many sites and records have it and in which organisms.
+  Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
+  shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The primer 3′ end (last 5 nucleotides) is underlined.
+  Closest (most likely to bind) first; every single site is in hits.tsv and the workbook's "Off-target sites" sheet.</p>
 <div class="scroll"><table>
-  <thead><tr><th>Level</th><th>Oligo</th><th>Subject</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th></tr></thead>
+  <thead><tr><th>Level</th><th>Oligo</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th><th>Sites</th><th>Organisms</th></tr></thead>
   <tbody>
-  {% for s in shown_sites %}
-  <tr><td>{{ chip(s.level) }}<br><span class="meta">{{ s.tier }}</span></td><td>{{ s.query }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}<br>{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</span></td>
-    <td class="aln-cell">{{ s | aln_html }}<span class="meta">{{ {'blast_full': 'BLAST alignment', 'realigned': 'full-length re-alignment', 'blast_partial_worst_case': 'worst case (not re-aligned)'}[s.source] }}</span></td>
-    <td class="num">{{ s.n_mismatch }}{% if s.n_gap %} + {{ s.n_gap }} gap{% endif %}{% if s.n_unaligned %}<br><span class="meta">{{ s.n_unaligned }} unaligned</span>{% endif %}</td>
-    <td class="num">{{ s.clean_3prime_nt }}</td>
-    <td class="num">{% if s.tm_c is not none %}Tm {{ '%.1f' % s.tm_c }} °C<br><span class="meta">{% if s.delta_tm_c is not none %}{{ '%+.1f' % s.delta_tm_c }} °C vs perfect{% endif %}</span>{% else %}–{% endif %}</td></tr>
+  {% for g in shown_variants %}
+  <tr><td>{{ chip(g.level) }}<br><span class="meta">{{ g.tiers | join(', ') }}</span></td><td>{{ g.query }}</td>
+    <td class="aln-cell">{{ g.example_site | aln_html }}<span class="meta">{{ {'blast_full': 'BLAST alignment', 'realigned': 'full-length re-alignment', 'blast_partial_worst_case': 'worst case (not re-aligned)'}[g.source] }}</span></td>
+    <td class="num">{{ g.n_mismatch }}{% if g.n_gap %} + {{ g.n_gap }} gap{% endif %}{% if g.n_unaligned %}<br><span class="meta">{{ g.n_unaligned }} unaligned</span>{% endif %}</td>
+    <td class="num">{{ g.clean_3prime_nt }}</td>
+    <td class="num">{% if g.tm_c is not none %}Tm {{ '%.1f' % g.tm_c }} °C<br><span class="meta">{% if g.delta_tm_c is not none %}{{ '%+.1f' % g.delta_tm_c }} °C vs perfect{% endif %}</span>{% else %}–{% endif %}</td>
+    <td class="num">{{ g.n_sites }}{% if g.n_records != g.n_sites %}<br><span class="meta">{{ g.n_records }} records</span>{% endif %}</td>
+    <td>{% for name, n in g.organisms[:5] %}{{ name }}{% if g.organisms | length > 1 %} ({{ n }}){% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if g.organisms | length > 5 %}<br><span class="meta">and {{ g.organisms | length - 5 }} more</span>{% endif %}
+      <br><span class="meta">e.g. {{ g.example_site.accession | ncbi }} {{ g.example_site.subject_start }}–{{ g.example_site.subject_end }} ({{ g.example_site.orientation }})</span></td></tr>
   {% endfor %}
   </tbody>
 </table></div>
-{% if hidden_sites %}<p class="meta">{{ hidden_sites }} further site(s) are listed in hits.tsv.</p>{% endif %}
+{% if hidden_variants %}<p class="meta">{{ hidden_variants }} further variant(s) ({{ hidden_variant_sites }} site(s)) are listed in hits.tsv and the workbook.</p>{% endif %}
 <p class="meta">Duplex Tm is a nearest-neighbour estimate of stability. A mismatch at the 3′-terminal base is treated as an unpaired overhang and barely lowers it,
   although it usually prevents extension: judge priming from the mismatch and 3′ columns, not from Tm.</p>
 {% else %}
@@ -460,7 +465,7 @@ td.aln-cell { min-width: 22rem; }
 <p>{{ chip(r.history.verdict.value) }} compared to the run on {{ r.history.previous_generated_at }}
   (<code>{{ r.history.previous_run_id }}</code>)</p>
 {% if r.history.inputs_changed %}<div class="notice"><p>The assay definition or configuration changed since that run: some of the differences below may reflect that rather than new NCBI data.</p></div>{% endif %}
-<ul>{% for line in r.history.rationale %}<li>{{ line }}</li>{% endfor %}</ul>
+<ul>{% for line in r.history.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}</ul>
 {% set changed_sections = r.history.section_changes | selectattr('changed') | list %}
 {% if changed_sections %}
 <h3>Section verdicts</h3>
@@ -483,19 +488,19 @@ td.aln-cell { min-width: 22rem; }
   <tbody>
   {% for s in r.history.new_sites %}
   <tr><td><span class="chip s-WARN">new</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}</span></td>
+    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
     <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
     <td>{{ chip(s.level_after) }}</td><td class="num">{{ s.n_mismatch_after }}</td></tr>
   {% endfor %}
   {% for s in r.history.resolved_sites %}
   <tr><td><span class="chip s-PASS">resolved</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}</span></td>
+    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
     <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
     <td>{{ chip(s.level_before) }}</td><td class="num">{{ s.n_mismatch_before }}</td></tr>
   {% endfor %}
   {% for s in r.history.changed_sites %}
   <tr><td><span class="chip s-INFO">changed</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}</span></td>
+    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
     <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
     <td>{{ chip(s.level_before) }} → {{ chip(s.level_after) }}</td>
     <td class="num">{{ s.n_mismatch_before }} → {{ s.n_mismatch_after }}</td></tr>
@@ -510,13 +515,13 @@ td.aln-cell { min-width: 22rem; }
   <tbody>
   {% for a in r.history.new_amplicons %}
   <tr><td><span class="chip s-WARN">new</span></td><td>{{ a.tier }}</td>
-    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession }}</span></td>
+    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession | ncbi }}</span></td>
     <td class="num">{{ a.start }}–{{ a.end }}</td><td>{{ a.roles }}</td>
     <td>{% if a.classification %}{{ chip(a.classification) }}{% endif %}</td></tr>
   {% endfor %}
   {% for a in r.history.resolved_amplicons %}
   <tr><td><span class="chip s-PASS">resolved</span></td><td>{{ a.tier }}</td>
-    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession }}</span></td>
+    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession | ncbi }}</span></td>
     <td class="num">{{ a.start }}–{{ a.end }}</td><td>{{ a.roles }}</td>
     <td>{% if a.classification %}{{ chip(a.classification) }}{% endif %}</td></tr>
   {% endfor %}
@@ -549,12 +554,12 @@ td.aln-cell { min-width: 22rem; }
     <td class="aln-cell">{{ v | aln_html(0 if v.role == 'probe' else 5) }}</td>
     <td>{{ match(v, v.role != 'probe') }}</td>
     <td class="num">{% if v.kind == 'new' %}{{ v.count_after }}{% if v.percent_after is not none %} ({{ pct(v.percent_after) }}){% endif %}{% else %}{{ v.count_before }} before{% endif %}</td>
-    <td>{{ v.first_seen or '' }}</td><td>{{ v.example_accession }}</td></tr>
+    <td>{{ v.first_seen or '' }}</td><td>{{ v.example_accession | ncbi }}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
 {% elif r.history.variants_note %}
-<p class="meta">{{ r.history.variants_note }}</p>
+<p class="meta">{{ r.history.variants_note | ncbi }}</p>
 {% endif %}
 {% endif %}
 {% endif %}
@@ -563,7 +568,7 @@ td.aln-cell { min-width: 22rem; }
 <h2>Not yet evaluated</h2>
 <div class="notice">
   <p>The following parts of the evaluation were not performed in this record, so the overall verdict cannot be a pass:</p>
-  <ul>{% for s in pending %}<li>{{ s.title }}: {{ s.note }}</li>{% endfor %}</ul>
+  <ul>{% for s in pending %}<li>{{ s.title }}: {{ s.note | ncbi }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
 
@@ -604,7 +609,7 @@ td.aln-cell { min-width: 22rem; }
   similar) are not modelled. These results describe the oligo sequences only: nothing here says how the assay behaves
   against real specimens or real off-target sequences.</p>
 {% if spec %}
-<ul>{% for text in spec.limitations %}<li>{{ text }}</li>{% endfor %}</ul>
+<ul>{% for text in spec.limitations %}<li>{{ text | ncbi }}</li>{% endfor %}</ul>
 {% endif %}
 
 <h2>Required statements</h2>

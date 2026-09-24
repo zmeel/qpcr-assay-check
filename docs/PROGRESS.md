@@ -125,6 +125,22 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - v1.1.1 confirmed live (2026-09-24, N1 partitioned, store kept): 882 records assessed; 'not found'
   18 -> 0; hidden by N 31 (the 18 rechecked OZ5582xx plus new OZ5556xx records, and records with
   N inside an oligo site); 851 in the inclusivity tables (851 + 31 = 882). Ready to merge and tag.
+- v1.1.1 merged and tagged by the user (annotated, on main's PR #16 merge commit; verified).
+- Report change requested before new features: the "Closest off-target sites" list is grouped
+  into off-target variants (oligo + exact alignment), with site/record counts, tiers and
+  organisms; new "Off-target variants" workbook sheet. 389 tests pass. Not yet seen live.
+- Accessions and taxonomy IDs link to NCBI (report and workbook); URL forms /nuccore/<acc> (later /nucleotide/, see below),
+  /datasets/genome/<GCx_>/ and Taxonomy Browser ?id= checked live (HTTP 200). The self-contained
+  test now allows plain <a href> links to www.ncbi.nlm.nih.gov only. 392 tests pass.
+- Live: the user's browser looped endlessly on NCBI's reCAPTCHA "Checking your browser" page for
+  the /nuccore/ links. My first URL check had only looked at HTTP 200, not the page content.
+  Checked the content: /nuccore/<acc> returned the challenge for 3 of 3 accessions, /nucleotide/
+  served the record page for all 3; datasets genome and Taxonomy Browser pages were not
+  challenged. Links switched to /nucleotide/. NCBI can change this protection at any time.
+- Confirmed live (N1 rerun, 2026-09-24): 78 /nucleotide/ links and 19 taxonomy links, no
+  /nuccore/; three sampled links open the record page. Grouped off-target table: 14 rows for the
+  49 Influenza A sites. Released as v1.2.0 (CHANGELOG section, version bump); the user merges and
+  tags. Next: the user picks features from docs/FEATURE_IDEAS.md.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

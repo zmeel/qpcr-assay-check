@@ -4,7 +4,7 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v1.1.1 (alpha, 2026-09-23).** A full `run` sends the oligos to NCBI (tiered,
+> **Status: v1.2.0 (alpha, 2026-09-24).** A full `run` sends the oligos to NCBI (tiered,
 > taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
 > every relevant hit, predicts off-target products, and judges specificity — genuine
 > `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
@@ -123,7 +123,7 @@ Each run writes `results/<assay>/<run-id>/` containing:
 |---|---|
 | `report.html` | Self-contained evaluation record (no external requests) |
 | `results.json` | Machine-readable results (`schema_version` 1) |
-| `results.xlsx` | Workbook: summary, inputs, QC checks, off-target sites, products, sections |
+| `results.xlsx` | Workbook: summary, inputs, QC checks, off-target variants (grouped) and every off-target site, products, sections |
 | `hits.tsv` | One row per assessed off-target site: alignment, mismatches, level, duplex Tm/ΔG (full `run` only, not `--qc-only`) |
 
 ### Specificity assessment (v0.3.0)
@@ -501,7 +501,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
   another.
 - The HTML report embeds Plotly's JavaScript bundle (about 5 MB). That bundle contains URL strings
   for map tiles that are only used by map charts, which this tool does not produce; the report
-  makes no external requests. A test checks that no HTML tag references another file or host.
+  makes no external requests. A test checks that no HTML tag loads another file or host; the only
+  references are plain links from accessions and taxonomy IDs to their NCBI pages, opened on click.
 - BLAST is a heuristic (exact 7-base seed): heavily mismatched binding sites can be missed, so "no
   hit" is not "no binding". Primer-BLAST and IDT OligoAnalyzer remain useful manual cross-checks.
 - The remote client was validated against live NCBI once, for one assay; NCBI can change formats
@@ -572,7 +573,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 0.4.0 | Taxonomy resolution, organism list, exclusivity, inclusivity |
 | 1.0.0 | Run history, yearly diff report, Docker — all confirmed live |
 | 1.1.0 | Exhaustive variant analysis (NCBI Datasets genomes; Nucleotide records by direct scan + partitioned BLAST), N-masked regions, new-variant history — confirmed live |
-| **1.1.1** | Regions wholly hidden by N reported as masked, not as not found |
+| 1.1.1 | Regions wholly hidden by N reported as masked, not as not found |
+| **1.2.0** | Off-target sites grouped into binding variants; accessions and taxonomy IDs link to NCBI — confirmed live |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 Proposed next features (not started): [docs/FEATURE_IDEAS.md](docs/FEATURE_IDEAS.md).

@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-24
+
+Report readability: grouped off-target variants and links to NCBI.
+
+### Changed
+- **"Closest off-target sites" groups identical binding variants** (`specificity/variants.py`,
+  report, workbook): instead of a long list of near-identical sites, one row per oligo and exact
+  alignment (the same way the target variants are lumped), with the number of sites and records,
+  the tiers, and the organisms with their site counts, closest first. Every single site stays in
+  `hits.tsv` and the workbook's "Off-target sites" sheet; a new "Off-target variants" sheet holds
+  the grouped rows. Verdicts are unchanged.
+- **Accessions and taxonomy IDs link to NCBI** (`report/ncbi_links.py`): every versioned
+  accession in the HTML report (tables, example lists, rationale lines, notes) opens its NCBI
+  page -- Nucleotide records at `/nucleotide/` (`/nuccore/` sits behind a reCAPTCHA browser
+  check that looped endlessly), genome assemblies at `/datasets/genome/` -- and
+  taxonomy IDs open the Taxonomy Browser (URL forms checked live). Workbook cells holding one
+  accession, and "Taxonomy ID" columns, are hyperlinks too. Links load nothing until clicked, so
+  the report stays self-contained; RIDs are not linked (a RID is only stable for about 36 hours; docs/ARCHITECTURE.md).
+
 ## [1.1.1] - 2026-09-23
 
 ### Fixed
