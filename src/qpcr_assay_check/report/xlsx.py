@@ -10,7 +10,7 @@ from openpyxl.utils import get_column_letter
 
 from ..history.models import HistoryResult
 from ..results import RunResult
-from ..specificity.variants import LIST_FULL_NOTE
+from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 
 _FILL = {
     "PASS": "D7EFE3",
@@ -179,6 +179,23 @@ def write_workbook(result: RunResult, path: Path) -> None:
     )
     spec = result.specificity
     if spec is not None:
+        _sheet(
+            wb,
+            "Off-target variants",
+            ["Level", "Query", "Source", "Mismatches", "Gaps", "Clean 3' nt", "Duplex Tm (°C)",
+             "ΔTm (°C)", "Sites", "Records", "Tiers", "Organisms (sites)", "Example accession",
+             "Oligo", "Subject"],
+            [
+                [g.level, g.query, g.source, g.n_mismatch, g.n_gap, g.clean_3prime_nt,
+                 None if g.tm_c is None else round(g.tm_c, 1),
+                 None if g.delta_tm_c is None else round(g.delta_tm_c, 1), g.n_sites,
+                 g.n_records, ", ".join(g.tiers),
+                 "; ".join(f"{name} ({n})" for name, n in g.organisms),
+                 g.example_site.accession, g.q_aln, g.s_aln]
+                for g in group_off_target_sites(spec.sites)
+            ],
+            None,
+        )  # fmt: skip
         _sheet(
             wb,
             "Off-target sites",

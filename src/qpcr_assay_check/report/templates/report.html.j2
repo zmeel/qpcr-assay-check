@@ -428,23 +428,27 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 
 <h2>Closest off-target sites</h2>
-{% if shown_sites %}
-<p class="meta">Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
-  shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The primer 3′ end (last 5 nucleotides) is underlined.</p>
+{% if shown_variants %}
+<p class="meta">Off-target sites grouped by oligo and alignment: sites where an oligo aligns identically bind the same way, so each row is one binding variant, with how many sites and records have it and in which organisms.
+  Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
+  shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The primer 3′ end (last 5 nucleotides) is underlined.
+  Closest (most likely to bind) first; every single site is in hits.tsv and the workbook's "Off-target sites" sheet.</p>
 <div class="scroll"><table>
-  <thead><tr><th>Level</th><th>Oligo</th><th>Subject</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th></tr></thead>
+  <thead><tr><th>Level</th><th>Oligo</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th><th>Sites</th><th>Organisms</th></tr></thead>
   <tbody>
-  {% for s in shown_sites %}
-  <tr><td>{{ chip(s.level) }}<br><span class="meta">{{ s.tier }}</span></td><td>{{ s.query }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession }}<br>{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</span></td>
-    <td class="aln-cell">{{ s | aln_html }}<span class="meta">{{ {'blast_full': 'BLAST alignment', 'realigned': 'full-length re-alignment', 'blast_partial_worst_case': 'worst case (not re-aligned)'}[s.source] }}</span></td>
-    <td class="num">{{ s.n_mismatch }}{% if s.n_gap %} + {{ s.n_gap }} gap{% endif %}{% if s.n_unaligned %}<br><span class="meta">{{ s.n_unaligned }} unaligned</span>{% endif %}</td>
-    <td class="num">{{ s.clean_3prime_nt }}</td>
-    <td class="num">{% if s.tm_c is not none %}Tm {{ '%.1f' % s.tm_c }} °C<br><span class="meta">{% if s.delta_tm_c is not none %}{{ '%+.1f' % s.delta_tm_c }} °C vs perfect{% endif %}</span>{% else %}–{% endif %}</td></tr>
+  {% for g in shown_variants %}
+  <tr><td>{{ chip(g.level) }}<br><span class="meta">{{ g.tiers | join(', ') }}</span></td><td>{{ g.query }}</td>
+    <td class="aln-cell">{{ g.example_site | aln_html }}<span class="meta">{{ {'blast_full': 'BLAST alignment', 'realigned': 'full-length re-alignment', 'blast_partial_worst_case': 'worst case (not re-aligned)'}[g.source] }}</span></td>
+    <td class="num">{{ g.n_mismatch }}{% if g.n_gap %} + {{ g.n_gap }} gap{% endif %}{% if g.n_unaligned %}<br><span class="meta">{{ g.n_unaligned }} unaligned</span>{% endif %}</td>
+    <td class="num">{{ g.clean_3prime_nt }}</td>
+    <td class="num">{% if g.tm_c is not none %}Tm {{ '%.1f' % g.tm_c }} °C<br><span class="meta">{% if g.delta_tm_c is not none %}{{ '%+.1f' % g.delta_tm_c }} °C vs perfect{% endif %}</span>{% else %}–{% endif %}</td>
+    <td class="num">{{ g.n_sites }}{% if g.n_records != g.n_sites %}<br><span class="meta">{{ g.n_records }} records</span>{% endif %}</td>
+    <td>{% for name, n in g.organisms[:5] %}{{ name }}{% if g.organisms | length > 1 %} ({{ n }}){% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if g.organisms | length > 5 %}<br><span class="meta">and {{ g.organisms | length - 5 }} more</span>{% endif %}
+      <br><span class="meta">e.g. {{ g.example_site.accession }} {{ g.example_site.subject_start }}–{{ g.example_site.subject_end }} ({{ g.example_site.orientation }})</span></td></tr>
   {% endfor %}
   </tbody>
 </table></div>
-{% if hidden_sites %}<p class="meta">{{ hidden_sites }} further site(s) are listed in hits.tsv.</p>{% endif %}
+{% if hidden_variants %}<p class="meta">{{ hidden_variants }} further variant(s) ({{ hidden_variant_sites }} site(s)) are listed in hits.tsv and the workbook.</p>{% endif %}
 <p class="meta">Duplex Tm is a nearest-neighbour estimate of stability. A mismatch at the 3′-terminal base is treated as an unpaired overhang and barely lowers it,
   although it usually prevents extension: judge priming from the mismatch and 3′ columns, not from Tm.</p>
 {% else %}

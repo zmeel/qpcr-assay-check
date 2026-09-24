@@ -190,3 +190,57 @@ def test_target_tier_hits_are_assessed_and_a_trimmed_3prime_variant_is_re_aligne
     fwd = next(o for o in summary.oligos if o.role == "forward")
     assert fwd.total_measured == 2 and [r.count for r in fwd.rows] == [1, 1]
     assert summary.fragment_total == 2 and summary.fragment_excluded_unmeasured == 0
+
+
+# ------------------------------------------------------------------ off-target grouping (report)
+def test_off_target_sites_with_the_same_alignment_are_one_variant_across_organisms():
+    from qpcr_assay_check.specificity.variants import group_off_target_sites
+
+    near = {"s_aln": "AAAT", "midline": "||| ", "mm": 1, "level": "warning"}
+    sites = [
+        mk_site("forward", tier="exclusivity", acc="A.1", org="Influenza A virus", **near),
+        mk_site("forward", tier="exclusivity", acc="A.1", org="Influenza A virus", **near),
+        mk_site("forward", tier="exclusivity", acc="B.1", org="Influenza A virus", **near),
+        mk_site("forward", tier="background", acc="C.1", org="Homo sapiens", **near),
+        mk_site(
+            "forward",
+            tier="exclusivity",
+            s_aln="ATTT",
+            midline="|   ",
+            mm=3,
+            level="minor",
+            org="Influenza A virus",
+        ),  # fmt: skip
+        mk_site("probe", tier="exclusivity", org="Influenza A virus", **near),  # other oligo
+    ]
+    groups = group_off_target_sites(sites)
+    assert [(g.query, g.n_mismatch, g.n_sites) for g in groups] == [
+        ("forward", 1, 4), ("probe", 1, 1), ("forward", 3, 1),
+    ]  # fmt: skip
+    first = groups[0]
+    assert first.n_records == 3 and first.tiers == ["background", "exclusivity"]
+    assert first.organisms == [("Influenza A virus", 3), ("Homo sapiens", 1)]
+
+
+def test_the_report_and_workbook_show_off_target_variants_not_every_site(tmp_path):
+    from openpyxl import load_workbook
+
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.pipeline import evaluate
+    from qpcr_assay_check.report.html import render_report
+    from qpcr_assay_check.report.xlsx import write_workbook
+
+    from .test_report_exclusivity import _specificity_with_exclusivity
+
+    near = {"s_aln": "AAAT", "midline": "||| ", "mm": 1, "level": "warning"}
+    sites = [mk_site("forward", tier="exclusivity", acc=f"A{i}.1", org="Influenza A virus",
+                     **near) for i in range(30)]  # fmt: skip
+    cfg = load_config()
+    spec = _specificity_with_exclusivity().model_copy(update={"sites": sites})
+    result = evaluate(ASSAY, cfg, specificity=spec)
+    html = render_report(result, cfg)
+    assert html.count("A0.1") == 1 and "A29.1" not in html  # one row, not 30
+    assert "Influenza A virus" in html and ">30<" in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    wb = load_workbook(tmp_path / "r.xlsx")
+    assert wb["Off-target variants"].max_row == 2 and wb["Off-target sites"].max_row == 31

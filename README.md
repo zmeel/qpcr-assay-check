@@ -123,7 +123,7 @@ Each run writes `results/<assay>/<run-id>/` containing:
 |---|---|
 | `report.html` | Self-contained evaluation record (no external requests) |
 | `results.json` | Machine-readable results (`schema_version` 1) |
-| `results.xlsx` | Workbook: summary, inputs, QC checks, off-target sites, products, sections |
+| `results.xlsx` | Workbook: summary, inputs, QC checks, off-target variants (grouped) and every off-target site, products, sections |
 | `hits.tsv` | One row per assessed off-target site: alignment, mismatches, level, duplex Tm/ΔG (full `run` only, not `--qc-only`) |
 
 ### Specificity assessment (v0.3.0)

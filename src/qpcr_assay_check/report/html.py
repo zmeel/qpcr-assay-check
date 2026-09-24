@@ -10,7 +10,7 @@ from markupsafe import Markup, escape
 
 from ..config import Config
 from ..results import CheckResult, RunResult
-from ..specificity.variants import LIST_FULL_NOTE
+from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
 
 _GROUPS = [
@@ -159,16 +159,13 @@ def render_report(result: RunResult, cfg: Config) -> str:
             )
 
     spec = result.specificity
-    rank = {"critical": 0, "warning": 1, "minor": 2}
     shown: list[Any] = []
-    hidden = 0
+    hidden = hidden_sites = 0
     if spec is not None:
-        ordered = sorted(
-            spec.sites,
-            key=lambda s: (rank[s.level], s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id),
-        )
+        grouped = group_off_target_sites(spec.sites)
         limit = max(cfg.specificity.report_top_sites * 2, 40)
-        shown, hidden = ordered[:limit], max(0, len(ordered) - limit)
+        shown, hidden = grouped[:limit], max(0, len(grouped) - limit)
+        hidden_sites = sum(g.n_sites for g in grouped[limit:])
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
@@ -177,8 +174,9 @@ def render_report(result: RunResult, cfg: Config) -> str:
         assay=result.assay,
         groups=groups,
         spec=spec,
-        shown_sites=shown,
-        hidden_sites=hidden,
+        shown_variants=shown,
+        hidden_variants=hidden,
+        hidden_variant_sites=hidden_sites,
         search_rows=_search_rows(spec) if spec is not None else [],
         pending=[s for s in result.sections if s.state != "evaluated"],
         charts=charts,

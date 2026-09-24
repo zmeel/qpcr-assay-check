@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **"Closest off-target sites" groups identical binding variants** (`specificity/variants.py`,
+  report, workbook): instead of a long list of near-identical sites, one row per oligo and exact
+  alignment (the same way the target variants are lumped), with the number of sites and records,
+  the tiers, and the organisms with their site counts, closest first. Every single site stays in
+  `hits.tsv` and the workbook's "Off-target sites" sheet; a new "Off-target variants" sheet holds
+  the grouped rows. Verdicts are unchanged.
+
 ## [1.1.1] - 2026-09-23
 
 ### Fixed

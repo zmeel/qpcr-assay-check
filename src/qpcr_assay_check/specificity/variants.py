@@ -302,3 +302,66 @@ def build_variant_summary(
         source=coverage.source if coverage is not None else "blast_hits",  # type: ignore[arg-type]
         coverage=coverage,
     )
+
+
+class OffTargetVariant(BaseModel):
+    """Off-target sites of one oligo with the same alignment, lumped into one row (report view)."""
+
+    query: str
+    role: str
+    level: Level
+    source: str
+    q_aln: str
+    s_aln: str
+    midline: str
+    n_mismatch: int
+    n_gap: int
+    n_unaligned: int
+    clean_3prime_nt: int
+    tm_c: float | None = None
+    delta_tm_c: float | None = None
+    n_sites: int
+    n_records: int
+    tiers: list[str]
+    organisms: list[tuple[str, int]] = Field(
+        description="organism name and number of sites, most frequent first"
+    )
+    example_site: SiteResult
+
+
+def group_off_target_sites(sites: list[SiteResult]) -> list[OffTargetVariant]:
+    """Lump off-target sites by oligo and exact alignment, closest (most likely to bind) first.
+
+    Sites with the same oligo, alignment and assessment source bind the same way, so they share
+    the level, mismatch count, clean 3' end and duplex Tm; only where they occur differs, which
+    the organisms, tiers and record count keep.
+    """
+    groups: dict[tuple[str, str, str, str], list[SiteResult]] = defaultdict(list)
+    for s in sites:
+        groups[(s.query, s.source, s.q_aln, s.s_aln)].append(s)
+    out: list[OffTargetVariant] = []
+    for members in groups.values():
+        members.sort(key=lambda s: (_RANK[s.level], s.id))
+        best = members[0]
+        organisms: dict[str, int] = defaultdict(int)
+        for m in members:
+            organisms[m.organism or "unknown"] += 1
+        out.append(
+            OffTargetVariant(
+                query=best.query, role=best.role, level=best.level, source=best.source,
+                q_aln=best.q_aln, s_aln=best.s_aln, midline=best.midline,
+                n_mismatch=best.n_mismatch, n_gap=best.n_gap, n_unaligned=best.n_unaligned,
+                clean_3prime_nt=best.clean_3prime_nt, tm_c=best.tm_c,
+                delta_tm_c=best.delta_tm_c, n_sites=len(members),
+                n_records=len({m.accession for m in members}),
+                tiers=sorted({m.tier for m in members}),
+                organisms=sorted(organisms.items(), key=lambda kv: (-kv[1], kv[0])),
+                example_site=best,
+            )
+        )  # fmt: skip
+    out.sort(
+        key=lambda g: (
+            _RANK[g.level], g.n_mismatch + g.n_gap, -g.clean_3prime_nt, -g.n_sites, g.query,
+        )
+    )  # fmt: skip
+    return out

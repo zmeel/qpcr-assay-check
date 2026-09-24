@@ -125,6 +125,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - v1.1.1 confirmed live (2026-09-24, N1 partitioned, store kept): 882 records assessed; 'not found'
   18 -> 0; hidden by N 31 (the 18 rechecked OZ5582xx plus new OZ5556xx records, and records with
   N inside an oligo site); 851 in the inclusivity tables (851 + 31 = 882). Ready to merge and tag.
+- v1.1.1 merged and tagged by the user (annotated, on main's PR #16 merge commit; verified).
+- Report change requested before new features: the "Closest off-target sites" list is grouped
+  into off-target variants (oligo + exact alignment), with site/record counts, tiers and
+  organisms; new "Off-target variants" workbook sheet. 389 tests pass. Not yet seen live.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are
