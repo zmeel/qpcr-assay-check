@@ -193,6 +193,13 @@ def collect(
                     pending.append(rec)
                     if processed + len(pending) >= budget:
                         break
+                stored = sum(1 for it in store.items.values() if it.year == year)
+                log.info(
+                    "%d: %d assemblies listed, %d already stored, %d to scan in this run%s",
+                    year, n_year, stored, len(pending),
+                    " (the per-run maximum is reached; the rest follow on later runs)"
+                    if processed + len(pending) >= budget else "",
+                )  # fmt: skip
                 p, f, accs = _process(client, store, pending, amplicon, cfg, context)
                 processed, failed = processed + p, failed + f
                 failed_accessions += accs
@@ -238,7 +245,7 @@ def _process(
             store.add(rec, loci, {name: d for name, (d, _s) in records_.items()}, masked=masked,
                       context_checked=context is not None and any(context()))  # fmt: skip
             done += 1
-        log.info("  %d / %d assemblies scanned", i + len(chunk), len(records))
+        log.info("  %d / %d assemblies scanned in this run", i + len(chunk), len(records))
     return done, failed, failed_accessions
 
 

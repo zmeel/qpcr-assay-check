@@ -69,6 +69,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   crashed. Fixed: ChunkedEncodingError/ContentDecodingError are retried with backoff and become
   an NcbiError (the batch is then counted as failed and retried next run); a damaged zip member
   is an NcbiError too. The region store kept every scanned assembly, so a rerun resumes.
+- Rerun with max_assemblies_per_run 5000 looked like a restart ("20 / 5000"), but it resumed:
+  the first two years (3011 + 6141, stored) were skipped silently and the third year, cut at
+  10848 by the old 20000 budget and crashed at 7880, still had over 5000 unscanned. Reproduced
+  with a simulated crash + smaller budget (resume correct). The log now says per year: listed,
+  already stored, to scan in this run, and when the per-run maximum is reached.
 - Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
   several references in the variant analysis) after the user's go-ahead.
 
