@@ -122,6 +122,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - User asked for comparable tools (none found combining our scope; SCREENED closest) and for
   improvement ideas: written up in docs/FEATURE_IDEAS.md (7 ideas, recommended first: panel-level
   escape detection and scheduled runs with alerts). None started; waiting for the go-ahead.
+- v1.1.1 confirmed live (2026-09-24, N1 partitioned, store kept): 882 records assessed; 'not found'
+  18 -> 0; hidden by N 31 (the 18 rechecked OZ5582xx plus new OZ5556xx records, and records with
+  N inside an oligo site); 851 in the inclusivity tables (851 + 31 = 882). Ready to merge and tag.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are
