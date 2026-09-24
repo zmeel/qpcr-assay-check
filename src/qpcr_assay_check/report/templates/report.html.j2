@@ -602,6 +602,10 @@ td.aln-cell { min-width: 22rem; }
   <tr><th scope="row">Database, BLAST parameters, RIDs</th><td>Not applicable: no database search was performed</td></tr>
   {% endif %}
 </tbody></table></div>
+{% if assay_settings_yaml %}
+<p><strong>Settings from the assay file</strong> (applied over the defaults and any configuration file):</p>
+<pre>{{ assay_settings_yaml }}</pre>
+{% endif %}
 <details>
   <summary>Effective configuration (thresholds and conditions applied)</summary>
   <pre>{{ config_yaml }}</pre>

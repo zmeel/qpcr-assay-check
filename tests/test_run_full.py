@@ -6,6 +6,7 @@ import time
 from datetime import UTC, datetime
 
 import pytest
+import yaml
 from openpyxl import load_workbook
 from typer.testing import CliRunner
 
@@ -26,6 +27,12 @@ HUMAN_ACC = "NC_000007.14"
 def env(tmp_path, monkeypatch):
     conf = tmp_path / "config.yaml"
     conf.write_text(f"ncbi:\n  cache_dir: {tmp_path / 'cache'}\n")
+    # the shipped example carries its own settings (variants: blast_partitioned); these tests
+    # choose the variant source through --config, so they run a copy without them
+    data = yaml.safe_load(ROOT_EXAMPLE.read_text())
+    data.pop("settings", None)
+    assay = tmp_path / "assay.yaml"
+    assay.write_text(yaml.safe_dump(data, sort_keys=False))
     monkeypatch.setenv("NCBI_EMAIL", "lab@example.org")
     monkeypatch.delenv("NCBI_API_KEY", raising=False)
     monkeypatch.setattr(time, "sleep", lambda s: None)
@@ -35,7 +42,8 @@ def env(tmp_path, monkeypatch):
         monkeypatch.setattr("qpcr_assay_check.ncbi.http.requests.Session", lambda: fake)
         return fake
 
-    return type("E", (), {"conf": conf, "out": tmp_path / "out", "install": staticmethod(install)})
+    return type("E", (), {"conf": conf, "out": tmp_path / "out", "assay": assay,
+                          "install": staticmethod(install)})  # fmt: skip
 
 
 def world_with(f=(), r=(), p=(), hits="full"):
@@ -54,7 +62,7 @@ def world_with(f=(), r=(), p=(), hits="full"):
 def invoke(env, *extra, **kw):
     return runner.invoke(
         app,
-        ["run", str(ROOT_EXAMPLE), "--config", str(env.conf), "-o", str(env.out), *extra],
+        ["run", str(env.assay), "--config", str(env.conf), "-o", str(env.out), *extra],
         **kw,
     )
 

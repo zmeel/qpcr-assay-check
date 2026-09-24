@@ -109,6 +109,12 @@ def _clean_oligo(value: Any, label: str) -> str:
 
 
 ROLES = ("forward", "reverse", "probe")
+# config.yaml sections an assay file may set for itself under 'settings:'; 'ncbi' (servers,
+# throttling, cache) and 'report' stay lab-wide
+ASSAY_SETTING_SECTIONS = (
+    "reaction", "oligo", "thresholds", "search", "specificity", "organisms", "inclusivity",
+    "variants",
+)  # fmt: skip
 _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$")
 _DEGENERATE_SUFFIX = re.compile(r"_v\d+$")  # reserved: labels of degenerate expansions
 
@@ -257,6 +263,33 @@ class Assay(BaseModel):
     )
     oligo_source: str | None = Field(default=None, description="Where the oligos come from")
     notes: str | None = None
+    settings: dict[str, Any] = Field(
+        default_factory=dict,
+        description="This assay's own settings, in config.yaml's structure, applied over the "
+        "defaults and any --config file (sections: " + ", ".join(ASSAY_SETTING_SECTIONS) + ")",
+    )
+
+    @field_validator("settings", mode="before")
+    @classmethod
+    def _settings(cls, v: Any) -> dict[str, Any]:
+        if v is None:
+            return {}
+        if not isinstance(v, dict):
+            raise ValueError("settings must be a mapping, in the structure of config.yaml")
+        for key, value in v.items():
+            if key in ("ncbi", "report"):
+                raise ValueError(
+                    f"settings.{key} is lab-wide (servers, throttling, cache, report layout): "
+                    "set it in a --config file, not per assay"
+                )
+            if key not in ASSAY_SETTING_SECTIONS:
+                raise ValueError(
+                    f"settings.{key} is not a configuration section; use one of "
+                    + ", ".join(ASSAY_SETTING_SECTIONS)
+                )
+            if not isinstance(value, dict):
+                raise ValueError(f"settings.{key} must be a mapping")
+        return v
 
     @field_validator("forward", "reverse", "probe", mode="before")
     @classmethod

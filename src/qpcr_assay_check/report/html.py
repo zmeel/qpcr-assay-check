@@ -191,5 +191,10 @@ def render_report(result: RunResult, cfg: Config) -> str:
         charts=charts,
         plotly_js=Markup(_plotly_js()) if charts else "",  # noqa: S704 - bundled library
         config_yaml=yaml.safe_dump(result.config, sort_keys=False, allow_unicode=True),
+        assay_settings_yaml=(
+            yaml.safe_dump(result.assay.settings, sort_keys=False, allow_unicode=True)
+            if result.assay.settings
+            else ""
+        ),
         verdict_meaning=VERDICT_MEANING[result.overall.verdict.value],
     )

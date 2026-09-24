@@ -5,7 +5,8 @@
 #   Accepted from v1.3.0 step 1: QC, dimers across the mix, placement of each probe in its own
 #   fragment, specificity per oligo, best alternative per record. Coverage per oligo, escape lists,
 #   the best copy of this multi-copy target, and region finding from both fragments follow in
-#   step 2 (the variant analysis uses the first fragment until then).
+#   step 2 (the variant analysis uses the first fragment until then). Settings for this assay
+#   are in its own 'settings:' section at the end (from v1.3.0); no separate config file needed.
 #
 # PROVENANCE
 #   Sequences supplied by the user (2026-09-24); not checked against a publication or kit insert.
@@ -54,3 +55,13 @@ reference_amplicons:   # one reference per lineage
   - name: NG-fragment-P2
     sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCTTTGAACCATCAGTGAAAATCTTTTTTTTTAACCGGTTAAACCG
 oligo_source: Supplied by the user; source publication or kit not stated.
+exclusivity_organisms:   # as in the user's first live run (taxid 487)
+  - Neisseria meningitidis
+
+# This assay's own settings (same structure as config.yaml; applied over the defaults and any
+# --config file). A bacterium: the variant analysis uses every genome assembly.
+settings:
+  variants:
+    source: datasets
+#  search:
+#    background_taxids: []   # uncomment to skip the human background search

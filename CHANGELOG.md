@@ -20,6 +20,15 @@ All notable changes to this project are documented here. The format follows
   it. Existing assay files work unchanged; saved records load again. Worked example:
   `docs/examples/neisseria_gonorrhoeae_two_probes.yaml` (now accepted by the tool).
 
+- **Settings per assay** (`models.py`, `config.py`, CLI, report): an optional `settings:` section
+  in the assay file, in config.yaml's structure, applied over the defaults and any `--config`
+  file, so every assay-specific choice (annealing temperature, background taxa, variant source,
+  Nucleotide filter, thresholds) lives with its assay and one file is enough per run. `ncbi` and
+  `report` stay lab-wide and are rejected there with a clear message. The report lists the
+  assay's own settings; `validate` names them. Both examples carry their settings (N1:
+  `blast_partitioned` with the genome-length filter; N. gonorrhoeae: `datasets` and
+  N. meningitidis for exclusivity).
+
 ### Fixed
 - **Intended-target check with named oligos**: it parsed query labels, so an assay with named
   oligos was reported as having no perfect hit for forward, probe and reverse. It now counts per

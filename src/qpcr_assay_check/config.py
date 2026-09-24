@@ -483,8 +483,12 @@ def format_validation_error(exc: ValidationError) -> str:
     return "\n".join(lines)
 
 
-def load_config(path: Path | None = None) -> Config:
-    """Load the defaults, merge an optional user file over them, and validate."""
+def load_config(path: Path | None = None, assay_settings: dict[str, Any] | None = None) -> Config:
+    """Load the defaults, merge an optional lab-wide file, then the assay's own settings.
+
+    Later sources win: built-in defaults < ``path`` (``--config``) < ``assay_settings`` (the
+    assay file's ``settings:`` section, same structure as config.yaml).
+    """
     data: dict[str, Any] = yaml.safe_load(default_config_text())
     if path is not None:
         try:
@@ -494,8 +498,13 @@ def load_config(path: Path | None = None) -> Config:
         if not isinstance(user, dict):
             raise ConfigError(f"Configuration file {path} must contain a YAML mapping")
         data = deep_merge(data, user)
+    if assay_settings:
+        data = deep_merge(data, assay_settings)
     try:
         return Config.model_validate(data)
     except ValidationError as exc:
-        where = f" in {path}" if path else ""
+        sources = [str(path)] if path else []
+        if assay_settings:
+            sources.append("the assay file's settings")
+        where = f" in {' or '.join(sources)}" if sources else ""
         raise ConfigError(f"Invalid configuration{where}:\n{format_validation_error(exc)}") from exc

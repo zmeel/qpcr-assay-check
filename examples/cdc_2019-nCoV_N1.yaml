@@ -31,3 +31,13 @@ reference_amplicon: GACCCCAAAATCAGCGAAATGCACCCCGCATTACGTTTGGTGGACCCTCAGATTCAACTG
 oligo_source: >-
   US CDC 2019-nCoV Real-Time RT-PCR Diagnostic Panel, N1 primer/probe set
   (2019-nCoV_N1-F, 2019-nCoV_N1-R, 2019-nCoV_N1-P).
+
+# This assay's own settings (same structure as config.yaml; applied over the defaults and any
+# --config file). A virus: the variant analysis uses Nucleotide records, restricted to
+# genome-length records (SARS-CoV-2 genomes are about 29.9 kb).
+settings:
+  variants:
+    source: blast_partitioned
+    nucleotide_query: "25000:32000[SLEN]"
+#  search:
+#    background_taxids: []   # uncomment to skip the human background search

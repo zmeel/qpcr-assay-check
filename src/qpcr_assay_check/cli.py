@@ -58,6 +58,14 @@ target:                   # REQUIRED: give a taxonomy ID and/or a reference acce
 # reference_amplicons:    # or several, one per lineage, each oligo placed in the best fit
 #   - name: lineage-A
 #     sequence: ""
+# settings:               # optional: this assay's own settings, same structure as config.yaml
+#   reaction:
+#     annealing_temp_C: 60
+#   search:
+#     background_taxids: []          # e.g. skip the human background search
+#   variants:
+#     source: datasets               # datasets (bacteria) | blast_partitioned (viruses)
+#     nucleotide_query: ""           # blast_partitioned only, e.g. "25000:32000[SLEN]"
 oligo_source: ""          # where these sequences come from (publication, vendor, in-house)
 # exclusivity_organisms:  # optional: this assay's own exclusivity panel (organism names), used
 #   - ""                  # instead of the global list when organisms.source is "assay" (default)
@@ -130,8 +138,8 @@ def validate(
 ) -> None:
     """Check an assay file and configuration without running any analysis."""
     try:
-        cfg = load_config(config)
         assay = build_assay(assay_file, {})
+        cfg = load_config(config, assay.settings)
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return
@@ -140,6 +148,8 @@ def validate(
         name = o.role if o.name == o.role else f"{o.role} {o.name}"
         typer.echo(f"  {name:8} {o.sequence} ({len(o.sequence)} nt)")
     typer.echo(f"  configuration: annealing {cfg.reaction.annealing_temp_C:g} °C")
+    if assay.settings:
+        typer.echo(f"  settings from the assay file: {', '.join(sorted(assay.settings))}")
 
 
 @app.command()
@@ -210,8 +220,8 @@ def run(
     from .ncbi.http import NcbiError
 
     try:
-        cfg = load_config(config)
         assay = build_assay(assay_file, overrides)
+        cfg = load_config(config, assay.settings)
         if qc_only:
             result = evaluate(assay, cfg, qc_only=True)
         else:
@@ -487,8 +497,8 @@ def search(
 
     _setup_logging(verbose)
     try:
-        cfg = load_config(config)
         assay = build_assay(assay_file, {})
+        cfg = load_config(config, assay.settings)
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return

@@ -422,6 +422,31 @@ silently fall back to a default. Reaction conditions (Na⁺, Mg²⁺, dNTP, prim
 concentration, annealing temperature), all QC thresholds and the structure limits live there.
 `examples/config_annealing_55C.yaml` shows an override.
 
+### Settings per assay (v1.3.0)
+
+Everything specific to one assay belongs in the assay file itself, under `settings:`, with the same
+structure as `config.yaml`; only what differs from the defaults needs writing:
+
+```yaml
+settings:
+  reaction:
+    annealing_temp_C: 60          # this assay's cycling protocol
+  search:
+    background_taxids: []         # skip the human background search
+  variants:
+    source: blast_partitioned     # a virus: Nucleotide records
+    nucleotide_query: "25000:32000[SLEN]"
+```
+
+Order of precedence: built-in defaults, then a `--config` file (lab-wide), then the assay's
+`settings:`. Allowed sections: `reaction`, `oligo`, `thresholds`, `search`, `specificity`,
+`organisms`, `inclusivity`, `variants`. `ncbi` (servers, throttling, cache location) and `report`
+stay lab-wide; the NCBI email and API key always come from environment variables. Unknown keys
+are rejected, naming the assay file's settings. The report's Methods section lists the settings
+that came from the assay file, and a change to them counts as an assay change in the run history
+(run budgets such as `max_assemblies_per_run` excepted). So one file per assay:
+`qpcr-assay-check run my_assay.yaml --yes`.
+
 ## Verdicts and exit codes
 
 | Verdict | Exit code | Meaning |

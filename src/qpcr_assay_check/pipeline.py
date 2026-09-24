@@ -36,7 +36,9 @@ def inputs_hash(assay: Assay, cfg: Config) -> str:
     # Operational settings (timeouts, cache location, report options) do not change the science,
     # so they must not change the hash that identifies "the same evaluation".
     payload = {
-        "assay": assay.model_dump(mode="json"),
+        # the assay's own settings are already in the effective config below (where run-budget
+        # keys are left out), so they are not hashed twice
+        "assay": assay.model_dump(mode="json", exclude={"settings"}),
         "config": cfg.model_dump(
             mode="json",
             exclude={"ncbi": True, "report": True, "variants": {"max_assemblies_per_run"}},

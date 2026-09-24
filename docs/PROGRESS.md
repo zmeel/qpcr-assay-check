@@ -170,6 +170,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Exhaustive inclusivity said "sampled"; now "assessed". Findings for the user: N. meningitidis
   CP171264.1 gives a perfect 76 bp product; NG-R has a 1-base gap (poly-A/T length) in 8 of 25
   records; NG-P2 seen with 1 mismatch in 2 records.
+- The user found the separate config files confusing (the N1 nucleotide_query leaked into the
+  NG run). Built as proposed and approved: assay-file `settings:` (config.yaml structure, sections
+  reaction/oligo/thresholds/search/specificity/organisms/inclusivity/variants; ncbi and report
+  rejected as lab-wide), precedence defaults < --config < assay. Report shows the assay's
+  settings; inputs hash uses the effective config only (run budgets still excluded). Examples
+  updated. 416 tests pass.
 - Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
   several references in the variant analysis) after the user's go-ahead.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
