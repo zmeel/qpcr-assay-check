@@ -52,3 +52,5 @@ reference_amplicons:   # planned v1.3.0 field: one reference per lineage
   - name: NG-fragment-P2
     sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCTTTGAACCATCAGTGAAAATCTTTTTTTTTAACCGGTTAAACCG
 oligo_source: Supplied by the user; source publication or kit not stated.
+exclusivity_organisms:
+  - Neisseria meningitidis
