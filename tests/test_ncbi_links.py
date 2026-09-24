@@ -13,9 +13,9 @@ from .test_variants import ASSAY, mk_site
 
 
 def test_accession_urls_follow_ncbi_record_types():
-    assert accession_url("NC_045512.2") == "https://www.ncbi.nlm.nih.gov/nuccore/NC_045512.2"
-    assert accession_url("OZ558241.1").endswith("/nuccore/OZ558241.1")
-    assert accession_url("NZ_CP012345.1").endswith("/nuccore/NZ_CP012345.1")
+    assert accession_url("NC_045512.2") == "https://www.ncbi.nlm.nih.gov/nucleotide/NC_045512.2"
+    assert accession_url("OZ558241.1").endswith("/nucleotide/OZ558241.1")
+    assert accession_url("NZ_CP012345.1").endswith("/nucleotide/NZ_CP012345.1")
     assert accession_url("GCF_000008725.1") == (
         "https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000008725.1/"
     )
@@ -28,7 +28,7 @@ def test_free_text_is_escaped_and_only_accessions_become_links():
     html = str(linkify(text))
     assert html.startswith("&lt;b&gt;closest&lt;/b&gt;")
     assert html.count("<a ") == 2 and 'rel="noopener noreferrer"' in html
-    assert '/nuccore/PQ535257.1"' in html and "/datasets/genome/GCA_000000003.1/" in html
+    assert '/nucleotide/PQ535257.1"' in html and "/datasets/genome/GCA_000000003.1/" in html
     assert "wwwtax.cgi?id=2697049" in str(taxon_link(2697049))
 
 
@@ -39,10 +39,10 @@ def test_report_and_workbook_link_accessions_and_taxids(tmp_path):
     cfg = load_config()
     result = evaluate(ASSAY, cfg, specificity=spec)
     html = render_report(result, cfg)
-    assert '<a href="https://www.ncbi.nlm.nih.gov/nuccore/PQ535257.1"' in html
-    assert f'<a href="https://www.ncbi.nlm.nih.gov/nuccore/{ASSAY.target.accession}"' in html
+    assert '<a href="https://www.ncbi.nlm.nih.gov/nucleotide/PQ535257.1"' in html
+    assert f'<a href="https://www.ncbi.nlm.nih.gov/nucleotide/{ASSAY.target.accession}"' in html
     assert "wwwtax.cgi?id=2697049" in html  # the intended target's taxonomy ID
     write_workbook(result, tmp_path / "r.xlsx")
     ws = load_workbook(tmp_path / "r.xlsx")["Off-target sites"]
     cell = next(c for c in ws["C"] if c.value == "PQ535257.1")
-    assert cell.hyperlink.target == "https://www.ncbi.nlm.nih.gov/nuccore/PQ535257.1"
+    assert cell.hyperlink.target == "https://www.ncbi.nlm.nih.gov/nucleotide/PQ535257.1"

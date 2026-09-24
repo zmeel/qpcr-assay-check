@@ -1,9 +1,12 @@
 """Links from accessions and taxonomy IDs in the report to their NCBI pages.
 
-URL forms checked live on 2026-09-24 (HTTP 200): ``/nuccore/<accession>`` for Nucleotide records
-(GenBank, RefSeq, WGS contigs), ``/datasets/genome/<GCA_/GCF_ accession>/`` for genome
-assemblies, and ``/Taxonomy/Browser/wwwtax.cgi?id=<taxid>`` for taxonomy. A link fetches nothing
-until it is clicked, so the report stays self-contained.
+URL forms checked live on 2026-09-24, on the page content and not only the HTTP status:
+``/nucleotide/<accession>`` for Nucleotide records (GenBank, RefSeq, WGS contigs),
+``/datasets/genome/<GCA_/GCF_ accession>/`` for genome assemblies, and
+``/Taxonomy/Browser/wwwtax.cgi?id=<taxid>`` for taxonomy. ``/nuccore/<accession>`` opens the same
+record but answered every request with a reCAPTCHA "Checking your browser" page, which looped
+endlessly in the user's browser; ``/nucleotide/`` served the record page directly (3 of 3
+accessions). A link fetches nothing until it is clicked, so the report stays self-contained.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ def accession_url(accession: str) -> str | None:
         return None
     if acc.startswith(("GCA_", "GCF_")):
         return f"{NCBI}/datasets/genome/{acc}/"
-    return f"{NCBI}/nuccore/{acc}"
+    return f"{NCBI}/nucleotide/{acc}"
 
 
 def taxon_url(taxid: int | str) -> str | None:
