@@ -1,9 +1,11 @@
 # Example assay: Neisseria gonorrhoeae, one primer pair with two alternative FAM-MGB probes.
 #
 # STATUS
-#   Written in the PLANNED v1.3.0 format (named oligos, several per role; see
-#   docs/FEATURE_IDEAS.md, "Several oligos per role"). The current tool (v1.2.0) accepts only one
-#   sequence per role and will reject this file until v1.3.0 step 1 is implemented.
+#   Uses the v1.3.0 format (named oligos, several per role; README "Several oligos per role").
+#   Accepted from v1.3.0 step 1: QC, dimers across the mix, placement of each probe in its own
+#   fragment, specificity per oligo, best alternative per record. Coverage per oligo, escape lists,
+#   the best copy of this multi-copy target, and region finding from both fragments follow in
+#   step 2 (the variant analysis uses the first fragment until then).
 #
 # PROVENANCE
 #   Sequences supplied by the user (2026-09-24); not checked against a publication or kit insert.
@@ -46,7 +48,7 @@ probe:
 template_type: DNA   # not stated by the user; DNA is the default for a bacterial target
 target:
   taxid: 485
-reference_amplicons:   # planned v1.3.0 field: one reference per lineage
+reference_amplicons:   # one reference per lineage
   - name: NG-fragment-P1
     sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCCTTCAACATCAGTGAAAATCTTTTTTTAACCGGTCAAACCG
   - name: NG-fragment-P2

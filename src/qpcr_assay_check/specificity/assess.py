@@ -23,7 +23,6 @@ from .sites import (
     can_reach_warning,
     make_candidate,
     oriented_window,
-    role_of,
     site_from_alignment,
     site_from_bound,
     site_from_full,
@@ -80,9 +79,10 @@ def assess_specificity(
         for label in ps.labels:
             q = parsed[ps.key].queries[label]
             oligo = plan.queries[label]
-            site_rules = rules.probe_site if role_of(label) == "probe" else rules.primer_site
+            role = assay.role_of(label)
+            site_rules = rules.probe_site if role == "probe" else rules.primer_site
             cands = [
-                make_candidate(ps.tier, label, oligo, hit, hsp)
+                make_candidate(ps.tier, label, oligo, hit, hsp, role)
                 for hit in q.hits
                 for hsp in hit.hsps
                 if hsp.identity >= min_identical

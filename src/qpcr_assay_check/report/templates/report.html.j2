@@ -135,11 +135,13 @@ td.aln-cell { min-width: 22rem; }
 <h2>Assay as evaluated</h2>
 <div class="scroll"><table>
   <tbody>
-    <tr><th scope="row">Forward primer</th><td>{{ assay.forward | seq_html }} <span class="meta">{{ assay.forward | length }} nt</span></td></tr>
-    <tr><th scope="row">Reverse primer</th><td>{{ assay.reverse | seq_html }} <span class="meta">{{ assay.reverse | length }} nt</span></td></tr>
-    <tr><th scope="row">Probe</th><td>{{ assay.probe | seq_html(0) }} <span class="meta">{{ assay.probe | length }} nt</span></td></tr>
-    <tr><th scope="row">Reporter / quencher</th><td>{{ assay.probe_reporter or 'not specified' }} / {{ assay.probe_quencher or 'not specified' }}</td></tr>
-    <tr><th scope="row">Probe modifications</th><td>{{ assay.probe_modifications | join(', ') or 'none declared' }}</td></tr>
+    {% set kinds = {'forward': 'Forward primer', 'reverse': 'Reverse primer', 'probe': 'Probe'} %}
+    {% for o in assay.oligo_list %}
+    <tr><th scope="row">{{ kinds[o.role] }}{% if o.name != o.role %} <span class="meta">{{ o.name }}</span>{% endif %}</th>
+      <td>{{ o.sequence | seq_html(0 if o.role == 'probe' else 5) }} <span class="meta">{{ o.sequence | length }} nt</span>
+      {% if o.role == 'probe' %}<br><span class="meta">reporter {{ o.reporter or 'not specified' }} / quencher {{ o.quencher or 'not specified' }}; modifications: {{ o.modifications | join(', ') or 'none declared' }}</span>{% endif %}</td></tr>
+    {% endfor %}
+    {% if assay.multi_oligo %}<tr><th scope="row">Reaction mix</th><td>Oligos of the same role are alternatives in the same mix: for each record the best-binding one counts. Probes with the same reporter are alternatives; probes with different reporters detect different regions.</td></tr>{% endif %}
     <tr><th scope="row">Template</th><td>{{ assay.template_type.value }}{% if assay.template_type.value == 'RNA' %} (reverse transcription step assumed){% endif %}</td></tr>
     <tr><th scope="row">Intended target</th><td>
       {% if assay.target.taxid %}taxonomy ID {{ assay.target.taxid | taxon }}{% endif %}
@@ -214,10 +216,14 @@ td.aln-cell { min-width: 22rem; }
 <h2>Amplicon</h2>
 {% set a = qc.amplicon %}
 <div class="scroll"><table><tbody>
+  {% if assay.reference_amplicons | length > 1 %}
+  <tr><th scope="row">Reference amplicons</th><td>{% for ref in assay.reference_amplicons %}{{ ref.name }} ({{ ref.sequence | length }} nt){% if not loop.last %}, {% endif %}{% endfor %}<br><span class="meta">Each oligo is placed in the reference it fits best (see the checks above); the rows below describe {{ assay.reference_amplicons[0].name }}.</span></td></tr>
+  {% else %}
   <tr><th scope="row">Reference amplicon</th><td>{{ a.input_length_nt }} nt</td></tr>
+  {% endif %}
   {% if a.product_length_nt %}<tr><th scope="row">Primer-defined product</th><td>{{ a.product_length_nt }} bp, {{ '%.1f' % a.product_gc_percent }}% GC</td></tr>{% endif %}
   {% for site in [a.forward_site, a.reverse_site, a.probe_site] if site %}
-  <tr><th scope="row">{{ site.oligo | capitalize }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
+  <tr><th scope="row">{{ site.oligo | capitalize if site.oligo in ('forward', 'reverse', 'probe') else site.oligo }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
   {% endfor %}
 </tbody></table></div>
 {% endif %}
@@ -306,14 +312,15 @@ td.aln-cell { min-width: 22rem; }
 
 {% for o in r.variant_summary.oligos %}
 {% if o.rows %}
-<h3>{{ o.role | capitalize }}</h3>
+{% set alts = assay.by_role(o.role) %}
+<h3>{{ o.role | capitalize }}{% if alts | length > 1 %} <span class="meta">({{ alts | map(attribute='name') | join(', ') }}: for each record the best-binding one is shown)</span>{% elif alts[0].name != o.role %} <span class="meta">{{ alts[0].name }}</span>{% endif %}</h3>
 <div class="scroll"><table>
   <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Match to the oligo</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for row in o.rows %}
   <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
     <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
-    <td>{{ match(row, o.role != 'probe') }}</td>
+    <td>{% if alts | length > 1 %}<strong>{{ row.oligo_name }}</strong>: {% endif %}{{ match(row, o.role != 'probe') }}</td>
     <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   </tbody>

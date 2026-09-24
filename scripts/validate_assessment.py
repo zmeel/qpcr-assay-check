@@ -62,7 +62,7 @@ from qpcr_assay_check.specificity.fetch import WindowFetcher
 log = logging.getLogger("validate")
 
 
-def _candidates(remote: Any, cfg: Any, tier: str) -> list[S.Candidate]:
+def _candidates(remote: Any, cfg: Any, tier: str, assay: Any) -> list[S.Candidate]:
     min_identical = cfg.search.relevance.min_identical_bases
     out: list[S.Candidate] = []
     for ps in remote.plan.searches:
@@ -73,7 +73,8 @@ def _candidates(remote: Any, cfg: Any, tier: str) -> list[S.Candidate]:
             for hit in remote.parsed[ps.key].queries[label].hits:
                 for hsp in hit.hsps:
                     if hsp.identity >= min_identical:
-                        out.append(S.make_candidate(tier, label, oligo, hit, hsp))
+                        role = assay.role_of(label)
+                        out.append(S.make_candidate(tier, label, oligo, hit, hsp, role))
     return out
 
 
@@ -104,7 +105,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         rules.alignment.gap_open, rules.alignment.gap_extend,
     )  # fmt: skip
 
-    cands = _candidates(remote, cfg, args.tier)
+    cands = _candidates(remote, cfg, args.tier, assay)
     partial = [c for c in cands if c.partial]
 
     def site_rules(c: S.Candidate) -> Any:

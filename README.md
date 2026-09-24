@@ -368,6 +368,43 @@ Notes:
   every variant is evaluated and the worst one decides.
 - `near_neighbour_taxids` and `exclusion_taxids` define the near-neighbour search tier of `search`.
 
+### Several oligos per role, and oligo names (v1.3.0)
+
+Some assays carry more than one forward primer, reverse primer or probe for the same target, when
+lineages differ too much for a wobble base. Each role takes a plain sequence (as above; its name is
+then the role), one named oligo, or a list of named oligos:
+
+```yaml
+forward: {name: NG-F, sequence: GTTGAAACACCGCCCGG}
+reverse: {name: NG-R, sequence: CGGTTTGACCGGTTAAAAAAAGAT}
+probe:
+  - name: NG-P1
+    sequence: CCCTTCAACATCAGTGAAA
+    reporter: FAM          # optional per probe; else probe_reporter
+    modifications: [MGB]   # optional per probe; else probe_modifications
+  - name: NG-P2
+    sequence: CTTTGAACCATCAGTGAAA
+reference_amplicons:       # optional; one per lineage, or a single reference_amplicon
+  - {name: lineage-1, sequence: ...}
+  - {name: lineage-2, sequence: ...}
+```
+
+- Oligos of the same role are alternatives in the same reaction mix: for each record the
+  best-binding one counts (fewest mismatches and gaps, then the cleanest 3' end). Probes with the
+  same reporter are alternatives; probes with different reporters detect different regions.
+- Names (letters, digits, `.`, `_`, `-`; unique; not ending in `_v` + a number, which labels
+  degenerate variants) are used in the report, the workbook, `hits.tsv` and as BLAST query labels.
+- QC checks every oligo, every dimer across the whole mix (including two alternatives), and the Tm
+  spread of each role's alternatives. Each oligo is placed in the reference amplicon it fits best;
+  an alternative that fits no reference is a warning when another oligo of its role fits.
+- Specificity searches every oligo under its own name; predicted products pair any forward with
+  any reverse primer. Variant tables name the alternative seen in each row.
+- Not yet (v1.3.0 step 2): coverage per oligo and per probe channel, escape lists, choosing the
+  best copy of a multi-copy target, and using more than the first reference amplicon to find the
+  region in the variant analysis.
+- Worked example (user-supplied sequences):
+  [`docs/examples/neisseria_gonorrhoeae_two_probes.yaml`](docs/examples/neisseria_gonorrhoeae_two_probes.yaml).
+
 ### The example assay
 
 `examples/cdc_2019-nCoV_N1.yaml` is the CDC 2019-nCoV N1 assay. Its file header documents the

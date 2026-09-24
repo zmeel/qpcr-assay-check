@@ -140,7 +140,13 @@ def _plotly_js() -> str:
 def render_report(result: RunResult, cfg: Config) -> str:
     """Render the evaluation record as one self-contained HTML document."""
     groups: list[tuple[str, list[CheckResult]]] = []
-    for key, title in _GROUPS:
+    kinds = {"forward": "Forward primer", "reverse": "Reverse primer", "probe": "Probe"}
+    oligo_groups = [
+        (o.name or o.role, kinds[o.role] if not o.name or o.name == o.role
+         else f"{kinds[o.role]} {o.name}")
+        for o in result.oligo_qc.oligos
+    ]  # fmt: skip
+    for key, title in [*oligo_groups, ("mix", "Reaction mix"), *_GROUPS[3:]]:
         items = [c for c in result.oligo_qc.checks if c.subject == key]
         if items:
             groups.append((title, items))

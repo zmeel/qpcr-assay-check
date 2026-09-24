@@ -152,7 +152,18 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - The user added the fragment for NG-P2 (79 nt): NG-P2 exact, forward exact; reverse site has a
   poly-T of 9 (vs 7) and one substitution. The NG-P2 copy in NZ_CP078119.1 has poly-T 10 and no
   substitution. Both fragments are in the example as `reference_amplicons` (planned field).
-- Next: go-ahead for v1.3.0 step 1.
+- v1.2.0 docs PR merged by the user. v1.3.0 step 1 implemented (user go-ahead): `Oligo` and
+  `ReferenceAmplicon` models; roles accept a sequence, a named oligo or a list; unique names,
+  `_v<n>` reserved; probe reporter/quencher/modifications per probe with assay-level defaults;
+  `Assay.role_of(label)` replaces label parsing (make_candidate takes the role). QC per oligo,
+  dimers across every pair in the mix, Tm spread per role; amplicon QC places each oligo in its
+  best-fitting reference, WARN for an alternative that fits none and for a reference without a
+  primer pair. Variant analysis and sampled inclusivity keep the best alternative per record;
+  variant rows carry `oligo_name`. NG example: QC places NG-P1 in fragment 1 and NG-P2 in fragment
+  2 exactly; fragment 2 has no reverse primer site within 2 mismatches (poly-T), reported as WARN.
+  406 tests pass. Known: first run after upgrade reports an assay change once (stored form).
+- Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
+  several references in the variant analysis) after the user's go-ahead.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

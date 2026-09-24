@@ -135,12 +135,22 @@ def write_workbook(result: RunResult, path: Path) -> None:
         "Inputs",
         ["Field", "Value"],
         [
-            ["forward (5'-3')", a.forward],
-            ["reverse (5'-3')", a.reverse],
-            ["probe (5'-3')", a.probe],
-            ["probe reporter", a.probe_reporter or ""],
-            ["probe quencher", a.probe_quencher or ""],
-            ["probe modifications", ", ".join(a.probe_modifications)],
+            *[
+                [
+                    f"{o.role} {o.name} (5'-3')" if o.name != o.role else f"{o.role} (5'-3')",
+                    o.sequence,
+                ]
+                for o in a.oligo_list
+            ],
+            *[
+                [
+                    f"probe {o.name} reporter / quencher / modifications"
+                    if o.name != "probe"
+                    else "probe reporter / quencher / modifications",
+                    f"{o.reporter or ''} / {o.quencher or ''} / {', '.join(o.modifications)}",
+                ]
+                for o in a.probe
+            ],
             ["template type", a.template_type.value],
             ["target taxid", a.target.taxid or ""],
             ["target accession", a.target.accession or ""],
@@ -287,7 +297,8 @@ def write_workbook(result: RunResult, path: Path) -> None:
              "Gaps", "Matching 3' nt", "Example accession", "Example organism",
              "First release", "Last release"],
             [
-                [o.role, row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
+                [o.role if row.oligo_name in ("", o.role) else f"{o.role} {row.oligo_name}",
+                 row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
                  row.clean_3prime_nt, row.example_accession, row.example_organism or "",
                  row.first_seen or "", row.last_seen or ""]
                 for o in vs.oligos

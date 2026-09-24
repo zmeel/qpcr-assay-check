@@ -28,7 +28,7 @@ from ..config import Config
 from ..errors import InputError
 from ..inclusivity.aggregate import _stats, _verdict
 from ..inclusivity.models import InclusivityOligoResult, InclusivityResult
-from ..models import Assay
+from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
 from ..oligo import iupac
 from ..oligo.amplicon import find_sites
@@ -58,13 +58,15 @@ def reference_amplicon(assay: Assay, fetch_fasta: Callable[[str], str]) -> tuple
             "'reference_amplicon' or a target 'accession' that contains both primers."
         )
     seqs = parse_fasta(fetch_fasta(acc))
-    fwd, rev_rc = assay.forward.upper(), iupac.reverse_complement(assay.reverse.upper())
-    for seq in seqs.values():
-        for s in (seq, iupac.reverse_complement(seq)):
-            i = s.find(fwd)
-            j = s.find(rev_rc, i + 1) if i >= 0 else -1
-            if i >= 0 and j >= 0:
-                return s[i : j + len(rev_rc)], f"cut from {acc} by exact primer matches"
+    for f in assay.forward:  # any forward/reverse pair of the mix
+        for r in assay.reverse:
+            fwd, rev_rc = f.sequence.upper(), iupac.reverse_complement(r.sequence.upper())
+            for seq in seqs.values():
+                for s in (seq, iupac.reverse_complement(seq)):
+                    i = s.find(fwd)
+                    j = s.find(rev_rc, i + 1) if i >= 0 else -1
+                    if i >= 0 and j >= 0:
+                        return s[i : j + len(rev_rc)], f"cut from {acc} by exact primer matches"
     raise InputError(
         f"Both primers were not found exactly (facing each other) in {acc}; give the assay a "
         "'reference_amplicon' so the variant analysis knows which region to look for."
@@ -135,16 +137,27 @@ def reference_context(amplicon: str, seqs: dict[str, str]) -> tuple[str, str]:
 def oligo_sites(
     assay: Assay, amplicon: str, max_mismatches: int
 ) -> dict[str, tuple[str, int, int]]:
-    """``role -> (strand, start, end)`` of each oligo in the reference amplicon (1-based)."""
+    """``role -> (strand, start, end)`` where each role binds in the reference amplicon (1-based).
+
+    With several oligos for a role (alternatives in one mix) the window spans every one that fits
+    the reference; one meant for another lineage may not fit, and is aligned in the same window.
+    """
     out: dict[str, tuple[str, int, int]] = {}
     for role in ROLES:
-        hits = find_sites(amplicon, assay.oligos[role], role, max_mismatches=max_mismatches)
-        if not hits:
+        placed = []
+        for o in assay.by_role(role):
+            hits = find_sites(amplicon, o.sequence, o.name, max_mismatches=max_mismatches)
+            if hits:
+                placed.append(hits[0])
+        if not placed:
+            names = ", ".join(o.name for o in assay.by_role(role))
             raise InputError(
-                f"The {role} oligo was not found in the reference amplicon with at most "
+                f"No {role} oligo ({names}) was found in the reference amplicon with at most "
                 f"{max_mismatches} mismatch(es); the variant analysis cannot place it."
             )
-        out[role] = (hits[0].strand, hits[0].start, hits[0].end)
+        strand = placed[0].strand
+        same = [h for h in placed if h.strand == strand]
+        out[role] = (strand, min(h.start for h in same), max(h.end for h in same))
     return out
 
 
@@ -253,7 +266,7 @@ def assess(
     sites_in_amplicon: dict[str, tuple[str, int, int]],
     cfg: Config,
 ) -> tuple[list[SiteResult], int, list[str]]:
-    """One site per oligo per assembly (best complete copy).
+    """One site per role per assembly (best complete copy; of alternative oligos, the best).
 
     Returns the sites, the number of assemblies whose region is cut by a contig end, and the
     accessions whose best copy has an N inside an oligo site (masked, not assessed).
@@ -285,14 +298,16 @@ def assess(
             hi = min(len(locus.region), locus.offset + end + SITE_PAD)
             window = locus.region[lo:hi]
             oriented = window if strand == "+" else iupac.reverse_complement(window)
-            oligo = assay.oligos[role].upper()
-            key = (oligo, oriented)
-            if key not in memo:
-                memo[key] = realign.align_semiglobal(oligo, oriented, scoring)
-            aln = memo[key]
             rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
+            options = []
+            for o in assay.by_role(role):  # alternatives in one mix: the best one binds
+                key = (o.sequence.upper(), oriented)
+                if key not in memo:
+                    memo[key] = realign.align_semiglobal(key[0], oriented, scoring)
+                options.append(_site(it, locus, o, strand, lo, len(window), memo[key], rules, 0))
             n += 1
-            per_role.append(_site(it, locus, role, strand, lo, len(window), aln, rules, n))
+            best = min(options, key=lambda s: (s.n_mismatch + s.n_gap, -s.clean_3prime_nt))
+            per_role.append(best.model_copy(update={"id": f"V{n}"}))
         if len(per_role) != len(ROLES):
             contig_break += 1
         elif any("N" in s.s_aln.upper() for s in per_role):
@@ -302,7 +317,7 @@ def assess(
     return sites, contig_break, masked_site
 
 
-def _site(it: StoredAssembly, locus: StoredLocus, role: str, strand: str, lo: int, wlen: int,
+def _site(it: StoredAssembly, locus: StoredLocus, o: Oligo, strand: str, lo: int, wlen: int,
           aln: realign.Alignment, rules, n: int) -> SiteResult:  # fmt: skip
     """A SiteResult on the assembly's contig (coordinates on the contig's forward strand)."""
     # indices in the region (sense orientation) covered by the aligned subject bases
@@ -317,7 +332,7 @@ def _site(it: StoredAssembly, locus: StoredLocus, role: str, strand: str, lo: in
     contig_orientation = "+" if (strand == "+") == (locus.strand == "+") else "-"
     m = realign.measure(aln.q_aln, aln.s_aln)
     return SiteResult(
-        id=f"V{n}", tier="target", query=role, role=role,  # type: ignore[arg-type]
+        id=f"V{n}", tier="target", query=o.name, role=o.role,  # type: ignore[arg-type]
         oligo=aln.q_aln.replace("-", ""), accession=it.accession, taxid=it.taxid,
         organism=it.organism, title=f"{locus.contig} ({it.assembly_level})",
         orientation=contig_orientation,  # type: ignore[arg-type]
@@ -345,10 +360,11 @@ def exhaustive_inclusivity(
         role_sites = [s for s in sites if s.role == role]
         windows = [
             _stats([s for s in role_sites if year_of.get(s.accession) == y], y, listed[y],
-                   len(assay.oligos[role]))
+                   max(len(o.sequence) for o in assay.by_role(role)))
             for y in shown
         ]  # fmt: skip
-        oligos.append(InclusivityOligoResult(role=role, oligo=assay.oligos[role], windows=windows))
+        oligo = " / ".join(o.sequence for o in assay.by_role(role))
+        oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
     verdict, rationale = _verdict(oligos, cfg.inclusivity)
     rationale += [
         f"{y.year}: {y.listed} "

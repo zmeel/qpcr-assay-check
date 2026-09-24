@@ -24,7 +24,7 @@ def cand(name, tier="background"):
     item = FIX[name]
     hit = Hit.model_validate(item["hit"] | {"descriptions": item["hit"]["description"]})
     label = item["label"]
-    return S.make_candidate(tier, label, OLIGOS[label], hit, hit.hsps[0])
+    return S.make_candidate(tier, label, OLIGOS[label], hit, hit.hsps[0], label.split("_v")[0])
 
 
 def test_minus_strand_convention_matches_the_real_output():
@@ -40,7 +40,7 @@ def test_minus_strand_convention_matches_the_real_output():
 def test_a_hit_group_can_carry_alignments_on_both_strands():
     item = FIX["sars2_probe_three_hsps"]
     hit = Hit.model_validate(item["hit"] | {"descriptions": item["hit"]["description"]})
-    made = [S.make_candidate("target", "probe", CDC_N1_P, hit, h) for h in hit.hsps]
+    made = [S.make_candidate("target", "probe", CDC_N1_P, hit, h, "probe") for h in hit.hsps]
     assert [c.orientation for c in made] == ["-", "+", "+"]
     starts = [
         S.site_from_full(c, RULES.probe_site, f"S{i}").subject_start for i, c in enumerate(made)
@@ -184,7 +184,12 @@ def test_record_type(acc, title, expected):
     assert S.record_type(acc, title) == expected
 
 
-def test_roles_come_from_query_labels():
-    assert [S.role_of(x) for x in ("forward", "forward_v12", "reverse_v3", "probe")] == [
-        "forward", "forward", "reverse", "probe",
+def test_roles_come_from_the_assay_s_oligo_names():
+    from .conftest import make_assay
+
+    assay = make_assay(probe=[{"name": "P1", "sequence": CDC_N1_P},
+                              {"name": "P2", "sequence": CDC_N1_P[::-1]}])  # fmt: skip
+    labels = ("forward", "forward_v12", "reverse_v3", "P1", "P2_v2")
+    assert [assay.role_of(x) for x in labels] == [
+        "forward", "forward", "reverse", "probe", "probe",
     ]  # fmt: skip

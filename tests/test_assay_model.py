@@ -8,7 +8,7 @@ from .conftest import make_assay
 
 def test_valid_assay_cleans_sequences():
     a = make_assay(forward="gac ccc aaa atc agc gaa at")
-    assert a.forward == "GACCCCAAAATCAGCGAAAT"
+    assert a.oligos["forward"] == "GACCCCAAAATCAGCGAAAT"
     assert a.slug == "cdc-n1"
 
 

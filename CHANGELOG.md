@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Several oligos per role and oligo names** (`models.py`, `oligo/qc.py`, `oligo/amplicon.py`,
+  specificity, variants, report; v1.3.0 step 1): a role takes a plain sequence (unchanged), one
+  named oligo, or a list of named oligos, which are alternatives in the same reaction mix. Probes
+  may carry their own reporter, quencher and modifications. New optional `reference_amplicons`
+  (one per lineage). QC checks every oligo, every dimer across the whole mix and the Tm spread per
+  role; each oligo is placed in the reference it fits best (an alternative that fits none is a
+  WARN when another oligo of its role fits; a reference without a primer pair is a WARN). BLAST
+  queries are labelled by oligo name and roles come from the assay, not from the label; products
+  pair any forward with any reverse primer and name the oligos. In the variant analysis and the
+  sampled inclusivity, the best-binding alternative counts for each record, and variant rows name
+  it. Existing assay files work unchanged; saved records load again. Worked example:
+  `docs/examples/neisseria_gonorrhoeae_two_probes.yaml` (now accepted by the tool).
+
+### Changed
+- Records written by earlier versions store the assay in the old form, so the first run after
+  upgrading reports "The assay definition or configuration changed" once, although nothing did.
+
 ## [1.2.0] - 2026-09-24
 
 Report readability: grouped off-target variants and links to NCBI.

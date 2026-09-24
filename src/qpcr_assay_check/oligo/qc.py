@@ -11,7 +11,7 @@ import logging
 from collections.abc import Callable, Sequence
 
 from ..config import Config
-from ..models import Assay, Status, worst
+from ..models import ROLES, Assay, Oligo, Status, worst
 from ..results import CheckResult, OligoInfo, QCReport, StructureResult
 from . import amplicon as amplicon_mod
 from . import iupac, thermo
@@ -79,16 +79,22 @@ def _cap_at_warn(grader: Grader) -> Grader:
     return capped
 
 
+def label(o: Oligo) -> str:
+    """How an oligo is named in check names: 'Forward primer', or 'Forward primer NG-F'."""
+    kind = {"forward": "Forward primer", "reverse": "Reverse primer", "probe": "Probe"}[o.role]
+    return kind if o.name == o.role else f"{kind} {o.name}"
+
+
 def _primer_checks(
-    role: str, variants: list[str], tms: list[float], cfg: Config
+    o: Oligo, variants: list[str], tms: list[float], cfg: Config
 ) -> list[CheckResult]:
     t = cfg.thresholds.primer
-    cap = role.capitalize()
+    role, cap = o.name, label(o)
     out = [
         _numeric_check(
             id=f"{role}.length",
             subject=role,
-            name=f"{cap} primer length",
+            name=f"{cap} length",
             values=[float(len(v)) for v in variants],
             grade=t.length_nt.grade,
             unit="nt",
@@ -99,7 +105,7 @@ def _primer_checks(
         _numeric_check(
             id=f"{role}.gc",
             subject=role,
-            name=f"{cap} primer GC content",
+            name=f"{cap} GC content",
             values=[iupac.gc_percent(v) for v in variants],
             grade=t.gc_percent.grade,
             unit="%",
@@ -109,7 +115,7 @@ def _primer_checks(
         _numeric_check(
             id=f"{role}.tm",
             subject=role,
-            name=f"{cap} primer Tm",
+            name=f"{cap} Tm",
             values=tms,
             grade=t.tm_c.grade,
             unit="°C",
@@ -119,7 +125,7 @@ def _primer_checks(
         _numeric_check(
             id=f"{role}.gc_last5",
             subject=role,
-            name=f"{cap} primer G/C in last 5 nt (3' end)",
+            name=f"{cap} G/C in last 5 nt (3' end)",
             values=[float(sum(c in "GC" for c in v[-5:])) for v in variants],
             grade=t.gc_in_last5.grade,
             unit="G/C",
@@ -135,7 +141,7 @@ def _primer_checks(
         _numeric_check(
             id=f"{role}.three_prime_dg",
             subject=role,
-            name=f"{cap} primer 3' end stability (last 5 nt, nearest-neighbour ΔG°37)",
+            name=f"{cap} 3' end stability (last 5 nt, nearest-neighbour ΔG°37)",
             values=[thermo.nn_dg37(v[-5:]) for v in variants],
             grade=_info,
             unit="kcal/mol",
@@ -145,7 +151,7 @@ def _primer_checks(
         _numeric_check(
             id=f"{role}.max_run",
             subject=role,
-            name=f"{cap} primer longest single-base run",
+            name=f"{cap} longest single-base run",
             values=[float(iupac.longest_run(v)) for v in variants],
             grade=t.max_run.grade,
             unit="nt",
@@ -156,7 +162,7 @@ def _primer_checks(
         _numeric_check(
             id=f"{role}.max_g_run",
             subject=role,
-            name=f"{cap} primer longest G run",
+            name=f"{cap} longest G run",
             values=[float(iupac.longest_run(v, "G")) for v in variants],
             grade=t.max_g_run.grade,
             unit="nt",
@@ -169,7 +175,7 @@ def _primer_checks(
 
 
 def _probe_checks(
-    assay: Assay,
+    o: Oligo,
     variants: list[str],
     probe_tms: list[float],
     fwd_tms: list[float],
@@ -178,11 +184,12 @@ def _probe_checks(
     cfg: Config,
 ) -> list[CheckResult]:
     t = cfg.thresholds.probe
+    pid, cap = o.name, label(o)
     out = [
         _numeric_check(
-            id="probe.length",
-            subject="probe",
-            name="Probe length",
+            id=f"{pid}.length",
+            subject=pid,
+            name=f"{cap} length",
             values=[float(len(v)) for v in variants],
             grade=t.length_nt.grade,
             unit="nt",
@@ -191,9 +198,9 @@ def _probe_checks(
             hint=lambda v: f"{v:.0f} nt is outside the preferred probe length.",
         ),
         _numeric_check(
-            id="probe.gc",
-            subject="probe",
-            name="Probe GC content",
+            id=f"{pid}.gc",
+            subject=pid,
+            name=f"{cap} GC content",
             values=[iupac.gc_percent(v) for v in variants],
             grade=t.gc_percent.grade,
             unit="%",
@@ -201,9 +208,9 @@ def _probe_checks(
             hint=lambda v: f"GC content of {v:.1f}% is outside the preferred range.",
         ),
         _numeric_check(
-            id="probe.tm",
-            subject="probe",
-            name="Probe Tm",
+            id=f"{pid}.tm",
+            subject=pid,
+            name=f"{cap} Tm",
             values=probe_tms,
             grade=_info,
             unit="°C",
@@ -218,9 +225,9 @@ def _probe_checks(
     hi = max(probe_tms) - (min(fwd_tms) + min(rev_tms)) / 2
     out.append(
         _numeric_check(
-            id="probe.tm_minus_primers",
-            subject="probe",
-            name="Probe Tm minus mean primer Tm",
+            id=f"{pid}.tm_minus_primers",
+            subject=pid,
+            name=f"{cap} Tm minus mean primer Tm",
             values=[lo, hi],
             grade=diff_grader,
             unit="°C",
@@ -233,9 +240,9 @@ def _probe_checks(
     )
     out += [
         _numeric_check(
-            id="probe.max_run",
-            subject="probe",
-            name="Probe longest single-base run",
+            id=f"{pid}.max_run",
+            subject=pid,
+            name=f"{cap} longest single-base run",
             values=[float(iupac.longest_run(v)) for v in variants],
             grade=t.max_run.grade,
             unit="nt",
@@ -244,9 +251,9 @@ def _probe_checks(
             hint=lambda v: f"A run of {v:.0f} identical bases in the probe.",
         ),
         _numeric_check(
-            id="probe.max_g_run",
-            subject="probe",
-            name="Probe longest G run",
+            id=f"{pid}.max_g_run",
+            subject=pid,
+            name=f"{cap} longest G run",
             values=[float(iupac.longest_run(v, "G")) for v in variants],
             grade=t.max_g_run.grade,
             unit="nt",
@@ -260,9 +267,9 @@ def _probe_checks(
         excess = [float(v.count("G") - v.count("C")) for v in variants]
         out.append(
             _numeric_check(
-                id="probe.g_minus_c",
-                subject="probe",
-                name="Probe G count minus C count",
+                id=f"{pid}.g_minus_c",
+                subject=pid,
+                name=f"{cap} G count minus C count",
                 values=excess,
                 grade=lambda v: Status.WARN if v > 0 else Status.PASS,
                 unit="nt",
@@ -274,14 +281,14 @@ def _probe_checks(
             )
         )
 
-    out.append(_five_prime_g_check(assay, variants, cfg))
+    out.append(_five_prime_g_check(o, variants, cfg))
 
     if unreliable:
         out.append(
             CheckResult(
-                id="probe.tm_reliability",
-                subject="probe",
-                name="Probe Tm reliability",
+                id=f"{pid}.tm_reliability",
+                subject=pid,
+                name=f"{cap} Tm reliability",
                 status=Status.WARN,
                 display=", ".join(unreliable),
                 message=(
@@ -294,17 +301,17 @@ def _probe_checks(
     return out
 
 
-def _five_prime_g_check(assay: Assay, variants: list[str], cfg: Config) -> CheckResult:
+def _five_prime_g_check(o: Oligo, variants: list[str], cfg: Config) -> CheckResult:
     """A 5' G next to the reporter quenches fluorescence for FAM-type dyes."""
-    reporter = (assay.probe_reporter or "").strip()
+    reporter = (o.reporter or "").strip()
     sensitive = any(
         tok.upper() in reporter.upper() for tok in cfg.thresholds.probe.g_sensitive_reporters
     )
     has_g = any(v[0] == "G" for v in variants)
     base = {
-        "id": "probe.five_prime_g",
-        "subject": "probe",
-        "name": "Probe 5' base",
+        "id": f"{o.name}.five_prime_g",
+        "subject": o.name,
+        "name": f"{label(o)} 5' base",
         "display": "/".join(sorted({v[0] for v in variants})),
         "rule": "WARN if the 5' base is G and the reporter is FAM-type (or unspecified)",
     }
@@ -389,22 +396,24 @@ def _structure_result(
 
 
 def _structures(
-    variants: dict[str, list[str]], cfg: Config, cond: thermo.Conditions
+    oligos: list[Oligo], variants: dict[str, list[str]], cfg: Config, cond: thermo.Conditions
 ) -> list[StructureResult]:
+    """Hairpins and self-dimers per oligo; dimers and 3'-end dimers across the whole mix."""
     out: list[StructureResult] = []
     primer_nM, probe_nM = cfg.reaction.primer_nM, cfg.reaction.probe_nM
     cap = cfg.oligo.max_pair_combinations
+    role = {o.name: o.role for o in oligos}
 
-    def nm_for(*roles: str) -> float:
-        return probe_nM if "probe" in roles else primer_nM
+    def nm_for(*names: str) -> float:
+        return probe_nM if any(role[n] == "probe" for n in names) else primer_nM
 
-    for role, vs in variants.items():
-        nM = nm_for(role)
+    for o in oligos:
+        vs, nM = variants[o.name], nm_for(o.name)
         out.append(
             _structure_result(
                 "hairpin",
-                f"{role} hairpin",
-                [role],
+                f"{o.name} hairpin",
+                [o.name],
                 [(v, thermo.hairpin(v, cond, nM=nM)) for v in vs],
                 len(vs),
                 cfg,
@@ -413,8 +422,8 @@ def _structures(
         out.append(
             _structure_result(
                 "homodimer",
-                f"{role} self-dimer",
-                [role],
+                f"{o.name} self-dimer",
+                [o.name],
                 [(v, thermo.homodimer(v, cond, nM=nM)) for v in vs],
                 len(vs),
                 cfg,
@@ -426,50 +435,47 @@ def _structures(
         pairs = list(itertools.islice(itertools.product(variants[a], variants[b]), cap))
         return pairs, total
 
-    for a, b in (("forward", "reverse"), ("forward", "probe"), ("reverse", "probe")):
+    names = [o.name for o in oligos]
+    for a, b in itertools.combinations(names, 2):  # every pair in the mix
         pairs, total = combos(a, b)
-        nM = nm_for(a, b)
         out.append(
             _structure_result(
                 "heterodimer",
                 f"{a} / {b} dimer",
                 [a, b],
-                [(f"{x} + {y}", thermo.heterodimer(x, y, cond, nM=nM)) for x, y in pairs],
+                [(f"{x} + {y}", thermo.heterodimer(x, y, cond, nM=nm_for(a, b))) for x, y in pairs],
                 total,
                 cfg,
             )
         )
 
-    for a, b in (
-        ("forward", "forward"),
-        ("forward", "reverse"),
-        ("forward", "probe"),
-        ("reverse", "reverse"),
-        ("reverse", "forward"),
-        ("reverse", "probe"),
-    ):
-        pairs, total = combos(a, b)
-        nM = nm_for(a, b)
-        out.append(
-            _structure_result(
-                "end_dimer",
-                f"3' end of {a} on {b}",
-                [a, b],
-                [(f"{x} + {y}", thermo.end_dimer(x, y, cond, nM=nM)) for x, y in pairs],
-                total,
-                cfg,
-            )
-        )
+    for a in (o.name for o in oligos if o.role != "probe"):  # a primer's 3' end on any oligo
+        for b in [a, *(n for n in names if n != a)]:
+            pairs, total = combos(a, b)
+            out.append(
+                _structure_result(
+                    "end_dimer",
+                    f"3' end of {a} on {b}",
+                    [a, b],
+                    [(f"{x} + {y}", thermo.end_dimer(x, y, cond, nM=nm_for(a, b)))
+                     for x, y in pairs],
+                    total,
+                    cfg,
+                )
+            )  # fmt: skip
     return out
 
 
-def _oligo_info(role: str, seq: str, variants: list[str], tms: list[float]) -> OligoInfo:
+def _oligo_info(o: Oligo, variants: list[str], tms: list[float]) -> OligoInfo:
     gcs = [iupac.gc_percent(v) for v in variants]
     return OligoInfo(
-        role=role,
-        sequence=seq,
-        length_nt=len(seq),
-        degenerate=iupac.is_degenerate(seq),
+        role=o.role,
+        name=o.name,
+        sequence=o.sequence,
+        reporter=o.reporter if o.role == "probe" else None,
+        modifications=list(o.modifications) if o.role == "probe" else [],
+        length_nt=len(o.sequence),
+        degenerate=iupac.is_degenerate(o.sequence),
         n_variants=len(variants),
         variants=variants,
         gc_percent_min=min(gcs),
@@ -479,42 +485,59 @@ def _oligo_info(role: str, seq: str, variants: list[str], tms: list[float]) -> O
     )
 
 
-def run_oligo_qc(assay: Assay, cfg: Config) -> QCReport:
-    """Run all oligo QC checks for one assay."""
-    cond = thermo.Conditions.from_reaction(cfg.reaction)
-    variants = {
-        role: iupac.expand(seq, cfg.oligo.max_degenerate_expansions)
-        for role, seq in assay.oligos.items()
-    }
-    nM = {
-        "forward": cfg.reaction.primer_nM,
-        "reverse": cfg.reaction.primer_nM,
-        "probe": cfg.reaction.probe_nM,
-    }
-    tms = {
-        role: [thermo.melting_temp(v, cond, nM=nM[role]) for v in vs]
-        for role, vs in variants.items()
-    }
-    unreliable = assay.declared_modifications(TM_UNRELIABLE_TOKENS)
-    log.info(
-        "Oligo QC for %r: %s",
-        assay.assay_name,
-        {r: len(v) for r, v in variants.items()},
+def _role_spread(role: str, oligos: list[Oligo], tms: dict[str, list[float]]) -> CheckResult:
+    """Tm spread across the alternatives of one role (informational)."""
+    lo = min(min(tms[o.name]) for o in oligos)
+    hi = max(max(tms[o.name]) for o in oligos)
+    kind = {"forward": "forward primers", "reverse": "reverse primers", "probe": "probes"}[role]
+    return CheckResult(
+        id=f"mix.{role}_tm_spread",
+        subject="mix",
+        name=f"Tm spread of the {kind} ({', '.join(o.name for o in oligos)})",
+        status=Status.INFO,
+        display=f"{lo:.1f}–{hi:.1f}",
+        value=hi - lo,
+        unit="°C",
+        message=f"The {len(oligos)} {kind} anneal within {hi - lo:.1f} °C of each other.",
+        rule="Informational: alternatives for one role in the same mix",
     )
+
+
+def run_oligo_qc(assay: Assay, cfg: Config) -> QCReport:
+    """Run all oligo QC checks for one assay: every oligo of the mix, and the mix as a whole."""
+    cond = thermo.Conditions.from_reaction(cfg.reaction)
+    oligos = assay.oligo_list
+    variants = {
+        o.name: iupac.expand(o.sequence, cfg.oligo.max_degenerate_expansions) for o in oligos
+    }
+    nM = {"forward": cfg.reaction.primer_nM, "reverse": cfg.reaction.primer_nM,
+          "probe": cfg.reaction.probe_nM}  # fmt: skip
+    tms = {
+        o.name: [thermo.melting_temp(v, cond, nM=nM[o.role]) for v in variants[o.name]]
+        for o in oligos
+    }
+    by_role = {r: [t for o in assay.by_role(r) for t in tms[o.name]] for r in ROLES}
+    unreliable = assay.declared_modifications(TM_UNRELIABLE_TOKENS)
+    log.info("Oligo QC for %r: %s", assay.assay_name, {n: len(v) for n, v in variants.items()})
 
     checks: list[CheckResult] = []
-    for role in ("forward", "reverse"):
-        checks += _primer_checks(role, variants[role], tms[role], cfg)
-    checks += _probe_checks(
-        assay, variants["probe"], tms["probe"], tms["forward"], tms["reverse"], unreliable, cfg
-    )
-    checks += _pair_checks(tms["forward"], tms["reverse"], cfg)
+    for o in [*assay.forward, *assay.reverse]:
+        checks += _primer_checks(o, variants[o.name], tms[o.name], cfg)
+    for o in assay.probe:
+        checks += _probe_checks(
+            o, variants[o.name], tms[o.name], by_role["forward"], by_role["reverse"],
+            o.declared_modifications(TM_UNRELIABLE_TOKENS), cfg,
+        )  # fmt: skip
+    checks += _pair_checks(by_role["forward"], by_role["reverse"], cfg)
+    for r in ROLES:
+        if len(assay.by_role(r)) > 1:
+            checks.append(_role_spread(r, assay.by_role(r), tms))
 
-    structures = _structures(variants, cfg, cond)
+    structures = _structures(oligos, variants, cfg, cond)
 
     summary = None
     amplicon_note = ""
-    if assay.reference_amplicon:
+    if assay.reference_amplicons:
         summary, amp_checks = amplicon_mod.analyse(assay, cfg)
         checks += amp_checks
     else:
@@ -526,7 +549,7 @@ def run_oligo_qc(assay: Assay, cfg: Config) -> QCReport:
 
     status = worst([c.status for c in checks] + [s.status for s in structures])
     return QCReport(
-        oligos=[_oligo_info(r, assay.oligos[r], variants[r], tms[r]) for r in assay.oligos],
+        oligos=[_oligo_info(o, variants[o.name], tms[o.name]) for o in oligos],
         checks=checks,
         structures=structures,
         amplicon=summary,

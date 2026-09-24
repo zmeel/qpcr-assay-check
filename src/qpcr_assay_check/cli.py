@@ -37,6 +37,15 @@ assay_name: ""            # REQUIRED
 forward: ""               # REQUIRED
 reverse: ""               # REQUIRED
 probe: ""                 # REQUIRED  (sequence only; dye and quencher go below)
+# Several oligos for one role (alternatives in the same mix), each with a name, e.g.:
+# probe:
+#   - name: P1
+#     sequence: ""
+#     reporter: FAM        # optional per probe; otherwise probe_reporter below
+#     modifications: [MGB]
+#   - name: P2
+#     sequence: ""
+# A single oligo can be named too:  forward: {name: F1, sequence: ""}
 probe_reporter: FAM
 probe_quencher: BHQ1
 probe_modifications: []   # e.g. [MGB] or [ZEN]; any entry triggers a Tm-reliability warning
@@ -46,6 +55,9 @@ target:                   # REQUIRED: give a taxonomy ID and/or a reference acce
   accession:
   gene:
 # reference_amplicon: ""  # optional sense-strand amplicon (enables amplicon checks)
+# reference_amplicons:    # or several, one per lineage, each oligo placed in the best fit
+#   - name: lineage-A
+#     sequence: ""
 oligo_source: ""          # where these sequences come from (publication, vendor, in-house)
 # exclusivity_organisms:  # optional: this assay's own exclusivity panel (organism names), used
 #   - ""                  # instead of the global list when organisms.source is "assay" (default)
@@ -124,8 +136,9 @@ def validate(
         _fail(str(exc))
         return
     typer.echo(f"OK: '{assay.assay_name}' ({assay.template_type.value}) is valid.")
-    for role, seq in assay.oligos.items():
-        typer.echo(f"  {role:8} {seq} ({len(seq)} nt)")
+    for o in assay.oligo_list:
+        name = o.role if o.name == o.role else f"{o.role} {o.name}"
+        typer.echo(f"  {name:8} {o.sequence} ({len(o.sequence)} nt)")
     typer.echo(f"  configuration: annealing {cfg.reaction.annealing_temp_C:g} °C")
 
 
