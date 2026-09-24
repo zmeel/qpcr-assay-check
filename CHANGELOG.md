@@ -30,6 +30,11 @@ All notable changes to this project are documented here. The format follows
   N. meningitidis for exclusivity).
 
 ### Fixed
+- **A genome download cut off mid-transfer crashed the run** (`ncbi/http.py`,
+  `variants/datasets.py`): after hours of NCBI Datasets downloads, one response ended
+  prematurely and the unhandled error ended the run. Such responses are now retried with backoff
+  like other network errors; if they keep failing, that batch is counted as a failed download and
+  retried on the next run. A damaged zip member is handled the same way.
 - **Intended-target check with named oligos**: it parsed query labels, so an assay with named
   oligos was reported as having no perfect hit for forward, probe and reverse. It now counts per
   oligo name and flags a role only when none of its oligos has a perfect hit (found live on the

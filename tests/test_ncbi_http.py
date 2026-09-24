@@ -90,6 +90,21 @@ def test_connection_errors_are_retried(cfg):
     assert len(session.calls) == 2
 
 
+@pytest.mark.parametrize(
+    "error",
+    [requests.exceptions.ChunkedEncodingError("Response ended prematurely"),
+     requests.exceptions.ContentDecodingError("bad gzip")],
+)  # fmt: skip
+def test_a_download_cut_off_mid_transfer_is_retried_then_an_ncbi_error(cfg, error):
+    """Live: a Datasets genome download ended prematurely and crashed a long run."""
+    http, session, _ = make(cfg, [error, FakeResponse(200, "ok")])
+    assert http.request("GET", BLAST, service="blast", params={}).text == "ok"
+    n = cfg.ncbi.max_retries + 1
+    http, session, _ = make(cfg, [error] * n)
+    with pytest.raises(NcbiError, match="ended prematurely|bad gzip"):
+        http.request("GET", BLAST, service="blast", params={})
+
+
 def test_client_errors_fail_immediately_and_never_leak_the_key(cfg):
     http, session, _ = make(
         cfg, [FakeResponse(400, "bad request api_key=SECRETKEY")], key="SECRETKEY"

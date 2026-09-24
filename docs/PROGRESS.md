@@ -180,6 +180,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   inputs are not permitted"). Examples now offer it as one line to uncomment
   (`search: {background_taxids: []}`; an explicit [9606] would override a lab-wide --config),
   and config errors name the section a misplaced key belongs to.
+- Live NG datasets run (2026-09-24): ~17,000 assemblies scanned over 3 years (3011 + 6141 +
+  7880 of 10848) before a genome download ended mid-transfer (requests ChunkedEncodingError,
+  "Response ended prematurely"), which the HTTP layer did not treat as transient: the run
+  crashed. Fixed: ChunkedEncodingError/ContentDecodingError are retried with backoff and become
+  an NcbiError (the batch is then counted as failed and retried next run); a damaged zip member
+  is an NcbiError too. The region store kept every scanned assembly, so a rerun resumes.
 - Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
   several references in the variant analysis) after the user's go-ahead.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
