@@ -137,6 +137,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Checked the content: /nuccore/<acc> returned the challenge for 3 of 3 accessions, /nucleotide/
   served the record page for all 3; datasets genome and Taxonomy Browser pages were not
   challenged. Links switched to /nucleotide/. NCBI can change this protection at any time.
+- Confirmed live (N1 rerun, 2026-09-24): 78 /nucleotide/ links and 19 taxonomy links, no
+  /nuccore/; three sampled links open the record page. Grouped off-target table: 14 rows for the
+  49 Influenza A sites. Released as v1.2.0 (CHANGELOG section, version bump); the user merges and
+  tags. Next: the user picks features from docs/FEATURE_IDEAS.md.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

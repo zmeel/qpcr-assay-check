@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-24
+
+Report readability: grouped off-target variants and links to NCBI.
+
 ### Changed
 - **"Closest off-target sites" groups identical binding variants** (`specificity/variants.py`,
   report, workbook): instead of a long list of near-identical sites, one row per oligo and exact
