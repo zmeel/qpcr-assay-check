@@ -92,40 +92,47 @@ TEMPLATE = Path(__file__).parents[1] / "examples" / "assay_template.yaml"
 
 
 def _filled(text: str) -> dict:
-    """The template with its required fields filled (SYNTHETIC test values, not an assay)."""
+    """The template with its placeholders filled (SYNTHETIC test values, not an assay)."""
     data = yaml.safe_load(text)
-    data.update(assay_name="template test", forward="ACGTACGTACGTACGTAC",
-                reverse="TTGCATTGCAAGCTTGCA", probe="CCATGGCATTACGGACTTGA",
+    data.update(assay_name="template test",
+                forward={"name": "F", "sequence": "ACGTACGTACGTACGTAC"},
+                reverse={"name": "R", "sequence": "TTGCATTGCAAGCTTGCA"},
                 target={"taxid": 485})  # fmt: skip
+    data["probe"][0]["sequence"] = "CCATGGCATTACGGACTTGA"
+    data.pop("reference_amplicons")
     return data
 
 
-def test_the_full_template_is_valid_as_shipped():
+def _reference() -> dict:
+    """The commented settings reference at the bottom of the template, as YAML."""
+    text = TEMPLATE.read_text()
+    block = text.split("# --- settings reference start ---\n")[1].split(
+        "# --- settings reference end ---"
+    )[0]
+    return yaml.safe_load("".join(line[2:] + "\n" for line in block.splitlines()))
+
+
+def test_the_template_is_valid_once_filled_and_its_settings_are_the_defaults():
     from qpcr_assay_check.models import Assay
 
     assay = Assay.model_validate(_filled(TEMPLATE.read_text()))
-    assert load_config(None, assay.settings) == load_config()  # nothing active: all defaults
-
-
-def test_every_option_in_the_template_shows_its_true_default():
-    """Uncommenting every option must reproduce the built-in defaults exactly (and be valid)."""
-    import re
-
-    from qpcr_assay_check.models import Assay
-
-    text = re.sub(r"^(\s+)# ([A-Za-z_0-9]+:)", r"\1\2", TEMPLATE.read_text(), flags=re.M)
-    assay = Assay.model_validate(_filled(text))
-    assert assay.settings["variants"]["source"] == "datasets"  # options really were uncommented
+    assert [o.name for o in assay.oligo_list] == ["F", "R", "P"]
     assert load_config(None, assay.settings) == load_config()
 
 
-def test_the_template_lists_every_option_an_assay_may_set():
-    import re
+def test_every_option_in_the_reference_shows_its_true_default():
+    """Copying every reference line into settings must reproduce the built-in defaults exactly."""
+    from qpcr_assay_check.models import Assay
 
+    ref = _reference()
+    assay = Assay.model_validate(_filled(TEMPLATE.read_text()) | {"settings": ref})
+    assert load_config(None, assay.settings) == load_config()
+
+
+def test_the_reference_lists_every_option_an_assay_may_set():
     from qpcr_assay_check.models import ASSAY_SETTING_SECTIONS
 
-    text = re.sub(r"^(\s+)# ([A-Za-z_0-9]+:)", r"\1\2", TEMPLATE.read_text(), flags=re.M)
-    shown = yaml.safe_load(text)["settings"]
+    shown = _reference()
     defaults = load_config().model_dump()
     leaf = {"pass_range", "warn_at", "min", "warn_above", "max_mismatches", "match"}
 
@@ -138,9 +145,7 @@ def test_the_template_lists_every_option_an_assay_may_set():
                 out += missing(have[key] or {}, value, f"{path}{key}.")
         return out
 
-    gaps = [
-        m for s in ASSAY_SETTING_SECTIONS for m in missing(shown[s] or {}, defaults[s], s + ".")
-    ]
+    gaps = [m for s in ASSAY_SETTING_SECTIONS for m in missing(shown[s], defaults[s], s + ".")]
     assert gaps == []
 
 

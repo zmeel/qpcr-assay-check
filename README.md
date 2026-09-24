@@ -345,11 +345,12 @@ Command-line options override values in the assay file.
 
 ## Assay file
 
-**Every option, explained:** [`examples/assay_template.yaml`](examples/assay_template.yaml) (also
-written by `qpcr-assay-check init`) lists every assay field and every setting an assay may carry,
-with its default and what it does. The settings are commented out; to change one, delete only
-its `# ` and edit the value. A test checks that the template's defaults are the real ones and
-that no option is missing.
+**Template:** [`examples/assay_template.yaml`](examples/assay_template.yaml) (also written by
+`qpcr-assay-check init`) is a compact assay file: one line per oligo and a short `settings:`
+with only what differs from the defaults (see the N. gonorrhoeae example for a filled one). Below
+it, a commented reference lists every other option with its default; copy a line into
+`settings:` (same indentation) only when an assay needs another value. Tests check that the
+reference's defaults are the real ones and that no option is missing.
 
 ```yaml
 assay_name: CDC 2019-nCoV N1

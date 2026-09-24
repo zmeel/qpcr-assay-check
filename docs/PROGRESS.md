@@ -79,6 +79,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Settings options are commented out under active section names (empty sections now read as
   empty); tests: shipped template valid, uncommenting all options == built-in defaults, no option
   missing, init writes the same file. 423 tests pass.
+- The user preferred the compact layout of my earlier proposal (flow-style oligos, settings with
+  only what differs) over the long commented template: template and NG example rewritten that
+  way; every other option moved to a commented reference block at the end of the template
+  (tests parse that block: all options present, defaults exact).
 - Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
   several references in the variant analysis) after the user's go-ahead.
 

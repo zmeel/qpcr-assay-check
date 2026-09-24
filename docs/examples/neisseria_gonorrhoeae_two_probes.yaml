@@ -6,7 +6,7 @@
 #   fragment, specificity per oligo, best alternative per record. Coverage per oligo, escape lists,
 #   the best copy of this multi-copy target, and region finding from both fragments follow in
 #   step 2 (the variant analysis uses the first fragment until then). Settings for this assay
-#   are in its own 'settings:' section at the end (from v1.3.0); no separate config file needed.
+#   are in its own 'settings:' section at the end; no separate config file needed.
 #
 # PROVENANCE
 #   Sequences supplied by the user (2026-09-24); not checked against a publication or kit insert.
@@ -14,8 +14,8 @@
 #
 # WHAT WAS CHECKED (2026-09-24)
 #   * Against the first fragment (NG-fragment-P1, 76 nt): forward primer at 1-17, reverse primer
-#     binding site at 53-76 (reverse complement), probe NG-P1 at 34-52 exactly. NG-P2 binds the same site with
-#     5 mismatches in its 5' half: it is the alternative probe for a divergent variant.
+#     binding site at 53-76 (reverse complement), probe NG-P1 at 34-52 exactly. NG-P2 binds the
+#     same site with 5 mismatches in its 5' half: the alternative probe for a divergent variant.
 #   * Live, on three RefSeq complete genomes of N. gonorrhoeae (taxid 485): NZ_CP145053.1,
 #     NZ_CP145037.1, NZ_CP078119.1. The target is multi-copy (6-7 forward and 3-7 reverse primer
 #     sites per genome; copies differ). NG-P1 matches exactly 2-4 times per genome; NG-P2 matches
@@ -30,37 +30,29 @@
 #     differs between copies and strains (and homopolymer runs are prone to sequencing errors).
 #   * Probe quencher: MGB probes were given as "FAM-MGB"; the quencher was not specified and is
 #     left empty rather than guessed.
+#   * Template: DNA (not stated by the user; DNA for a bacterial target). Exclusivity: N.
+#     meningitidis, as in the user's first live run (taxid 487).
+
 assay_name: Neisseria gonorrhoeae (two probes)
-forward:
-  name: NG-F
-  sequence: GTTGAAACACCGCCCGG
-reverse:
-  name: NG-R
-  sequence: CGGTTTGACCGGTTAAAAAAAGAT
+forward: {name: NG-F, sequence: GTTGAAACACCGCCCGG}
+reverse: {name: NG-R, sequence: CGGTTTGACCGGTTAAAAAAAGAT}
 probe:
-  - name: NG-P1
-    sequence: CCCTTCAACATCAGTGAAA
-    reporter: FAM
-    modifications: [MGB]
-  - name: NG-P2
-    sequence: CTTTGAACCATCAGTGAAA
-    reporter: FAM
-    modifications: [MGB]
-template_type: DNA   # not stated by the user; DNA is the default for a bacterial target
+  - {name: NG-P1, sequence: CCCTTCAACATCAGTGAAA, reporter: FAM, modifications: [MGB]}
+  - {name: NG-P2, sequence: CTTTGAACCATCAGTGAAA, reporter: FAM, modifications: [MGB]}
+template_type: DNA
 target:
   taxid: 485
-reference_amplicons:   # one reference per lineage
-  - name: NG-fragment-P1
-    sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCCTTCAACATCAGTGAAAATCTTTTTTTAACCGGTCAAACCG
-  - name: NG-fragment-P2
-    sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCTTTGAACCATCAGTGAAAATCTTTTTTTTTAACCGGTTAAACCG
-oligo_source: Supplied by the user; source publication or kit not stated.
-exclusivity_organisms:   # as in the user's first live run (taxid 487)
+reference_amplicons:
+  - {name: NG-fragment-P1, sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCCTTCAACATCAGTGAAAATCTTTTTTTAACCGGTCAAACCG}
+  - {name: NG-fragment-P2, sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCTTTGAACCATCAGTGAAAATCTTTTTTTTTAACCGGTTAAACCG}
+exclusivity_organisms:
   - Neisseria meningitidis
+oligo_source: Supplied by the user; source publication or kit not stated.
 
-# This assay's own settings (same structure as config.yaml; applied over the defaults and any
-# --config file). A bacterium: the variant analysis uses every genome assembly.
-settings:
+settings:                       # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60        # this assay's cycling protocol
+  search:
+    background_taxids: [9606]   # human background search; [] skips it
   variants:
-    source: datasets
-#  search: {background_taxids: []}   # to skip the human search, delete the '#' only
+    source: datasets            # bacterium: every genome assembly

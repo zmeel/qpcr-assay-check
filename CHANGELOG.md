@@ -29,11 +29,12 @@ All notable changes to this project are documented here. The format follows
   `blast_partitioned` with the genome-length filter; N. gonorrhoeae: `datasets` and
   N. meningitidis for exclusivity).
 
-- **Full assay template** (`examples/assay_template.yaml`, written by `init`): every assay field
-  and every setting an assay may carry, with defaults and explanations; options are commented
-  out under active section names, so using one means deleting its `# ` only. Sections whose
-  options are all commented out read as empty. Tests check that uncommenting everything
-  reproduces the built-in defaults exactly and that no option is missing.
+- **Assay template** (`examples/assay_template.yaml`, written by `init`): compact, as the user
+  preferred (one line per oligo, a short `settings:` with only what differs), followed by a
+  commented reference of every other option with its default, to copy in when needed. Tests
+  check that the reference reproduces the built-in defaults exactly and misses no option. The
+  N. gonorrhoeae example uses the same compact layout. Settings sections left with only comments
+  read as empty.
 
 ### Fixed
 - **A genome download cut off mid-transfer crashed the run** (`ncbi/http.py`,
