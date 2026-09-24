@@ -149,6 +149,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   docs/examples/neisseria_gonorrhoeae_two_probes.yaml in the planned v1.3.0 format.
 - CLAUDE.md rule changed at the user's request: user-supplied example assays are added as given,
   with provenance stated, instead of requiring a check against the source publication.
+- The user added the fragment for NG-P2 (79 nt): NG-P2 exact, forward exact; reverse site has a
+  poly-T of 9 (vs 7) and one substitution. The NG-P2 copy in NZ_CP078119.1 has poly-T 10 and no
+  substitution. Both fragments are in the example as `reference_amplicons` (planned field).
 - Next: go-ahead for v1.3.0 step 1.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.

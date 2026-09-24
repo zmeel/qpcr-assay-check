@@ -111,8 +111,10 @@ Worked example: [examples/neisseria_gonorrhoeae_two_probes.yaml](examples/neisse
   forward primer sites in each of three genomes checked). A genome counts as detected when any
   copy gives a complete product bound by the primers and a probe; the copy is chosen by how well
   the assay binds, not by seed support as now, and the report shows copies per genome.
-- **Oligos that do not match the reference:** placed by aligning them over the window where their
-  role binds (NG-P2 has 5 mismatches against the reference fragment).
+- **Several reference amplicons, one per lineage** (the example has one fragment per probe): the
+  region search uses seeds from all of them, each genome's region is read against the reference
+  it matches best, and the region store is keyed by the whole reference set. An oligo that fits
+  no reference exactly is aligned over the window where its role binds.
 - **QC and specificity:** Tm, hairpin and length per oligo; dimers across every pair in the mix;
   each oligo searched under its own name; off-target products from every forward/reverse pair.
 - **Plan:** step 1 = assay format, names, QC and specificity; step 2 = best oligo per genome over
