@@ -172,6 +172,7 @@ def assess_specificity(
         off_tiers_seen=off_tiers_seen,
         intended_target=dict(intended),
         target_searched=any(r.tier == "target" for r in outcome.searches),
+        oligo_roles={o.name: o.role for o in assay.oligo_list},
         n_primer_only=n_primer_only,
         n_fetch_failed=fetcher.n_failed,
         amplicons_truncated=amp_truncated,

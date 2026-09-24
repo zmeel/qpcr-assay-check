@@ -365,7 +365,7 @@ def exhaustive_inclusivity(
         ]  # fmt: skip
         oligo = " / ".join(o.sequence for o in assay.by_role(role))
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
-    verdict, rationale = _verdict(oligos, cfg.inclusivity)
+    verdict, rationale = _verdict(oligos, cfg.inclusivity, sampled=False)
     rationale += [
         f"{y.year}: {y.listed} "
         + (

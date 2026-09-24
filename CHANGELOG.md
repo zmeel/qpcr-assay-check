@@ -20,6 +20,12 @@ All notable changes to this project are documented here. The format follows
   it. Existing assay files work unchanged; saved records load again. Worked example:
   `docs/examples/neisseria_gonorrhoeae_two_probes.yaml` (now accepted by the tool).
 
+### Fixed
+- **Intended-target check with named oligos**: it parsed query labels, so an assay with named
+  oligos was reported as having no perfect hit for forward, probe and reverse. It now counts per
+  oligo name and flags a role only when none of its oligos has a perfect hit (found live on the
+  N. gonorrhoeae two-probe run). Exhaustive inclusivity now says "assessed", not "sampled".
+
 ### Changed
 - Records written by earlier versions store the assay in the old form, so the first run after
   upgrading reports "The assay definition or configuration changed" once, although nothing did.

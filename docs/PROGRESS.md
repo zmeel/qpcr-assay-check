@@ -162,6 +162,14 @@ verified NCBI facts) at the start of every session. Newest entry first.
   variant rows carry `oligo_name`. NG example: QC places NG-P1 in fragment 1 and NG-P2 in fragment
   2 exactly; fragment 2 has no reverse primer site within 2 mismatches (poly-T), reported as WARN.
   406 tests pass. Known: first run after upgrade reports an assay change once (stored form).
+- First live NG two-probe run (user, blast_partitioned with the N1 config's
+  nucleotide_query 25000:32000[SLEN], so only 25-32 kb records): names flow through QC, BLAST and
+  variant tables (probe rows show NG-P1 / NG-P2). Bug found and fixed: the intended-target
+  finding parsed labels, so named oligos read as "no perfect hit for forward, probe, reverse";
+  it now sums per oligo name and flags a role only when none of its oligos has a perfect hit.
+  Exhaustive inclusivity said "sampled"; now "assessed". Findings for the user: N. meningitidis
+  CP171264.1 gives a perfect 76 bp product; NG-R has a 1-base gap (poly-A/T length) in 8 of 25
+  records; NG-P2 seen with 1 mismatch in 2 records.
 - Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
   several references in the variant analysis) after the user's go-ahead.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so

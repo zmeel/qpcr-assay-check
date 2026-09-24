@@ -161,3 +161,25 @@ def _empty_specificity():
     from .test_report_exclusivity import _specificity_with_exclusivity
 
     return _specificity_with_exclusivity()
+
+
+def test_a_role_counts_as_hit_on_its_target_when_any_of_its_oligos_is():
+    """Live (NG two-probe run): named oligos were read as missing roles ("forward, probe,
+    reverse" without a perfect hit) because the finding still parsed query labels."""
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.specificity.findings import build_findings
+
+    roles = {"NG-F": "forward", "NG-R": "reverse", "NG-P1": "probe", "NG-P2": "probe"}
+    common = {
+        "sites": [], "amplicons": [], "site_by_id": {}, "counts": [], "saturated": [],
+        "off_tiers_seen": [], "target_searched": True, "n_primer_only": 0,
+        "n_fetch_failed": 0, "amplicons_truncated": False,
+        "rules": load_config().specificity, "oligo_roles": roles,
+    }  # fmt: skip
+    hits = {"NG-F": 321, "NG-R": 297, "NG-P1": 321, "NG-P2": 0}
+    (f,) = [x for x in build_findings(intended_target=hits, **common) if "Intended" in x.message]
+    assert f.severity == "INFO" and "NG-P2 0" in f.message  # P1 covers the probe role
+    no_probe = hits | {"NG-P1": 0}
+    (f,) = [x for x in build_findings(intended_target=no_probe, **common)
+            if "Intended" in x.message]  # fmt: skip
+    assert f.severity == "WARN" and "no perfect full-length hit for probe (" in f.message

@@ -7,6 +7,7 @@ INCOMPLETE and never as a pass. Precedence: FAIL > INCOMPLETE > WARN > PASS.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Iterable
 
@@ -56,6 +57,7 @@ def build_findings(
     off_tiers_seen: list[str],
     intended_target: dict[str, int],
     target_searched: bool,
+    oligo_roles: dict[str, str] | None = None,
     n_primer_only: int,
     n_fetch_failed: int,
     amplicons_truncated: bool,
@@ -200,13 +202,19 @@ def build_findings(
             )
         )
     if target_searched:
-        per_role: dict[str, int] = defaultdict(int)
+        # hits per oligo name (degenerate variants summed); a role is missing only when none of
+        # its oligos (alternatives in the mix) has a perfect hit
+        roles = oligo_roles or {r: r for r in ("forward", "reverse", "probe")}
+        per_oligo: dict[str, int] = dict.fromkeys(roles, 0)
         for label, n in intended_target.items():
-            per_role[label.split("_v")[0]] += n
-        for role in ("forward", "reverse", "probe"):
-            per_role.setdefault(role, 0)
-        missing = sorted(r for r, n in per_role.items() if n == 0)
-        shown = ", ".join(f"{k} {v}" for k, v in sorted(per_role.items()))
+            name = re.sub(r"_v\d+$", "", label)
+            per_oligo[name] = per_oligo.get(name, 0) + n
+        per_role: dict[str, int] = dict.fromkeys(("forward", "reverse", "probe"), 0)
+        for name, n in per_oligo.items():
+            role = roles.get(name, name)
+            per_role[role] = per_role.get(role, 0) + n
+        missing = sorted(r for r in ("forward", "reverse", "probe") if per_role.get(r, 0) == 0)
+        shown = ", ".join(f"{k} {v}" for k, v in per_oligo.items())
         out.append(
             Finding(
                 severity="INFO" if not missing else "WARN",

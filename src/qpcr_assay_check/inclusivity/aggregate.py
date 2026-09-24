@@ -234,7 +234,7 @@ def _unassessed_years(oligos: list[InclusivityOligoResult]) -> list[str]:
 
 
 def _verdict(
-    oligos: list[InclusivityOligoResult], rules: InclusivitySettings
+    oligos: list[InclusivityOligoResult], rules: InclusivitySettings, *, sampled: bool = True
 ) -> tuple[Verdict, list[str]]:
     """Worst oligo/window's % at 0-1 mismatch (no 3' mismatch) decides the verdict."""
     rationale: list[str] = []
@@ -250,7 +250,8 @@ def _verdict(
                 worst_pct = pct
             if pct < rules.warn_below_percent:
                 rationale.append(
-                    f"{o.role}, {w.year}: {pct:.0f}% of {w.sample_size} sampled record(s) at "
+                    f"{o.role}, {w.year}: {pct:.0f}% of {w.sample_size} "
+                    f"{'sampled' if sampled else 'assessed'} record(s) at "
                     "0-1 mismatch with no 3'-end mismatch (below "
                     f"{rules.warn_below_percent:g}%)."
                 )
