@@ -74,6 +74,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   10848 by the old 20000 budget and crashed at 7880, still had over 5000 unscanned. Reproduced
   with a simulated crash + smaller budget (resume correct). The log now says per year: listed,
   already stored, to scan in this run, and when the per-run maximum is reached.
+- User asked (while the NG run continued) for a template assay.yaml with all options explained:
+  `examples/assay_template.yaml` (also packaged; `init` writes it instead of the short template).
+  Settings options are commented out under active section names (empty sections now read as
+  empty); tests: shipped template valid, uncommenting all options == built-in defaults, no option
+  missing, init writes the same file. 423 tests pass.
 - Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
   several references in the variant analysis) after the user's go-ahead.
 

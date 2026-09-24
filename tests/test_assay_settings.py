@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -83,3 +85,66 @@ def test_a_key_in_the_wrong_section_says_where_it_belongs():
     assay = make_assay(settings={"variants": {"source": "datasets", "background_taxids": []}})
     with pytest.raises(ConfigError, match="'background_taxids' belongs under 'search:'"):
         load_config(None, assay.settings)
+
+
+# ------------------------------------------------------------------ the full template
+TEMPLATE = Path(__file__).parents[1] / "examples" / "assay_template.yaml"
+
+
+def _filled(text: str) -> dict:
+    """The template with its required fields filled (SYNTHETIC test values, not an assay)."""
+    data = yaml.safe_load(text)
+    data.update(assay_name="template test", forward="ACGTACGTACGTACGTAC",
+                reverse="TTGCATTGCAAGCTTGCA", probe="CCATGGCATTACGGACTTGA",
+                target={"taxid": 485})  # fmt: skip
+    return data
+
+
+def test_the_full_template_is_valid_as_shipped():
+    from qpcr_assay_check.models import Assay
+
+    assay = Assay.model_validate(_filled(TEMPLATE.read_text()))
+    assert load_config(None, assay.settings) == load_config()  # nothing active: all defaults
+
+
+def test_every_option_in_the_template_shows_its_true_default():
+    """Uncommenting every option must reproduce the built-in defaults exactly (and be valid)."""
+    import re
+
+    from qpcr_assay_check.models import Assay
+
+    text = re.sub(r"^(\s+)# ([A-Za-z_0-9]+:)", r"\1\2", TEMPLATE.read_text(), flags=re.M)
+    assay = Assay.model_validate(_filled(text))
+    assert assay.settings["variants"]["source"] == "datasets"  # options really were uncommented
+    assert load_config(None, assay.settings) == load_config()
+
+
+def test_the_template_lists_every_option_an_assay_may_set():
+    import re
+
+    from qpcr_assay_check.models import ASSAY_SETTING_SECTIONS
+
+    text = re.sub(r"^(\s+)# ([A-Za-z_0-9]+:)", r"\1\2", TEMPLATE.read_text(), flags=re.M)
+    shown = yaml.safe_load(text)["settings"]
+    defaults = load_config().model_dump()
+    leaf = {"pass_range", "warn_at", "min", "warn_above", "max_mismatches", "match"}
+
+    def missing(have: dict, want: dict, path: str) -> list[str]:
+        out = []
+        for key, value in want.items():
+            if key not in have:
+                out.append(path + key)
+            elif isinstance(value, dict) and not (leaf & set(value)):
+                out += missing(have[key] or {}, value, f"{path}{key}.")
+        return out
+
+    gaps = [
+        m for s in ASSAY_SETTING_SECTIONS for m in missing(shown[s] or {}, defaults[s], s + ".")
+    ]
+    assert gaps == []
+
+
+def test_init_writes_the_same_full_template(tmp_path):
+    r = CliRunner().invoke(app, ["init", str(tmp_path)])
+    assert r.exit_code == 0, r.output
+    assert (tmp_path / "assay.yaml").read_text() == TEMPLATE.read_text()

@@ -345,6 +345,12 @@ Command-line options override values in the assay file.
 
 ## Assay file
 
+**Every option, explained:** [`examples/assay_template.yaml`](examples/assay_template.yaml) (also
+written by `qpcr-assay-check init`) lists every assay field and every setting an assay may carry,
+with its default and what it does. The settings are commented out; to change one, delete only
+its `# ` and edit the value. A test checks that the template's defaults are the real ones and
+that no option is missing.
+
 ```yaml
 assay_name: CDC 2019-nCoV N1
 forward: GACCCCAAAATCAGCGAAAT      # 5'->3', DNA, IUPAC codes allowed

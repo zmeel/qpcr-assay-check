@@ -499,6 +499,24 @@ def _section_of(key: str) -> str | None:
     return homes[0] if len(homes) == 1 else None
 
 
+def _drop_empty_sections(settings: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
+    """Leave out sub-sections written with every option commented out (they read as null).
+
+    Only where the default is itself a mapping: a plain setting given as null keeps its meaning.
+    """
+    out: dict[str, Any] = {}
+    for key, value in settings.items():
+        base = defaults.get(key)
+        if value is None and isinstance(base, dict):
+            continue
+        out[key] = (
+            _drop_empty_sections(value, base)
+            if isinstance(value, dict) and isinstance(base, dict)
+            else value
+        )
+    return out
+
+
 def load_config(path: Path | None = None, assay_settings: dict[str, Any] | None = None) -> Config:
     """Load the defaults, merge an optional lab-wide file, then the assay's own settings.
 
@@ -515,7 +533,7 @@ def load_config(path: Path | None = None, assay_settings: dict[str, Any] | None 
             raise ConfigError(f"Configuration file {path} must contain a YAML mapping")
         data = deep_merge(data, user)
     if assay_settings:
-        data = deep_merge(data, assay_settings)
+        data = deep_merge(data, _drop_empty_sections(assay_settings, data))
     try:
         return Config.model_validate(data)
     except ValidationError as exc:

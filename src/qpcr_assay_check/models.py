@@ -276,6 +276,8 @@ class Assay(BaseModel):
             return {}
         if not isinstance(v, dict):
             raise ValueError("settings must be a mapping, in the structure of config.yaml")
+        # a section whose options are all commented out (as in the full template) reads as empty
+        v = {k: val for k, val in v.items() if val is not None}
         for key, value in v.items():
             if key in ("ncbi", "report"):
                 raise ValueError(

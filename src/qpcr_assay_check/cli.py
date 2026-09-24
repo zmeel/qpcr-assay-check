@@ -30,47 +30,6 @@ app = typer.Typer(
 )
 log = logging.getLogger("qpcr_assay_check")
 
-_TEMPLATE_ASSAY = """\
-# qpcr-assay-check assay definition (template). Fill in every field marked REQUIRED.
-# Oligos are written 5'->3' as DNA (T, not U), also for RNA targets. IUPAC codes are allowed.
-assay_name: ""            # REQUIRED
-forward: ""               # REQUIRED
-reverse: ""               # REQUIRED
-probe: ""                 # REQUIRED  (sequence only; dye and quencher go below)
-# Several oligos for one role (alternatives in the same mix), each with a name, e.g.:
-# probe:
-#   - name: P1
-#     sequence: ""
-#     reporter: FAM        # optional per probe; otherwise probe_reporter below
-#     modifications: [MGB]
-#   - name: P2
-#     sequence: ""
-# A single oligo can be named too:  forward: {name: F1, sequence: ""}
-probe_reporter: FAM
-probe_quencher: BHQ1
-probe_modifications: []   # e.g. [MGB] or [ZEN]; any entry triggers a Tm-reliability warning
-template_type: DNA        # DNA | RNA
-target:                   # REQUIRED: give a taxonomy ID and/or a reference accession
-  taxid:
-  accession:
-  gene:
-# reference_amplicon: ""  # optional sense-strand amplicon (enables amplicon checks)
-# reference_amplicons:    # or several, one per lineage, each oligo placed in the best fit
-#   - name: lineage-A
-#     sequence: ""
-# settings:               # optional: this assay's own settings, same structure as config.yaml
-#   reaction:
-#     annealing_temp_C: 60
-#   search:
-#     background_taxids: []          # e.g. skip the human background search
-#   variants:
-#     source: datasets               # datasets (bacteria) | blast_partitioned (viruses)
-#     nucleotide_query: ""           # blast_partitioned only, e.g. "25000:32000[SLEN]"
-oligo_source: ""          # where these sequences come from (publication, vendor, in-house)
-# exclusivity_organisms:  # optional: this assay's own exclusivity panel (organism names), used
-#   - ""                  # instead of the global list when organisms.source is "assay" (default)
-"""
-
 
 def _version_callback(value: bool) -> None:
     if value:
@@ -254,7 +213,7 @@ def init(
     ] = False,
     force: Annotated[bool, typer.Option("--force", help="Overwrite existing files.")] = False,
 ) -> None:
-    """Write a starter assay.yaml and a fully commented config.yaml."""
+    """Write a starter assay.yaml (every option explained) and a fully commented config.yaml."""
     from importlib import resources
 
     directory.mkdir(parents=True, exist_ok=True)
@@ -262,8 +221,9 @@ def init(
         assay_text = (
             resources.files("qpcr_assay_check") / "data" / "examples" / "cdc_2019-nCoV_N1.yaml"
         ).read_text(encoding="utf-8")
-    else:
-        assay_text = _TEMPLATE_ASSAY
+    else:  # every option, explained (the same file as examples/assay_template.yaml)
+        template = resources.files("qpcr_assay_check") / "data" / "assay_template.yaml"
+        assay_text = template.read_text(encoding="utf-8")
     for filename, text in (("assay.yaml", assay_text), ("config.yaml", default_config_text())):
         target = directory / filename
         if target.exists() and not force:
