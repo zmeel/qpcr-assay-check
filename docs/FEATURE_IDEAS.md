@@ -6,7 +6,8 @@ after v1.1.1. **None of these is planned or started**: each needs the user's go-
 rest on NCBI behaviour or published data that must be checked before building on it; nothing
 here is a verified fact about NCBI or about PCR chemistry yet.
 
-Recommended order: **1 and 4 first** (a v1.2.0 candidate), then 2 and 3 after their checks.
+Recommended order: **8 next** (requested by the user, v1.3.0), then 1 and 4, then 2 and 3 after
+their checks.
 
 | # | Idea | Value | New NCBI traffic | Verify first |
 |---|---|---|---|---|
@@ -17,6 +18,7 @@ Recommended order: **1 and 4 first** (a v1.2.0 candidate), then 2 and 3 after th
 | 5 | Multi-assay overview | Medium | As today | No |
 | 6 | Variant templates for wet-lab checks | Medium | None | No |
 | 7 | Degenerate-base suggestion | Medium | None | No |
+| 8 | Several oligos per role, named oligos, multi-copy targets | High | None | No |
 
 ## 1. Panel-level escape detection (multi-target assays)
 
@@ -86,6 +88,37 @@ probes tolerate mismatches differently from plain probes.
   would cover it at that position, with the resulting Tm range.
 - Labelled as a computed suggestion for the laboratory to evaluate, not a validated redesign;
   the assay definition is never changed by the tool.
+
+## 8. Several oligos per role, named oligos, multi-copy targets (v1.3.0 candidate)
+
+Some assays use more than one forward primer, reverse primer or probe for the same target, when
+the differences between lineages are too big for a wobble base. Confirmed by the user
+(2026-09-24): such oligos are always in the same reaction mix; probes with the same dye are
+alternatives for mismatches, probes with different dyes detect different regions of the fragment.
+Worked example: [examples/neisseria_gonorrhoeae_two_probes.yaml](examples/neisseria_gonorrhoeae_two_probes.yaml).
+
+- **Assay file:** each role takes a plain sequence (as now; name defaults to the role), one named
+  oligo, or a list of named oligos; probes may carry their own reporter and modifications. Names
+  must be unique and are used in the report, workbook, `hits.tsv`, history and BLAST labels.
+- **Alternatives:** per genome and role every oligo is assessed and the best-binding one counts
+  (fewest mismatches/gaps, then clean 3' end, then highest duplex Tm). New per-oligo coverage
+  table: covered by this oligo / only by this oligo / by none (escape list). An oligo that covers
+  no assessed genome is an informational finding.
+- **Probe channels:** probes are grouped by reporter. Same reporter: alternatives. Different
+  reporters: separate channels, with coverage per channel plus "any channel" and "all channels";
+  which one decides a positive is a setting (default: any channel).
+- **Multi-copy targets:** the example target has several differing copies per genome (6-7
+  forward primer sites in each of three genomes checked). A genome counts as detected when any
+  copy gives a complete product bound by the primers and a probe; the copy is chosen by how well
+  the assay binds, not by seed support as now, and the report shows copies per genome.
+- **Several reference amplicons, one per lineage** (the example has one fragment per probe): the
+  region search uses seeds from all of them, each genome's region is read against the reference
+  it matches best, and the region store is keyed by the whole reference set. An oligo that fits
+  no reference exactly is aligned over the window where its role binds.
+- **QC and specificity:** Tm, hairpin and length per oligo; dimers across every pair in the mix;
+  each oligo searched under its own name; off-target products from every forward/reverse pair.
+- **Plan:** step 1 = assay format, names, QC and specificity; step 2 = best oligo per genome over
+  all copies, coverage per oligo and channel, escape lists in the variant analysis.
 
 ## Related tools (context, 2026-09-23)
 

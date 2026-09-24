@@ -141,6 +141,18 @@ verified NCBI facts) at the start of every session. Newest entry first.
   /nuccore/; three sampled links open the record page. Grouped off-target table: 14 rows for the
   49 Influenza A sites. Released as v1.2.0 (CHANGELOG section, version bump); the user merges and
   tags. Next: the user picks features from docs/FEATURE_IDEAS.md.
+- v1.2.0 merged and tagged by the user (verified: annotated, on main's PR #17 merge commit).
+- Proposal for several oligos per role + oligo names (FEATURE_IDEAS #8), with the user's answers:
+  same mix; same-dye probes are alternatives, different dyes = different regions. The user's
+  N. gonorrhoeae two-probe assay checked against its fragment and live on three RefSeq genomes
+  (multi-copy target, NG-P2 exact in NZ_CP078119.1); added as
+  docs/examples/neisseria_gonorrhoeae_two_probes.yaml in the planned v1.3.0 format.
+- CLAUDE.md rule changed at the user's request: user-supplied example assays are added as given,
+  with provenance stated, instead of requiring a check against the source publication.
+- The user added the fragment for NG-P2 (79 nt): NG-P2 exact, forward exact; reverse site has a
+  poly-T of 9 (vs 7) and one substitution. The NG-P2 copy in NZ_CP078119.1 has poly-T 10 and no
+  substitution. Both fragments are in the example as `reference_amplicons` (planned field).
+- Next: go-ahead for v1.3.0 step 1.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

@@ -7,7 +7,8 @@ Read both at the start of every session. Update PROGRESS.md before ending a sess
 - NEVER invent primer/probe sequences, NCBI parameters, limits or API behaviour.
   If unverified, check current NCBI docs and state what you found, or use a clearly
   labelled placeholder and tell me.
-- All example-assay sequences must be verified against the source publication.
+- Example assays supplied by me are added as given; their file states where the sequences come
+  from (e.g. "supplied by the user, not checked against a publication") and what was checked.
 - Remote NCBI only for searches: no local BLAST database. Downloading genome sequences from
   NCBI Datasets for the exhaustive variant analysis is allowed; keep only the extracted target
   regions, never a local database. No form scraping.

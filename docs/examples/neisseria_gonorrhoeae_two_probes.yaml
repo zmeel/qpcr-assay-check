@@ -1,0 +1,54 @@
+# Example assay: Neisseria gonorrhoeae, one primer pair with two alternative FAM-MGB probes.
+#
+# STATUS
+#   Written in the PLANNED v1.3.0 format (named oligos, several per role; see
+#   docs/FEATURE_IDEAS.md, "Several oligos per role"). The current tool (v1.2.0) accepts only one
+#   sequence per role and will reject this file until v1.3.0 step 1 is implemented.
+#
+# PROVENANCE
+#   Sequences supplied by the user (2026-09-24); not checked against a publication or kit insert.
+#   Oligo names are placeholders; replace them with the laboratory's own.
+#
+# WHAT WAS CHECKED (2026-09-24)
+#   * Against the first fragment (NG-fragment-P1, 76 nt): forward primer at 1-17, reverse primer
+#     binding site at 53-76 (reverse complement), probe NG-P1 at 34-52 exactly. NG-P2 binds the same site with
+#     5 mismatches in its 5' half: it is the alternative probe for a divergent variant.
+#   * Live, on three RefSeq complete genomes of N. gonorrhoeae (taxid 485): NZ_CP145053.1,
+#     NZ_CP145037.1, NZ_CP078119.1. The target is multi-copy (6-7 forward and 3-7 reverse primer
+#     sites per genome; copies differ). NG-P1 matches exactly 2-4 times per genome; NG-P2 matches
+#     exactly once in NZ_CP078119.1 and at best with 4 mismatches in the other two. The exact
+#     76-nt NG-fragment-P1 occurs 0, 3 and 2 times (both strands) in these genomes.
+#   * Second fragment (NG-fragment-P2, 79 nt; supplied as an alignment row with one '-', removed
+#     here): forward primer at 1-17 exactly, NG-P2 at 35-53 exactly, NG-P1 absent. Its reverse
+#     primer site differs from NG-fragment-P1: a poly-T run of 9 instead of 7 and one substitution
+#     (GGTCAAACCG -> GGTTAAACCG), so NG-R can only bind it with a 2-base bulge and 1 mismatch, or
+#     with mismatches at its 3' end. The NG-P2 copy in NZ_CP078119.1 (around 2133686) has yet
+#     another reverse site: a poly-T run of 10 and GGTCAAACCG, i.e. no substitution. Poly-T length
+#     differs between copies and strains (and homopolymer runs are prone to sequencing errors).
+#   * Probe quencher: MGB probes were given as "FAM-MGB"; the quencher was not specified and is
+#     left empty rather than guessed.
+assay_name: Neisseria gonorrhoeae (two probes)
+forward:
+  name: NG-F
+  sequence: GTTGAAACACCGCCCGG
+reverse:
+  name: NG-R
+  sequence: CGGTTTGACCGGTTAAAAAAAGAT
+probe:
+  - name: NG-P1
+    sequence: CCCTTCAACATCAGTGAAA
+    reporter: FAM
+    modifications: [MGB]
+  - name: NG-P2
+    sequence: CTTTGAACCATCAGTGAAA
+    reporter: FAM
+    modifications: [MGB]
+template_type: DNA   # not stated by the user; DNA is the default for a bacterial target
+target:
+  taxid: 485
+reference_amplicons:   # planned v1.3.0 field: one reference per lineage
+  - name: NG-fragment-P1
+    sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCCTTCAACATCAGTGAAAATCTTTTTTTAACCGGTCAAACCG
+  - name: NG-fragment-P2
+    sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCTTTGAACCATCAGTGAAAATCTTTTTTTTTAACCGGTTAAACCG
+oligo_source: Supplied by the user; source publication or kit not stated.
