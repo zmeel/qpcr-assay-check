@@ -176,6 +176,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   rejected as lab-wide), precedence defaults < --config < assay. Report shows the assay's
   settings; inputs hash uses the effective config only (run budgets still excluded). Examples
   updated. 416 tests pass.
+- Live: uncommenting only the background_taxids line put it under variants: (error "Extra
+  inputs are not permitted"). Examples now offer it as one line to uncomment
+  (`search: {background_taxids: []}`; an explicit [9606] would override a lab-wide --config),
+  and config errors name the section a misplaced key belongs to.
 - Next: v1.3.0 step 2 (coverage per oligo/channel, escape lists, best copy of multi-copy targets,
   several references in the variant analysis) after the user's go-ahead.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so

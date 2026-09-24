@@ -76,3 +76,10 @@ def test_validate_uses_the_assay_file_s_settings(tmp_path):
     r = CliRunner().invoke(app, ["validate", str(path)])
     assert r.exit_code == 0, r.output
     assert "annealing 62 °C" in r.output and "settings from the assay file: reaction" in r.output
+
+
+def test_a_key_in_the_wrong_section_says_where_it_belongs():
+    """Live: an uncommented background_taxids line ended up under variants:."""
+    assay = make_assay(settings={"variants": {"source": "datasets", "background_taxids": []}})
+    with pytest.raises(ConfigError, match="'background_taxids' belongs under 'search:'"):
+        load_config(None, assay.settings)

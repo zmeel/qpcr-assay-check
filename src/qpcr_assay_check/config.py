@@ -479,8 +479,24 @@ def format_validation_error(exc: ValidationError) -> str:
     for err in exc.errors():
         loc = ".".join(str(p) for p in err["loc"]) or "(root)"
         msg = str(err["msg"]).removeprefix("Value error, ")
+        if err["type"] == "extra_forbidden" and len(err["loc"]) == 2:
+            home = _section_of(str(err["loc"][1]))
+            if home and home != err["loc"][0]:
+                msg += f" ('{err['loc'][1]}' belongs under '{home}:', check the indentation)"
         lines.append(f"  {loc}: {msg}")
     return "\n".join(lines)
+
+
+def _section_of(key: str) -> str | None:
+    """The top-level config section that has ``key`` as a setting, if exactly one does."""
+    homes = [
+        name
+        for name, field in Config.model_fields.items()
+        if isinstance(field.annotation, type)
+        and issubclass(field.annotation, BaseModel)
+        and key in field.annotation.model_fields
+    ]
+    return homes[0] if len(homes) == 1 else None
 
 
 def load_config(path: Path | None = None, assay_settings: dict[str, Any] | None = None) -> Config:

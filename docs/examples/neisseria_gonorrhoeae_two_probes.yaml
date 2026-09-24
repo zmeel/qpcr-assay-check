@@ -63,5 +63,4 @@ exclusivity_organisms:   # as in the user's first live run (taxid 487)
 settings:
   variants:
     source: datasets
-#  search:
-#    background_taxids: []   # uncomment to skip the human background search
+#  search: {background_taxids: []}   # to skip the human search, delete the '#' only

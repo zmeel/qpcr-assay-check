@@ -39,5 +39,4 @@ settings:
   variants:
     source: blast_partitioned
     nucleotide_query: "25000:32000[SLEN]"
-#  search:
-#    background_taxids: []   # uncomment to skip the human background search
+#  search: {background_taxids: []}   # to skip the human search, delete the '#' only
