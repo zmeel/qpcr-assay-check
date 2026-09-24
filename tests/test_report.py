@@ -64,7 +64,7 @@ class _RefCollector(HTMLParser):
 
 
 def test_report_with_charts_is_self_contained(n1):
-    """No tag may reference another file or host.
+    """No tag may make the browser load another file or host (links to NCBI pages are allowed).
 
     The inlined Plotly bundle contains URL *strings* (map tile servers, logo link) that are
     only used by map traces and the modebar logo; this report uses neither, so the test inspects
@@ -74,7 +74,11 @@ def test_report_with_charts_is_self_contained(n1):
     assert "Plotly.newPlot" in html
     parser = _RefCollector()
     parser.feed(html)
-    assert parser.refs == []
+    # only plain links to NCBI record pages, which load nothing until clicked
+    assert all(
+        tag == "a" and key == "href" and value.startswith("https://www.ncbi.nlm.nih.gov/")
+        for tag, key, value in parser.refs
+    ), parser.refs
     assert "<link " not in html
     assert "displaylogo" in html and '"displaylogo":false' in html.replace(" ", "")
 

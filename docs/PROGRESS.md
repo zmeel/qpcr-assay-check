@@ -129,6 +129,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Report change requested before new features: the "Closest off-target sites" list is grouped
   into off-target variants (oligo + exact alignment), with site/record counts, tiers and
   organisms; new "Off-target variants" workbook sheet. 389 tests pass. Not yet seen live.
+- Accessions and taxonomy IDs link to NCBI (report and workbook); URL forms /nuccore/<acc>,
+  /datasets/genome/<GCx_>/ and Taxonomy Browser ?id= checked live (HTTP 200). The self-contained
+  test now allows plain <a href> links to www.ncbi.nlm.nih.gov only. 392 tests pass.
 - (earlier) Next: user runs a C. trachomatis assay live (needs `ncbi.cache_dir` inside the Docker mount so
   the region store persists). Option 1 (partitioned BLAST for non-assembly targets) not started.
   Not yet done: history diff "new variants since the previous run" (first/last release dates are

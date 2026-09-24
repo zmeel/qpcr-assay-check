@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 from ..history.models import HistoryResult
 from ..results import RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
+from .ncbi_links import accession_url, taxon_url
 
 _FILL = {
     "PASS": "D7EFE3",
@@ -39,9 +40,18 @@ def _sheet(
     for i, col in enumerate(ws.columns, start=1):
         width = min(80, max(len(str(c.value)) if c.value is not None else 0 for c in col) + 2)
         ws.column_dimensions[get_column_letter(i)].width = max(10, width)
+    taxid_cols = {i for i, h in enumerate(header) if h in ("Taxonomy ID", "Taxid")}
     for r in ws.iter_rows(min_row=2):
-        for cell in r:
+        for i, cell in enumerate(r):
             cell.alignment = Alignment(vertical="top", wrap_text=True)
+            if cell.value is None or cell.value == "":
+                continue
+            url = taxon_url(cell.value) if i in taxid_cols else None
+            if url is None and isinstance(cell.value, str):
+                url = accession_url(cell.value)  # a cell holding exactly one accession
+            if url:
+                cell.hyperlink = url
+                cell.font = Font(color="0563C1", underline="single")
     ws.freeze_panes = "A2"
 
 

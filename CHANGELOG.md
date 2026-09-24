@@ -13,6 +13,12 @@ All notable changes to this project are documented here. The format follows
   the tiers, and the organisms with their site counts, closest first. Every single site stays in
   `hits.tsv` and the workbook's "Off-target sites" sheet; a new "Off-target variants" sheet holds
   the grouped rows. Verdicts are unchanged.
+- **Accessions and taxonomy IDs link to NCBI** (`report/ncbi_links.py`): every versioned
+  accession in the HTML report (tables, example lists, rationale lines, notes) opens its NCBI
+  page -- Nucleotide records at `/nuccore/`, genome assemblies at `/datasets/genome/` -- and
+  taxonomy IDs open the Taxonomy Browser (URL forms checked live). Workbook cells holding one
+  accession, and "Taxonomy ID" columns, are hyperlinks too. Links load nothing until clicked, so
+  the report stays self-contained; RIDs are not linked (a RID is only stable for about 36 hours; docs/ARCHITECTURE.md).
 
 ## [1.1.1] - 2026-09-23
 

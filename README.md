@@ -501,7 +501,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
   another.
 - The HTML report embeds Plotly's JavaScript bundle (about 5 MB). That bundle contains URL strings
   for map tiles that are only used by map charts, which this tool does not produce; the report
-  makes no external requests. A test checks that no HTML tag references another file or host.
+  makes no external requests. A test checks that no HTML tag loads another file or host; the only
+  references are plain links from accessions and taxonomy IDs to their NCBI pages, opened on click.
 - BLAST is a heuristic (exact 7-base seed): heavily mismatched binding sites can be missed, so "no
   hit" is not "no binding". Primer-BLAST and IDT OligoAnalyzer remain useful manual cross-checks.
 - The remote client was validated against live NCBI once, for one assay; NCBI can change formats

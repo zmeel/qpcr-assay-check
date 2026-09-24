@@ -12,6 +12,7 @@ from ..config import Config
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
+from .ncbi_links import linkify, taxon_link
 
 _GROUPS = [
     ("forward", "Forward primer"),
@@ -125,6 +126,8 @@ def _environment() -> Environment:
     env.filters["aln_html"] = _alignment_html
     env.filters["tm"] = _tm
     env.filters["dg"] = _dg
+    env.filters["ncbi"] = linkify
+    env.filters["taxon"] = taxon_link
     return env
 
 
