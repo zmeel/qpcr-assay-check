@@ -110,6 +110,7 @@ def plan_searches(
     queries = build_queries(assay, cfg)
     batches = split_batches(queries)
     tiers: list[tuple[str, str, list[int]]] = []
+    exclude = assay.target.exclude_taxids
     plan = SearchPlan(queries=queries, searches=[])
 
     if assay.target.taxid is not None:
@@ -119,7 +120,8 @@ def plan_searches(
             "The target tier was skipped: the assay has no taxonomy ID. "
             "From v0.4.0 it is derived from the reference accession."
         )
-    near = sorted(set(assay.near_neighbour_taxids) | set(assay.exclusion_taxids))
+    # taxa excluded from the target are relatives the assay must not detect: near neighbours
+    near = sorted(set(assay.near_neighbour_taxids) | set(assay.exclusion_taxids) | set(exclude))
     if near:
         tiers.append(("near_neighbours", "Near neighbours and exclusion taxa", near))
     if cfg.search.background_taxids:
@@ -165,7 +167,7 @@ def plan_searches(
     for tier, title, taxids in tiers:
         groups = _chunks(taxids, size)
         for ci, group in enumerate(groups, start=1):
-            entrez = blast.build_entrez_query(group)
+            entrez = blast.build_entrez_query(group, exclude if tier == "target" else None)
             for bi, batch in enumerate(batches, start=1):
                 fasta = blast.build_query_fasta(batch)
                 params = blast.build_put_params(cfg, fasta, entrez)

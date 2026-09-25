@@ -1,0 +1,54 @@
+# Example assay: Enterovirus (in-house realT RT-qPCR), two forward primers, degenerate reverse
+# primer and probe; must detect enteroviruses but NOT rhinoviruses or parechoviruses.
+#
+# PROVENANCE
+#   Sequences, names, dye and protocol supplied by the user (2026-09-25); in-house assay, not
+#   checked against a publication or kit insert. The probe quencher was not given and is left
+#   empty rather than guessed.
+#
+# WHAT WAS CHECKED (2026-09-25)
+#   * Against the reference fragment (74 nt): realT-Entero-F1 at 1-19 exactly; realT-Entero-F2
+#     differs from it at positions 5-6 (TG instead of CA), an alternative forward primer for
+#     other lineages; the reverse primer binds 54-74 (reverse complement; R = T there); the
+#     probe binds 21-37 on the other strand (reverse complement; M = G there). Degenerate
+#     expansions: F1 1, F2 1, reverse 2, probe 2.
+#   * NCBI Taxonomy, live: genus Enterovirus is taxid 12059 and contains the rhinoviruses. The
+#     NAME "rhinovirus" resolves to 12059 itself (the former genus name is a synonym), so
+#     rhinoviruses must be given by taxonomy ID, never by name. Excluded from the target here:
+#       3428501 Enterovirus alpharhino, 3428503 Enterovirus betarhino,
+#       3428504 Enterovirus cerhino (the three ICTV rhinovirus species), and
+#       169066  Human rhinovirus sp. (under "unclassified Enterovirus").
+#     About 556 further rhinovirus records sit in 364 small unclassified taxa and stay in the
+#     target (live count 2026-09-25); the report says so. Parechovirus is genus 138954.
+#   * Nucleotide records, live 2026-09-25: 149,117 in taxid 12059; 117,193 after the exclusions
+#     (the ESearch 'NOT' subtracts exactly); 13,796 of those are 6,500-8,500 bases long
+#     (near-complete genomes), the filter used below.
+#   * BLAST honours 'NOT' in ENTREZ_QUERY (live, this fragment against core_nt: 0 of 5,000
+#     hits in an excluded taxon).
+#
+# The rhinoviruses are NOT skipped: every oligo is searched against them as near neighbours
+# (off-target), with parechovirus in the exclusivity tier.
+
+assay_name: Enterovirus (realT, in-house)
+forward:
+  - {name: realT-Entero-F1, sequence: TCTGCAGCGGAACCGACTA}
+  - {name: realT-Entero-F2, sequence: TCTGTGGCGGAACCGACTA}
+reverse: {name: realT-Entero-DHU-R, sequence: RATTGTCACCATAAGCAGCCA}
+probe:
+  - {name: Entero-P, sequence: AAACMCGGACACCCAAA, reporter: FAM, modifications: [MGB]}
+template_type: RNA
+target:
+  taxid: 12059                                 # genus Enterovirus
+  exclude_taxids: [3428501, 3428503, 3428504, 169066]   # rhinoviruses: must not be detected
+reference_amplicons:
+  - {name: EV-fragment, sequence: TCTGCAGCGGAACCGACTACTTTGGGTGTCCGTGTTTCCTTTTATTCTCATGTTGGCTGCTTATGGTGACAATT}
+exclusivity_organisms:
+  - Parechovirus
+oligo_source: In-house assay supplied by the user; source publication not stated.
+
+settings:                       # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60        # this assay's cycling protocol
+  variants:
+    source: blast_partitioned   # virus: every Nucleotide record
+    nucleotide_query: "6500:8500[SLEN]"   # near-complete genomes; remove for every record

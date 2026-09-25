@@ -53,6 +53,12 @@ class Target(BaseModel):
     taxid: int | None = Field(default=None, gt=0, description="NCBI Taxonomy ID")
     accession: str | None = Field(default=None, description="Reference accession, e.g. NC_045512.2")
     gene: str | None = None
+    exclude_taxids: list[int] = Field(
+        default_factory=list,
+        description="taxa inside the target taxon that the assay must NOT detect (e.g. the "
+        "rhinovirus species inside the genus Enterovirus): left out of the target search, "
+        "inclusivity and the variant analysis, and searched as near neighbours (off-target)",
+    )
 
     @field_validator("accession")
     @classmethod
@@ -71,6 +77,14 @@ class Target(BaseModel):
     def _need_taxid_or_accession(self) -> Target:
         if self.taxid is None and self.accession is None:
             raise ValueError("give at least one of 'taxid' or 'accession'")
+        if self.exclude_taxids:
+            if self.taxid is None:
+                raise ValueError("'exclude_taxids' needs the target's 'taxid'")
+            if any(t <= 0 for t in self.exclude_taxids):
+                raise ValueError("'exclude_taxids' must be positive taxonomy IDs")
+            if self.taxid in self.exclude_taxids:
+                raise ValueError("'exclude_taxids' must not contain the target's own taxid")
+            self.exclude_taxids = sorted(set(self.exclude_taxids))
         return self
 
 

@@ -16,6 +16,7 @@ target:
   taxid:                                   # NCBI Taxonomy ID of the intended target
   accession:                               # optional reference record, e.g. NC_045512.2
   gene:                                    # optional, for the report
+  exclude_taxids: []                       # optional: taxa inside the target it must NOT detect
 reference_amplicons:                       # optional; the product the primers amplify (sense)
   - {name: reference, sequence: ""}
 exclusivity_organisms: []                  # organism names the assay must NOT detect

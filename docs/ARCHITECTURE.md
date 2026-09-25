@@ -398,6 +398,25 @@ confirms the description rule for labelled plasmid records. All 281 "not found" 
 no sequence labelled as a plasmid; 0 contain one without the region. Limitation kept in the report
 text: a plasmid assembled into an unlabelled draft contig is not recognised as one.
 
+### Verified for target exclusions (2026-09-25, live E-utilities and BLAST, no API key)
+
+- NCBI Taxonomy: genus *Enterovirus* is taxid 12059 and holds the rhinoviruses as species
+  3428501 *Enterovirus alpharhino*, 3428503 *E. betarhino*, 3428504 *E. cerhino*. The name
+  "rhinovirus" (`[All Names]`, and `rhinovirus[ORGN]` in nuccore) resolves to 12059 itself.
+  "Human rhinovirus sp." (169066) and 364 further rhinovirus-named taxa sit under
+  "unclassified Enterovirus" (90010).
+- ESearch honours `NOT` on `[ORGN]` terms exactly: nuccore `txid12059[ORGN]` 149,117; the three
+  species 12,526 + 2,483 + 8,852; `txid12059[ORGN] NOT (the three)` 125,256 (= the difference).
+  Also excluding 169066: 117,193. The 364 other taxa hold 556 records.
+- BLAST honours `NOT` in `ENTREZ_QUERY`: the 74 nt enterovirus fragment against core_nt with
+  `txid12059[ORGN] NOT (txid3428501[ORGN] OR txid3428503[ORGN] OR txid3428504[ORGN] OR
+  txid169066[ORGN])`: 5,000 hits (full list), 0 in the 195 taxa of the excluded subtrees.
+  Caveat: the hit list was full (ordered by score), so a lower-scoring excluded hit could have
+  fallen below the cut. A sharper control, `txid12059[ORGN] NOT (txid3428500[ORGN])` (the
+  species holding the top hits, EV-A71 and CV-A6), stayed WAITING for over 20 minutes and was
+  cancelled; still to be run. The first live enterovirus run's target tier (no rhinovirus hit
+  expected) is a second check.
+
 ### Verified in a third live run (2026-09-22)
 
 - **Entrez queries with 11, 40 and 100 taxids were all accepted** by the BLAST URL API (no

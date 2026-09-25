@@ -101,11 +101,18 @@ class StoredAssembly(BaseModel):
 
 
 def store_path(
-    cache_dir: Path, taxon: int | str, amplicon: str, flank: int, source: str = "datasets"
+    cache_dir: Path,
+    taxon: int | str,
+    amplicon: str,
+    flank: int,
+    source: str = "datasets",
+    exclude: list[int] | None = None,
 ) -> Path:
     payload: dict[str, object] = {"amplicon": amplicon.upper(), "flank": flank}
     if source != "datasets":  # the datasets key predates other sources: keep existing stores
         payload["source"] = source
+    if exclude:  # taxa left out of the target: a different set of records
+        payload["exclude"] = sorted(exclude)
     key = content_key(payload)[:16]
     suffix = "" if source == "datasets" else f"-{source}"
     return Path(cache_dir) / "variants" / f"{taxon}-{key}{suffix}.jsonl"

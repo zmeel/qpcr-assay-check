@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from ..align import realign
 from ..config import Config, InclusivitySettings
 from ..models import Assay
+from ..ncbi.blast import build_entrez_query
 from ..ncbi.cache import Cache
 from ..ncbi.eutils import Eutils
 from ..ncbi.http import NcbiError
@@ -91,9 +92,11 @@ def _stats(
     )
 
 
-def _population(eutils: Eutils, taxid: int, year: int) -> int | None:
+def _population(
+    eutils: Eutils, taxid: int, year: int, exclude: list[int] | None = None
+) -> int | None:
     try:
-        term = f"txid{taxid}[ORGN] AND {year}/01/01:{year}/12/31[PDAT]"
+        term = f"{build_entrez_query([taxid], exclude)} AND {year}/01/01:{year}/12/31[PDAT]"
         return eutils.esearch_count("nuccore", term)
     except NcbiError as exc:
         log.warning("Could not count year %d population: %s", year, exc)
@@ -125,7 +128,8 @@ def compute_inclusivity(
     taxid = assay.target.taxid
     current_year = (now or datetime.now(UTC)).year
     years = list(range(current_year - rules.lookback_years + 1, current_year + 1))
-    populations = {year: _population(eutils, taxid, year) for year in years}
+    exclude = assay.target.exclude_taxids
+    populations = {year: _population(eutils, taxid, year, exclude) for year in years}
 
     scoring = realign.Scoring(
         cfg.specificity.alignment.match, cfg.specificity.alignment.mismatch,

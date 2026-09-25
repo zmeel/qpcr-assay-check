@@ -670,6 +670,11 @@ def run_exhaustive(
     taxon = assay.target.taxid
     if taxon is None:
         raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
+    if assay.target.exclude_taxids and source == "datasets":
+        raise InputError(
+            "target.exclude_taxids is not supported with variants.source: datasets (the NCBI "
+            "Datasets genome listing has no 'NOT' filter); use blast_partitioned."
+        )
     fetched: dict[str, str] = {}
 
     def fetch_once(acc: str) -> str:  # the amplicon and its context come from one record
@@ -688,7 +693,8 @@ def run_exhaustive(
             placed.append(placed[0])
     v = cfg.variants
     # keyed by the first reference only, so adding a lineage reference keeps the stored regions
-    store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt, source))
+    exclude = assay.target.exclude_taxids
+    store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt, source, exclude))
     store.n_refs = 1 + len(others)
     context = ReferenceContext(assay, amplicon, fetch_once, store.path.with_suffix(".context.json"))
     context.other_amplicons = others
@@ -726,7 +732,8 @@ def run_exhaustive(
              "exclude_atypical": v.exclude_atypical, "one_copy_per_genbank_refseq_pair": True}
             if source == "datasets"
             else {"nucleotide_query": v.nucleotide_query or ""}
-        ),
+        )
+        | ({"excluded_taxids": ", ".join(map(str, exclude))} if exclude else {}),
         listed_total=total,
         assessed_total=len(items),
         processed_this_run=processed,

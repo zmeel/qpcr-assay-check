@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Taxa inside the target that the assay must not detect** (`target.exclude_taxids`; models,
+  search plan, inclusivity, partitioned variant analysis, report, workbook): left out of the
+  target search, inclusivity populations and the Nucleotide listing with Entrez `NOT` (checked
+  live for ESearch and BLAST), and searched as near neighbours so every oligo is checked
+  against them. The region store is keyed by the exclusions. Not supported with the Datasets
+  source. Worked example: `docs/examples/enterovirus_realt.yaml` (user-supplied in-house
+  enterovirus assay; rhinoviruses excluded by taxonomy ID, since the name "rhinovirus"
+  resolves to the genus *Enterovirus*).
+
 ## [1.3.0] - 2026-09-25
 
 Several oligos per role with names, assay-specific settings, and multi-copy targets judged by

@@ -426,6 +426,29 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
 - Worked example (user-supplied sequences):
   [`docs/examples/neisseria_gonorrhoeae_two_probes.yaml`](docs/examples/neisseria_gonorrhoeae_two_probes.yaml).
 
+### Taxa inside the target that the assay must not detect
+
+Some assays target a taxon but must not detect part of it: an enterovirus assay must not detect
+the rhinoviruses, which NCBI Taxonomy files inside the genus *Enterovirus*. Give them as
+`target.exclude_taxids`:
+
+```yaml
+target:
+  taxid: 12059                                          # genus Enterovirus
+  exclude_taxids: [3428501, 3428503, 3428504, 169066]   # the rhinoviruses
+```
+
+- The excluded taxa (with their descendants) are left out of the target search, inclusivity and
+  the variant analysis with Entrez `NOT`, and **every oligo is searched against them** as near
+  neighbours: a product or critical site there is an off-target finding.
+- Give such taxa by ID. The name "rhinovirus" resolves to the genus *Enterovirus* itself in
+  NCBI Taxonomy (the former genus name is a synonym), so it cannot be used as an organism name.
+- Records of an excluded organism that NCBI files under another taxon (e.g. "unclassified
+  Enterovirus") stay in the target; the report says so.
+- Supported with `variants.source: blast_partitioned` (and `blast_hits`), not with `datasets`.
+- Worked example (user-supplied sequences):
+  [`docs/examples/enterovirus_realt.yaml`](docs/examples/enterovirus_realt.yaml).
+
 ### The example assay
 
 `examples/cdc_2019-nCoV_N1.yaml` is the CDC 2019-nCoV N1 assay. Its file header documents the

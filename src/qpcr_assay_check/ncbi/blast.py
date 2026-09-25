@@ -28,12 +28,19 @@ def build_query_fasta(oligos: dict[str, str]) -> str:
     return "".join(f">{label}\n{seq}\n" for label, seq in oligos.items())
 
 
-def build_entrez_query(taxids: list[int]) -> str | None:
-    """Restrict a search to the given taxa (and their descendants) using ``txid<ID>[ORGN]``."""
+def build_entrez_query(taxids: list[int], exclude: list[int] | None = None) -> str | None:
+    """Restrict a search to the given taxa (and their descendants) using ``txid<ID>[ORGN]``.
+
+    ``exclude``: taxa (with their descendants) left out with ``NOT``, e.g. the rhinovirus
+    species inside the genus Enterovirus. Checked live for ESearch and BLAST (docs/ARCHITECTURE.md).
+    """
     if not taxids:
         return None
     terms = " OR ".join(f"txid{t}[ORGN]" for t in taxids)
-    return f"({terms})" if len(taxids) > 1 else terms
+    query = f"({terms})" if len(taxids) > 1 else terms
+    if exclude:
+        query = f"({query} NOT ({' OR '.join(f'txid{t}[ORGN]' for t in exclude)}))"
+    return query
 
 
 def build_put_params(cfg: Config, fasta: str, entrez_query: str | None) -> dict[str, str]:

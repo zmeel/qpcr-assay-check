@@ -3,6 +3,20 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
+
+- The user supplied an in-house enterovirus RT-qPCR (two forward primers, degenerate reverse
+  and MGB probe, 74 nt fragment; exclusivity: rhinovirus and parechovirus). Oligos checked
+  against the fragment (all place; F2 differs at 2 positions). Added as
+  docs/examples/enterovirus_realt.yaml.
+- Live: the name "rhinovirus" resolves to genus Enterovirus (12059); rhinoviruses are the
+  species 3428501/3428503/3428504 plus 169066 (Human rhinovirus sp.) and 364 small unclassified
+  taxa (556 records). ESearch and BLAST both honour Entrez NOT (docs/ARCHITECTURE.md).
+- User chose option (b): `target.exclude_taxids`. Excluded taxa are searched as near
+  neighbours (the user asked that rhinoviruses are checked, not skipped: they are, as
+  off-target). Target records: 117,193 in total; 13,796 near-complete genomes
+  (6500:8500[SLEN], the example's filter).
+
 ## 2026-09-25 — v1.3.0 confirmed live and released
 
 - Live NG run with `fb7ede5` (budget 15,000, overnight): 2026 1,170, 2025 3,083 and 2024 10,747
