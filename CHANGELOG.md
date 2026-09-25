@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-25
+
+Several oligos per role with names, assay-specific settings, and multi-copy targets judged by
+their best-binding copy.
+
 ### Added
 - **Several oligos per role and oligo names** (`models.py`, `oligo/qc.py`, `oligo/amplicon.py`,
   specificity, variants, report; v1.3.0 step 1): a role takes a plain sequence (unchanged), one

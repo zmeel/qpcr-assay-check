@@ -4,7 +4,7 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v1.2.0 (alpha, 2026-09-24).** A full `run` sends the oligos to NCBI (tiered,
+> **Status: v1.3.0 (alpha, 2026-09-25).** A full `run` sends the oligos to NCBI (tiered,
 > taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
 > every relevant hit, predicts off-target products, and judges specificity — genuine
 > `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
@@ -657,7 +657,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 1.0.0 | Run history, yearly diff report, Docker — all confirmed live |
 | 1.1.0 | Exhaustive variant analysis (NCBI Datasets genomes; Nucleotide records by direct scan + partitioned BLAST), N-masked regions, new-variant history — confirmed live |
 | 1.1.1 | Regions wholly hidden by N reported as masked, not as not found |
-| **1.2.0** | Off-target sites grouped into binding variants; accessions and taxonomy IDs link to NCBI — confirmed live |
+| 1.2.0 | Off-target sites grouped into binding variants; accessions and taxonomy IDs link to NCBI — confirmed live |
+| **1.3.0** | Several named oligos per role, settings in the assay file, multi-copy targets judged by the best-binding copy, coverage per oligo and escapes, homopolymer bulges — confirmed live |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 Proposed next features (not started): [docs/FEATURE_IDEAS.md](docs/FEATURE_IDEAS.md).

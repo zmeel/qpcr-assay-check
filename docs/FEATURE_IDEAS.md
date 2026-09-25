@@ -6,8 +6,7 @@ after v1.1.1. **None of these is planned or started**: each needs the user's go-
 rest on NCBI behaviour or published data that must be checked before building on it; nothing
 here is a verified fact about NCBI or about PCR chemistry yet.
 
-Recommended order: **8 next** (requested by the user, v1.3.0), then 1 and 4, then 2 and 3 after
-their checks.
+Recommended order: 8 is done (v1.3.0); next 1 and 4, then 2 and 3 after their checks.
 
 | # | Idea | Value | New NCBI traffic | Verify first |
 |---|---|---|---|---|
