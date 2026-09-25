@@ -4,7 +4,7 @@ Yearly in silico re-evaluation of **one real-time PCR (TaqMan) assay per run** f
 microbiology laboratories: forward primer, reverse primer, probe and an intended target organism go
 in; a detailed, reproducible, version-stamped evaluation record comes out (HTML, JSON, Excel).
 
-> **Status: v1.2.0 (alpha, 2026-09-24).** A full `run` sends the oligos to NCBI (tiered,
+> **Status: v1.3.0 (alpha, 2026-09-25).** A full `run` sends the oligos to NCBI (tiered,
 > taxon-restricted remote BLAST), fetches the subject window and re-aligns the whole oligo over
 > every relevant hit, predicts off-target products, and judges specificity — genuine
 > `PASS`/`WARN`/`FAIL`, not just `INCOMPLETE`. Organism names are resolved to NCBI taxonomy IDs
@@ -345,6 +345,13 @@ Command-line options override values in the assay file.
 
 ## Assay file
 
+**Template:** [`examples/assay_template.yaml`](examples/assay_template.yaml) (also written by
+`qpcr-assay-check init`) is a compact assay file: one line per oligo and a short `settings:`
+with only what differs from the defaults (see the N. gonorrhoeae example for a filled one). Below
+it, a commented reference lists every other option with its default; copy a line into
+`settings:` (same indentation) only when an assay needs another value. Tests check that the
+reference's defaults are the real ones and that no option is missing.
+
 ```yaml
 assay_name: CDC 2019-nCoV N1
 forward: GACCCCAAAATCAGCGAAAT      # 5'->3', DNA, IUPAC codes allowed
@@ -368,6 +375,57 @@ Notes:
   every variant is evaluated and the worst one decides.
 - `near_neighbour_taxids` and `exclusion_taxids` define the near-neighbour search tier of `search`.
 
+### Several oligos per role, and oligo names (v1.3.0)
+
+Some assays carry more than one forward primer, reverse primer or probe for the same target, when
+lineages differ too much for a wobble base. Each role takes a plain sequence (as above; its name is
+then the role), one named oligo, or a list of named oligos:
+
+```yaml
+forward: {name: NG-F, sequence: GTTGAAACACCGCCCGG}
+reverse: {name: NG-R, sequence: CGGTTTGACCGGTTAAAAAAAGAT}
+probe:
+  - name: NG-P1
+    sequence: CCCTTCAACATCAGTGAAA
+    reporter: FAM          # optional per probe; else probe_reporter
+    modifications: [MGB]   # optional per probe; else probe_modifications
+  - name: NG-P2
+    sequence: CTTTGAACCATCAGTGAAA
+reference_amplicons:       # optional; one per lineage, or a single reference_amplicon
+  - {name: lineage-1, sequence: ...}
+  - {name: lineage-2, sequence: ...}
+```
+
+- Oligos of the same role are alternatives in the same reaction mix: for each record the
+  best-binding one counts (fewest mismatches and gaps, then the cleanest 3' end). Probes with the
+  same reporter are alternatives; probes with different reporters detect different regions.
+- Names (letters, digits, `.`, `_`, `-`; unique; not ending in `_v` + a number, which labels
+  degenerate variants) are used in the report, the workbook, `hits.tsv` and as BLAST query labels.
+- QC checks every oligo, every dimer across the whole mix (including two alternatives), and the Tm
+  spread of each role's alternatives. Each oligo is placed in the reference amplicon it fits best;
+  an alternative that fits no reference is a warning when another oligo of its role fits.
+- Specificity searches every oligo under its own name; predicted products pair any forward with
+  any reverse primer. Variant tables name the alternative seen in each row.
+- Multi-copy targets: every stored copy of the region is assessed with every oligo, and each
+  genome is judged by the copy the assay binds best (a PCR needs one copy it can amplify). The
+  report's "Copies, coverage per oligo, and escapes" table shows copies per genome, how many
+  genomes each oligo covers (and covers alone), genomes no oligo of a role covers, probe channels
+  (`variants.probe_channels: any | all`) and the escapes: genomes without any detectable copy
+  (at most 1 mismatch, no gap, no mismatch in the last 5 nt).
+- Homopolymer bulges (a site that differs only by the length of a single-base run, no mismatch)
+  are **not** counted as detectable by default (strict). `variants.homopolymer_bulges_detectable:
+  true` counts them; the report shows the genomes with a detectable copy under both rules either
+  way, since only a wet-lab check can show whether such a site amplifies.
+- Genomes stored before v1.3.0 kept at most 5 copies; they are downloaded and scanned again once
+  (within the per-run maximum), so every copy (up to 20) is assessed.
+- Further reference amplicons are tried when the first finds nothing (region store unchanged, so
+  adding a lineage reference keeps the regions already stored).
+- A site that differs only by the length of a single-base run (e.g. a poly-T of 9 instead of 7)
+  is aligned as a bulge with the 3' end intact and labelled "homopolymer length variant", rather
+  than shown as 3'-end mismatches. Homopolymer lengths are also a known sequencing-error hotspot.
+- Worked example (user-supplied sequences):
+  [`docs/examples/neisseria_gonorrhoeae_two_probes.yaml`](docs/examples/neisseria_gonorrhoeae_two_probes.yaml).
+
 ### The example assay
 
 `examples/cdc_2019-nCoV_N1.yaml` is the CDC 2019-nCoV N1 assay. Its file header documents the
@@ -384,6 +442,31 @@ with `--config`; only the keys you set change, and unknown keys are rejected so 
 silently fall back to a default. Reaction conditions (Na⁺, Mg²⁺, dNTP, primer and probe
 concentration, annealing temperature), all QC thresholds and the structure limits live there.
 `examples/config_annealing_55C.yaml` shows an override.
+
+### Settings per assay (v1.3.0)
+
+Everything specific to one assay belongs in the assay file itself, under `settings:`, with the same
+structure as `config.yaml`; only what differs from the defaults needs writing:
+
+```yaml
+settings:
+  reaction:
+    annealing_temp_C: 60          # this assay's cycling protocol
+  search:
+    background_taxids: []         # skip the human background search
+  variants:
+    source: blast_partitioned     # a virus: Nucleotide records
+    nucleotide_query: "25000:32000[SLEN]"
+```
+
+Order of precedence: built-in defaults, then a `--config` file (lab-wide), then the assay's
+`settings:`. Allowed sections: `reaction`, `oligo`, `thresholds`, `search`, `specificity`,
+`organisms`, `inclusivity`, `variants`. `ncbi` (servers, throttling, cache location) and `report`
+stay lab-wide; the NCBI email and API key always come from environment variables. Unknown keys
+are rejected, naming the assay file's settings. The report's Methods section lists the settings
+that came from the assay file, and a change to them counts as an assay change in the run history
+(run budgets such as `max_assemblies_per_run` excepted). So one file per assay:
+`qpcr-assay-check run my_assay.yaml --yes`.
 
 ## Verdicts and exit codes
 
@@ -574,7 +657,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 | 1.0.0 | Run history, yearly diff report, Docker — all confirmed live |
 | 1.1.0 | Exhaustive variant analysis (NCBI Datasets genomes; Nucleotide records by direct scan + partitioned BLAST), N-masked regions, new-variant history — confirmed live |
 | 1.1.1 | Regions wholly hidden by N reported as masked, not as not found |
-| **1.2.0** | Off-target sites grouped into binding variants; accessions and taxonomy IDs link to NCBI — confirmed live |
+| 1.2.0 | Off-target sites grouped into binding variants; accessions and taxonomy IDs link to NCBI — confirmed live |
+| **1.3.0** | Several named oligos per role, settings in the assay file, multi-copy targets judged by the best-binding copy, coverage per oligo and escapes, homopolymer bulges — confirmed live |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and the NCBI facts it rests on.
 Proposed next features (not started): [docs/FEATURE_IDEAS.md](docs/FEATURE_IDEAS.md).

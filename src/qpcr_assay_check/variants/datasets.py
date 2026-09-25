@@ -20,6 +20,7 @@ from __future__ import annotations
 import io
 import logging
 import zipfile
+import zlib
 from collections.abc import Iterator
 from dataclasses import dataclass
 from urllib.parse import quote
@@ -133,10 +134,17 @@ class DatasetsClient:
             snippet = resp.text[:200]
             raise NcbiError(f"Datasets download was not a zip archive: {snippet!r}") from exc
         out: dict[str, str] = {}
-        for name in zf.namelist():
-            parts = name.split("/")
-            if len(parts) == 4 and parts[:2] == ["ncbi_dataset", "data"] and name.endswith(".fna"):
-                out[parts[2]] = zf.read(name).decode("ascii", "replace")
+        try:
+            for name in zf.namelist():
+                parts = name.split("/")
+                if (
+                    len(parts) == 4
+                    and parts[:2] == ["ncbi_dataset", "data"]
+                    and name.endswith(".fna")
+                ):
+                    out[parts[2]] = zf.read(name).decode("ascii", "replace")
+        except (zipfile.BadZipFile, zlib.error, EOFError) as exc:  # a damaged member
+            raise NcbiError(f"Datasets download was damaged: {exc}") from exc
         return out
 
     def _get_json(self, path: str, params: dict[str, str]) -> dict:

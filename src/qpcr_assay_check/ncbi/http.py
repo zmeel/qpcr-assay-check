@@ -129,7 +129,14 @@ class NcbiHttp:
                     method, url, params=query, data=body, timeout=s.request_timeout_s,
                     headers=headers,
                 )  # fmt: skip
-            except (requests.ConnectionError, requests.Timeout) as exc:
+            except (
+                requests.ConnectionError,
+                requests.Timeout,
+                # the body was cut off mid-transfer (live: a Datasets genome download ended
+                # with "Response ended prematurely" after hours of downloads)
+                requests.exceptions.ChunkedEncodingError,
+                requests.exceptions.ContentDecodingError,
+            ) as exc:
                 last_problem = f"{type(exc).__name__}: {self.creds.redact(str(exc))}"
             else:
                 if resp.status_code < 400:

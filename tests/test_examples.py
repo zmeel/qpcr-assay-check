@@ -20,7 +20,7 @@ def test_repo_examples_match_the_packaged_copies(name):
 
 def test_example_assay_is_valid_and_matches_the_verified_sequences():
     a = build_assay(ROOT / "examples" / "cdc_2019-nCoV_N1.yaml", {})
-    assert (a.forward, a.reverse, a.probe) == (CDC_N1_F, CDC_N1_R, CDC_N1_P)
+    assert list(a.oligos.values()) == [CDC_N1_F, CDC_N1_R, CDC_N1_P]
     assert a.target.taxid == 2697049
     # verified against NC_045512.2:28287-28358 by the live smoke test (see the example's header)
     assert a.reference_amplicon == (

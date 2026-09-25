@@ -28,7 +28,7 @@ from ..ncbi.parser import ParsedSearch
 from ..search.planner import SearchPlan
 from ..specificity.fetch import WindowFetcher
 from ..specificity.models import SiteResult
-from ..specificity.sites import Candidate, make_candidate, role_of
+from ..specificity.sites import Candidate, make_candidate
 from ..verdict import Verdict
 from .dates import fetch_years
 from .models import InclusivityOligoResult, InclusivityResult, WindowStats
@@ -40,10 +40,16 @@ ROLES = ("forward", "reverse", "probe")
 
 
 def _sample(candidates: list[Candidate], n: int) -> list[Candidate]:
-    """Deterministic, evenly spread sample, one per accession, ordered by accession."""
+    """Deterministic, evenly spread sample, one per accession, ordered by accession.
+
+    Of a record's candidates (alternative oligos of the role, degenerate variants, several HSPs)
+    the one closest to binding represents it: alternatives in one mix, the best one binds.
+    """
     by_accession: dict[str, Candidate] = {}
     for c in candidates:
-        by_accession.setdefault(c.accession, c)
+        cur = by_accession.get(c.accession)
+        if cur is None or (c.lower_bound, -c.hsp.identity) < (cur.lower_bound, -cur.hsp.identity):
+            by_accession[c.accession] = c
     ordered = [by_accession[a] for a in sorted(by_accession)]
     if len(ordered) <= n:
         return ordered
@@ -131,19 +137,21 @@ def compute_inclusivity(
 
     oligo_results: list[InclusivityOligoResult] = []
     for role in ROLES:
-        oligo = assay.oligos[role]
+        members = assay.by_role(role)
+        oligo = " / ".join(o.sequence for o in members)  # alternatives in the same mix
+        oligo_len = max(len(o.sequence) for o in members)
         site_rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
         candidates: list[Candidate] = []
         for ps in target_searches:
             if ps.key not in parsed:
                 continue
             for label in ps.labels:
-                if role_of(label) != role:
+                if assay.role_of(label) != role:
                     continue
                 q = parsed[ps.key].queries[label]
                 oligo_variant = plan.queries[label]
                 candidates += [
-                    make_candidate("target", label, oligo_variant, hit, hsp)
+                    make_candidate("target", label, oligo_variant, hit, hsp, role)
                     for hit in q.hits
                     for hsp in hit.hsps
                     if hsp.identity >= min_identical
@@ -171,7 +179,7 @@ def compute_inclusivity(
             sites = assess_candidates(
                 sample, site_rules, fetcher, scoring, cfg.specificity.window_padding_nt, ids
             )
-            windows.append(_stats(sites, year, populations[year], len(oligo)))
+            windows.append(_stats(sites, year, populations[year], oligo_len))
         oligo_results.append(
             InclusivityOligoResult(role=role, oligo=oligo, windows=windows, n_no_date=n_no_date)
         )
@@ -226,7 +234,7 @@ def _unassessed_years(oligos: list[InclusivityOligoResult]) -> list[str]:
 
 
 def _verdict(
-    oligos: list[InclusivityOligoResult], rules: InclusivitySettings
+    oligos: list[InclusivityOligoResult], rules: InclusivitySettings, *, sampled: bool = True
 ) -> tuple[Verdict, list[str]]:
     """Worst oligo/window's % at 0-1 mismatch (no 3' mismatch) decides the verdict."""
     rationale: list[str] = []
@@ -242,7 +250,8 @@ def _verdict(
                 worst_pct = pct
             if pct < rules.warn_below_percent:
                 rationale.append(
-                    f"{o.role}, {w.year}: {pct:.0f}% of {w.sample_size} sampled record(s) at "
+                    f"{o.role}, {w.year}: {pct:.0f}% of {w.sample_size} "
+                    f"{'sampled' if sampled else 'assessed'} record(s) at "
                     "0-1 mismatch with no 3'-end mismatch (below "
                     f"{rules.warn_below_percent:g}%)."
                 )

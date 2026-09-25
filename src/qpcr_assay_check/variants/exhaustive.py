@@ -18,17 +18,18 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from ..align import realign
-from ..config import Config
+from ..config import Config, SiteRules
 from ..errors import InputError
 from ..inclusivity.aggregate import _stats, _verdict
 from ..inclusivity.models import InclusivityOligoResult, InclusivityResult
-from ..models import Assay
+from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
 from ..oligo import iupac
 from ..oligo.amplicon import find_sites
@@ -36,7 +37,13 @@ from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .locate import CONTEXT_NT, scan_region
-from .models import ExhaustiveCoverage, YearCoverage
+from .models import (
+    ChannelCoverageRow,
+    CopyCoverage,
+    ExhaustiveCoverage,
+    OligoCoverageRow,
+    YearCoverage,
+)
 from .store import RegionStore, StoredAssembly, StoredLocus, store_path
 
 log = logging.getLogger(__name__)
@@ -58,13 +65,15 @@ def reference_amplicon(assay: Assay, fetch_fasta: Callable[[str], str]) -> tuple
             "'reference_amplicon' or a target 'accession' that contains both primers."
         )
     seqs = parse_fasta(fetch_fasta(acc))
-    fwd, rev_rc = assay.forward.upper(), iupac.reverse_complement(assay.reverse.upper())
-    for seq in seqs.values():
-        for s in (seq, iupac.reverse_complement(seq)):
-            i = s.find(fwd)
-            j = s.find(rev_rc, i + 1) if i >= 0 else -1
-            if i >= 0 and j >= 0:
-                return s[i : j + len(rev_rc)], f"cut from {acc} by exact primer matches"
+    for f in assay.forward:  # any forward/reverse pair of the mix
+        for r in assay.reverse:
+            fwd, rev_rc = f.sequence.upper(), iupac.reverse_complement(r.sequence.upper())
+            for seq in seqs.values():
+                for s in (seq, iupac.reverse_complement(seq)):
+                    i = s.find(fwd)
+                    j = s.find(rev_rc, i + 1) if i >= 0 else -1
+                    if i >= 0 and j >= 0:
+                        return s[i : j + len(rev_rc)], f"cut from {acc} by exact primer matches"
     raise InputError(
         f"Both primers were not found exactly (facing each other) in {acc}; give the assay a "
         "'reference_amplicon' so the variant analysis knows which region to look for."
@@ -88,6 +97,7 @@ class ReferenceContext:
         self.fetch_fasta = fetch_fasta
         self.cache_file = cache_file
         self._value: tuple[str, str] | None = None
+        self.other_amplicons: list[str] = []  # further reference amplicons (other lineages)
 
     def __call__(self) -> tuple[str, str]:
         if self._value is None:
@@ -135,16 +145,27 @@ def reference_context(amplicon: str, seqs: dict[str, str]) -> tuple[str, str]:
 def oligo_sites(
     assay: Assay, amplicon: str, max_mismatches: int
 ) -> dict[str, tuple[str, int, int]]:
-    """``role -> (strand, start, end)`` of each oligo in the reference amplicon (1-based)."""
+    """``role -> (strand, start, end)`` where each role binds in the reference amplicon (1-based).
+
+    With several oligos for a role (alternatives in one mix) the window spans every one that fits
+    the reference; one meant for another lineage may not fit, and is aligned in the same window.
+    """
     out: dict[str, tuple[str, int, int]] = {}
     for role in ROLES:
-        hits = find_sites(amplicon, assay.oligos[role], role, max_mismatches=max_mismatches)
-        if not hits:
+        placed = []
+        for o in assay.by_role(role):
+            hits = find_sites(amplicon, o.sequence, o.name, max_mismatches=max_mismatches)
+            if hits:
+                placed.append(hits[0])
+        if not placed:
+            names = ", ".join(o.name for o in assay.by_role(role))
             raise InputError(
-                f"The {role} oligo was not found in the reference amplicon with at most "
+                f"No {role} oligo ({names}) was found in the reference amplicon with at most "
                 f"{max_mismatches} mismatch(es); the variant analysis cannot place it."
             )
-        out[role] = (hits[0].strand, hits[0].start, hits[0].end)
+        strand = placed[0].strand
+        same = [h for h in placed if h.strand == strand]
+        out[role] = (strand, min(h.start for h in same), max(h.end for h in same))
     return out
 
 
@@ -180,6 +201,15 @@ def collect(
                     pending.append(rec)
                     if processed + len(pending) >= budget:
                         break
+                stored = sum(
+                    1 for it in store.items.values() if it.year == year and store.done(it.accession)
+                )
+                log.info(
+                    "%d: %d assemblies listed, %d already stored, %d to scan in this run%s",
+                    year, n_year, stored, len(pending),
+                    " (the per-run maximum is reached; the rest follow on later runs)"
+                    if processed + len(pending) >= budget else "",
+                )  # fmt: skip
                 p, f, accs = _process(client, store, pending, amplicon, cfg, context)
                 processed, failed = processed + p, failed + f
                 failed_accessions += accs
@@ -221,11 +251,15 @@ def _process(
             records_ = parse_fasta_records(fasta)
             contigs = {name: seq for name, (_d, seq) in records_.items()}
             kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt}
-            loci, masked = scan_region(contigs, amplicon, context, **kw)
+            others = getattr(context, "other_amplicons", [])
+            loci, masked, ref = scan_region(
+                contigs, amplicon, context, other_amplicons=others, **kw
+            )
             store.add(rec, loci, {name: d for name, (d, _s) in records_.items()}, masked=masked,
-                      context_checked=context is not None and any(context()))  # fmt: skip
+                      context_checked=context is not None and any(context()), ref=ref,
+                      refs_checked=1 + len(others))  # fmt: skip
             done += 1
-        log.info("  %d / %d assemblies scanned", i + len(chunk), len(records))
+        log.info("  %d / %d assemblies scanned in this run", i + len(chunk), len(records))
     return done, failed, failed_accessions
 
 
@@ -246,23 +280,62 @@ def _version(acc: str) -> int:
     return int(tail) if tail.isdigit() else 0
 
 
+@dataclass
+class GenomeCall:
+    """One genome's best-binding copy, and what every oligo does on it."""
+
+    accession: str
+    n_copies: int
+    n_detectable: int
+    best_is_first: bool
+    n_detectable_other_rule: int  # copies detectable under the other homopolymer-bulge rule
+    oligo_good: dict[str, bool]  # oligo name -> detectable on the best copy
+    role_good: dict[str, bool]
+
+
+def detectable(s: SiteResult, bulges: bool = False) -> bool:
+    """At most 1 mismatch, no gap, no mismatch in the last 5 nt (the inclusivity criterion).
+
+    ``bulges``: also accept a site that differs only by the length of a single-base run (a
+    labelled homopolymer bulge without any mismatch); strict (False) by default.
+    """
+    if s.n_gap == 0:
+        return s.n_mismatch <= 1 and s.mismatches_last5 == 0
+    return bulges and bool(s.note) and s.n_mismatch == 0
+
+
+def _closeness_key(s: SiteResult, bulges: bool = False) -> tuple[int, int, int]:
+    return (0 if detectable(s, bulges) else 1, s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
+
+
 def assess(
     items: list[StoredAssembly],
     assay: Assay,
     amplicon: str,
-    sites_in_amplicon: dict[str, tuple[str, int, int]],
+    sites_in_amplicon: dict[str, tuple[str, int, int]] | list[dict[str, tuple[str, int, int]]],
     cfg: Config,
+    *,
+    calls: list[GenomeCall] | None = None,
 ) -> tuple[list[SiteResult], int, list[str]]:
-    """One site per oligo per assembly (best complete copy).
+    """One site per role per genome, from the copy of the region the assay binds best.
 
-    Returns the sites, the number of assemblies whose region is cut by a contig end, and the
-    accessions whose best copy has an N inside an oligo site (masked, not assessed).
+    Every stored copy is assessed with every alternative oligo of each role (the best one of a
+    role binds). A copy is ranked by how many roles are detectable there, then by total
+    mismatches and gaps; the genome is judged by its best copy, as a PCR needs only one copy it
+    can amplify. ``sites_in_amplicon`` gives the oligo windows per reference amplicon (a locus
+    records which reference found it). ``calls``, if given, collects each genome's
+    :class:`GenomeCall` (copies, per-oligo coverage). Returns the sites, the number of genomes
+    whose only copies are cut by a contig end, and the genomes whose best copy has an N in an
+    oligo site (masked, not assessed).
     """
+    per_ref = sites_in_amplicon if isinstance(sites_in_amplicon, list) else [sites_in_amplicon]
     scoring = realign.Scoring(
         cfg.specificity.alignment.match, cfg.specificity.alignment.mismatch,
         cfg.specificity.alignment.gap_open, cfg.specificity.alignment.gap_extend,
     )  # fmt: skip
-    memo: dict[tuple[str, str], realign.Alignment] = {}
+    memo: dict[tuple[str, str], tuple[realign.Alignment, str]] = {}
+    channel_rule = cfg.variants.probe_channels
+    bulges = cfg.variants.homopolymer_bulges_detectable
     sites: list[SiteResult] = []
     contig_break = 0
     masked_site: list[str] = []
@@ -270,40 +343,194 @@ def assess(
     for it in items:
         if it.status != "found":
             continue
-        locus = next((lc for lc in it.loci if not lc.truncated), None)
-        if locus is None:
+        copies = []
+        for locus in (lc for lc in it.loci if not lc.truncated):
+            windows = per_ref[locus.ref] if locus.ref < len(per_ref) else per_ref[0]
+            copy = _assess_copy(it, locus, assay, windows, cfg, scoring, memo, channel_rule, bulges)
+            if copy is not None:
+                copies.append(copy)
+        if not copies:
             contig_break += 1
             continue
-        per_role = []
-        for role in ROLES:
-            strand, start, end = sites_in_amplicon[role]
-            # the site +- SITE_PAD, clamped to the region (a full-length BLAST hit carries no
-            # flanks); a site that itself runs off the region cannot be assessed
-            if locus.offset + start - 1 < 0 or locus.offset + end > len(locus.region):
-                break
-            lo = max(0, locus.offset + start - 1 - SITE_PAD)
-            hi = min(len(locus.region), locus.offset + end + SITE_PAD)
-            window = locus.region[lo:hi]
-            oriented = window if strand == "+" else iupac.reverse_complement(window)
-            oligo = assay.oligos[role].upper()
-            key = (oligo, oriented)
-            if key not in memo:
-                memo[key] = realign.align_semiglobal(oligo, oriented, scoring)
-            aln = memo[key]
-            rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
-            n += 1
-            per_role.append(_site(it, locus, role, strand, lo, len(window), aln, rules, n))
-        if len(per_role) != len(ROLES):
-            contig_break += 1
-        elif any("N" in s.s_aln.upper() for s in per_role):
+        best_i = min(range(len(copies)), key=lambda i: _copy_key(copies[i][0], bulges))
+        chosen, all_sites = copies[best_i]
+        if any("N" in s.s_aln.upper() for s in chosen.values()):
             masked_site.append(it.accession)  # an N is neither a match nor a variant
-        else:
-            sites += per_role
+            continue
+        for role in ROLES:
+            n += 1
+            sites.append(chosen[role].model_copy(update={"id": f"V{n}"}))
+        if calls is not None:
+            calls.append(
+                GenomeCall(
+                    accession=it.accession,
+                    n_copies=len(copies),
+                    n_detectable=sum(
+                        all(detectable(x, bulges) for x in c.values()) for c, _a in copies
+                    ),
+                    best_is_first=best_i == 0,
+                    n_detectable_other_rule=sum(
+                        all(
+                            detectable(
+                                _role_site(assay, r, a, channel_rule, not bulges), not bulges
+                            )
+                            for r in ROLES
+                        )
+                        for _c, a in copies
+                    ),  # fmt: skip
+                    oligo_good={name: detectable(x, bulges) for name, x in all_sites.items()},
+                    role_good={r: detectable(chosen[r], bulges) for r in ROLES},
+                )
+            )
     return sites, contig_break, masked_site
 
 
-def _site(it: StoredAssembly, locus: StoredLocus, role: str, strand: str, lo: int, wlen: int,
-          aln: realign.Alignment, rules, n: int) -> SiteResult:  # fmt: skip
+def _copy_key(chosen: dict[str, SiteResult], bulges: bool = False) -> tuple[int, int, int]:
+    roles = list(chosen.values())
+    return (
+        sum(not detectable(x, bulges) for x in roles),
+        sum(x.n_mismatch + x.n_gap for x in roles),
+        -sum(x.clean_3prime_nt for x in roles),
+    )
+
+
+def _assess_copy(
+    it: StoredAssembly,
+    locus: StoredLocus,
+    assay: Assay,
+    windows: dict[str, tuple[str, int, int]],
+    cfg: Config,
+    scoring: realign.Scoring,
+    memo: dict[tuple[str, str], tuple[realign.Alignment, str]],
+    channel_rule: str,
+    bulges: bool = False,
+) -> tuple[dict[str, SiteResult], dict[str, SiteResult]] | None:
+    """Per role the site that counts on this copy, and every oligo's site; None if cut off."""
+    chosen: dict[str, SiteResult] = {}
+    every: dict[str, SiteResult] = {}
+    for role in ROLES:
+        strand, start, end = windows[role]
+        # the site +- SITE_PAD, clamped to the region (a full-length BLAST hit carries no
+        # flanks); a site that itself runs off the region cannot be assessed
+        if locus.offset + start - 1 < 0 or locus.offset + end > len(locus.region):
+            return None
+        lo = max(0, locus.offset + start - 1 - SITE_PAD)
+        hi = min(len(locus.region), locus.offset + end + SITE_PAD)
+        window = locus.region[lo:hi]
+        oriented = window if strand == "+" else iupac.reverse_complement(window)
+        rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
+        for o in assay.by_role(role):  # alternatives in one mix
+            key = (o.sequence.upper(), oriented)
+            if key not in memo:
+                memo[key] = _align(key[0], oriented, scoring, rules)
+            aln, note = memo[key]
+            every[o.name] = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
+        chosen[role] = _role_site(assay, role, every, channel_rule, bulges)
+    return chosen, every
+
+
+def _align(
+    oligo: str, oriented: str, scoring: realign.Scoring, rules: SiteRules
+) -> tuple[realign.Alignment, str]:
+    """The semiglobal alignment, or, when that is not detectable but the site only differs by
+    the length of a single-base run, the run-length (bulge) alignment with its label."""
+    aln = realign.align_semiglobal(oligo, oriented, scoring)
+    m = realign.measure(aln.q_aln, aln.s_aln)
+    if m.n_mismatch + m.n_gap == 0:
+        return aln, ""
+    shift = realign.homopolymer_shift(oligo, oriented)
+    if shift is None:
+        return aln, ""
+    alt = realign.measure(shift.alignment.q_aln, shift.alignment.s_aln)
+    # the run-length reading wins when it explains the site with no mismatch at all
+    if alt.n_mismatch == 0:
+        return shift.alignment, shift.label
+    return aln, ""
+
+
+def _role_site(
+    assay: Assay, role: str, every: dict[str, SiteResult], channel_rule: str, bulges: bool = False
+) -> SiteResult:
+    """The site that counts for a role: its best alternative; for probes in several reporter
+    channels, the best of each channel, then any (best) or all (worst) channels."""
+    members = assay.by_role(role)
+
+    def key(s: SiteResult) -> tuple[int, int, int]:
+        return _closeness_key(s, bulges)
+
+    if role != "probe" or channel_rule == "any":
+        return min((every[o.name] for o in members), key=key)
+    channels: dict[str, list[SiteResult]] = defaultdict(list)
+    for o in members:
+        channels[o.reporter or "unspecified"].append(every[o.name])
+    per_channel = [min(v, key=key) for v in channels.values()]
+    return max(per_channel, key=key)
+
+
+def copy_coverage(
+    calls: list[GenomeCall], assay: Assay, rule: str, bulges: bool = False
+) -> CopyCoverage:
+    """Copies, coverage per oligo and per probe channel, and the escape list.
+
+    ``bulges`` is the homopolymer-bulge rule used; the count under the other rule is kept too.
+    """
+    other = sum(c.n_detectable_other_rule > 0 for c in calls)
+    configured = sum(c.n_detectable > 0 for c in calls)
+    out = CopyCoverage(
+        genomes=len(calls),
+        multi_copy=sum(c.n_copies > 1 for c in calls),
+        max_copies=max((c.n_copies for c in calls), default=0),
+        best_copy_not_first=sum(not c.best_is_first for c in calls),
+        with_detectable_copy=configured,
+        probe_channels=rule,
+        homopolymer_bulges_detectable=bulges,
+        with_detectable_copy_strict=other if bulges else configured,
+        with_detectable_copy_bulges=configured if bulges else other,
+    )
+    escapes = [c.accession for c in calls if not all(c.role_good.values())]
+    out.escapes, out.escape_examples = len(escapes), escapes[:20]
+    for role in ROLES:
+        members = assay.by_role(role)
+        for o in members:
+            others = [x.name for x in members if x.name != o.name]
+            out.oligos.append(
+                OligoCoverageRow(
+                    role=role,
+                    name=o.name,
+                    reporter=o.reporter if role == "probe" else None,
+                    covered=sum(c.oligo_good.get(o.name, False) for c in calls),
+                    only=sum(
+                        c.oligo_good.get(o.name, False)
+                        and not any(c.oligo_good.get(x, False) for x in others)
+                        for c in calls
+                    ),
+                )  # fmt: skip
+            )
+        none = [c.accession for c in calls
+                if not any(c.oligo_good.get(o.name, False) for o in members)]  # fmt: skip
+        out.role_none[role], out.role_none_examples[role] = len(none), none[:20]
+    channels: dict[str, list[str]] = defaultdict(list)
+    for o in assay.probe:
+        channels[o.reporter or "unspecified"].append(o.name)
+    for reporter, names in channels.items():
+        out.channels.append(
+            ChannelCoverageRow(
+                reporter=reporter,
+                probes=names,
+                covered=sum(any(c.oligo_good.get(x, False) for x in names) for c in calls),
+            )  # fmt: skip
+        )
+    per_genome = [
+        [any(c.oligo_good.get(x, False) for x in names) for names in channels.values()]
+        for c in calls
+    ]
+    out.any_channel = sum(any(g) for g in per_genome)
+    out.all_channels = sum(all(g) for g in per_genome)
+    return out
+
+
+def _site(it: StoredAssembly, locus: StoredLocus, o: Oligo, strand: str, lo: int, wlen: int,
+          aln: realign.Alignment, rules, n: int, note: str = "") -> SiteResult:  # fmt: skip
     """A SiteResult on the assembly's contig (coordinates on the contig's forward strand)."""
     # indices in the region (sense orientation) covered by the aligned subject bases
     if strand == "+":
@@ -317,11 +544,11 @@ def _site(it: StoredAssembly, locus: StoredLocus, role: str, strand: str, lo: in
     contig_orientation = "+" if (strand == "+") == (locus.strand == "+") else "-"
     m = realign.measure(aln.q_aln, aln.s_aln)
     return SiteResult(
-        id=f"V{n}", tier="target", query=role, role=role,  # type: ignore[arg-type]
+        id=f"V{n}", tier="target", query=o.name, role=o.role,  # type: ignore[arg-type]
         oligo=aln.q_aln.replace("-", ""), accession=it.accession, taxid=it.taxid,
         organism=it.organism, title=f"{locus.contig} ({it.assembly_level})",
         orientation=contig_orientation,  # type: ignore[arg-type]
-        subject_start=c0, subject_end=c1, source="realigned",
+        subject_start=c0, subject_end=c1, source="realigned", note=note,
         **_result_fields(aln.q_aln, aln.s_aln, m, rules),
     )  # fmt: skip
 
@@ -345,11 +572,12 @@ def exhaustive_inclusivity(
         role_sites = [s for s in sites if s.role == role]
         windows = [
             _stats([s for s in role_sites if year_of.get(s.accession) == y], y, listed[y],
-                   len(assay.oligos[role]))
+                   max(len(o.sequence) for o in assay.by_role(role)))
             for y in shown
         ]  # fmt: skip
-        oligos.append(InclusivityOligoResult(role=role, oligo=assay.oligos[role], windows=windows))
-    verdict, rationale = _verdict(oligos, cfg.inclusivity)
+        oligo = " / ".join(o.sequence for o in assay.by_role(role))
+        oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
+    verdict, rationale = _verdict(oligos, cfg.inclusivity, sampled=False)
     rationale += [
         f"{y.year}: {y.listed} "
         + (
@@ -450,10 +678,20 @@ def run_exhaustive(
         return fetched[acc]
 
     amplicon, amp_source = reference_amplicon(assay, fetch_once)
-    placed = oligo_sites(assay, amplicon, cfg.thresholds.amplicon.max_site_mismatches)
+    others = [r.sequence.upper() for r in assay.reference_amplicons[1:]]
+    mm = cfg.thresholds.amplicon.max_site_mismatches
+    placed = [oligo_sites(assay, amplicon, mm)]
+    for ref in others:  # windows per reference; one that cannot place a role uses the first's
+        try:
+            placed.append(oligo_sites(assay, ref, mm))
+        except InputError:
+            placed.append(placed[0])
     v = cfg.variants
+    # keyed by the first reference only, so adding a lineage reference keeps the stored regions
     store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt, source))
+    store.n_refs = 1 + len(others)
     context = ReferenceContext(assay, amplicon, fetch_once, store.path.with_suffix(".context.json"))
+    context.other_amplicons = others
     if collector is None:
         years, total, processed, failed, _f = collect(
             client, store, taxon, amplicon, cfg, now=now, context=context
@@ -471,7 +709,8 @@ def run_exhaustive(
             "nothing to analyse exhaustively."
         )
     items = current_items(store)
-    sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg)
+    calls: list[GenomeCall] = []
+    sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
     not_found = [it for it in items if it.status == "not_found"]
     found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
@@ -519,7 +758,9 @@ def run_exhaustive(
             1 for it in not_found if it.assembly_level == "Nucleotide record"
             and it.direct_checked is False
         ),
+        copies=copy_coverage(calls, assay, v.probe_channels, v.homopolymer_bulges_detectable),
     )  # fmt: skip
+    coverage.copies.copies_capped = sum(1 for it in items if it.copies_capped)
     inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg, source=source)
     missing = coverage.not_found + coverage.contig_break + coverage.masked
     if missing:

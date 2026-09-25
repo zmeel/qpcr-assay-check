@@ -50,11 +50,6 @@ def record_type(accession: str, title: str) -> RecordType:
     return "other"
 
 
-def role_of(label: str) -> str:
-    """``forward_v2`` -> ``forward``."""
-    return label.split("_v")[0]
-
-
 def _quarter(n: int) -> int:
     return math.ceil(n / 4) if n > 0 else 0
 
@@ -101,14 +96,17 @@ class Candidate:
         return (self.desc.accession_version if self.desc else None) or "unknown"
 
 
-def make_candidate(tier: str, label: str, oligo: str, hit: Hit, hsp: Hsp) -> Candidate:
-    """Wrap an HSP; measures its aligned part and how much of the oligo BLAST left out."""
+def make_candidate(tier: str, label: str, oligo: str, hit: Hit, hsp: Hsp, role: str) -> Candidate:
+    """Wrap an HSP; measures its aligned part and how much of the oligo BLAST left out.
+
+    ``role`` comes from the assay (:meth:`Assay.role_of`), since labels are oligo names.
+    """
     if not hsp.qseq or not hsp.hseq:
         raise ValueError("BLAST report without alignment strings; cannot assess the hit")
     return Candidate(
         tier=tier,
         label=label,
-        role=role_of(label),
+        role=role,
         oligo=oligo,
         hit=hit,
         desc=hit.descriptions[0] if hit.descriptions else None,

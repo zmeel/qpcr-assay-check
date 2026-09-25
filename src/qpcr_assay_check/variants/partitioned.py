@@ -233,10 +233,13 @@ def _direct_scan(
                 log.warning("EFetch returned no sequence for %s; retried next run", rec.accession)
                 continue
             desc, seq = got
-            loci, masked = scan_region({rec.accession: seq}, amplicon, context, **kw)
+            others = getattr(context, "other_amplicons", [])
+            loci, masked, ref = scan_region({rec.accession: seq}, amplicon, context,
+                                            other_amplicons=others, **kw)  # fmt: skip
             store.add(rec, loci, {rec.accession: desc}, found_by="direct_scan",
                       direct_checked=True, masked=masked,
-                      context_checked=context is not None and any(context()))  # fmt: skip
+                      context_checked=context is not None and any(context()), ref=ref,
+                      refs_checked=1 + len(others))  # fmt: skip
             done += 1
     return done
 

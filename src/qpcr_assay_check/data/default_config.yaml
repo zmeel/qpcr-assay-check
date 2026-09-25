@@ -177,6 +177,13 @@ variants:
   direct_scan_max_length: 200000   # records BLAST did not hit and at most this long are fetched
                                    #   and scanned directly (newest records may not be in BLAST yet)
   direct_scan_batch: 20            # records per EFetch request for that direct scan
+  probe_channels: any              # probes with different reporters are separate channels:
+                                   #   any = a genome counts as detected if any channel detects it
+                                   #   all = only if every channel does
+  homopolymer_bulges_detectable: false  # a site differing only by the length of a single-base
+                                   #   run (e.g. poly-A 7->8), without any mismatch: false =
+                                   #   not detectable (strict); true = detectable. The report
+                                   #   shows the count under both rules either way
 
 report:
   include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)

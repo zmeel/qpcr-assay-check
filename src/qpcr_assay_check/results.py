@@ -57,7 +57,10 @@ class OligoInfo(BaseModel):
     """An oligo as evaluated, including its degenerate expansion."""
 
     role: str
+    name: str = Field(default="", description="oligo name; the role for a single unnamed oligo")
     sequence: str
+    reporter: str | None = None
+    modifications: list[str] = Field(default_factory=list)
     length_nt: int
     degenerate: bool
     n_variants: int

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import re
 from collections import defaultdict
 from typing import Literal
 
@@ -35,7 +36,7 @@ from ..search.planner import SearchPlan
 from ..variants.models import ExhaustiveCoverage
 from .fetch import WindowFetcher
 from .models import Level, SiteResult
-from .sites import Candidate, make_candidate, role_of
+from .sites import Candidate, make_candidate
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ LIST_FULL_NOTE = (
 )
 
 _MEASURED = {"blast_full", "realigned"}
+_DEGENERATE = re.compile(r"_v\d+$")  # a degenerate variant's query label -> the oligo name
 _RANK = {"critical": 0, "warning": 1, "minor": 2}
 _ROLES = ("forward", "probe", "reverse")
 
@@ -57,6 +59,8 @@ class VariantRow(BaseModel):
     q_aln: str
     s_aln: str
     midline: str
+    oligo_name: str = Field(default="", description="the oligo (of the role's alternatives) seen")
+    note: str = Field(default="", description="e.g. a homopolymer run-length variant")
     count: int
     percent: float
     level: Level
@@ -137,6 +141,8 @@ def _variant_row(
         q_aln=s.q_aln,
         s_aln=s.s_aln,
         midline=s.midline,
+        oligo_name=_DEGENERATE.sub("", s.query),
+        note=s.note,
         count=count,
         percent=100.0 * count / total if total else 0.0,
         level=s.level,
@@ -201,10 +207,10 @@ def assess_target_sites(
         if ps.tier != "target" or ps.key not in parsed:
             continue
         for label in ps.labels:
-            role = role_of(label)
+            role = assay.role_of(label)
             site_rules = rules.probe_site if role == "probe" else rules.primer_site
             cands: list[Candidate] = [
-                make_candidate("target", label, plan.queries[label], hit, hsp)
+                make_candidate("target", label, plan.queries[label], hit, hsp, role)
                 for hit in parsed[ps.key].queries[label].hits
                 for hsp in hit.hsps
                 if hsp.identity >= min_identical
@@ -248,7 +254,10 @@ def build_variant_summary(
     dates = release_dates or {}
     target_sites = [s for s in target_sites if s.tier == "target"]
     oligo_variants = [
-        _oligo_variants(target_sites, role, assay.oligos[role], dates) for role in _ROLES
+        _oligo_variants(
+            target_sites, role, " / ".join(o.sequence for o in assay.by_role(role)), dates
+        )
+        for role in _ROLES
     ]  # fmt: skip
 
     by_record: dict[str, dict[str, SiteResult]] = defaultdict(dict)

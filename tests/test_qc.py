@@ -121,4 +121,4 @@ def test_missing_reference_amplicon_is_stated_not_hidden(cfg, n1):
 def test_primer_sequence_is_not_mutated(cfg):
     a = make_assay(forward=CDC_N1_F)
     run_oligo_qc(a, cfg)
-    assert a.forward == CDC_N1_F
+    assert a.oligos["forward"] == CDC_N1_F

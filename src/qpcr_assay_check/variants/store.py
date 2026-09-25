@@ -22,7 +22,7 @@ from .locate import Locus
 
 log = logging.getLogger(__name__)
 
-MAX_LOCI_KEPT = 5
+MAX_LOCI_KEPT = 20  # multi-copy targets (v1.3.0; stores written before kept 5)
 
 
 class StoredLocus(BaseModel):
@@ -35,6 +35,7 @@ class StoredLocus(BaseModel):
     n_seeds: int
     truncated: bool
     on_plasmid: bool | None = None
+    ref: int = Field(default=0, description="index of the reference amplicon that found it")
 
 
 class StoredAssembly(BaseModel):
@@ -65,6 +66,11 @@ class StoredAssembly(BaseModel):
         description="Nucleotide records only: a record without a BLAST hit was fetched and "
         "scanned directly before being called 'not found'",
     )
+    refs_checked: int | None = Field(
+        default=None,
+        description="'not found' only: how many reference amplicons were tried (None: only the "
+        "first, stored before v1.3.0)",
+    )
     context_checked: bool | None = Field(
         default=None,
         description="'not found' only: whether the reference sequence around the amplicon was "
@@ -72,9 +78,14 @@ class StoredAssembly(BaseModel):
     )
 
     @property
+    def copies_capped(self) -> bool:
+        """Found, with fewer copies stored than kept now (stores before v1.3.0 kept 5)."""
+        return self.status == "found" and len(self.loci) < min(self.n_loci, MAX_LOCI_KEPT)
+
+    @property
     def needs_rescan(self) -> bool:
         """Stored before a check this version makes: scan it again (once)."""
-        if self.plasmid_contigs is None:
+        if self.plasmid_contigs is None or self.copies_capped:
             return True
         if self.status != "not_found" or self.direct_checked is False:
             return False  # a record too long to fetch (False) is not retried every run
@@ -107,6 +118,7 @@ class RegionStore:
         self.path = Path(path)
         self.items: dict[str, StoredAssembly] = {}
         self.aliases: set[str] = set()  # ESearch UIDs already looked up in this run
+        self.n_refs = 1  # reference amplicons of the assay; set by the caller
         if self.path.exists():
             for n, line in enumerate(self.path.read_text(encoding="utf-8").splitlines(), 1):
                 if not line.strip():
@@ -124,7 +136,10 @@ class RegionStore:
     def done(self, accession: str) -> bool:
         """Stored and complete: nothing left to download for this assembly."""
         item = self.items.get(accession)
-        return item is not None and not item.needs_rescan
+        if item is None or item.needs_rescan:
+            return False
+        # 'not found' with fewer reference amplicons than the assay now has: try the others once
+        return not (item.status == "not_found" and self.n_refs > (item.refs_checked or 1))
 
     def add(
         self,
@@ -136,6 +151,8 @@ class RegionStore:
         direct_checked: bool | None = None,
         masked: list[Locus] | None = None,
         context_checked: bool | None = None,
+        ref: int = 0,
+        refs_checked: int | None = None,
     ) -> StoredAssembly:
         """Store one assembly/record. ``masked``: no clean copy, but the region is there under N."""
         item = StoredAssembly(
@@ -147,7 +164,7 @@ class RegionStore:
             status="found" if loci else ("masked" if masked else "not_found"),
             n_loci=len(loci) if loci else len(masked or []),
             loci=[
-                StoredLocus(**_locus(lc), on_plasmid=_plasmid(descriptions, lc.contig))
+                StoredLocus(**_locus(lc), on_plasmid=_plasmid(descriptions, lc.contig), ref=ref)
                 for lc in (loci or masked or [])[:MAX_LOCI_KEPT]
             ],
             n_contigs=len(descriptions) if descriptions is not None else None,
@@ -162,6 +179,7 @@ class RegionStore:
             found_by=(found_by or "scan") if loci else None,  # type: ignore[arg-type]
             direct_checked=direct_checked,
             context_checked=context_checked if not loci and not masked else None,
+            refs_checked=refs_checked if not loci and not masked else None,
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as fh:

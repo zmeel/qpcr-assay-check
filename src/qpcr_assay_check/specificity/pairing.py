@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 from ..config import SpecificitySettings
 from ..models import Assay, TemplateType
 from .models import AmpliconResult, SiteResult
 from .sites import record_type
+
+
+def _who(site: SiteResult) -> str:
+    """The oligo's name for a named oligo, else its role (unchanged for single-oligo assays)."""
+    name = re.sub(r"_v\d+$", "", site.query)
+    return site.role if name == site.role else name
 
 
 def primer_can_prime(site: SiteResult) -> bool:
@@ -92,7 +99,7 @@ def predict_amplicons(
                         accession=left.accession,
                         taxid=left.taxid,
                         organism=left.organism,
-                        roles=f"{left.role}/{right.role}",
+                        roles=f"{_who(left)}/{_who(right)}",
                         left_site=left.id,
                         right_site=right.id,
                         start=left.subject_start,

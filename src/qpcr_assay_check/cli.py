@@ -30,27 +30,6 @@ app = typer.Typer(
 )
 log = logging.getLogger("qpcr_assay_check")
 
-_TEMPLATE_ASSAY = """\
-# qpcr-assay-check assay definition (template). Fill in every field marked REQUIRED.
-# Oligos are written 5'->3' as DNA (T, not U), also for RNA targets. IUPAC codes are allowed.
-assay_name: ""            # REQUIRED
-forward: ""               # REQUIRED
-reverse: ""               # REQUIRED
-probe: ""                 # REQUIRED  (sequence only; dye and quencher go below)
-probe_reporter: FAM
-probe_quencher: BHQ1
-probe_modifications: []   # e.g. [MGB] or [ZEN]; any entry triggers a Tm-reliability warning
-template_type: DNA        # DNA | RNA
-target:                   # REQUIRED: give a taxonomy ID and/or a reference accession
-  taxid:
-  accession:
-  gene:
-# reference_amplicon: ""  # optional sense-strand amplicon (enables amplicon checks)
-oligo_source: ""          # where these sequences come from (publication, vendor, in-house)
-# exclusivity_organisms:  # optional: this assay's own exclusivity panel (organism names), used
-#   - ""                  # instead of the global list when organisms.source is "assay" (default)
-"""
-
 
 def _version_callback(value: bool) -> None:
     if value:
@@ -118,15 +97,18 @@ def validate(
 ) -> None:
     """Check an assay file and configuration without running any analysis."""
     try:
-        cfg = load_config(config)
         assay = build_assay(assay_file, {})
+        cfg = load_config(config, assay.settings)
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return
     typer.echo(f"OK: '{assay.assay_name}' ({assay.template_type.value}) is valid.")
-    for role, seq in assay.oligos.items():
-        typer.echo(f"  {role:8} {seq} ({len(seq)} nt)")
+    for o in assay.oligo_list:
+        name = o.role if o.name == o.role else f"{o.role} {o.name}"
+        typer.echo(f"  {name:8} {o.sequence} ({len(o.sequence)} nt)")
     typer.echo(f"  configuration: annealing {cfg.reaction.annealing_temp_C:g} °C")
+    if assay.settings:
+        typer.echo(f"  settings from the assay file: {', '.join(sorted(assay.settings))}")
 
 
 @app.command()
@@ -197,8 +179,8 @@ def run(
     from .ncbi.http import NcbiError
 
     try:
-        cfg = load_config(config)
         assay = build_assay(assay_file, overrides)
+        cfg = load_config(config, assay.settings)
         if qc_only:
             result = evaluate(assay, cfg, qc_only=True)
         else:
@@ -231,7 +213,7 @@ def init(
     ] = False,
     force: Annotated[bool, typer.Option("--force", help="Overwrite existing files.")] = False,
 ) -> None:
-    """Write a starter assay.yaml and a fully commented config.yaml."""
+    """Write a starter assay.yaml (every option explained) and a fully commented config.yaml."""
     from importlib import resources
 
     directory.mkdir(parents=True, exist_ok=True)
@@ -239,8 +221,9 @@ def init(
         assay_text = (
             resources.files("qpcr_assay_check") / "data" / "examples" / "cdc_2019-nCoV_N1.yaml"
         ).read_text(encoding="utf-8")
-    else:
-        assay_text = _TEMPLATE_ASSAY
+    else:  # every option, explained (the same file as examples/assay_template.yaml)
+        template = resources.files("qpcr_assay_check") / "data" / "assay_template.yaml"
+        assay_text = template.read_text(encoding="utf-8")
     for filename, text in (("assay.yaml", assay_text), ("config.yaml", default_config_text())):
         target = directory / filename
         if target.exists() and not force:
@@ -474,8 +457,8 @@ def search(
 
     _setup_logging(verbose)
     try:
-        cfg = load_config(config)
         assay = build_assay(assay_file, {})
+        cfg = load_config(config, assay.settings)
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return

@@ -6,8 +6,7 @@ after v1.1.1. **None of these is planned or started**: each needs the user's go-
 rest on NCBI behaviour or published data that must be checked before building on it; nothing
 here is a verified fact about NCBI or about PCR chemistry yet.
 
-Recommended order: **8 next** (requested by the user, v1.3.0), then 1 and 4, then 2 and 3 after
-their checks.
+Recommended order: 8 is done (v1.3.0); next 1 and 4, then 2 and 3 after their checks.
 
 | # | Idea | Value | New NCBI traffic | Verify first |
 |---|---|---|---|---|
@@ -89,7 +88,7 @@ probes tolerate mismatches differently from plain probes.
 - Labelled as a computed suggestion for the laboratory to evaluate, not a validated redesign;
   the assay definition is never changed by the tool.
 
-## 8. Several oligos per role, named oligos, multi-copy targets (v1.3.0 candidate)
+## 8. Several oligos per role, named oligos, multi-copy targets (v1.3.0; done)
 
 Some assays use more than one forward primer, reverse primer or probe for the same target, when
 the differences between lineages are too big for a wobble base. Confirmed by the user

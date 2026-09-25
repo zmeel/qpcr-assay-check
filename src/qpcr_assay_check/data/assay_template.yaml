@@ -1,0 +1,156 @@
+# qpcr-assay-check assay file (template). Fill in the fields, delete what you do not need.
+# Required: assay_name, forward, reverse, probe, target. Everything else is optional.
+#   Check:  qpcr-assay-check validate my_assay.yaml
+#   Run:    qpcr-assay-check run my_assay.yaml -o results -y
+# Oligos 5'->3' as DNA (T, not U), 10-60 nt; IUPAC codes allowed (degenerate oligos are expanded).
+# Dye, quencher and modification names never go inside a sequence. The NCBI email and API key
+# come only from the environment variables NCBI_EMAIL and NCBI_API_KEY, never from this file.
+
+assay_name: ""
+forward: {name: F, sequence: ""}
+reverse: {name: R, sequence: ""}          # the primer as ordered, not its binding site
+probe:
+  - {name: P, sequence: "", reporter: FAM, quencher: BHQ1, modifications: []}
+template_type: DNA                         # DNA | RNA (RNA: reverse transcription step)
+target:
+  taxid:                                   # NCBI Taxonomy ID of the intended target
+  accession:                               # optional reference record, e.g. NC_045512.2
+  gene:                                    # optional, for the report
+reference_amplicons:                       # optional; the product the primers amplify (sense)
+  - {name: reference, sequence: ""}
+exclusivity_organisms: []                  # organism names the assay must NOT detect
+oligo_source: ""                           # publication, kit insert or in-house
+notes: ""
+
+settings:                                  # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60                   # this assay's cycling protocol
+  search:
+    background_taxids: [9606]              # human background search; [] skips it
+  variants:
+    source: datasets                       # datasets (bacteria) | blast_partitioned (viruses)
+
+# ============================================================================================
+# REFERENCE: every other option. Copy a line into the matching section under settings: above
+# (same indentation) only when this assay needs a value other than the default shown.
+# ============================================================================================
+#
+## Oligos. Each of forward, reverse and probe takes ONE of three forms:
+##   forward: GACCCCAAAATCAGCGAAAT                        (a plain sequence; its name is "forward")
+##   forward: {name: F1, sequence: GACCCCAAAATCAGCGAAAT}  (one named oligo)
+##   forward: [{name: F1, sequence: ...}, {name: F2, sequence: ...}]   (several)
+## Several oligos of one role are ALTERNATIVES IN THE SAME REACTION MIX (e.g. a second forward
+## primer for a lineage a wobble base cannot bridge): for each genome the best-binding one counts.
+## Probes with the same reporter are alternatives; different reporters = different regions.
+## Names: letters, digits, '.', '_', '-'; at most 40; unique; not ending in '_v' + a number.
+## Assay-wide probe defaults, for probes without their own: probe_reporter, probe_quencher,
+## probe_modifications (e.g. [MGB]; any modification gives a Tm-reliability warning).
+## reference_amplicon: "..."  is the single-sequence alternative to reference_amplicons; give
+## several reference_amplicons (one per lineage) and each oligo is placed in the one it fits best.
+## near_neighbour_taxids: [..], exclusion_taxids: [..]  close relatives (taxonomy IDs) searched
+## together as the off-target "near neighbours" tier. exclusivity_organisms: empty = the global
+## starter list (settings organisms). The assay's own target is always left out.
+#
+# --- settings reference start ---
+# reaction:                        # conditions for Tm and structure calculations
+#   na_mM: 50.0                    # monovalent cations (mM)
+#   mg_mM: 3.0                     # free Mg2+ (mM)
+#   dntp_mM: 0.8
+#   primer_nM: 400.0
+#   probe_nM: 200.0
+#   annealing_temp_C: 60.0         # annealing/extension temperature
+#   tm_method: santalucia          # santalucia | breslauer
+#   salt_correction: santalucia    # santalucia | owczarzy | schildkraut
+# oligo:
+#   max_degenerate_expansions: 64  # per oligo
+#   max_pair_combinations: 256     # variant combinations per oligo pair (dimers)
+# thresholds:                      # PASS inside pass_range, FAIL outside fail_range, else WARN
+#   primer:
+#     length_nt: {pass_range: [18, 30], fail_range: [15, 40]}
+#     gc_percent: {pass_range: [40, 60], fail_range: [30, 70]}
+#     tm_c: {pass_range: [58.0, 66.0], fail_range: [54.0, 70.0]}   # primer3 Tm, a few degrees above vendor tools
+#     gc_in_last5: {min: 1, max: 3}              # G/C in the last 5 nt (3' end)
+#     max_run: {warn_at: 5, fail_at: 7}          # longest single-base run
+#     max_g_run: {warn_at: 4, fail_at: 6}
+#   probe:
+#     length_nt: {pass_range: [15, 30], fail_range: [12, 40]}
+#     gc_percent: {pass_range: [30, 80], fail_range: [20, 90]}
+#     tm_minus_mean_primer_c: {pass_range: [5.0, 12.0], fail_range: [0.0, 15.0]}
+#     max_run: {warn_at: 5, fail_at: 7}
+#     max_g_run: {warn_at: 4, fail_at: 6}
+#     warn_if_more_g_than_c: true
+#     g_sensitive_reporters: [FAM, FITC]         # a 5' G next to these dyes quenches the signal
+#   pair:
+#     primer_tm_diff_c: {warn_above: 3.0, fail_above: 6.0}
+#   structures:                    # hairpins/dimers, by their Tm at the annealing temperature
+#     warn_tm_c: 47.0              # Primer3's default limit
+#     fail_tm_c: null              # null = the annealing temperature
+#   amplicon:
+#     length_bp: {pass_range: [50, 150], fail_range: [40, 300]}
+#     gc_percent: {pass_range: [35, 65], fail_range: [25, 75]}
+#     allow_probe_primer_overlap: false
+#     max_site_mismatches: 2       # when placing oligos in the reference amplicon
+# search:                          # the remote BLAST searches
+#   background_taxids: [9606]      # [9606] = human; [] skips the background search
+#   hitlist_size: 5000             # hits per oligo; a full list is reported as saturated
+#   max_taxids_per_search: 20
+#   max_searches_warn: 50          # NCBI asks for off-peak runs above this
+#   program: blastn                # advanced short-oligo BLAST parameters (docs/ARCHITECTURE.md)
+#   database: core_nt
+#   word_size: 7
+#   expect: 1000
+#   filter: "F"
+#   reward: 1
+#   penalty: -3
+#   gap_open: 5
+#   gap_extend: 2
+#   result_format: JSON2_S
+#   relevance:
+#     min_identical_bases: 14      # fewer identical bases = not a relevant off-target
+# specificity:                     # judging BLAST hits: sites and predicted products
+#   off_target_tiers: [near_neighbours, background, exclusivity]
+#   max_sites_per_query: 2000
+#   window_padding_nt: 10
+#   max_amplicon_size: 2000        # longer predicted products are ignored
+#   max_amplicons: 500
+#   report_top_sites: 25           # rows in the report's off-target table (x2, at least 40)
+#   alignment: {match: 1, mismatch: -3, gap_open: 5, gap_extend: 2}
+#   primer_site:                   # CRITICAL / WARNING: max mismatches and gaps, min clean 3' nt
+#     critical: {max_mismatches: 3, max_gaps: 0, min_clean_3prime_nt: 5}
+#     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 3}
+#   probe_site:
+#     critical: {max_mismatches: 3, max_gaps: 0, min_clean_3prime_nt: 0}
+#     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
+#   probe_binds_if: critical       # site level a probe needs for 'likely detected'
+#   severity:                      # FAIL | WARN | INFO per finding
+#     primer_site_critical: FAIL
+#     primer_site_warning: WARN
+#     probe_site_critical: WARN
+#     amplicon_likely_detected: FAIL
+#     amplicon_not_detected: WARN
+#   eukaryote_taxids: [9606]       # where genomic-DNA hits matter to RNA assays
+# organisms:
+#   source: assay                  # assay = exclusivity_organisms above when given; global = always the list
+#   list_file: null                # null = packaged starter list; or your lab's own file
+#   resolve_synonyms: true
+# inclusivity:
+#   lookback_years: 10
+#   sample_per_window: 20          # records per year for variants source blast_hits (a sample)
+#   warn_below_percent: 95         # % at 0-1 mismatch without a 3'-end mismatch
+#   fail_below_percent: 80
+# variants:                        # the exhaustive variant analysis
+#   source: datasets               # datasets | blast_partitioned | blast_hits (biased sample)
+#   current_assemblies_only: true
+#   exclude_atypical: true
+#   max_assemblies_per_run: 20000  # newest first, later runs continue; e.g. 5000 for shorter runs
+#   flank_nt: 50
+#   seed_length: 16
+#   seed_step: 4
+#   nucleotide_query: null         # blast_partitioned: extra Entrez filter, e.g. "25000:32000[SLEN]"
+#   blast_max_records_per_run: 2000
+#   blast_records_per_search: 100
+#   direct_scan_max_length: 200000
+#   direct_scan_batch: 20
+#   probe_channels: any            # probes with different reporters: any | all channels must detect
+#   homopolymer_bulges_detectable: false  # true: a site differing only by a run length (poly-A 7->8) counts as detectable
+# --- settings reference end ---

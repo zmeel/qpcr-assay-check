@@ -413,6 +413,8 @@ class VariantsSettings(_Strict):
     blast_records_per_search: int
     direct_scan_max_length: int
     direct_scan_batch: int
+    probe_channels: Literal["any", "all"] = "any"  # probes with different reporters (channels)
+    homopolymer_bulges_detectable: bool = False  # strict: a run-length variant is not detectable
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:
@@ -479,12 +481,50 @@ def format_validation_error(exc: ValidationError) -> str:
     for err in exc.errors():
         loc = ".".join(str(p) for p in err["loc"]) or "(root)"
         msg = str(err["msg"]).removeprefix("Value error, ")
+        if err["type"] == "extra_forbidden" and len(err["loc"]) == 2:
+            home = _section_of(str(err["loc"][1]))
+            if home and home != err["loc"][0]:
+                msg += f" ('{err['loc'][1]}' belongs under '{home}:', check the indentation)"
         lines.append(f"  {loc}: {msg}")
     return "\n".join(lines)
 
 
-def load_config(path: Path | None = None) -> Config:
-    """Load the defaults, merge an optional user file over them, and validate."""
+def _section_of(key: str) -> str | None:
+    """The top-level config section that has ``key`` as a setting, if exactly one does."""
+    homes = [
+        name
+        for name, field in Config.model_fields.items()
+        if isinstance(field.annotation, type)
+        and issubclass(field.annotation, BaseModel)
+        and key in field.annotation.model_fields
+    ]
+    return homes[0] if len(homes) == 1 else None
+
+
+def _drop_empty_sections(settings: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
+    """Leave out sub-sections written with every option commented out (they read as null).
+
+    Only where the default is itself a mapping: a plain setting given as null keeps its meaning.
+    """
+    out: dict[str, Any] = {}
+    for key, value in settings.items():
+        base = defaults.get(key)
+        if value is None and isinstance(base, dict):
+            continue
+        out[key] = (
+            _drop_empty_sections(value, base)
+            if isinstance(value, dict) and isinstance(base, dict)
+            else value
+        )
+    return out
+
+
+def load_config(path: Path | None = None, assay_settings: dict[str, Any] | None = None) -> Config:
+    """Load the defaults, merge an optional lab-wide file, then the assay's own settings.
+
+    Later sources win: built-in defaults < ``path`` (``--config``) < ``assay_settings`` (the
+    assay file's ``settings:`` section, same structure as config.yaml).
+    """
     data: dict[str, Any] = yaml.safe_load(default_config_text())
     if path is not None:
         try:
@@ -494,8 +534,13 @@ def load_config(path: Path | None = None) -> Config:
         if not isinstance(user, dict):
             raise ConfigError(f"Configuration file {path} must contain a YAML mapping")
         data = deep_merge(data, user)
+    if assay_settings:
+        data = deep_merge(data, _drop_empty_sections(assay_settings, data))
     try:
         return Config.model_validate(data)
     except ValidationError as exc:
-        where = f" in {path}" if path else ""
+        sources = [str(path)] if path else []
+        if assay_settings:
+            sources.append("the assay file's settings")
+        where = f" in {' or '.join(sources)}" if sources else ""
         raise ConfigError(f"Invalid configuration{where}:\n{format_validation_error(exc)}") from exc

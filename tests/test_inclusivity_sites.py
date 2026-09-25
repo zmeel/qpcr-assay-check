@@ -51,7 +51,9 @@ def candidates_for(tmp_path, world):
     q = parsed[target_ps.key].queries["forward"]
     oligo = plan.queries["forward"]
     cands = [
-        make_candidate("target", "forward", oligo, hit, hsp) for hit in q.hits for hsp in hit.hsps
+        make_candidate("target", "forward", oligo, hit, hsp, "forward")
+        for hit in q.hits
+        for hsp in hit.hsps
     ]
     return cfg, cands, fetcher
 

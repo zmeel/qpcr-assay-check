@@ -17,7 +17,7 @@ _ANNEAL = "#B23B3B"
 def tm_chart(result: RunResult, cfg: Config) -> str | None:
     """Bar chart of oligo Tm (range bars if degenerate) against the annealing temperature."""
     oligos = result.oligo_qc.oligos
-    roles = [o.role.capitalize() for o in oligos]
+    roles = [o.name if o.name and o.name != o.role else o.role.capitalize() for o in oligos]
     mid = [(o.tm_c_min + o.tm_c_max) / 2 for o in oligos]
     plus = [o.tm_c_max - m for o, m in zip(oligos, mid, strict=True)]
     minus = [m - o.tm_c_min for o, m in zip(oligos, mid, strict=True)]

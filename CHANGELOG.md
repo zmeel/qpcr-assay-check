@@ -6,6 +6,76 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-25
+
+Several oligos per role with names, assay-specific settings, and multi-copy targets judged by
+their best-binding copy.
+
+### Added
+- **Several oligos per role and oligo names** (`models.py`, `oligo/qc.py`, `oligo/amplicon.py`,
+  specificity, variants, report; v1.3.0 step 1): a role takes a plain sequence (unchanged), one
+  named oligo, or a list of named oligos, which are alternatives in the same reaction mix. Probes
+  may carry their own reporter, quencher and modifications. New optional `reference_amplicons`
+  (one per lineage). QC checks every oligo, every dimer across the whole mix and the Tm spread per
+  role; each oligo is placed in the reference it fits best (an alternative that fits none is a
+  WARN when another oligo of its role fits; a reference without a primer pair is a WARN). BLAST
+  queries are labelled by oligo name and roles come from the assay, not from the label; products
+  pair any forward with any reverse primer and name the oligos. In the variant analysis and the
+  sampled inclusivity, the best-binding alternative counts for each record, and variant rows name
+  it. Existing assay files work unchanged; saved records load again. Worked example:
+  `docs/examples/neisseria_gonorrhoeae_two_probes.yaml` (now accepted by the tool).
+
+- **Multi-copy targets, coverage per oligo, escapes** (`variants/exhaustive.py`, report,
+  workbook; v1.3.0 step 2): every stored copy of the region is assessed with every alternative
+  oligo, and each genome is judged by the copy the assay binds best (earlier versions used the
+  copy found most confidently, which understated inclusivity for multi-copy targets such as the
+  N. gonorrhoeae assay: 22,248 of 22,255 genomes had more than one copy). New report table and
+  "Copies and coverage" sheet: copies per genome, genomes whose best copy differs from the first
+  found, coverage per oligo and "only this oligo", genomes no oligo of a role covers, probe
+  channels by reporter with `variants.probe_channels: any | all`, and the escapes (no
+  detectable copy). Up to 20 copies per genome are now stored (5 before); genomes stored with
+  the old limit are downloaded and scanned again once, within the per-run maximum.
+- **`variants.homopolymer_bulges_detectable`** (default `false`, strict): whether a site that
+  differs only by a single-base run length, without any mismatch, counts as detectable for the
+  best copy, coverage and escapes. The report and workbook show the genomes with a detectable
+  copy under both rules.
+- **Homopolymer run-length variants** (`align/realign.py`): a site that differs from the oligo
+  only by the length of one single-base run is aligned as a bulge with the 3' end intact and
+  labelled, instead of being shown as 3'-end mismatches (live: NG-R's poly-A/T site).
+- **Several reference amplicons in the variant analysis**: further references are tried where
+  the first finds nothing; the region store stays keyed by the first reference, so stored
+  regions are kept, and 'not found' entries are rechecked once when a reference is added.
+- **Settings per assay** (`models.py`, `config.py`, CLI, report): an optional `settings:` section
+  in the assay file, in config.yaml's structure, applied over the defaults and any `--config`
+  file, so every assay-specific choice (annealing temperature, background taxa, variant source,
+  Nucleotide filter, thresholds) lives with its assay and one file is enough per run. `ncbi` and
+  `report` stay lab-wide and are rejected there with a clear message. The report lists the
+  assay's own settings; `validate` names them. Both examples carry their settings (N1:
+  `blast_partitioned` with the genome-length filter; N. gonorrhoeae: `datasets` and
+  N. meningitidis for exclusivity).
+
+- **Assay template** (`examples/assay_template.yaml`, written by `init`): compact, as the user
+  preferred (one line per oligo, a short `settings:` with only what differs), followed by a
+  commented reference of every other option with its default, to copy in when needed. Tests
+  check that the reference reproduces the built-in defaults exactly and misses no option. The
+  N. gonorrhoeae example uses the same compact layout. Settings sections left with only comments
+  read as empty.
+
+### Fixed
+- **A genome download cut off mid-transfer crashed the run** (`ncbi/http.py`,
+  `variants/datasets.py`): after hours of NCBI Datasets downloads, one response ended
+  prematurely and the unhandled error ended the run. Such responses are now retried with backoff
+  like other network errors; if they keep failing, that batch is counted as a failed download and
+  retried on the next run. A damaged zip member is handled the same way.
+- **Intended-target check with named oligos**: it parsed query labels, so an assay with named
+  oligos was reported as having no perfect hit for forward, probe and reverse. It now counts per
+  oligo name and flags a role only when none of its oligos has a perfect hit (found live on the
+  N. gonorrhoeae two-probe run). Exhaustive inclusivity now says "assessed", not "sampled".
+
+### Changed
+- Records written by earlier versions store the assay in the old form, so the first run after
+  upgrading reports "The assay definition or configuration changed" once, although nothing did.
+
 ## [1.2.0] - 2026-09-24
 
 Report readability: grouped off-target variants and links to NCBI.
@@ -25,7 +95,7 @@ Report readability: grouped off-target variants and links to NCBI.
   accession, and "Taxonomy ID" columns, are hyperlinks too. Links load nothing until clicked, so
   the report stays self-contained; RIDs are not linked (a RID is only stable for about 36 hours; docs/ARCHITECTURE.md).
 
-## [1.1.1] - 2026-09-23
+## [1.1.1] - 2026-09-24
 
 ### Fixed
 - **A region wholly hidden by N was reported as 'not found'** (`variants/locate.py`,

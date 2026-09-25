@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -226,17 +226,22 @@ def scan_region(
     seed_length: int,
     seed_step: int,
     flank: int,
-) -> tuple[list[Locus], list[Locus]]:
-    """``(loci, masked)``: every clean copy of the region, or else where it is hidden by N.
+    other_amplicons: Sequence[str] = (),
+) -> tuple[list[Locus], list[Locus], int]:
+    """``(loci, masked, ref)``: every clean copy of the region, or else where it is hidden by N.
 
-    ``context`` returns the reference sequence on each side of the amplicon; it is called only
-    when nothing else was found, so it can fetch lazily.
+    ``other_amplicons`` are the assay's further reference amplicons (other lineages): they are
+    tried, in order, only when the first finds nothing; ``ref`` is the index of the reference
+    whose copies were found (0 = ``amplicon``). ``context`` returns the reference sequence on
+    each side of the amplicon; it is called only when nothing else was found, so it can fetch
+    lazily.
     """
     kw = {"seed_length": seed_length, "flank": flank}
-    loci = find_loci(contigs, amplicon, seed_step=seed_step, **kw)
-    if loci:
-        return loci, []
+    for i, amp in enumerate([amplicon, *other_amplicons]):
+        loci = find_loci(contigs, amp, seed_step=seed_step, **kw)
+        if loci:
+            return loci, [], i
     masked = find_masked(contigs, amplicon, seed_step=seed_step, **kw)
     if not masked and context is not None and any(ctx := context()):
         masked = find_masked_by_context(contigs, amplicon, *ctx, **kw)
-    return [], masked
+    return [], masked, 0
