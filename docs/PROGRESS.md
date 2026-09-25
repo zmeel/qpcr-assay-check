@@ -19,7 +19,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   `VariantRow` had no `grade_rule`, read by `fragment_outcome` for indeterminate sites (the
   tests used stand-in objects). Fixed, with a test on real rows (fails without the fix).
   Lesson: grouping tests should build real models, not SimpleNamespace stand-ins.
-- 495 tests pass, ruff clean. Push only after the user's go-ahead.
+- 495 tests pass, ruff clean. Pushed (d6478c1).
+- Live enterovirus run with d6478c1 (all 13,066 records now assessed; 11,687 with the region):
+  report renders; 92.3% with a detectable copy, 609 escapes, 294 undetermined (297 probe sites,
+  nearly all single MGB-probe mismatches; 1 reverse). Fragment table: 135 combinations need
+  attention (30 listed, the tail is only undetermined rows), 96 detectable. Forward: F1 covers
+  59.4%, F2 36.7%, none 488. report.html is 5.2 MB: to look at in the recap.
+- Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 
