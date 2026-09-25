@@ -23,6 +23,7 @@ PERFECT, TOLERATED, AT_RISK, FAILURE, INDETERMINATE = (
 )  # fmt: skip
 ORDER = {PERFECT: 0, TOLERATED: 1, AT_RISK: 2, FAILURE: 3, INDETERMINATE: 4}
 DETECTABLE = (PERFECT, TOLERATED)
+UNDETERMINED_RULES = ("R6", "R9")  # indeterminate sites counted neither detected nor escaped
 
 # Stadhouders 2010, Table 1 (p. 116), Taq DNA polymerase on DNA ("standard"), both primers:
 # type groups x position groups -> "avoid" (True) or "acceptable" (False; effect "generally
@@ -152,9 +153,9 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
         return Grade(INDETERMINATE, "R5", "gap or bulge in the probe site")
     if not mm and not amb_last5:
         return Grade(PERFECT, "", "")
-    if mgb and mm:
-        return Grade(INDETERMINATE, "R9", "mismatch in an MGB probe site: no source for its "
-                     "effect (MGB probes are more mismatch-selective)")  # fmt: skip
+    if mgb and len(mm) == 1:
+        return Grade(INDETERMINATE, "R9", "one mismatch in an MGB probe site: no source for its "
+                     "effect (MGB probes are more mismatch-selective); undetermined")  # fmt: skip
     if amb_last5:
         return Grade(INDETERMINATE, "R6", "ambiguity code in the genome in the last 5 nt")
     if len(mm) == 1 and mm[0].pos > 5:

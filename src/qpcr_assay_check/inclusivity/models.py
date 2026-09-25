@@ -26,6 +26,11 @@ class WindowStats(BaseModel):
         "None in records made before the classes",
     )
     n_by_grade: dict[str, int] = Field(default_factory=dict, description="records per class")
+    n_undetermined: int = Field(
+        default=0,
+        description="a mismatch in an MGB probe or an ambiguity code in the genome (rules R9, R6): "
+        "no published basis, left out of the detectable percentage",
+    )
     per_position_mismatches: list[int] = Field(
         description="mismatch count at each 1-based oligo position, across this window's sample"
     )

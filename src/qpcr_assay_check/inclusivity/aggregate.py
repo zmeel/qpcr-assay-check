@@ -26,7 +26,7 @@ from ..ncbi.cache import Cache
 from ..ncbi.eutils import Eutils
 from ..ncbi.http import NcbiError
 from ..ncbi.parser import ParsedSearch
-from ..oligo.grade import DETECTABLE
+from ..oligo.grade import DETECTABLE, INDETERMINATE, UNDETERMINED_RULES
 from ..search.planner import SearchPlan
 from ..specificity.fetch import WindowFetcher
 from ..specificity.models import SiteResult
@@ -66,6 +66,8 @@ def detectable_percent(w: WindowStats) -> float:
         return 0.0
     if w.n_detectable is not None:
         good = w.n_detectable
+        base = w.sample_size - w.n_undetermined
+        return 100.0 * good / base if base > 0 else 0.0
     else:
         good = max(0, w.n_perfect + w.n_one_mismatch - w.n_three_prime_mismatch)
     return 100.0 * good / w.sample_size
@@ -93,6 +95,10 @@ def _stats(
         if s.mismatches_last5:
             n_three_prime += 1
     graded = bool(sites) and all(s.grade is not None for s in sites)
+    # MGB-probe mismatches and ambiguity codes (R9, R6): no published basis, left out of the %
+    n_undetermined = sum(
+        1 for s in sites if s.grade == INDETERMINATE and s.grade_rule in UNDETERMINED_RULES
+    )
     by_grade: dict[str, int] = defaultdict(int)
     for s in sites:
         if s.grade is not None:
@@ -109,6 +115,7 @@ def _stats(
         n_fetch_failed=n_failed,
         n_detectable=sum(by_grade[g] for g in DETECTABLE) if graded else None,
         n_by_grade=dict(by_grade),
+        n_undetermined=n_undetermined,
     )
 
 

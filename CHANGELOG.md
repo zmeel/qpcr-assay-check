@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Undetermined genomes** (user decision 2026-09-25): a single mismatch in an MGB probe, or an
+  ambiguity code in the genome near a 3' end, has no published basis either way; such a genome
+  is now "undetermined" (its own row in the report) instead of an escape, and such sites are left
+  out of the inclusivity percentage. Unexplained gaps still count as not detected.
 - **Shorter, readable report** (user request 2026-09-25; layout advice from the advisor
   subagent): predicted off-target products and off-target sites are one row per search tier and
   species (identical products counted once, most concerning first, out-of-scope rows in a

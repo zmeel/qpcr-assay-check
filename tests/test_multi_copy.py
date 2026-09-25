@@ -211,3 +211,17 @@ def test_a_genome_with_more_copies_than_kept_is_not_rescanned_every_run():
     many = StoredAssembly(**base, n_loci=MAX_LOCI_KEPT + 5, loci=loci * MAX_LOCI_KEPT)
     assert old.needs_rescan and old.copies_capped
     assert not many.needs_rescan and not many.copies_capped
+
+
+def test_one_mismatch_in_an_mgb_probe_makes_a_genome_undetermined_not_an_escape(tmp_path):
+    """User decision 2026-09-25 (the enterovirus MGB probe: 196 genomes had counted as escapes)."""
+    probes = [{"name": "P", "sequence": P, "reporter": "FAM", "modifications": ["MGB"]}]
+    one = AMP.replace(P, mutate(P, [8]))  # one mismatch in the probe site, away from its ends
+    res = run(tmp_path, [FakeAssembly("GCA_000000120.1", "2026-02-01", copies(20, one))],
+              probe=probes)  # fmt: skip
+    c = res.coverage.copies
+    assert (c.escapes, c.undetermined, c.with_detectable_copy) == (0, 1, 0)
+    assert c.role_undetermined["probe"] == 1 and c.role_none["probe"] == 0
+    (w,) = [w for o in res.inclusivity.oligos if o.role == "probe" for w in o.windows
+            if w.sample_size]  # fmt: skip
+    assert w.n_undetermined == 1

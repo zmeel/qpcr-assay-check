@@ -52,11 +52,20 @@ class CopyCoverage(BaseModel):
     with_detectable_copy: int = 0
     escapes: int = Field(default=0, description="genomes without any detectable copy")
     escape_examples: list[str] = Field(default_factory=list)
+    undetermined: int = Field(
+        default=0,
+        description="genomes without a detectable copy whose only problems have no published "
+        "basis (e.g. a mismatch in an MGB probe): neither detected nor an escape",
+    )
+    undetermined_examples: list[str] = Field(default_factory=list)
     oligos: list[OligoCoverageRow] = Field(default_factory=list)
     role_none: dict[str, int] = Field(
         default_factory=dict, description="per role: genomes that none of its oligos covers"
     )
     role_none_examples: dict[str, list[str]] = Field(default_factory=dict)
+    role_undetermined: dict[str, int] = Field(
+        default_factory=dict, description="per role: genomes whose best site is undetermined"
+    )
     channels: list[ChannelCoverageRow] = Field(default_factory=list)
     any_channel: int = 0
     all_channels: int = 0

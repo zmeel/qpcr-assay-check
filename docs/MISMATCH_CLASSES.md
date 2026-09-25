@@ -144,8 +144,14 @@ mismatch on an MGB probe is marked `indeterminate` rather than `tolerated`.
 - Variant tables: a class column, the rule (R1-R9) and the source.
 - Inclusivity per year: counts per class instead of one "0-1 mismatch, clean 3' end" percentage;
   the verdict thresholds (`warn_below_percent`, `fail_below_percent`) apply to
-  `perfect + tolerated`; `at_risk` is reported separately, and `indeterminate` is never counted as
-  either detected or escaped.
+  `perfect + tolerated`; `at_risk` counts as not detected.
+- **Undetermined** (user decision 2026-09-25): a single mismatch in an MGB probe (R9) and an
+  ambiguity code in the genome in the last 5 nt (R6) are neither detected nor escaped: left out
+  of the inclusivity percentage and counted as "undetermined" genomes, not escapes. Other
+  `indeterminate` sites are not: an unexplained gap near a primer's 3' end is often how the
+  aligner writes two mismatches (seen in a test), so it counts as not detected, as before the
+  classes; homopolymer bulges follow `homopolymer_bulges_detectable`. An MGB probe with 2 or more
+  mismatches is `at_risk` (not detected), like other probes.
 - Copies/escapes: a genome's best copy is chosen by the class (then as now).
 - History: a class change for a known variant is a history event.
 - No switch back to the old rule (kept simple). Records made before the classes still load: their

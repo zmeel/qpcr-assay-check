@@ -81,8 +81,26 @@ def test_probes_keep_the_current_rule_and_mgb_mismatches_are_indeterminate():
     assert g.grade_probe(probe, one_internal, mgb=False).cls == g.TOLERATED
     assert g.grade_probe(probe, one_internal, mgb=True).cls == g.INDETERMINATE
     assert g.grade_probe(probe, probe[:-1] + "G", mgb=False).cls == g.AT_RISK
+    two = one_internal[:9] + "T" + one_internal[10:]
+    assert g.grade_probe(probe, two, mgb=True).cls == g.AT_RISK  # 2+ in an MGB probe: not detected
 
 
 def test_primer_pair_rule_r8():
     assert g.pair_fails(3, 2) and g.pair_fails(1, 4) and g.pair_fails(4, 1)
     assert not g.pair_fails(3, 1) and not g.pair_fails(2, 2)
+
+
+def test_one_mgb_mismatch_is_undetermined_not_an_escape(tmp_path):
+    """User decision 2026-09-25: an MGB probe with 1 mismatch is undetermined, neither detected nor
+    an escape; an unexplained gap still counts as not detected."""
+    from qpcr_assay_check.variants.exhaustive import site_state
+
+    from .test_exclusivity import site
+
+    mgb1 = site(1, "probe", "critical").model_copy(
+        update={"grade": g.INDETERMINATE, "grade_rule": "R9"}
+    )
+    gap = site(1, "reverse", "critical").model_copy(
+        update={"grade": g.INDETERMINATE, "grade_rule": "R5", "n_gap": 1}
+    )
+    assert site_state(mgb1) == "undetermined" and site_state(gap) == "fail"

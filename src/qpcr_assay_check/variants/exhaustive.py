@@ -20,7 +20,7 @@ import json
 import logging
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -291,6 +291,14 @@ class GenomeCall:
     n_detectable_other_rule: int  # copies detectable under the other homopolymer-bulge rule
     oligo_good: dict[str, bool]  # oligo name -> detectable on the best copy
     role_good: dict[str, bool]
+    role_state: dict[str, str] = field(default_factory=dict)  # ok | undetermined | fail
+
+    @property
+    def undetermined(self) -> bool:
+        """No detectable copy, but no failing role either: only sites without a published basis
+        (e.g. a mismatch in an MGB probe); counted neither as detected nor as an escape."""
+        states = set(self.role_state.values())
+        return self.n_detectable == 0 and "fail" not in states and "undetermined" in states
 
 
 def detectable(s: SiteResult, bulges: bool = False) -> bool:
@@ -309,8 +317,27 @@ def detectable(s: SiteResult, bulges: bool = False) -> bool:
     return bulges and bool(s.note) and s.n_mismatch == 0
 
 
+def undetermined(s: SiteResult) -> bool:
+    """No published basis either way: a mismatch in an MGB probe (rule R9) or an ambiguity code
+    in the genome in the last 5 nt (R6); counted neither as detected nor as an escape (user
+    decision 2026-09-25). Gaps are not: an unexplained gap near a primer's 3' end is often how
+    the aligner writes two mismatches, so it keeps counting as not detected; homopolymer bulges
+    follow ``homopolymer_bulges_detectable``."""
+    return s.grade == grade.INDETERMINATE and s.grade_rule in grade.UNDETERMINED_RULES
+
+
+def site_state(s: SiteResult, bulges: bool = False) -> str:
+    """ok (detectable) | undetermined | fail."""
+    if detectable(s, bulges):
+        return "ok"
+    return "undetermined" if undetermined(s) else "fail"
+
+
+_STATE_RANK = {"ok": 0, "undetermined": 1, "fail": 2}
+
+
 def _closeness_key(s: SiteResult, bulges: bool = False) -> tuple[int, int, int]:
-    return (0 if detectable(s, bulges) else 1, s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
+    return (_STATE_RANK[site_state(s, bulges)], s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
 
 
 def assess(
@@ -386,26 +413,34 @@ def assess(
                     ),  # fmt: skip
                     oligo_good={name: detectable(x, bulges) for name, x in all_sites.items()},
                     role_good=roles_ok(chosen, bulges),
+                    role_state=roles_state(chosen, bulges),
                 )
             )
     return sites, contig_break, masked_site
 
 
-def roles_ok(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str, bool]:
-    """Per role whether its site on this copy is detectable; both primers fail together when the
-    pair has too many mismatches in total (rule R8, Lefever 2013; docs/MISMATCH_CLASSES.md)."""
-    ok = {r: detectable(s, bulges) for r, s in chosen.items()}
+def roles_state(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str, str]:
+    """Per role ok | undetermined | fail on this copy; both primers fail together when the pair
+    has too many mismatches in total (rule R8, Lefever 2013; docs/MISMATCH_CLASSES.md)."""
+    state = {r: site_state(s, bulges) for r, s in chosen.items()}
     fwd, rev = chosen.get("forward"), chosen.get("reverse")
     graded = fwd is not None and rev is not None and fwd.grade is not None
     if graded and grade.pair_fails(fwd.n_mismatch, rev.n_mismatch):  # type: ignore[union-attr]
-        ok["forward"] = ok["reverse"] = False
-    return ok
+        state["forward"] = state["reverse"] = "fail"
+    return state
 
 
-def _copy_key(chosen: dict[str, SiteResult], bulges: bool = False) -> tuple[int, int, int]:
+def roles_ok(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str, bool]:
+    """Per role whether its site on this copy is detectable (see :func:`roles_state`)."""
+    return {r: v == "ok" for r, v in roles_state(chosen, bulges).items()}
+
+
+def _copy_key(chosen: dict[str, SiteResult], bulges: bool = False) -> tuple[int, int, int, int]:
     roles = list(chosen.values())
+    states = list(roles_state(chosen, bulges).values())
     return (
-        sum(not v for v in roles_ok(chosen, bulges).values()),
+        states.count("fail"),
+        states.count("undetermined"),
         sum(x.n_mismatch + x.n_gap for x in roles),
         -sum(x.clean_3prime_nt for x in roles),
     )
@@ -505,8 +540,10 @@ def copy_coverage(
         with_detectable_copy_strict=other if bulges else configured,
         with_detectable_copy_bulges=configured if bulges else other,
     )
-    escapes = [c.accession for c in calls if not all(c.role_good.values())]
+    escapes = [c.accession for c in calls if not all(c.role_good.values()) and not c.undetermined]
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
+    undet = [c.accession for c in calls if c.undetermined]
+    out.undetermined, out.undetermined_examples = len(undet), undet[:20]
     for role in ROLES:
         members = assay.by_role(role)
         for o in members:
@@ -524,9 +561,13 @@ def copy_coverage(
                     ),
                 )  # fmt: skip
             )
-        none = [c.accession for c in calls
-                if not any(c.oligo_good.get(o.name, False) for o in members)]  # fmt: skip
+        uncovered = [c for c in calls
+                     if not any(c.oligo_good.get(o.name, False) for o in members)]  # fmt: skip
+        none = [c.accession for c in uncovered if c.role_state.get(role) != "undetermined"]
         out.role_none[role], out.role_none_examples[role] = len(none), none[:20]
+        out.role_undetermined[role] = sum(
+            c.role_state.get(role) == "undetermined" for c in uncovered
+        )
     channels: dict[str, list[str]] = defaultdict(list)
     for o in assay.probe:
         channels[o.reporter or "unspecified"].append(o.name)

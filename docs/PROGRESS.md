@@ -117,6 +117,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   only when perfect/tolerated (advisor: rare risky variants must stay visible); class columns
   in the workbook. 482 tests. Not done (advisor ideas, in FEATURE_IDEAS): first-page summary,
   top escape clusters, QC table showing only WARN/FAIL, a --full option.
+- User: MGB probe with 1 mismatch = undetermined. Done: site/genome states ok | undetermined |
+  fail; undetermined = rule R9 (1 mismatch in an MGB probe) or R6 (ambiguity code in the last 5
+  nt); not gaps (a test showed the aligner writing two 3'-end mismatches as a gap); MGB with 2+
+  mismatches at_risk. Genomes: escapes exclude undetermined (own row); inclusivity % leaves them
+  out of the denominator. 484 tests. In the last enterovirus run this concerns the 196 genomes.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and
