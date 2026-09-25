@@ -83,8 +83,14 @@ verified NCBI facts) at the start of every session. Newest entry first.
   a type not tested at that position; "acceptable" for Taq + MMLV one-step mixes but "avoid in
   the reverse primer" with rTth, so it depends on the lab's RT-PCR mix. Wet-lab test still
   advised. NG poly-A bulges: not covered by the paper.
-- Lefever 2013 full text and the lab's mix (TaqMan Fast Virus 1-Step Master Mix, Applied
-  Biosystems) sent to the advisor; answer pending.
+- Lefever 2013 full text checked by the advisor (summary in FEATURE_IDEAS #9; ">=4 in one
+  primer or 3+2" confirmed as an "almost complete" blocking threshold). The lab's enterovirus
+  mix, TaqMan Fast Virus 1-Step Master Mix: per its user guide (MAN0028278 Rev. A.0) AmpliTaq
+  Fast DNA polymerase plus a thermostable MMLV-derived RT; RT 50 C 5 min, anneal/extend 60 C;
+  Mg/Mn not stated. Closest to Stadhouders' Taq + MMLV setup, where all 24 reverse-primer
+  mismatches cost < 0.7 Ct (the mismatch acts only in the RT step). EV-D68 (C-A at -3 in the
+  reverse primer): a small effect is likely (moderate confidence); test with an RNA template
+  (isolate, EQA or in-vitro transcript), not a DNA gBlock, which would overstate the risk.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and

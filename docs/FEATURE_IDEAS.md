@@ -152,6 +152,20 @@ probe/MGB mismatches, indels/bulges, spread or two-primer mismatches, degenerate
 mixes, efficiency/LoD. Those need Lefever 2013 (positions > 5, counts), Kutyavin 2000 (MGB);
 no source yet for bulges. The PDF is not stored in the repository (copyright).
 
+Lefever S, Pattyn F, Hellemans J, Vandesompele J. Clin Chem 2013;59(10):1470-1480,
+doi:10.1373/clinchem.2013.203653 (full text supplied by the user, read by the advisor): 20-nt
+forward primers, all single mismatch types in the last 5 nt, five intercalating-dye master
+mixes, DNA only (no RT step, no probes, no indels, no degenerate primers). Single mismatches:
+largest at the 3' terminus (dCq 5-7 depending on the mix), still measurable at the 5th base,
+"almost negligible" from position 8 on (one mix, supplementary data). Two mismatches in one
+primer already cost much (median around 7.7 dCq, read from a figure); 4 in one primer, or 3 + >=2
+or 4 + 1 across the pair, blocked amplification "almost completely"; with several mismatches the
+effect grows at low input. Combined with Stadhouders this gives: last-5 classes by type,
+position and setup (Stadhouders), positions 6-8 moderate and >= 9 negligible (Lefever), counts
+per primer and per pair (Lefever), a reverse-primer modifier for one-step RT-PCR (Stadhouders
+only). Where they disagree (terminal C-T/T-C), take the worse. Report classes, not predicted Cq.
+Still not covered: probe/MGB mismatches, bulges, degenerate primers.
+
 ## Related tools (context, 2026-09-23)
 
 A short web search (not a full literature review; maintenance status not checked) found no
