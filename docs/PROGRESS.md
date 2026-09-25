@@ -54,6 +54,19 @@ verified NCBI facts) at the start of every session. Newest entry first.
   version; shared client). Not a bug: "panel cache root ignores assay settings" (assay
   settings cannot contain ncbi). Also found: two runner tests mutated the session-scoped cfg
   fixture (now monkeypatched). 460 tests pass.
+- Enterovirus, human-only target (41 exclusions), 4,000 of 13,066 records: ancestry check passed;
+  no rhinovirus among 304 predicted near-neighbour products (they are EV-G, SVDV, porcine EVs,
+  simian EV-J): the assay amplifies animal enteroviruses, which now count as off-target FAIL.
+  To decide with the user: separate "must not detect" (rhinovirus) from "out of scope" (animal).
+  71.7% with a detectable copy; reverse 79.8% (EV-D68: 606 records, 17.3%, one mismatch 3 nt
+  from the 3' end); forward none 299; probe 99.9%.
+- The user asked for an advisor subagent (senior molecular biologist, big-data analysis). Its
+  review (sources given where verified, rest labelled opinion) recommends: graded role-specific
+  mismatch classes (MGB probes stricter, primer-pair combinations, IUPAC codes in the genome as
+  uncertain), haplotype collapsing with study provenance and per-type reporting, collection
+  date/country/technology stratification, copy-aware reporting, variant templates for the wet
+  lab, and panel refinements (interpretation rule; 'not found' by assembly level; one
+  homopolymer rule per panel). Added to FEATURE_IDEAS as proposals; not started.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 

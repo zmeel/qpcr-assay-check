@@ -120,6 +120,23 @@ Worked example: [examples/neisseria_gonorrhoeae_two_probes.yaml](examples/neisse
 - **Plan:** step 1 = assay format, names, QC and specificity; step 2 = best oligo per genome over
   all copies, coverage per oligo and channel, escape lists in the variant analysis.
 
+## Advisor review (2026-09-25): proposals, not started
+
+From the advisor subagent (senior molecular biologist, big-data analysis) after the NG and
+enterovirus runs. Items marked *verify first* need the cited papers' full tables or NCBI field
+checks before any rule is built; no thresholds of our own invention.
+
+| # | Idea | Why | Verify first |
+|---|---|---|---|
+| 9 | Graded, role-specific mismatch classes (perfect / tolerated likely / at risk / likely failure / indeterminate); MGB probes stricter; primer-pair combinations; IUPAC codes in the genome shown as uncertain | The binary rule is too strict for primers and too lenient for MGB probes | Yes: Stadhouders 2010, Lefever 2013, Kwok 1990 full tables |
+| 10 | Collapse identical amplicon-region haplotypes; study provenance (BioProject) per escape cluster; report per type/lineage | Single studies dominate raw counts (e.g. 262 Poliovirus 2 records of one series) | Yes: Datasets/ESummary fields |
+| 11 | Stratify by assembly level and sequencing technology; check homopolymer variants in complete/long-read genomes | Homopolymer length is a sequencing-error hotspot | Yes: field availability |
+| 12 | Copy-aware reporting: detectable copies per genome | Near the LoD fewer detectable copies matter | No |
+| 13 | Panel: interpretation rule (either target positive vs both); 'region not found' informative in complete genomes only; one homopolymer rule per panel | Clinical meaning of "detected by some targets" depends on the lab's algorithm | No |
+
+Idea 6 (variant templates for wet-lab checks) was ranked high by the advisor as the link to
+experimental validation.
+
 ## Related tools (context, 2026-09-23)
 
 A short web search (not a full literature review; maintenance status not checked) found no
