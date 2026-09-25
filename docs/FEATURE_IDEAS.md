@@ -137,6 +137,21 @@ checks before any rule is built; no thresholds of our own invention.
 Idea 6 (variant templates for wet-lab checks) was ranked high by the advisor as the link to
 experimental validation.
 
+**#9, source checked (2026-09-25, full text supplied by the user, read by the advisor):**
+Stadhouders R, Pas SD, Anber J, Voermans J, Mes THM, Schutten M. J Mol Diagn 2010;12(1):109-117,
+doi:10.2353/jmoldx.2010.090035. Single template mismatches at primer positions 1, 2, 3 and 5
+from the 3' end (not 4, not beyond 5), named primer-template; two TaqMan assays; three setups
+(Taq on DNA; Taq + MMLV one-step RT-PCR; rTth one-step RT-PCR); delta Ct at one input, n = 4.
+Its Table 1 groups mismatch classes (A-A/A-G/G-A/G-G/C-C; T-T/T-C/C-T; C-A/A-C/G-T/T-G) by
+position (terminal / penultimate / 3-5) and setup into "acceptable" (< 2 Ct) or "avoid", and the
+setups differ strongly (e.g. reverse-primer mismatches mattered little with Taq + MMLV but much
+with rTth). Multiple mismatches in the last 3 nt: no amplification with Taq-based setups.
+Usable for: a class x position x setup lookup for the last 5 nt, with the setup as a lab setting
+(worst case when unknown). Not covered: position 4 (extrapolated by the authors), beyond 5,
+probe/MGB mismatches, indels/bulges, spread or two-primer mismatches, degenerate primers, modern
+mixes, efficiency/LoD. Those need Lefever 2013 (positions > 5, counts), Kutyavin 2000 (MGB);
+no source yet for bulges. The PDF is not stored in the repository (copyright).
+
 ## Related tools (context, 2026-09-23)
 
 A short web search (not a full literature review; maintenance status not checked) found no

@@ -76,6 +76,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   36 animal taxa out_of_scope, each with a reason). Same NOT query, so the target search and
   the region store are reused. Not done: per-taxon severity override (use must_not_detect to
   make a taxon count). 465 tests pass.
+- The user supplied the Stadhouders 2010 full text; the advisor checked it (summary in
+  FEATURE_IDEAS #9). Corrections to its abstract-based review: the mild class (A-C, C-A, G-T,
+  T-G) was 0.99-1.91 Ct at the terminal position with Taq on DNA; the severe class includes
+  G-G (8.29-9.09 Ct). EV-D68 reverse-primer variant: C-A (primer-template) at position -3,
+  a type not tested at that position; "acceptable" for Taq + MMLV one-step mixes but "avoid in
+  the reverse primer" with rTth, so it depends on the lab's RT-PCR mix. Wet-lab test still
+  advised. NG poly-A bulges: not covered by the paper.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 
