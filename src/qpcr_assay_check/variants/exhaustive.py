@@ -28,7 +28,7 @@ from ..align import realign
 from ..config import Config, SiteRules
 from ..errors import InputError
 from ..inclusivity.aggregate import _stats, _verdict
-from ..inclusivity.models import InclusivityOligoResult, InclusivityResult
+from ..inclusivity.models import FragmentYear, InclusivityOligoResult, InclusivityResult
 from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
 from ..oligo import grade, iupac
@@ -612,6 +612,36 @@ def _site(it: StoredAssembly, locus: StoredLocus, o: Oligo, strand: str, lo: int
     )  # fmt: skip
 
 
+def _fragment_years(
+    sites: list[SiteResult], year_of: dict[str, int | None], listed: dict[int, int],
+    shown: list[int], bulges: bool,
+) -> list[FragmentYear]:  # fmt: skip
+    """Per year, each genome's outcome from its three best-copy sites together, as in the
+    whole-fragment table (user, 2026-09-25: one summary next to the per-oligo tables)."""
+    by_genome: dict[str, dict[str, SiteResult]] = defaultdict(dict)
+    for s in sites:
+        by_genome[s.accession][s.role] = s
+    out = {y: FragmentYear(year=y, population_size=listed.get(y), with_region=0) for y in shown}
+    for acc, roles in by_genome.items():
+        row = out.get(year_of.get(acc))  # type: ignore[arg-type]
+        if row is None or len(roles) < len(ROLES):
+            continue
+        outcome, by_pair = grade.combination_outcome(
+            roles["forward"], roles["probe"], roles["reverse"], bulges
+        )
+        row.with_region += 1
+        if outcome == "detectable":
+            row.detectable += 1
+        elif outcome == "at risk":
+            row.at_risk += 1
+        elif outcome == "likely failure":
+            row.likely_failure += 1
+            row.by_pair_rule += by_pair
+        elif outcome == "undetermined":
+            row.undetermined += 1
+    return [out[y] for y in shown]
+
+
 def exhaustive_inclusivity(
     sites: list[SiteResult],
     items: list[StoredAssembly],
@@ -637,6 +667,9 @@ def exhaustive_inclusivity(
         oligo = " / ".join(o.sequence for o in assay.by_role(role))
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
     verdict, rationale = _verdict(oligos, cfg.inclusivity, sampled=False)
+    fragment_years = _fragment_years(
+        sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable
+    )
     rationale += [
         f"{y.year}: {y.listed} "
         + (
@@ -654,6 +687,7 @@ def exhaustive_inclusivity(
         exhaustive=True,
         target_taxid=assay.target.taxid,
         oligos=oligos,
+        fragment_years=fragment_years,
         sample_scheme=(
             (
                 "Every genome assembly of the target in NCBI Datasets (current versions, one copy "

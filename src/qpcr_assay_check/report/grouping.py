@@ -15,13 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..oligo import iupac
-from ..oligo.grade import (
-    DETECTABLE,
-    FAILURE,
-    INDETERMINATE,
-    UNDETERMINED_RULES,
-    pair_fails,
-)
+from ..oligo.grade import OUTCOMES, combination_outcome
 from ..specificity.models import AmpliconResult, SiteResult
 
 TIER_ORDER = {"near_neighbours": 0, "exclusivity": 1, "background": 2, "out_of_scope": 9}
@@ -151,36 +145,13 @@ def shown_rows(groups: list[Any], flagged: str, limit: int) -> tuple[list[Any], 
 
 
 # ---------------------------------------------------------------- whole-fragment combinations
-OUTCOMES = ("likely failure", "at risk", "undetermined", "detectable")  # most concerning first
 _ORDER = (*OUTCOMES, "")  # "": sites without a class (not graded), listed after the rest
 
 
 def fragment_outcome(f: Any, bulges: bool = False) -> tuple[str, bool]:
-    """The genome-level outcome of one forward/probe/reverse combination, as the variant
-    analysis judges a copy (docs/MISMATCH_CLASSES.md), and whether the primer-pair rule decides
-    it. Rows made before the classes (no grade) get ''."""
-    sites = (f.forward, f.probe, f.reverse)
-    if any(s.grade is None for s in sites):
-        return "", False
-    pair = pair_fails(f.forward.n_mismatch, f.reverse.n_mismatch)
-
-    def state(s: Any) -> str:
-        if s.grade in DETECTABLE:
-            return "detectable"
-        if s.grade == INDETERMINATE:
-            if s.note:  # homopolymer bulge: its own setting
-                return "detectable" if bulges and s.n_mismatch == 0 else "at risk"
-            if s.grade_rule in UNDETERMINED_RULES:
-                return "undetermined"
-            return "at risk"  # an unexplained gap: not detected, no published size
-        return "likely failure" if s.grade == FAILURE else "at risk"
-
-    states = [state(s) for s in sites]
-    if pair:
-        states.append("likely failure")
-    return min(states, key=OUTCOMES.index), pair and not any(
-        s == "likely failure" for s in states[:3]
-    )
+    """The genome-level outcome of one forward/probe/reverse combination
+    (``oligo.grade.combination_outcome``) and whether the primer-pair rule decides it."""
+    return combination_outcome(f.forward, f.probe, f.reverse, bulges)
 
 
 @dataclass

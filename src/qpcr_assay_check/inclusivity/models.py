@@ -48,6 +48,20 @@ class InclusivityOligoResult(BaseModel):
     )
 
 
+class FragmentYear(BaseModel):
+    """Per year: the genome outcome from the three best-copy sites together (forward, probe,
+    reverse), as in the whole-fragment table; exhaustive analysis only."""
+
+    year: int
+    population_size: int | None = None
+    with_region: int = Field(description="records with all three sites assessed")
+    detectable: int = 0
+    at_risk: int = 0
+    likely_failure: int = 0
+    undetermined: int = 0
+    by_pair_rule: int = Field(default=0, description="likely failure decided by R8 alone")
+
+
 class InclusivityResult(BaseModel):
     """Everything the inclusivity assessment found."""
 
@@ -58,6 +72,9 @@ class InclusivityResult(BaseModel):
     )
     target_taxid: int | None = None
     oligos: list[InclusivityOligoResult] = Field(default_factory=list)
+    fragment_years: list[FragmentYear] = Field(
+        default_factory=list, description="whole-fragment outcome per year (exhaustive only)"
+    )
     sample_scheme: str = ""
     verdict: Verdict
     rationale: list[str] = Field(default_factory=list)

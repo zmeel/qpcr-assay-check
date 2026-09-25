@@ -417,6 +417,21 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
 {% else %}
 <div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
+{% if r.inclusivity.fragment_years %}
+<h3>Whole fragment (forward + probe + reverse combined)</h3>
+<p class="meta">Per year, each genome's outcome from its three sites together, as in the whole-fragment table: detectable when all three are perfect or tolerated, otherwise the worst site, and likely failure by the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Percentages are of the records with all three sites. The tables per oligo below show each site on its own.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Year</th><th>{{ 'Records' if nuc else 'Assemblies' }}</th><th>With region</th><th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Undetermined</th></tr></thead>
+  <tbody>
+  {% for f in r.inclusivity.fragment_years %}
+  <tr><td class="num">{{ f.year }}</td><td class="num">{{ f.population_size if f.population_size is not none else '–' }}</td><td class="num">{{ f.with_region }}</td>
+    {% for n in [f.detectable, f.at_risk, f.likely_failure, f.undetermined] %}<td class="num">{{ n }}{% if f.with_region %} <span class="meta">({{ pct(100.0 * n / f.with_region) }})</span>{% endif %}{% if loop.index == 3 and f.by_pair_rule %}<br><span class="meta">{{ f.by_pair_rule }} by the pair rule</span>{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}
+  {% set tot = r.inclusivity.fragment_years | sum(attribute='with_region') %}
+  <tr class="group"><th scope="row">All years shown</th><td></td><td class="num">{{ tot }}</td>{% for key in ['detectable', 'at_risk', 'likely_failure', 'undetermined'] %}{% set n = r.inclusivity.fragment_years | sum(attribute=key) %}<td class="num">{{ n }}{% if tot %} <span class="meta">({{ pct(100.0 * n / tot) }})</span>{% endif %}</td>{% endfor %}</tr>
+  </tbody>
+</table></div>
+{% endif %}
 {% for o in r.inclusivity.oligos %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>

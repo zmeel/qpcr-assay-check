@@ -458,3 +458,28 @@ def test_not_found_entries_stored_before_v1_1_1_are_checked_once_for_a_masked_re
     c = go().coverage
     assert c.processed_this_run == 2 and (c.masked, c.not_found) == (1, 1)
     assert go().coverage.processed_this_run == 0  # checked once, not every run
+
+
+def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
+    """User 2026-09-25: next to the per-oligo tables, one table with the genome outcome of the
+    three sites together; it agrees with the copy coverage."""
+    cfg, fake, client, assay = setup(tmp_path)
+    res = run(tmp_path, cfg, client, assay)
+    years = res.inclusivity.fragment_years
+    assert years and all(
+        f.detectable + f.at_risk + f.likely_failure + f.undetermined == f.with_region
+        for f in years
+    )
+    cc = res.coverage.copies
+    assert sum(f.detectable for f in years) == cc.with_detectable_copy
+    assert sum(f.undetermined for f in years) == cc.undetermined
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    html = render_report(result, cfg)
+    i = html.index("<h2>Inclusivity across")
+    assert html.index("<h3>Whole fragment (forward + probe + reverse combined)</h3>", i) < (
+        html.index("<h3>Forward</h3>", i)
+    )

@@ -43,6 +43,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Live run with 660e57f: report 335 kB, new layout works; per oligo still 30-52 rows (risky
   variants always listed, mostly single records). Built: single-record risky variants one row
   per class. Oligo QC (checks, hairpins/dimers, amplicon) folded just before Methods.
+- Inclusivity gains a whole-fragment table per year (genome outcome of the three sites);
+  the verdict still uses the per-oligo percentages (open question for the recap: base it on
+  the genome outcome instead?).
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

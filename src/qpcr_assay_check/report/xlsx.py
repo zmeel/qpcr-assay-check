@@ -405,6 +405,12 @@ def write_workbook(result: RunResult, path: Path) -> None:
                  w.n_by_grade.get("indeterminate", "")]
                 for o in incl.oligos
                 for w in o.windows
+            ]
+            + [
+                ["whole fragment", f.year,
+                 f.population_size if f.population_size is not None else "", f.with_region,
+                 "", "", "", "", "", f.detectable, f.at_risk, f.likely_failure, f.undetermined]
+                for f in incl.fragment_years
             ],
             None,
         )  # fmt: skip

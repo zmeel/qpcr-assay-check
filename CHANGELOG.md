@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Inclusivity: whole-fragment table per year** (user, 2026-09-25; exhaustive analysis): each
+  genome's outcome from its three best-copy sites together (detectable / at risk / likely
+  failure / undetermined, primer-pair rule included), with a total over the years shown, before
+  the per-oligo tables; also in the workbook (sheet "Inclusivity", oligo "whole fragment"). The
+  genome outcome is shared with the whole-fragment variant table
+  (`oligo.grade.combination_outcome`). The inclusivity verdict still uses the per-oligo
+  percentages.
+
 ### Changed
 - Variants per oligo: variants at risk, likely to fail or indeterminate that occur in a single
   record are one row per class (with their main types) instead of a row each; in the live

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from . import iupac
 
@@ -215,3 +216,37 @@ def grade_fields(q_aln: str, s_aln: str, role: str, *, mgb: bool) -> dict[str, s
 
 def is_mgb(modifications: list[str]) -> bool:
     return any(m.upper() == "MGB" for m in modifications)
+
+
+# ------------------------------------------------------------------ genome outcome
+OUTCOMES = ("likely failure", "at risk", "undetermined", "detectable")  # most concerning first
+
+
+def combination_outcome(forward: Any, probe: Any, reverse: Any,
+                        bulges: bool = False) -> tuple[str, bool]:  # fmt: skip
+    """The outcome for a genome from its three best-copy sites (anything with ``grade``,
+    ``grade_rule``, ``n_mismatch`` and ``note``), as the variant analysis judges a copy: the
+    worst site state, and the primer-pair rule (R8). Also whether the pair rule decides it.
+    Sites made before the classes (no grade) give ''."""
+    sites = (forward, probe, reverse)
+    if any(s.grade is None for s in sites):
+        return "", False
+    pair = pair_fails(forward.n_mismatch, reverse.n_mismatch)
+
+    def state(s: Any) -> str:
+        if s.grade in DETECTABLE:
+            return "detectable"
+        if s.grade == INDETERMINATE:
+            if s.note:  # homopolymer bulge: its own setting
+                return "detectable" if bulges and s.n_mismatch == 0 else "at risk"
+            if s.grade_rule in UNDETERMINED_RULES:
+                return "undetermined"
+            return "at risk"  # an unexplained gap: not detected, no published size
+        return "likely failure" if s.grade == FAILURE else "at risk"
+
+    states = [state(s) for s in sites]
+    if pair:
+        states.append("likely failure")
+    return min(states, key=OUTCOMES.index), pair and not any(
+        x == "likely failure" for x in states[:3]
+    )
