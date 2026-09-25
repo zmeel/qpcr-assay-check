@@ -28,6 +28,20 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Live: the enterovirus target search (RID BC6V27N6016) stayed WAITING for over 70 min, and
   restarting only resumed the same RID. Added `ncbi.resubmit_after_minutes` (90) and
   `--resubmit` on run/search; a resumed search is resubmitted at most once per run. 451 tests.
+- First enterovirus run (with --resubmit; the new RID was READY in 1 min; all 4 searches READY
+  in ~1 min each). Target exclusion confirmed live: the target Nucleotide list and its 1,646
+  records with the region hold no rhinovirus. Rhinoviruses (near neighbours): reverse primer
+  and probe bind perfectly (e.g. Rhinovirus B KF879883.1, Human rhinovirus sp. PZ504194.1), the
+  forward primers do not (F1 2 relevant alignments, closest RV-C 2 mismatches, 4 clean 3' nt;
+  forward hit lists not saturated): no product predicted in rhinovirus, parechovirus or human.
+  Verdict FAIL comes from critical primer SITES (severity primer_site_critical), not products.
+- Variant analysis, 2,000 of 13,796 near-complete genomes: 1,646 with the region, 67.4% with a
+  detectable copy. Forward: F1 52.9% / F2 30.1% / none 282 (mostly 262 Poliovirus 2 records of
+  one Ugandan 2022 series, UGA_22_*, with F2 at 3 mismatches; plus Enterovirus G, porcine).
+  Reverse 84.6%: 121 records with a mismatch 3 nt from the 3' end (example OZ287066.1, isolate
+  AUS-EVD68: EV-D68; 1,877 EV-D68 near-complete genomes are in the list); EV-G, SVDV others.
+  Probe 99.7%. Region not found 352: mostly animal enteroviruses (EV-E/F/G, SVDV), often
+  "polyprotein gene, complete cds" records that may not include the 5' UTR.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 
