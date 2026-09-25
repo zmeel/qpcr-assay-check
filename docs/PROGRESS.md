@@ -42,6 +42,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   AUS-EVD68: EV-D68; 1,877 EV-D68 near-complete genomes are in the list); EV-G, SVDV others.
   Probe 99.7%. Region not found 352: mostly animal enteroviruses (EV-E/F/G, SVDV), often
   "polyprotein gene, complete cds" records that may not include the 5' UTR.
+- User: human enteroviruses only. Example assay now also excludes (by taxid, checked live)
+  the animal species E-L, SVDV (12075, inside EV-B), Rhinovirus NAT001 and 27 unclassified
+  taxa whose NCBI name names an animal host (incl. simian/chimpanzee); 41 taxids. Left in
+  (host unclear): "Mammalian enterovirus" (MAG), "Enterovirus mbel", "WUHARV Enterovirus".
+  Live: 13,066 near-complete records (was 13,796). New exclusions = new region store: the
+  first 2,000 records are scanned again on the next run.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 

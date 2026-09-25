@@ -20,6 +20,19 @@
 #       169066  Human rhinovirus sp. (under "unclassified Enterovirus").
 #     About 556 further rhinovirus records sit in 364 small unclassified taxa and stay in the
 #     target (live count 2026-09-25); the report says so. Parechovirus is genus 138954.
+#   * Human enteroviruses only (the user's choice, 2026-09-25, after the first run): also
+#     excluded are the animal species E-L, swine vesicular disease virus (12075, inside
+#     E. betacoxsackie) and the 30 direct children of "unclassified Enterovirus" (90010) whose
+#     NCBI name names an animal host (bovine, porcine, ovine, goat, yak, takin, marmot,
+#     squirrel, raccoon dog, rodent, simian, rhesus monkey, chimpanzee); selected by name, live.
+#     Left in the target because their host is not clear from the name: "Mammalian
+#     enterovirus" (metagenome records), "Enterovirus mbel", "WUHARV Enterovirus 1-3".
+#     Primate enteroviruses filed inside the human species A-D (if any) stay in the target.
+#     Not listed: Porcine enterovirus (2938350) and Simian picornavirus N125/N203 (184753,
+#     184754) have no Nucleotide records (ESearch "phrases not found"), so they change nothing.
+#     Live 2026-09-25 with these exclusions: 114,474 records, 13,066 of 6,500-8,500 bases.
+#     Near-complete records per species (6500:8500[SLEN], rhinoviruses excluded): A 6,004,
+#     B 2,289, C 2,871, D 2,036; E-L 468; unclassified 127; SVDV 240 (inside B).
 #   * Nucleotide records, live 2026-09-25: 149,117 in taxid 12059; 117,193 after the exclusions
 #     (the ESearch 'NOT' subtracts exactly); 13,796 of those are 6,500-8,500 bases long
 #     (near-complete genomes), the filter used below.
@@ -38,8 +51,53 @@ probe:
   - {name: Entero-P, sequence: AAACMCGGACACCCAAA, reporter: FAM, modifications: [MGB]}
 template_type: RNA
 target:
-  taxid: 12059                                 # genus Enterovirus
-  exclude_taxids: [3428501, 3428503, 3428504, 169066]   # rhinoviruses: must not be detected
+  taxid: 12059                     # genus Enterovirus
+  exclude_taxids:                   # must not be detected, or not a human enterovirus
+    # rhinoviruses
+    - 3428501                       # Enterovirus alpharhino
+    - 3428503                       # Enterovirus betarhino
+    - 3428504                       # Enterovirus cerhino
+    - 169066                        # Human rhinovirus sp.
+    - 3402189                       # Rhinovirus NAT001
+    # animal enterovirus species E-L (ICTV names; NCBI Taxonomy 2026-09-25)
+    - 3428507                       # Enterovirus eibovi (EV-E)
+    - 3428508                       # Enterovirus fitauri (EV-F)
+    - 3428509                       # Enterovirus geswini (EV-G)
+    - 3428510                       # Enterovirus hesimi
+    - 3428511                       # Enterovirus idromi
+    - 3428512                       # Enterovirus jesimi
+    - 3428513                       # Enterovirus krodeni
+    - 3428514                       # Enterovirus lesimi
+    # swine vesicular disease virus (a pig virus inside Enterovirus betacoxsackie)
+    - 12075                         # Swine vesicular disease virus
+    # unclassified enteroviruses whose NCBI name names an animal host
+    - 3701373                       # Caprine/ovine enterovirus
+    - 3434961                       # Chenqi Marmot Enterovirus
+    - 3413229                       # Bovine enterovirus F
+    - 3413228                       # Bovine enterovirus E
+    - 3399459                       # Rodent coxsackievirus
+    - 2917294                       # Squirrel enterovirus
+    - 2915136                       # Marmot enterovirus
+    - 2901325                       # Ovine enterovirus 2019-00927
+    - 2829137                       # Raccoon dog enterovirus
+    - 2816942                       # Bovine enterovirus JS20-1
+    - 2816941                       # Bovine enterovirus GX20-1
+    - 2816940                       # Bovine enterovirus HB19-1
+    - 2220002                       # Sichuan takin enterovirus
+    - 2017721                       # Porcine enterovirus a/BEL/15V010
+    - 2017720                       # Porcine enterovirus b/BEL/15V010
+    - 1790067                       # Goat enterovirus
+    - 1790059                       # Bovine-like enterovirus
+    - 1604871                       # Yak enterovirus
+    - 1406975                       # Goat enterovirus G1
+    - 991803                        # Chimpanzee enterovirus CPS-2011
+    - 754527                        # Enterovirus rhesus monkey/FFH-2008/China
+    - 442860                        # Simian enterovirus SV6
+    - 442859                        # Simian enterovirus SV46
+    - 442857                        # Simian enterovirus SV35
+    - 442856                        # Simian enterovirus SV26
+    - 442854                        # Simian enterovirus BA13
+    - 106968                        # Sheep enterovirus
 reference_amplicons:
   - {name: EV-fragment, sequence: TCTGCAGCGGAACCGACTACTTTGGGTGTCCGTGTTTCCTTTTATTCTCATGTTGGCTGCTTATGGTGACAATT}
 exclusivity_organisms:
