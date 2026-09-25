@@ -13,10 +13,19 @@ from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
-from .grouping import fragment_view, group_products, group_sites, shown_rows, species_of
+from .grouping import (
+    fragment_view,
+    group_products,
+    group_sites,
+    oligo_view,
+    shown_rows,
+    site_changes,
+    site_frequency,
+    species_of,
+)
 from .ncbi_links import linkify, taxon_link
 
-RARE_VARIANT_PERCENT = 0.1  # rarer perfect/tolerated variants: one summary row (all in workbook)
+TOLERATED_VARIANTS_SHOWN = 5  # per oligo; the other tolerated variants: one row (all in workbook)
 GROUP_ROWS_SHOWN = 15  # further rows per grouped table (rows that can fail: always shown)
 CLOSEST_VARIANTS_SHOWN = 10  # closest off-target binding variants shown (all in the workbook)
 
@@ -161,6 +170,7 @@ def _environment() -> Environment:
     env.filters["seq_html"] = _seq_html
     env.filters["aln_html"] = _alignment_html
     env.filters["aln_compact"] = _compact_html
+    env.filters["changes"] = site_changes
     env.filters["tm"] = _tm
     env.filters["dg"] = _dg
     env.filters["ncbi"] = linkify
@@ -227,7 +237,11 @@ def render_report(result: RunResult, cfg: Config) -> str:
         products_shown=shown_rows(product_groups, "n_detected", GROUP_ROWS_SHOWN),
         sites_shown=shown_rows(site_groups, "n_critical", GROUP_ROWS_SHOWN),
         grade_caveat=GRADE_CAVEAT,
-        rare_below=RARE_VARIANT_PERCENT,
+        oligo_views=[oligo_view(o, top_tolerated=TOLERATED_VARIANTS_SHOWN) for o in vs.oligos]
+        if vs
+        else [],
+        site_pct=site_frequency(vs.oligos) if vs else {},
+        tolerated_shown=TOLERATED_VARIANTS_SHOWN,
         list_full_note=LIST_FULL_NOTE,
         qc=result.oligo_qc,
         assay=result.assay,

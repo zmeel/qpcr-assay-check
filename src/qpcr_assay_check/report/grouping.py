@@ -14,6 +14,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..oligo import iupac
 from ..oligo.grade import (
     DETECTABLE,
     FAILURE,
@@ -250,3 +251,75 @@ def fragment_view(
         detectable_rest_records=sum(f.count for f, _o, _p in rest),
         detectable_rest_types=types.most_common(5),
     )  # fmt: skip
+
+
+# ---------------------------------------------------------------- compact per-oligo variants
+_CLASS_ORDER = {"likely_failure": 0, "at_risk": 1, "indeterminate": 2, None: 3, "tolerated": 4}
+_COMP = {"A": "T", "C": "G", "G": "C", "T": "A"}
+
+
+def site_changes(row: Any) -> str:
+    """The differences of a site from its oligo, short: position from the 3' end and the type
+    primer-template (as in the class notes, Stadhouders' convention), e.g. "-3 C-A, -12 G-T".
+    Degenerate or ambiguous bases are written oligo/site; gaps and unaligned ends by name."""
+    q, s = row.q_aln.upper(), row.s_aln.upper()
+    length = sum(c != "-" for c in q)
+    pos = 0
+    out: list[str] = []
+    for qc, sc in zip(q, s, strict=True):
+        if qc == "-":
+            out.append(f"insertion between -{length - pos + 1} and -{length - pos}")
+            continue
+        pos += 1
+        at = length - pos + 1
+        if sc == "-":
+            out.append(f"-{at} deleted")
+        elif sc == ".":
+            out.append(f"-{at} unaligned")
+        elif qc in _COMP and sc in _COMP:
+            if qc != sc:
+                out.append(f"-{at} {qc}-{_COMP[sc]}")
+        elif not iupac.compatible(qc, sc):
+            out.append(f"-{at} {qc}/{sc}")
+    return ", ".join(out) or "none"
+
+
+def _perfect(row: Any) -> bool:
+    return row.grade == "perfect" or (row.grade is None and not row.n_mismatch and not row.n_gap)
+
+
+@dataclass
+class OligoView:
+    role: str
+    total: int
+    n_perfect: int
+    rows: list[Any]  # listed: every non-perfect variant except the less frequent tolerated ones
+    lumped: int  # tolerated variants in the summary row
+    lumped_records: int
+
+
+def oligo_view(o: Any, *, top_tolerated: int = 5) -> OligoView:
+    """Advisor subagent, 2026-09-25: the whole-fragment table is the main view; per oligo only
+    the variants that are not perfect, worst class first, then by records. Variants at risk,
+    likely to fail, indeterminate or without a class are always listed; tolerated ones only the
+    ``top_tolerated`` most frequent, the rest in one summary row."""
+    other = sorted(
+        [r for r in o.rows if not _perfect(r)],
+        key=lambda r: (_CLASS_ORDER.get(r.grade, 3), -r.count),
+    )
+    tolerated = [r for r in other if r.grade == "tolerated"]
+    lumped = tolerated[top_tolerated:]
+    return OligoView(
+        role=o.role,
+        total=o.total_measured,
+        n_perfect=sum(r.count for r in o.rows if _perfect(r)),
+        rows=[r for r in other if r not in lumped],
+        lumped=len(lumped),
+        lumped_records=sum(r.count for r in lumped),
+    )
+
+
+def site_frequency(oligos: list[Any]) -> dict[tuple[str, str, str], float]:
+    """(role, oligo alignment, site alignment) -> % of that oligo's records with this variant,
+    for the frequency next to each site in the whole-fragment table."""
+    return {(o.role, r.q_aln, r.s_aln): r.percent for o in oligos for r in o.rows}

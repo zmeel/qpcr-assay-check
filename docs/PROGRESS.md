@@ -36,6 +36,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Poliovirus 2 at-risk row is listed; the tail is one row per outcome; oligo numbers after the
   header sequence keep the dots aligned; the Tm chart is inline SVG (Plotly dropped: 4.8 MB of
   the 5.1 MB report).
+- User proposed dropping the per-oligo tables; advisor: shrink, don't drop (per-site frequency,
+  history traceability, blast_hits coverage, full alignment for sign-off). Built points 1-4:
+  fragment table first, compact "Variants per oligo" after it, % per non-perfect site in the
+  fragment table, coverage line for blast_hits. Cross-links (point 5) left out for simplicity.
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Variants section reordered and shortened** (user proposal, advisor layout 2026-09-25): the
+  whole-fragment table comes first as the main view; "Variants per oligo" follows as the
+  reference for frequencies and history: per oligo one line "perfect in N of M records", then
+  only the variants that are not perfect, worst class first (at risk, likely failure and
+  indeterminate always; tolerated the 5 most frequent, the rest one row), each as its changes
+  from the 3' end (e.g. "-3 C-A") with the full alignment and class note folded under it.
+  In the whole-fragment table each site that is not perfect shows how often that site variant
+  occurs among all records of the oligo; with sampled hits (`blast_hits`) a line states the
+  records the fragment table covers against the per-oligo counts. The 0.1% lumping of the
+  per-oligo tables is replaced by the tolerated top 5.
 - **Report about 5 MB smaller** (user: report size): the one chart (oligo Tm) is inline SVG
   instead of an interactive Plotly chart, whose inlined JavaScript bundle was 4.8 MB of the
   5.1 MB report. The report contains no script; `plotly` is no longer a dependency.

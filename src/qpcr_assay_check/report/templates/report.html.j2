@@ -365,36 +365,12 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% endif %}
 {% if r.variant_summary.target_list_full %}<div class="notice"><p><strong>Biased toward perfect matches.</strong> {{ list_full_note }}</p></div>{% endif %}
 
-{% for o in r.variant_summary.oligos %}
-{% if o.rows %}
-{% set alts = assay.by_role(o.role) %}
-<h3>{{ o.role | capitalize }}{% if alts | length > 1 %} <span class="meta">({{ alts | map(attribute='name') | join(', ') }}: for each record the best-binding one is shown)</span>{% elif alts[0].name != o.role %} <span class="meta">{{ alts[0].name }}</span>{% endif %}</h3>
-<div class="scroll"><table>
-  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Match to the oligo</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
-  <tbody>
-  {% set rare = o.rows | selectattr('percent', 'lt', rare_below) | selectattr('grade', 'in', ['perfect', 'tolerated']) | list %}{% set shown = o.rows | reject('in', rare) | list %}
-  {% for row in shown %}
-  <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
-    <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
-    <td>{% if alts | length > 1 %}<strong>{{ row.oligo_name }}</strong>: {% endif %}{{ match(row, o.role != 'probe') }}</td>
-    <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
-  {% endfor %}
-  {% if rare %}{% set n_rare = rare | sum(attribute='count') %}
-  <tr class="group"><td colspan="{{ 6 if cov else 5 }}"><strong>{{ rare | length }} other variant{{ '' if rare | length == 1 else 's' }}</strong>, each seen in fewer than {{ rare_below }}% of records and all perfect or tolerated: {{ n_rare }} record{{ '' if n_rare == 1 else 's' }} ({{ pct(100.0 * n_rare / o.total_measured) }}). Rare variants at risk, likely to fail or indeterminate are always listed above. All variants are in the workbook (sheet "Oligo variants").</td></tr>
-  {% endif %}
-  </tbody>
-</table></div>
-{% if o.n_excluded_unmeasured %}<p class="meta">{{ o.n_excluded_unmeasured }} further target-tier site(s) for this oligo excluded from this table: not fully re-aligned (worst-case estimate only).</p>{% endif %}
-{% endif %}
-{% endfor %}
-
-{% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 {% if fragments %}
 {% set fv = fragments %}
 {% macro outcome_chip(o) %}<span class="chip {{ {'detectable': 's-PASS', 'at risk': 's-WARN', 'likely failure': 's-FAIL', 'undetermined': 's-INCOMPLETE'}.get(o, 's-INFO') }}">{{ o or 'not classified' }}</span>{% endmacro %}
 {% macro oligo_no(role, name) %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{% for o in olis %}{% if o.name == name %}({{ loop.index }}){% endif %}{% endfor %}{% endif %}{% endmacro %}
-{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s)">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
+{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% set freq = site_pct.get((role, v.q_aln, v.s_aln)) %}{% if freq is not none and v.grade != 'perfect' %} <span class="meta" title="this {{ role }} site variant, whatever the other sites are">{{ pct(freq) }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s)">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
 {% macro role_head(title, role) %}{% set olis = assay.by_role(role) %}<th>{{ title }}{% for o in olis %}<br><span class="meta"><span class="seq" title="{{ o.name }}">{{ o.sequence }}</span>{% if olis | length > 1 %} ({{ loop.index }}){% endif %}</span>{% endfor %}</th>{% endmacro %}
 {% macro types(orgs, total) %}{% for name, n in orgs[:3] %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}{% if orgs | length > 3 %}; +{{ orgs | length - 3 }}{% endif %}{% endmacro %}
 {% macro frag_rows(rows) %}{% for f, outcome, by_pair in rows %}
@@ -406,8 +382,9 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
     <td>{{ f.example_accession | ncbi }}</td></tr>
 {% endfor %}{% endmacro %}
 {% set head %}<thead><tr><th>Outcome</th>{{ role_head('Forward', 'forward') }}{{ role_head('Probe', 'probe') }}{{ role_head('Reverse', 'reverse') }}<th>Records</th><th>Types</th>{% if cov %}<th>First / last release</th>{% endif %}<th>Example</th></tr></thead>{% endset %}
+{% if not cov %}<p class="meta">This table covers the {{ fv.total }} records in which all three sites were fully re-aligned; the per-oligo tables below count every fully re-aligned site of that oligo ({% for o in r.variant_summary.oligos %}{{ o.role }} {{ o.total_measured }}{{ ', ' if not loop.last }}{% endfor %} records).</p>{% endif %}
 <p><strong>{{ fv.total }} records with all three sites:</strong>{% for o in ['detectable', 'at risk', 'likely failure', 'undetermined'] + (['not classified'] if fv.records.get('not classified') else []) %} {{ o }} {{ pct(100.0 * fv.records.get(o, 0) / fv.total) }}{{ ',' if not loop.last }}{% endfor %}.</p>
-<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
+<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are (see Variants per oligo). Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
 {% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}<h4>Needs attention ({{ n_att }} combination{{ '' if n_att == 1 else 's' }})</h4>
 {% if fv.attention %}
 <div class="scroll"><table class="frag">{{ head }}<tbody>
@@ -428,6 +405,34 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p>No target-tier record had all three sites (forward, probe, reverse) fully re-aligned, so no whole-fragment variant table could be built.</p>
 {% endif %}
 {% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.{% if r.variant_summary.target_list_full %} With a full hit list, each oligo's hits are a separate selection of records, so most records appear in only one or two of the three lists.{% endif %}</p>{% endif %}
+<h3>Variants per oligo</h3>
+{% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
+<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first; variants at risk, likely to fail or indeterminate always, tolerated ones the {{ tolerated_shown }} most frequent. Changes are written as position from the 3′ end and the mismatch as oligo base–template base (Stadhouders' convention, as in the class notes); open a change for the full alignment. Every variant is in the workbook (sheet "Oligo variants").</p>
+{% for v in oligo_views %}{% set o = r.variant_summary.oligos[loop.index0] %}
+{% if o.rows %}
+{% set alts = assay.by_role(o.role) %}
+<h4>{{ o.role | capitalize }}{% if alts | length > 1 %} <span class="meta">({{ alts | map(attribute='name') | join(', ') }}: for each record the best-binding one)</span>{% elif alts[0].name != o.role %} <span class="meta">{{ alts[0].name }}</span>{% endif %}</h4>
+<p>Perfect in <strong>{{ v.n_perfect }}</strong> of {{ v.total }} records ({{ pct(100.0 * v.n_perfect / v.total) if v.total else '0%' }}){% if not v.rows %}; no other variant{% endif %}.</p>
+{% if v.rows %}
+<div class="scroll"><table>
+  <thead><tr><th>Class</th>{% if alts | length > 1 %}<th>Oligo</th>{% endif %}<th>Changes</th><th>Records</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for row in v.rows %}
+  <tr><td><span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ (row.grade or 'not classified') | replace('_', ' ') }}</span>{% if row.grade_rule %}<br><span class="meta">{{ row.grade_rule }}</span>{% endif %}</td>
+    {% if alts | length > 1 %}<td>{{ row.oligo_name }}</td>{% endif %}
+    <td class="aln-cell"><details><summary><span class="seq">{{ row | changes }}</span>{% if row.note %} <span class="meta">{{ row.note }}</span>{% endif %}</summary>{{ row | aln_html(0 if o.role == 'probe' else 5) }}{% if row.grade_note %}<p class="meta">{{ row.grade_note }}</p>{% endif %}</details></td>
+    <td class="num">{{ row.count }}<br><span class="meta">{{ pct(row.percent) }}</span></td>
+    <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
+  {% endfor %}
+  {% if v.lumped %}
+  <tr class="group"><td colspan="{{ (6 if cov else 5) - (0 if alts | length > 1 else 1) }}"><strong>{{ v.lumped }} other tolerated variant{{ '' if v.lumped == 1 else 's' }}</strong>: {{ v.lumped_records }} record{{ '' if v.lumped_records == 1 else 's' }} ({{ pct(100.0 * v.lumped_records / v.total) }}). All variants are in the workbook (sheet "Oligo variants").</td></tr>
+  {% endif %}
+  </tbody>
+</table></div>
+{% endif %}
+{% if o.n_excluded_unmeasured %}<p class="meta">{{ o.n_excluded_unmeasured }} further target-tier site(s) for this oligo excluded from this table: not fully re-aligned (worst-case estimate only).</p>{% endif %}
+{% endif %}
+{% endfor %}
 {% endif %}
 
 {% if r.exclusivity %}

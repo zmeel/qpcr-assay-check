@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -282,13 +283,19 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    assert "Match to the oligo" in html and "perfect match" in html
-    assert "mismatch in the 3′ end" in html  # the forward variant has a 3'-terminal mismatch
+    # per oligo (advisor 2026-09-25): perfect as one line, other variants by their changes
+    i = html.index("<h3>Variants per oligo")
+    per_oligo = html[i : html.index("<h2>", i)]
+    assert "Perfect in <strong>" in per_oligo
+    assert re.search(r'<span class="seq">-1 [ACGT]-[ACGT]', per_oligo)  # 3'-terminal mismatch
+    assert html.index("<h3>Whole fragment") < i  # the whole fragment first
     # whole fragment (advisor layout 2026-09-25): the 3'-terminal forward mismatch needs attention
     i = html.index("<h3>Whole fragment")
     frag = html[i : html.index("<h2>", i)]
     assert "Needs attention" in frag and "likely failure" in frag and "Detectable (" in frag
     assert frag.index("likely failure") < frag.index("Detectable (")
+    # the frequency of a non-perfect site variant sits next to its class
+    assert 'title="this forward site variant, whatever the other sites are"' in frag
 
 
 def test_found_entries_without_plasmid_info_are_rescanned_so_the_split_can_be_shown(tmp_path):

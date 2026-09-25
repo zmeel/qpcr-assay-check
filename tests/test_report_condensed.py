@@ -49,9 +49,9 @@ def test_sites_are_grouped_per_species_closest_first():
     assert (g.species, g.n_sites, g.levels["critical"], g.best.id) == ("Rhinovirus B", 2, 1, "S1")
 
 
-def test_rare_safe_variants_are_one_row_but_rare_risky_ones_stay(tmp_path):
-    """Lump variants < 0.1 % only when perfect or tolerated (advisor): a rare variant with a
-    3'-end problem is exactly what the yearly re-evaluation should show."""
+def test_per_oligo_lists_problems_and_only_the_most_frequent_tolerated_variants(tmp_path):
+    """Advisor 2026-09-25 (user: the whole-fragment table is the main view): per oligo only the
+    variants that are not perfect; risky ones always, tolerated ones the 5 most frequent."""
     from qpcr_assay_check.config import load_config
     from qpcr_assay_check.report.html import render_report
 
@@ -61,14 +61,30 @@ def test_rare_safe_variants_are_one_row_but_rare_risky_ones_stay(tmp_path):
     vs = result.variant_summary
     fwd = vs.oligos[0]
     base = fwd.rows[0]
-    extra = [base.model_copy(update={"percent": 0.05, "count": 1, "grade": g,
-                                     "example_accession": f"RARE{i}.1"})
-             for i, g in enumerate(["tolerated", "tolerated", "likely_failure"])]  # fmt: skip
+    extra = [base.model_copy(update={"percent": 0.05, "count": 10 - i, "grade": g,
+                                     "example_accession": f"VAR{i}.1"})
+             for i, g in enumerate(["tolerated"] * 7 + ["likely_failure"])]  # fmt: skip
     oligos = [fwd.model_copy(update={"rows": [*fwd.rows, *extra]}), *vs.oligos[1:]]
     result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
     html = render_report(result, cfg)
-    assert "2 other variants" in html and "RARE2.1" in html
-    assert "RARE0.1" not in html and "RARE1.1" not in html
+    i = html.index("<h3>Variants per oligo")
+    per_oligo = html[i : html.index("<h2>", i)]
+    assert "VAR7.1" in per_oligo  # the likely failure, although the rarest
+    assert all(f"VAR{k}.1" in per_oligo for k in range(5))  # 5 most frequent tolerated
+    assert "VAR5.1" not in per_oligo and "VAR6.1" not in per_oligo
+    assert "2 other tolerated variants" in per_oligo
+    assert per_oligo.index("VAR7.1") < per_oligo.index("VAR0.1")  # worst class first
+
+
+def test_site_changes_are_written_from_the_3prime_end():
+    from qpcr_assay_check.report.grouping import site_changes
+
+    row = NS(q_aln="ACGTACGTAC", s_aln="ACGTACGTAA")  # site A facing oligo C at -1
+    assert site_changes(row) == "-1 C-T"  # oligo base - template base (complement of A)
+    assert site_changes(NS(q_aln="ACGTA", s_aln="AC-TA")) == "-3 deleted"
+    assert site_changes(NS(q_aln="ACGTR", s_aln="ACGTG")) == "none"  # degenerate base matches
+    assert site_changes(NS(q_aln="ACGTA", s_aln="ACGTA")) == "none"
+    assert site_changes(NS(q_aln="AC-GTA", s_aln="ACAGTA")) == "insertion between -4 and -3"
 
 
 def _site(grade, mm=0, rule="", note=""):
