@@ -91,6 +91,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   mismatches cost < 0.7 Ct (the mismatch acts only in the RT step). EV-D68 (C-A at -3 in the
   reverse primer): a small effect is likely (moderate confidence); test with an RNA template
   (isolate, EQA or in-vitro transcript), not a DNA gBlock, which would overstate the risk.
+- Mismatch proposal written at the user's request: docs/MISMATCH_CLASSES.md (classes perfect /
+  tolerated / at_risk / likely_failure / indeterminate; rules R1-R9 with sources; setting
+  variants.pcr_setup; Stadhouders Table 1 lookup). The advisor checked it against both PDFs:
+  corrected R2 (-6 to -8 tolerated, not at_risk: Lefever "can be tolerated", and monotonic),
+  R3 (likely_failure needs the terminal base plus another in the last 5; both papers' data
+  always include the terminal base), wording ("generally <2,0 Ct", "most likely caused by",
+  -4 interpolated), low-input note for >= 2 mismatches, pair flag at >= 4 in total. Not built.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and
