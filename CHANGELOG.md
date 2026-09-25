@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Report layout** (user request 2026-09-25): page width 96rem (was 64rem); the whole-fragment
+  table shows each site on one line against the oligo in the column header (dots for matches,
+  highlighted letters for mismatches), so all columns fit; alignment cells no longer force a
+  minimum width, and the organism column of the closest off-target sites is wider.
 - **Undetermined genomes** (user decision 2026-09-25): a single mismatch in an MGB probe, or an
   ambiguity code in the genome near a 3' end, has no published basis either way; such a genome
   is now "undetermined" (its own row in the report) instead of an escape, and such sites are left

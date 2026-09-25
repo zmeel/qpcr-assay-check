@@ -20,7 +20,7 @@
 * { box-sizing: border-box; }
 html { background: var(--paper); }
 body { margin: 0; color: var(--ink); font-family: var(--serif); font-size: 17px; line-height: 1.55; }
-main { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+main { max-width: 96rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
 h1, h2, h3, table, .chip, .meta, .rec { font-family: var(--sans); }
 h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .35rem; }
 h2 { font-size: 1.25rem; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
@@ -85,7 +85,9 @@ pre.aln { font-family: var(--mono); font-size: .78rem; line-height: 1.3; margin:
 .aln .gp { background: var(--warn-bg); }
 .aln .un { color: var(--muted); }
 .aln .tail { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
-td.aln-cell { min-width: 22rem; }
+td.aln-cell { white-space: nowrap; }
+td.org { min-width: 16rem; }
+pre.aln.compact { letter-spacing: .06em; }
 </style>
 {% if plotly_js %}<script>{{ plotly_js }}</script>{% endif %}
 </head>
@@ -387,12 +389,15 @@ td.aln-cell { min-width: 22rem; }
 {% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 {% if r.variant_summary.fragments %}
+<p class="meta">Each site is shown on one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nucleotides) is underlined. Where a role has alternatives, each cell names the oligo it is read against; the per-oligo tables above show the full alignments.</p>
 <div class="scroll"><table>
-  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Mismatches (F / P / R)</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
+  {% macro role_head(title, role) %}<th>{{ title }}{% for o in assay.by_role(role) %}<br><span class="meta">{% if assay.by_role(role) | length > 1 %}{{ o.name }}: {% endif %}<span class="seq">{{ o.sequence }}</span></span>{% endfor %}</th>{% endmacro %}
+  <thead><tr>{{ role_head('Forward', 'forward') }}{{ role_head('Probe', 'probe') }}{{ role_head('Reverse', 'reverse') }}<th>Count</th><th>Fraction</th><th>Mismatches (F / P / R)</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% set safe = ['perfect', 'tolerated'] %}{% set frare = [] %}{% for f in r.variant_summary.fragments %}{% if f.percent < rare_below and f.forward.grade in safe and f.probe.grade in safe and f.reverse.grade in safe %}{% set _ = frare.append(f) %}{% endif %}{% endfor %}
   {% for f in r.variant_summary.fragments if f not in frare %}
-  <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
+  {% macro cell(v, role, tail=5) %}<td class="aln-cell">{% if assay.by_role(role) | length > 1 %}<span class="meta">{{ v.oligo_name }}</span>{% endif %}{{ v | aln_compact(tail) }}</td>{% endmacro %}
+  <tr>{{ cell(f.forward, 'forward') }}{{ cell(f.probe, 'probe', 0) }}{{ cell(f.reverse, 'reverse') }}
     <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
     <td>{{ f.forward.n_mismatch + f.forward.n_gap }} / {{ f.probe.n_mismatch + f.probe.n_gap }} / {{ f.reverse.n_mismatch + f.reverse.n_gap }}</td>
     <td>{{ f.example_accession | ncbi }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
@@ -522,7 +527,7 @@ td.aln-cell { min-width: 22rem; }
     <td class="num">{{ g.clean_3prime_nt }}</td>
     <td class="num">{% if g.tm_c is not none %}Tm {{ '%.1f' % g.tm_c }} °C<br><span class="meta">{% if g.delta_tm_c is not none %}{{ '%+.1f' % g.delta_tm_c }} °C vs perfect{% endif %}</span>{% else %}–{% endif %}</td>
     <td class="num">{{ g.n_sites }}{% if g.n_records != g.n_sites %}<br><span class="meta">{{ g.n_records }} records</span>{% endif %}</td>
-    <td>{% for name, n in g.organisms[:5] %}{{ name }}{% if g.organisms | length > 1 %} ({{ n }}){% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if g.organisms | length > 5 %}<br><span class="meta">and {{ g.organisms | length - 5 }} more</span>{% endif %}
+    <td class="org">{% for name, n in g.organisms[:5] %}{{ name }}{% if g.organisms | length > 1 %} ({{ n }}){% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if g.organisms | length > 5 %}<br><span class="meta">and {{ g.organisms | length - 5 }} more</span>{% endif %}
       <br><span class="meta">e.g. {{ g.example_site.accession | ncbi }} {{ g.example_site.subject_start }}–{{ g.example_site.subject_end }} ({{ g.example_site.orientation }})</span></td></tr>
   {% endfor %}
   </tbody>

@@ -155,6 +155,9 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     # (live 2026-09-25 they were hidden, as the template looked at the first year only)
     assert "<th>Detectable</th>" in html and "<h3>Mismatch classes</h3>" in html
     assert 'class="chip s-INCOMPLETE"' in html  # the homopolymer bulge: indeterminate
+    # layout (user 2026-09-25): wider page; one-line alignments in the whole-fragment table
+    assert "max-width: 96rem" in html and '<pre class="aln compact">' in html
+    assert "P1: <span class=\"seq\">" in html  # alternatives named in the fragment header
     write_workbook(result, tmp_path / "r.xlsx")
     ws = load_workbook(tmp_path / "r.xlsx")["Copies and coverage"]
     assert any(c.value == "Escapes (no detectable copy)" for c in ws["A"])

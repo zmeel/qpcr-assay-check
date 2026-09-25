@@ -132,6 +132,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   be predicted). Checked live: none of 12 complete RV-A13 genomes has the F2 site (best 6
   mismatches); the fragment reads like enterovirus sequence there. Possibly mislabelled or a
   contamination: not verified; to mention to the user as a point of attention, not a finding.
+- Layout at the user's request: page 96rem wide; whole-fragment table with one-line (dot)
+  alignments against the oligos in the header (alternatives named per cell); no forced minimum
+  width on alignment cells; wider organism column in the closest off-target sites. 484 tests.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and

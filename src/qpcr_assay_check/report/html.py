@@ -84,6 +84,34 @@ def _alignment_html(site: Any, tail: int = 5) -> Markup:
     )
 
 
+def _compact_html(site: Any, tail: int = 5) -> Markup:
+    """One-line alignment for narrow tables: the subject in oligo orientation with matching
+    bases as dots, mismatches as highlighted letters and gaps as '-'; the 3' end underlined.
+    The oligo itself is shown once, in the table header."""
+    if getattr(site, "role", None) == "probe":
+        tail = 0
+    q, s, mid = site.q_aln, site.s_aln, site.midline
+    n_oligo = sum(c != "-" for c in q)
+    seen = 0
+    out: list[str] = []
+    for qc, sc, mc in zip(q, s, mid.ljust(len(q)), strict=True):
+        is_tail = tail > 0 and (seen >= n_oligo - tail)
+        if qc != "-":
+            seen += 1
+        if sc == ".":
+            ch, klass = ".", "un"
+        elif qc == "-" or sc == "-":
+            ch, klass = sc if sc != "-" else "-", "gp"
+        elif mc == " ":
+            ch, klass = sc, "mm"
+        else:
+            ch, klass = ".", ""
+        classes = " ".join(c for c in (klass, "tail" if is_tail else "") if c)
+        ch = str(escape(ch))
+        out.append(f'<span class="{classes}">{ch}</span>' if classes else ch)
+    return Markup(f'<pre class="aln compact">{"".join(out)}</pre>')  # noqa: S704 - escaped
+
+
 def _search_rows(spec: Any) -> list[dict[str, Any]]:
     """Searches grouped by tier for the report table."""
     tiers: dict[str, dict[str, Any]] = {}
@@ -130,6 +158,7 @@ def _environment() -> Environment:
     )
     env.filters["seq_html"] = _seq_html
     env.filters["aln_html"] = _alignment_html
+    env.filters["aln_compact"] = _compact_html
     env.filters["tm"] = _tm
     env.filters["dg"] = _dg
     env.filters["ncbi"] = linkify
