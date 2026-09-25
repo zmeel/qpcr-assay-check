@@ -16,6 +16,13 @@ All notable changes to this project are documented here. The format follows
   percentages.
 
 ### Changed
+- **README rewritten** (user request, layout advised by the advisor subagent 2026-09-25): what the
+  tool does in five points, the required statements, a worked example of the "Needs attention"
+  table from the live enterovirus run (Markdown table plus a screenshot,
+  `docs/images/needs_attention_enterovirus.png`), install, quick start, the report sections, the
+  quality-system use and the limitations that change the interpretation. The former README's
+  reference material moved, unchanged, to `docs/USER_GUIDE.md`; its development history is in
+  this changelog and `docs/PROGRESS.md`.
 - **Specificity section answers "is my assay still specific?" first** (user question, advisor
   2026-09-25): per searched tier one line: predicted products or none; for near neighbours
   which primer carries the discrimination and which oligos bind by design; the closest site of

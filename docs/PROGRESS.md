@@ -51,6 +51,8 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (for the recap): rule c (INCOMPLETE -> INFO when the discriminating primers are complete,
   needs an extra lookup of reverse/probe sites on records with a priming forward site),
   year-over-year discrimination margin, single-primer products.
+- README rewritten (advisor layout, ~220 lines) with the enterovirus "Needs attention" example
+  (user asked for it); old reference text moved to docs/USER_GUIDE.md.
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
