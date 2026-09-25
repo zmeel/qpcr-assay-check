@@ -6,7 +6,8 @@ after v1.1.1. **None of these is planned or started**: each needs the user's go-
 rest on NCBI behaviour or published data that must be checked before building on it; nothing
 here is a verified fact about NCBI or about PCR chemistry yet.
 
-Recommended order: 8 is done (v1.3.0); next 1 and 4, then 2 and 3 after their checks.
+Recommended order: 8 is done (v1.3.0), 1 is done (unreleased); next 4, then 2 and 3 after
+their checks.
 
 | # | Idea | Value | New NCBI traffic | Verify first |
 |---|---|---|---|---|
@@ -19,7 +20,7 @@ Recommended order: 8 is done (v1.3.0); next 1 and 4, then 2 and 3 after their ch
 | 7 | Degenerate-base suggestion | Medium | None | No |
 | 8 | Several oligos per role, named oligos, multi-copy targets | High | None | No |
 
-## 1. Panel-level escape detection (multi-target assays)
+## 1. Panel-level escape detection (multi-target assays) (done, `qpcr-assay-check panel`)
 
 Many assays detect one organism with two targets, e.g. *C. trachomatis* on the cryptic plasmid
 plus a chromosomal gene. The clinical risk is a strain that escapes **every** target at once;

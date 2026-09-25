@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Panel-level escape detection** (`panel.py`, `report/panel.py`, `qpcr-assay-check panel`;
+  FEATURE_IDEAS #1): a panel file lists two or more assay files for the same target; every
+  genome all of them processed is judged per assay from the stored regions (best-binding copy,
+  as in the assay reports) and classified as detected by every target, by some, by no target,
+  or undetermined, per release year. HTML, workbook and JSON outputs; no NCBI requests.
 - **Taxa inside the target that the assay must not detect** (`target.exclude_taxids`; models,
   search plan, inclusivity, partitioned variant analysis, report, workbook): left out of the
   target search, inclusivity populations and the Nucleotide listing with Entrez `NOT` (checked

@@ -16,6 +16,15 @@ verified NCBI facts) at the start of every session. Newest entry first.
   neighbours (the user asked that rhinoviruses are checked, not skipped: they are, as
   off-target). Target records: 117,193 in total; 13,796 near-complete genomes
   (6500:8500[SLEN], the example's filter).
+- The user started the first enterovirus run (after rebuilding the image; the first attempt
+  used an old image without exclude_taxids). Results pending.
+- Panel-level escape detection built at the user's request (FEATURE_IDEAS #1): `panel`
+  command; panel file = name + assay files; reads the assays' region stores (no NCBI traffic),
+  judges each genome per assay by its best copy (new `stored_calls`, shared with the variant
+  analysis via `placements`/`open_store`), classifies per genome (every/some/no target,
+  undetermined), per year; panel.html/.xlsx/.json; exit 10 if any genome is detected by no
+  target. Refuses assays with different targets, exclusions or variant sources. 447 tests pass.
+  Not yet run live: needs two assays for the same target with stored regions.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 

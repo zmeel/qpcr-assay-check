@@ -449,6 +449,36 @@ target:
 - Worked example (user-supplied sequences):
   [`docs/examples/enterovirus_realt.yaml`](docs/examples/enterovirus_realt.yaml).
 
+### Panels: genomes that escape every target
+
+Many laboratories detect one organism with two or more assays (e.g. *C. trachomatis* on the
+cryptic plasmid and on a chromosomal gene). The clinical risk is a strain that escapes every
+target at once. After each assay has run its variant analysis, combine them:
+
+```yaml
+# ct_panel.yaml (paths relative to this file)
+panel_name: C. trachomatis two-target panel
+assays:
+  - ct_plasmid.yaml
+  - ct_chromosome.yaml
+```
+
+```bash
+qpcr-assay-check panel ct_panel.yaml -o results
+```
+
+- Reads the region stores the assays' runs already filled: nothing is sent to NCBI (except, once,
+  to cut the amplicon out of a target accession for an assay without a reference amplicon).
+- Each genome is judged per assay exactly as in that assay's report (best-binding copy, the
+  inclusivity criterion, the assay's own homopolymer-bulge setting): detected, escape (region
+  found but no detectable copy), region not found, or not assessable (hidden by N, cut by a
+  contig end). Per genome: detected by every target, by some, by **no target**, or undetermined.
+- Only genomes processed by every assay are combined; the rest are counted. The assays must
+  share the target taxon, its exclusions and the variant source.
+- Writes `panel.html` (genomes detected by no target first, per release year), `panel.xlsx`
+  (every genome with its outcome per assay) and `panel.json`. Exit code 10 when at least one
+  genome is detected by no target.
+
 ### The example assay
 
 `examples/cdc_2019-nCoV_N1.yaml` is the CDC 2019-nCoV N1 assay. Its file header documents the

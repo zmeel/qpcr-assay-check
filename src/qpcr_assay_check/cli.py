@@ -497,3 +497,66 @@ def search(
         typer.echo(f"WARNING: {w}")
     typer.echo(f"Results written to {search_dir}")
     raise typer.Exit(EXIT_CODES[Verdict.WARN] if outcome.saturated else 0)
+
+
+@app.command()
+def panel(
+    panel_file: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Panel YAML file.")
+    ],
+    config: Annotated[
+        Path | None, typer.Option("--config", "-c", help="Configuration YAML (lab-wide).")
+    ] = None,
+    outdir: Annotated[Path, typer.Option("--outdir", "-o", help="Base output directory.")] = Path(
+        "results"
+    ),
+    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="More logging.")] = 0,
+) -> None:
+    """Find genomes that escape every target of a multi-target panel.
+
+    The panel file names two or more assay files for the same target. Each assay must have run
+    its variant analysis first; the panel only combines the genomes their region stores already
+    hold, so it sends nothing to NCBI (except to cut the amplicon out of a target accession for
+    an assay without a reference amplicon). Writes panel.html, panel.xlsx and panel.json.
+    Exit codes: 0 no genome escapes every target, 10 at least one does, 64 invalid input,
+    70 NCBI problem.
+    """
+    from .ncbi.cache import Cache
+    from .ncbi.http import NcbiError
+    from .panel import PanelClass, run_panel
+    from .report.panel import write_panel_outputs
+
+    _setup_logging(verbose)
+
+    def load_member(path: Path) -> tuple[Assay, Config]:
+        assay = build_assay(path, {})
+        return assay, load_config(config, assay.settings)
+
+    def fetch_fasta(acc: str) -> str:  # only for an assay without a reference amplicon
+        from .ncbi.eutils import Eutils
+        from .ncbi.http import NcbiHttp
+        from .ncbi.settings import credentials_from_env
+
+        cfg = load_config(config)
+        return Eutils(NcbiHttp(cfg.ncbi, credentials_from_env()), cfg.ncbi.eutils_url).fetch_fasta(
+            acc
+        )
+
+    try:
+        cache_root = Cache(load_config(config).ncbi.cache_dir).root
+        result = run_panel(panel_file, load_member, cache_root, fetch_fasta)
+        out = write_panel_outputs(result, outdir)
+    except NcbiError as exc:
+        typer.echo(f"NCBI problem: {exc}", err=True)
+        raise typer.Exit(EXIT_NCBI_ERROR) from exc
+    except QpcrAssayCheckError as exc:
+        _fail(str(exc))
+        return
+    n_none = result.counts[PanelClass.NONE.value]
+    typer.echo(f"Panel '{result.panel_name}': {result.in_all} genomes processed by every assay")
+    for cls, n in result.counts.items():
+        typer.echo(f"  {cls}: {n}")
+    if result.not_in_all:
+        typer.echo(f"  ({result.not_in_all} processed by only some assays, not combined)")
+    typer.echo(f"Written to {out}")
+    raise typer.Exit(EXIT_CODES[Verdict.WARN] if n_none else 0)

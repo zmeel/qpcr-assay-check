@@ -633,6 +633,52 @@ def exhaustive_inclusivity(
 
 
 # ------------------------------------------------------------------ one call for the CLI
+def placements(assay: Assay, amplicon: str, cfg: Config) -> list[dict[str, tuple[str, int, int]]]:
+    """The oligo windows per reference amplicon (the first, then each further one)."""
+    mm = cfg.thresholds.amplicon.max_site_mismatches
+    placed = [oligo_sites(assay, amplicon, mm)]
+    for ref in assay.reference_amplicons[1:]:  # one that cannot place a role uses the first's
+        try:
+            placed.append(oligo_sites(assay, ref.sequence.upper(), mm))
+        except InputError:
+            placed.append(placed[0])
+    return placed
+
+
+def open_store(
+    assay: Assay, cfg: Config, cache_root: Path, amplicon: str, source: str
+) -> RegionStore:
+    """The assay's region store (keyed by the first reference only, so adding a lineage
+    reference keeps the stored regions)."""
+    taxon = assay.target.taxid
+    if taxon is None:
+        raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
+    path = store_path(
+        cache_root, taxon, amplicon, cfg.variants.flank_nt, source, assay.target.exclude_taxids
+    )
+    store = RegionStore(path)
+    store.n_refs = len(assay.reference_amplicons) or 1
+    return store
+
+
+def stored_calls(
+    assay: Assay,
+    cfg: Config,
+    cache_root: Path,
+    fetch_fasta: Callable[[str], str],
+    source: str,
+) -> tuple[list[StoredAssembly], list[GenomeCall], Path]:
+    """Every genome already in the assay's region store, judged by its best copy (no new
+    downloads): the stored items, one :class:`GenomeCall` per genome with a complete copy, and
+    the store's path. ``fetch_fasta`` is only used when the assay has no reference amplicon."""
+    amplicon, _src = reference_amplicon(assay, fetch_fasta)
+    store = open_store(assay, cfg, cache_root, amplicon, source)
+    items = current_items(store)
+    calls: list[GenomeCall] = []
+    assess(items, assay, amplicon, placements(assay, amplicon, cfg), cfg, calls=calls)
+    return items, calls, store.path
+
+
 Collector = Callable[
     [RegionStore, int, str, Callable[[], tuple[str, str]]],
     tuple[list[YearCoverage], int, int, int, list[str]],
@@ -684,18 +730,10 @@ def run_exhaustive(
 
     amplicon, amp_source = reference_amplicon(assay, fetch_once)
     others = [r.sequence.upper() for r in assay.reference_amplicons[1:]]
-    mm = cfg.thresholds.amplicon.max_site_mismatches
-    placed = [oligo_sites(assay, amplicon, mm)]
-    for ref in others:  # windows per reference; one that cannot place a role uses the first's
-        try:
-            placed.append(oligo_sites(assay, ref, mm))
-        except InputError:
-            placed.append(placed[0])
+    placed = placements(assay, amplicon, cfg)
     v = cfg.variants
-    # keyed by the first reference only, so adding a lineage reference keeps the stored regions
     exclude = assay.target.exclude_taxids
-    store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt, source, exclude))
-    store.n_refs = 1 + len(others)
+    store = open_store(assay, cfg, cache_root, amplicon, source)
     context = ReferenceContext(assay, amplicon, fetch_once, store.path.with_suffix(".context.json"))
     context.other_amplicons = others
     if collector is None:
