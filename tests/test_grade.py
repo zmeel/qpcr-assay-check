@@ -1,0 +1,88 @@
+"""Graded mismatch classes (docs/MISMATCH_CLASSES.md). Alignments are SYNTHETIC: a primer and
+its site in the primer's own sense, mutated at chosen positions from the 3' end."""
+
+from __future__ import annotations
+
+import pytest
+
+from qpcr_assay_check.oligo import grade as g
+
+PRIMER = "RATTGTCACCATAAGCAGCCA"  # the user's enterovirus reverse primer (5'->3')
+SITE = "AATTGTCACCATAAGCAGCCA"  # a perfect site (R = A)
+
+
+def site_with(changes: dict[int, str], base: str = SITE) -> str:
+    """Replace the base at position -k (1 = 3'-terminal) by the given base."""
+    s = list(base)
+    for k, b in changes.items():
+        assert s[len(s) - k] != b, f"-{k} is already {b}"
+        s[len(s) - k] = b
+    return "".join(s)
+
+
+def mutated(*positions: int) -> str:
+    """The site with a different base (T, or G where T is already there) at each position."""
+    return site_with({k: "G" if SITE[len(SITE) - k] == "T" else "T" for k in positions})
+
+
+def test_perfect_and_degenerate_primer_bases_match():
+    assert g.grade_primer(PRIMER, SITE).cls == g.PERFECT
+    assert g.grade_primer(PRIMER, "G" + SITE[1:]).cls == g.PERFECT  # R matches G too
+
+
+def test_ev_d68_reverse_primer_c_a_at_minus_3_is_tolerated():
+    """Live: EV-D68 site ...AGTCA vs primer ...AGCCA: primer C faces template A (C-A), G3."""
+    r = g.grade_primer(PRIMER, site_with({3: "T"}))
+    assert (r.cls, r.rule) == (g.TOLERATED, "R1") and "C-A at -3" in r.note
+
+
+@pytest.mark.parametrize(
+    ("pos", "site_base", "expected"),
+    [
+        (1, "T", g.FAILURE),  # primer A, template A: A-A (G1) terminal -> avoid
+        (2, "G", g.AT_RISK),  # primer C, template C: C-C (G1) penultimate -> avoid
+        (1, "G", g.TOLERATED),  # primer A, template C: A-C (G3) terminal -> acceptable
+        (2, "A", g.TOLERATED),  # primer C, template T: C-T (G2) penultimate -> acceptable
+        (1, "C", g.FAILURE),  # primer A, template G: A-G (G1) terminal
+    ],
+)
+def test_single_mismatch_in_the_last_5_follows_stadhouders_table_1(pos, site_base, expected):
+    assert g.grade_primer(PRIMER, site_with({pos: site_base})).cls == expected
+
+
+def test_position_4_is_marked_interpolated():
+    assert "not tested" in g.grade_primer(PRIMER, site_with({4: "T"})).note
+
+
+def test_single_mismatch_beyond_5_is_tolerated_per_lefever():
+    r6 = g.grade_primer(PRIMER, mutated(7))
+    r12 = g.grade_primer(PRIMER, mutated(12))
+    assert (r6.cls, r6.rule) == (g.TOLERATED, "R2") and "can be tolerated" in r6.note
+    assert r12.cls == g.TOLERATED and "negligible" in r12.note
+
+
+def test_several_mismatches():
+    assert g.grade_primer(PRIMER, mutated(1, 4)).cls == g.FAILURE  # terminal + another
+    assert g.grade_primer(PRIMER, mutated(8, 12)).cls == g.AT_RISK  # 2, none in the last 5
+    assert g.grade_primer(PRIMER, mutated(7, 10, 14)).cls == g.AT_RISK  # 3, none in the last 5
+    assert g.grade_primer(PRIMER, mutated(3, 10, 14)).cls == g.FAILURE  # 3, one in the last 5
+    assert g.grade_primer(PRIMER, mutated(7, 9, 12, 15)).cls == g.FAILURE  # 4 spread
+    assert g.grade_primer(PRIMER, mutated(16, 17, 18, 19)).cls == g.AT_RISK  # 4 adjacent, 5' end
+
+
+def test_gaps_and_ambiguity_codes_are_indeterminate():
+    assert g.grade_primer(PRIMER + "-", SITE + "A").cls == g.INDETERMINATE
+    assert g.grade_primer(PRIMER, site_with({2: "Y"})).rule == "R6"
+
+
+def test_probes_keep_the_current_rule_and_mgb_mismatches_are_indeterminate():
+    probe = "AAACACGGACACCCAAA"
+    one_internal = probe[:5] + "T" + probe[6:]
+    assert g.grade_probe(probe, one_internal, mgb=False).cls == g.TOLERATED
+    assert g.grade_probe(probe, one_internal, mgb=True).cls == g.INDETERMINATE
+    assert g.grade_probe(probe, probe[:-1] + "G", mgb=False).cls == g.AT_RISK
+
+
+def test_primer_pair_rule_r8():
+    assert g.pair_fails(3, 2) and g.pair_fails(1, 4) and g.pair_fails(4, 1)
+    assert not g.pair_fails(3, 1) and not g.pair_fails(2, 2)

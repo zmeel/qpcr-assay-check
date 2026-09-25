@@ -11,7 +11,8 @@ after" (which would need this section's own verdict to exist first).
 
 from __future__ import annotations
 
-from ..inclusivity.models import InclusivityResult
+from ..inclusivity.aggregate import detectable_percent
+from ..inclusivity.models import InclusivityResult, WindowStats
 from ..results import RunResult
 from ..specificity.models import AmpliconResult, SiteResult
 from ..specificity.variants import VariantRow, VariantSummary
@@ -81,11 +82,8 @@ def _resolved_amplicon(a: AmpliconResult) -> AmpliconChange:
     )  # fmt: skip
 
 
-def _pct(n_perfect: int, n_one: int, n_three_prime: int, sample_size: int) -> float | None:
-    if sample_size == 0:
-        return None
-    good = max(0, n_perfect + n_one - n_three_prime)
-    return 100.0 * good / sample_size
+def _pct(w: WindowStats) -> float | None:
+    return None if w.sample_size == 0 else detectable_percent(w)
 
 
 def _inclusivity_changes(
@@ -103,10 +101,7 @@ def _inclusivity_changes(
         pw, cw = prev_windows[(role, year)], curr_windows[(role, year)]
         if pw.sample_size == 0 and cw.sample_size == 0:
             continue
-        pct_before = _pct(
-            pw.n_perfect, pw.n_one_mismatch, pw.n_three_prime_mismatch, pw.sample_size
-        )
-        pct_after = _pct(cw.n_perfect, cw.n_one_mismatch, cw.n_three_prime_mismatch, cw.sample_size)
+        pct_before, pct_after = _pct(pw), _pct(cw)
         if pct_before == pct_after and pw.sample_size == cw.sample_size:
             continue
         new_positions = (
@@ -233,7 +228,7 @@ def _rationale(
         ):  # a shift below 1 point (e.g. only more records assessed) stays in the table
             lines.append(
                 f"Inclusivity, {c.role} {c.year}: {c.percent_before:.0f}% -> "
-                f"{c.percent_after:.0f}% at 0-1 mismatch."
+                f"{c.percent_after:.0f}% detectable."
             )
     if not lines:
         lines.append(f"No meaningful change since the previous run ({previous_generated_at}).")

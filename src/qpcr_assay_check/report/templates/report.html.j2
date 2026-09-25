@@ -90,7 +90,8 @@ td.aln-cell { min-width: 22rem; }
 <body>
 <main>
 {% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
-{% macro match(row, primer) %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro match(row, primer) %}{% if row.grade %}<span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ row.grade | replace('_', ' ') }}</span><br>{% endif %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro grade_css(g) %}{{ {'perfect': 's-PASS', 'tolerated': 's-PASS', 'at_risk': 's-WARN', 'likely_failure': 's-FAIL', 'indeterminate': 's-INCOMPLETE'}.get(g, 's-INFO') }}{% endmacro %}
 {% macro pct(value) %}{% if 0 < value < 0.05 %}&lt;0.1%{% else %}{{ '%.1f' % value }}%{% endif %}{% endmacro %}
 
 <header>
@@ -313,7 +314,7 @@ td.aln-cell { min-width: 22rem; }
 {% set cc = cov.copies %}
 {% if cc and cc.genomes %}
 <h3>Copies, coverage per oligo, and escapes</h3>
-<p class="meta">Every stored copy of the region is assessed with every oligo of the mix. A site is <em>detectable</em> with at most 1 mismatch, no gap and no mismatch in its last 5 nucleotides (the inclusivity criterion){% if cc.homopolymer_bulges_detectable %}, or with no mismatch and only a gap from a single-base run of another length (a homopolymer bulge, e.g. poly-A 7&rarr;8; setting <code>variants.homopolymer_bulges_detectable: true</code>){% else %}; a homopolymer bulge (a single-base run of another length, e.g. poly-A 7&rarr;8) is a gap and is <strong>not</strong> counted as detectable (strict; setting <code>variants.homopolymer_bulges_detectable: false</code>){% endif %}; a copy is detectable when every role is; each genome is judged by its best copy, as the PCR needs only one copy it can amplify. The variant tables below use that best copy.</p>
+<p class="meta">Every stored copy of the region is assessed with every oligo of the mix. A site is <em>detectable</em> when its graded mismatch class is <em>perfect</em> or <em>tolerated</em> (see "Mismatch classes" under Inclusivity; primers: Stadhouders 2010 and Lefever 2013; probes: at most 1 mismatch outside the last 5 nucleotides, and none for MGB probes){% if cc.homopolymer_bulges_detectable %}, or with no mismatch and only a gap from a single-base run of another length (a homopolymer bulge, e.g. poly-A 7&rarr;8; setting <code>variants.homopolymer_bulges_detectable: true</code>){% else %}; a homopolymer bulge (a single-base run of another length, e.g. poly-A 7&rarr;8) is a gap and is <strong>not</strong> counted as detectable (strict; setting <code>variants.homopolymer_bulges_detectable: false</code>){% endif %}; a copy is detectable when every role is; each genome is judged by its best copy, as the PCR needs only one copy it can amplify. The variant tables below use that best copy.</p>
 <div class="scroll"><table><tbody>
   <tr><th scope="row">Genomes assessed</th><td>{{ cc.genomes }}; {{ cc.multi_copy }} with more than one copy (at most {{ cc.max_copies }}){% if cc.copies_capped %}<br><span class="meta">{{ cc.copies_capped }} stored before v1.3.0 with at most 5 of their copies; they are downloaded and scanned again on the next runs (within the per-run maximum), so all copies are assessed.</span>{% endif %}</td></tr>
   <tr><th scope="row">Best copy not the first found</th><td>{{ cc.best_copy_not_first }}<br><span class="meta">genomes whose best-binding copy differs from the copy found most confidently (earlier versions assessed only that one)</span></td></tr>
@@ -438,15 +439,19 @@ td.aln-cell { min-width: 22rem; }
 {% for o in r.inclusivity.oligos %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Year</th><th>{{ ('Records' if nuc else 'Assemblies') if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
+  <thead><tr><th>Year</th><th>{{ ('Records' if nuc else 'Assemblies') if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th>{% if o.windows and o.windows[0].n_detectable is not none %}<th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Indeterminate</th>{% endif %}</tr></thead>
   <tbody>
   {% for w in o.windows %}
   <tr><td class="num">{{ w.year }}</td><td class="num">{{ w.population_size if w.population_size is not none else '–' }}</td>
     <td class="num">{{ w.sample_size }}</td><td class="num">{{ w.n_perfect }}</td><td class="num">{{ w.n_one_mismatch }}</td>
-    <td class="num">{{ w.n_two_plus_mismatch }}</td><td class="num">{{ w.n_three_prime_mismatch }}</td><td class="num">{{ w.n_fetch_failed }}</td></tr>
+    <td class="num">{{ w.n_two_plus_mismatch }}</td><td class="num">{{ w.n_three_prime_mismatch }}</td><td class="num">{{ w.n_fetch_failed }}</td>{% if w.n_detectable is not none %}<td class="num">{{ w.n_detectable }}{% if w.sample_size %} ({{ pct(100.0 * w.n_detectable / w.sample_size) }}){% endif %}</td><td class="num">{{ w.n_by_grade.get('at_risk', 0) }}</td><td class="num">{{ w.n_by_grade.get('likely_failure', 0) }}</td><td class="num">{{ w.n_by_grade.get('indeterminate', 0) }}</td>{% elif o.windows and o.windows[0].n_detectable is not none %}<td></td><td></td><td></td><td></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>
+{% if loop.last and r.inclusivity.oligos[0].windows and r.inclusivity.oligos[0].windows[0].n_detectable is not none %}
+<h3>Mismatch classes</h3>
+<p class="meta">Each oligo site on the target gets a class (docs/MISMATCH_CLASSES.md): <em>perfect</em>; <em>tolerated</em> (expected to cost little); <em>at risk</em> (a measurable delay is expected, worse near the limit of detection); <em>likely failure</em> (blocked or strongly delayed in the published data); <em>indeterminate</em> (no published basis: gaps and homopolymer bulges, ambiguity codes in the genome, mismatches in MGB probes). <em>Detectable</em> = perfect or tolerated; the verdict thresholds apply to it. Primers: single mismatches in the last 5 nt by type and position after Stadhouders et al., J Mol Diagn 2010 (Table 1, Taq polymerase on DNA); farther positions and the number of mismatches per primer and per primer pair after Lefever et al., Clin Chem 2013. Probes: no published rule was used (at most 1 mismatch outside the last 5 nt is tolerated). {{ grade_caveat }}</p>
+{% endif %}
 {% if o.n_no_date %}<p class="meta">{{ o.n_no_date }} sampled hit(s) had no determinable submission year and were excluded from the yearly buckets.</p>{% endif %}
 {% endfor %}
 {% if r.inclusivity.rationale %}

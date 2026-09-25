@@ -31,7 +31,7 @@ from ..inclusivity.aggregate import _stats, _verdict
 from ..inclusivity.models import InclusivityOligoResult, InclusivityResult
 from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
-from ..oligo import iupac
+from ..oligo import grade, iupac
 from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
@@ -294,11 +294,16 @@ class GenomeCall:
 
 
 def detectable(s: SiteResult, bulges: bool = False) -> bool:
-    """At most 1 mismatch, no gap, no mismatch in the last 5 nt (the inclusivity criterion).
+    """Graded class perfect or tolerated (docs/MISMATCH_CLASSES.md); for an ungraded site the
+    earlier rule: at most 1 mismatch, no gap, no mismatch in the last 5 nt.
 
     ``bulges``: also accept a site that differs only by the length of a single-base run (a
     labelled homopolymer bulge without any mismatch); strict (False) by default.
     """
+    if s.grade is not None:
+        if s.grade in grade.DETECTABLE:
+            return True
+        return bulges and bool(s.note) and s.n_mismatch == 0 and s.grade == grade.INDETERMINATE
     if s.n_gap == 0:
         return s.n_mismatch <= 1 and s.mismatches_last5 == 0
     return bulges and bool(s.note) and s.n_mismatch == 0
@@ -365,30 +370,42 @@ def assess(
                 GenomeCall(
                     accession=it.accession,
                     n_copies=len(copies),
-                    n_detectable=sum(
-                        all(detectable(x, bulges) for x in c.values()) for c, _a in copies
-                    ),
+                    n_detectable=sum(all(roles_ok(c, bulges).values()) for c, _a in copies),
                     best_is_first=best_i == 0,
                     n_detectable_other_rule=sum(
                         all(
-                            detectable(
-                                _role_site(assay, r, a, channel_rule, not bulges), not bulges
-                            )
-                            for r in ROLES
+                            roles_ok(
+                                {
+                                    r: _role_site(assay, r, a, channel_rule, not bulges)
+                                    for r in ROLES
+                                },
+                                not bulges,
+                            ).values()
                         )
                         for _c, a in copies
                     ),  # fmt: skip
                     oligo_good={name: detectable(x, bulges) for name, x in all_sites.items()},
-                    role_good={r: detectable(chosen[r], bulges) for r in ROLES},
+                    role_good=roles_ok(chosen, bulges),
                 )
             )
     return sites, contig_break, masked_site
 
 
+def roles_ok(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str, bool]:
+    """Per role whether its site on this copy is detectable; both primers fail together when the
+    pair has too many mismatches in total (rule R8, Lefever 2013; docs/MISMATCH_CLASSES.md)."""
+    ok = {r: detectable(s, bulges) for r, s in chosen.items()}
+    fwd, rev = chosen.get("forward"), chosen.get("reverse")
+    graded = fwd is not None and rev is not None and fwd.grade is not None
+    if graded and grade.pair_fails(fwd.n_mismatch, rev.n_mismatch):  # type: ignore[union-attr]
+        ok["forward"] = ok["reverse"] = False
+    return ok
+
+
 def _copy_key(chosen: dict[str, SiteResult], bulges: bool = False) -> tuple[int, int, int]:
     roles = list(chosen.values())
     return (
-        sum(not detectable(x, bulges) for x in roles),
+        sum(not v for v in roles_ok(chosen, bulges).values()),
         sum(x.n_mismatch + x.n_gap for x in roles),
         -sum(x.clean_3prime_nt for x in roles),
     )
@@ -424,7 +441,8 @@ def _assess_copy(
             if key not in memo:
                 memo[key] = _align(key[0], oriented, scoring, rules)
             aln, note = memo[key]
-            every[o.name] = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
+            site = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
+            every[o.name] = assay.graded(site)
         chosen[role] = _role_site(assay, role, every, channel_rule, bulges)
     return chosen, every
 

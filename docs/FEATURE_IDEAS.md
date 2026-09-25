@@ -166,7 +166,7 @@ per primer and per pair (Lefever), a reverse-primer modifier for one-step RT-PCR
 only). Where they disagree (terminal C-T/T-C), take the worse. Report classes, not predicted Cq.
 Still not covered: probe/MGB mismatches, bulges, degenerate primers.
 
-Worked-out proposal: [MISMATCH_CLASSES.md](MISMATCH_CLASSES.md) (not built).
+Built (unreleased): [MISMATCH_CLASSES.md](MISMATCH_CLASSES.md), without a mix setting.
 
 ## Related tools (context, 2026-09-23)
 

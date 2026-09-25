@@ -53,6 +53,13 @@ class SiteResult(BaseModel):
         default="", description="e.g. a homopolymer run-length variant aligned as a bulge"
     )
     level: Level
+    grade: str | None = Field(
+        default=None,
+        description="graded mismatch class on the assay's own target (docs/MISMATCH_CLASSES.md): "
+        "perfect | tolerated | at_risk | likely_failure | indeterminate",
+    )
+    grade_rule: str = ""
+    grade_note: str = ""
 
 
 class AmpliconResult(BaseModel):

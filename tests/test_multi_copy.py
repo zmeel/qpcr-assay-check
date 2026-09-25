@@ -143,6 +143,8 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     assert "poly-A run 4→5 (homopolymer length variant)" in html
     assert "Probe channels" in html and "any channel" in html
     assert "not counted (strict)" in html and "if homopolymer bulges are tolerated" in html
+    assert "Mismatch classes" in html and "Stadhouders" in html  # graded classes explained
+    assert 'class="chip s-INCOMPLETE"' in html  # the homopolymer bulge: indeterminate
     write_workbook(result, tmp_path / "r.xlsx")
     ws = load_workbook(tmp_path / "r.xlsx")["Copies and coverage"]
     assert any(c.value == "Escapes (no detectable copy)" for c in ws["A"])
@@ -165,7 +167,8 @@ def test_homopolymer_bulges_are_strict_by_default_and_both_counts_are_reported(t
 def test_a_bulge_with_a_mismatch_is_never_detectable():
     from qpcr_assay_check.variants.exhaustive import detectable
 
-    site = type("S", (), {"n_gap": 1, "n_mismatch": 1, "mismatches_last5": 0, "note": "poly-A"})
+    site = type("S", (), {"n_gap": 1, "n_mismatch": 1, "mismatches_last5": 0, "note": "poly-A",
+                          "grade": "indeterminate"})  # fmt: skip
     assert not detectable(site, True) and not detectable(site, False)  # type: ignore[arg-type]
 
 

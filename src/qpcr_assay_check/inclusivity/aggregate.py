@@ -26,6 +26,7 @@ from ..ncbi.cache import Cache
 from ..ncbi.eutils import Eutils
 from ..ncbi.http import NcbiError
 from ..ncbi.parser import ParsedSearch
+from ..oligo.grade import DETECTABLE
 from ..search.planner import SearchPlan
 from ..specificity.fetch import WindowFetcher
 from ..specificity.models import SiteResult
@@ -58,6 +59,18 @@ def _sample(candidates: list[Candidate], n: int) -> list[Candidate]:
     return [ordered[int(i * step)] for i in range(n)]
 
 
+def detectable_percent(w: WindowStats) -> float:
+    """Share of the window's records that the oligo is expected to detect: the graded classes
+    perfect + tolerated, or (records made before the classes) 0-1 mismatch, clean 3' end."""
+    if w.sample_size == 0:
+        return 0.0
+    if w.n_detectable is not None:
+        good = w.n_detectable
+    else:
+        good = max(0, w.n_perfect + w.n_one_mismatch - w.n_three_prime_mismatch)
+    return 100.0 * good / w.sample_size
+
+
 def _stats(
     sites: list[SiteResult], year: int, population: int | None, oligo_len: int
 ) -> WindowStats:
@@ -79,6 +92,11 @@ def _stats(
             n_perfect += 1
         if s.mismatches_last5:
             n_three_prime += 1
+    graded = bool(sites) and all(s.grade is not None for s in sites)
+    by_grade: dict[str, int] = defaultdict(int)
+    for s in sites:
+        if s.grade is not None:
+            by_grade[s.grade] += 1
     return WindowStats(
         year=year,
         population_size=population,
@@ -89,6 +107,8 @@ def _stats(
         n_three_prime_mismatch=n_three_prime,
         per_position_mismatches=per_position,
         n_fetch_failed=n_failed,
+        n_detectable=sum(by_grade[g] for g in DETECTABLE) if graded else None,
+        n_by_grade=dict(by_grade),
     )
 
 
@@ -183,6 +203,7 @@ def compute_inclusivity(
             sites = assess_candidates(
                 sample, site_rules, fetcher, scoring, cfg.specificity.window_padding_nt, ids
             )
+            sites = [assay.graded(s) for s in sites]
             windows.append(_stats(sites, year, populations[year], oligo_len))
         oligo_results.append(
             InclusivityOligoResult(role=role, oligo=oligo, windows=windows, n_no_date=n_no_date)
@@ -247,16 +268,19 @@ def _verdict(
         for w in o.windows:
             if w.sample_size == 0:
                 continue
-            good = w.n_perfect + w.n_one_mismatch - w.n_three_prime_mismatch
-            good = max(0, good)
-            pct = 100.0 * good / w.sample_size
+            pct = detectable_percent(w)
             if worst_pct is None or pct < worst_pct:
                 worst_pct = pct
             if pct < rules.warn_below_percent:
                 rationale.append(
                     f"{o.role}, {w.year}: {pct:.0f}% of {w.sample_size} "
-                    f"{'sampled' if sampled else 'assessed'} record(s) at "
-                    "0-1 mismatch with no 3'-end mismatch (below "
+                    f"{'sampled' if sampled else 'assessed'} record(s) "
+                    + (
+                        "detectable (mismatch class perfect or tolerated)"
+                        if w.n_detectable is not None
+                        else "at 0-1 mismatch with no 3'-end mismatch"
+                    )
+                    + " (below "
                     f"{rules.warn_below_percent:g}%)."
                 )
     if worst_pct is None:

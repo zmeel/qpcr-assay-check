@@ -20,6 +20,12 @@ class WindowStats(BaseModel):
     n_one_mismatch: int = Field(description="exactly 1 mismatch, 0 gaps")
     n_two_plus_mismatch: int = Field(description="2+ mismatches, or any gap")
     n_three_prime_mismatch: int = Field(description="a mismatch in the last 5 nt of the oligo")
+    n_detectable: int | None = Field(
+        default=None,
+        description="graded mismatch class perfect or tolerated (docs/MISMATCH_CLASSES.md); "
+        "None in records made before the classes",
+    )
+    n_by_grade: dict[str, int] = Field(default_factory=dict, description="records per class")
     per_position_mismatches: list[int] = Field(
         description="mismatch count at each 1-based oligo position, across this window's sample"
     )

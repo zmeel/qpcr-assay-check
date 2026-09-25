@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Graded mismatch classes replace the "0-1 mismatch, clean 3' end" rule** on the target
+  (`oligo/grade.py`, variant analysis, inclusivity, report, workbook; docs/MISMATCH_CLASSES.md;
+  user decision 2026-09-25): perfect / tolerated / at risk / likely failure / indeterminate, from
+  Stadhouders et al. 2010 (Table 1, Taq on DNA) and Lefever et al. 2013, both checked in full by
+  the advisor subagent. Detectable = perfect or tolerated; the primer-pair rule (3 + >=2 or 4 + >=1
+  mismatches) fails a copy. No lab-specific mix setting (user decision): the report prints the
+  mix caveat instead. Class counts per year and a class on every variant row. Records made
+  before keep their old inclusivity figure.
 - **Roles for taxa inside the target** (`target.taxa`: `{taxid, role, reason}`, role
   `must_not_detect` | `out_of_scope`; after the advisor's review, user decision 2026-09-25):
   must-not-detect taxa are near neighbours as before; out-of-scope taxa get their own search tier

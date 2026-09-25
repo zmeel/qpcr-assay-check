@@ -9,6 +9,7 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from markupsafe import Markup, escape
 
 from ..config import Config
+from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
@@ -178,6 +179,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
+        grade_caveat=GRADE_CAVEAT,
         list_full_note=LIST_FULL_NOTE,
         qc=result.oligo_qc,
         assay=result.assay,

@@ -441,6 +441,15 @@ class Assay(BaseModel):
     def oligo(self, name: str) -> Oligo:
         return next(o for o in self.oligo_list if o.name == name)
 
+    def graded(self, site: Any) -> Any:
+        """A target-tier SiteResult with its graded mismatch class (docs/MISMATCH_CLASSES.md)."""
+        from .oligo.grade import grade_fields, is_mgb
+
+        name = _DEGENERATE_SUFFIX.sub("", site.query)
+        o = next((x for x in self.oligo_list if x.name == name), None)
+        mgb = o is not None and is_mgb(o.modifications)
+        return site.model_copy(update=grade_fields(site.q_aln, site.s_aln, site.role, mgb=mgb))
+
     def role_of(self, label: str) -> str:
         """Role of an oligo name or query label (``NG-P1`` or a degenerate ``NG-P1_v2``)."""
         name = _DEGENERATE_SUFFIX.sub("", label)

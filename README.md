@@ -413,7 +413,15 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
   report's "Copies, coverage per oligo, and escapes" table shows copies per genome, how many
   genomes each oligo covers (and covers alone), genomes no oligo of a role covers, probe channels
   (`variants.probe_channels: any | all`) and the escapes: genomes without any detectable copy
-  (at most 1 mismatch, no gap, no mismatch in the last 5 nt).
+  (graded mismatch class perfect or tolerated; see below).
+- **Graded mismatch classes** ([docs/MISMATCH_CLASSES.md](docs/MISMATCH_CLASSES.md)): every oligo
+  site on the target is *perfect*, *tolerated*, *at risk*, *likely failure* or *indeterminate*.
+  Primers follow two published studies read in full: single mismatches in the last 5 nt by type
+  and position after Stadhouders et al. 2010 (Table 1, Taq polymerase on DNA), farther positions
+  and the number of mismatches per primer and per primer pair after Lefever et al. 2013. Gaps and
+  homopolymer bulges, ambiguity codes in the genome and mismatches in MGB probes are
+  *indeterminate* (no published basis). Inclusivity counts perfect + tolerated as detectable. The
+  size of a mismatch effect differs between master mixes; a wet-lab check decides.
 - Homopolymer bulges (a site that differs only by the length of a single-base run, no mismatch)
   are **not** counted as detectable by default (strict). `variants.homopolymer_bulges_detectable:
   true` counts them; the report shows the genomes with a detectable copy under both rules either

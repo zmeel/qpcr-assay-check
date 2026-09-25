@@ -1,6 +1,7 @@
-# Proposal: graded mismatch classes (FEATURE_IDEAS #9)
+# Graded mismatch classes (FEATURE_IDEAS #9)
 
-Status: **proposal, not built**. Written 2026-09-25 at the user's request from the two papers
+Status: **built (unreleased)**, as described here, with the user's changes of 2026-09-25: no
+lab-specific setting for the reaction mix, and the classes replace the old rule directly. Written 2026-09-25 at the user's request from the two papers
 the user supplied (Stadhouders et al. 2010; Lefever et al. 2013; citations and study designs in
 FEATURE_IDEAS #9), and checked against both PDFs by the advisor subagent the same day (its
 corrections are applied). Every rule below names its source; where
@@ -32,21 +33,16 @@ Classes, not numbers: the papers' absolute delays differ by master mix and detec
 sevenfold different between mixes, and the two one-step RT-PCR kits "showed entirely opposing
 phenomena", pp. 109, 116). The report shows the class, the rule that gave it and the source.
 
-## 3. The lab setting that the classes need
+## 3. One basis for every lab (no mix setting)
 
-New setting `variants.pcr_setup` (also used for inclusivity), because Stadhouders' Table 1 differs
-by setup:
-
-| Value | Stadhouders setup | Example |
-|---|---|---|
-| `taq_dna` | (i) Taq on a DNA template | DNA targets (bacteria) |
-| `taq_mmlv_one_step` | (ii) Taq + MMLV reverse transcriptase, one-step | TaqMan Fast Virus 1-Step Master Mix (AmpliTaq Fast + thermostable MMLV-derived RT, per its user guide MAN0028278; the lab's enterovirus mix) |
-| `rtth_one_step` | (iii) rTth single-enzyme RT-PCR | |
-| `unknown` (default) | worst case over the three | |
-
-The mapping of a commercial mix to a setup is the lab's decision; the report prints the setting.
-Caveat to print: the mapping is by enzyme family; RT time/temperature and polymerase differ from
-the 2010 study (e.g. 5 min at 50 C vs 30 min at 48 C).
+The user decided against a setting for the reaction mix (e.g. Taq on DNA vs one-step RT-PCR
+kits): the tool is meant for many laboratories, and such a setting is too specific. R1 therefore
+uses one column of Stadhouders' Table 1, **Taq polymerase on DNA** ("standard"), which applies to
+both primers, and the report prints a fixed caveat: the size of a mismatch effect differs between
+master mixes, and in one-step RT-PCR a mismatch in the reverse (RT) primer can matter less or more
+than on DNA (Stadhouders: with Taq + MMLV all 24 reverse-primer mismatches cost < 0.7 Ct; with rTth
+the reverse primer was the more sensitive one). The other columns stay documented in section 10
+for the laboratory's own interpretation.
 
 ## 4. Rules for one primer site
 
@@ -72,9 +68,6 @@ and setup.
   to -4 is our interpolation: print "interpolated".
 - Where Stadhouders and Lefever disagree (terminal C-T/T-C: intermediate in Stadhouders, among the
   smallest in Lefever), take the worse.
-- `unknown` setup: the worst class over the three setups. Consequence: every reverse-primer
-  mismatch in the last 5 nt becomes "avoid" (rTth column), as do all forward G1 cells; the report
-  prints this so the lab sets `pcr_setup`.
 
 **R2. Single mismatch beyond the last 5 nt**: `tolerated`, with the note "moderate effect, can be
 tolerated" for -6 to -8 (Lefever abstract, p. 1470) and "almost negligible" from -9 on (Lefever
@@ -106,7 +99,7 @@ lost at 20 molecules for 2 mismatches and at 20-2,000 for 3), so these classes c
   Fig. 5); the paper gives no size for this exception, `at_risk` is our choice.
 - These counts come from DNA assays (Lefever: intercalating dye, 20-mers, no RT step);
   Stadhouders' multi-mismatch RNA constructs were all in the forward primer (p. 114). They are
-  not relaxed for the reverse primer under `taq_mmlv_one_step` (untested).
+  not relaxed for the reverse primer in one-step RT-PCR (untested).
 
 **R4. Reverse primer in a one-step RT-PCR** (Stadhouders setup ii, p. 113): with Taq + MMLV all
 24 tested reverse-primer mismatches cost < 0.7 Ct, only 1 of 24 significant (p. 113), "most likely
@@ -114,8 +107,8 @@ caused by" the mismatch acting only in the RT step (p. 116; the reverse primer i
 and the cDNA then carries the primer's own sequence). The authors also name the lower RT
 temperature (48 C) and reverse transcriptases extending mismatches 100-1000-fold more
 efficiently than Taq as possible factors; the lab's mix runs its RT at 50 C for 5 min. With rTth
-the reverse primer was the more sensitive one. This is not a separate rule: it is what
-the R1 lookup gives for those setups, and the report prints the explanation with it.
+the reverse primer was the more sensitive one. Not encoded (no mix setting, section 3): it is part
+of the caveat the report prints.
 
 **R5. Gaps (bulges, homopolymer run-length variants)**: `indeterminate`. Neither paper tested
 insertions or deletions. The `homopolymer_bulges_detectable` setting stays for the headline count
@@ -155,15 +148,17 @@ mismatch on an MGB probe is marked `indeterminate` rather than `tolerated`.
   either detected or escaped.
 - Copies/escapes: a genome's best copy is chosen by the class (then as now).
 - History: a class change for a known variant is a history event.
-- The old rule stays available (`variants.mismatch_rule: simple | graded`, default `simple` until
-  the lab has reviewed the graded classes), so earlier records stay comparable.
+- No switch back to the old rule (kept simple). Records made before the classes still load: their
+  inclusivity windows have no class counts and keep the old "0-1 mismatch, clean 3' end" figure,
+  so the first comparison with such a record shows a change once.
+- The homopolymer-bulge setting stays: with `homopolymer_bulges_detectable: true` an
+  `indeterminate` bulge without mismatch counts as detectable, as before.
 
 ## 8. Worked examples (what the proposal would say)
 
-- **EV-D68, enterovirus reverse primer, C-A at -3**, setup `taq_mmlv_one_step`: G3 at -3 to -5,
-  reverse primer, setup (ii): Table 1 "acceptable" -> `tolerated`. With `rtth_one_step`: "avoid in
-  REV" -> `at_risk`. With `unknown`: `at_risk`. The report adds: -3 C-A was not itself tested
-  (tested at -1 and -5); wet-lab check with an RNA template advised.
+- **EV-D68, enterovirus reverse primer, C-A at -3**: G3 at positions 3-5, Taq on DNA: Table 1
+  "acceptable" -> `tolerated`. (The rTth column would say "avoid in REV"; covered by the caveat.)
+  -3 C-A was not itself tested (only at -1 and -5); wet-lab check with an RNA template advised.
 - **N. gonorrhoeae reverse primer, poly-A 7 -> 8/9**: a gap -> `indeterminate` (R5), shown
   separately from escapes, with the count under both homopolymer rules as now.
 - **Enterovirus forward primer F2 on Poliovirus 2 UGA_22 records (3 mismatches, 3' end intact)**:
@@ -171,15 +166,19 @@ mismatch on an MGB probe is marked `indeterminate` rather than `tolerated`.
   dCq, so this may understate). The positions of the 3 mismatches within F2 still have to be
   shown from the records.
 
-## 9. Before building
+## 9. Built, and still open
 
-1. The lab reviews this proposal (the classes are a presentation of published data, and the
-   mapping of "avoid" to `likely_failure`/`at_risk` by position is ours).
-2. Encode Stadhouders' Table 1 exactly from the paper (section 10; checked against the PDF by the
-   advisor on 2026-09-25; check it once more when building).
-3. Check Kutyavin 2000 (MGB) if probe classes are wanted; until then R9 stays `indeterminate`.
-4. Tests with synthetic sites for every rule; a live rerun of the NG and enterovirus assays in
-   `graded` mode side by side with `simple`.
+Built: `oligo/grade.py` (R1-R3, R5, R6, R8, R9), grades on every target site of the variant
+analysis and of the sampled inclusivity, detectability and the primer-pair rule in the genome
+judgement, class counts per year (report and workbook) with the verdict on perfect + tolerated,
+the class on every variant row, tests per rule.
+
+Still open:
+1. Check Table 1 once more against the PDF (the encoded cells are in `oligo/grade.py`).
+2. Kutyavin 2000 (MGB probes) if probe classes are wanted; until then R9 stays as written.
+3. R7 (degenerate primers) is only a note; the pair flag at >= 4 mismatches in total is not shown
+   yet.
+4. A live rerun of the NG and enterovirus assays to see the classes on real data.
 
 ## 10. Stadhouders Table 1 (p. 116), as the lookup to encode
 
@@ -188,6 +187,8 @@ Checked against the PDF by the advisor (2026-09-25). Mismatches are primer-templ
 reverse primer (Taq DNA polymerase)", `rtth` the column "rTth DNA polymerase-based real-time PCR
 using specific reverse primer". Footnote as printed: "Mismatches were designated as acceptable
 (for general applications) when their effect was generally <2,0 Ct."
+
+Only the `taq_dna` column is encoded (section 3); the others are kept for reference.
 
 | Group | Position | taq_dna (both) | taq_mmlv FWD | taq_mmlv REV | rtth FWD | rtth REV |
 |---|---|---|---|---|---|---|

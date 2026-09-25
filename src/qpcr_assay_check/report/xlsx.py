@@ -387,11 +387,15 @@ def write_workbook(result: RunResult, path: Path) -> None:
             wb,
             "Inclusivity",
             ["Oligo", "Year", "Population", "Sample size", "Perfect", "1 mismatch",
-             "2+ mismatch/gap", "3' mismatch", "Fetch failed"],
+             "2+ mismatch/gap", "3' mismatch", "Fetch failed", "Detectable (class)",
+             "At risk", "Likely failure", "Indeterminate"],
             [
                 [o.role, w.year, w.population_size if w.population_size is not None else "",
                  w.sample_size, w.n_perfect, w.n_one_mismatch, w.n_two_plus_mismatch,
-                 w.n_three_prime_mismatch, w.n_fetch_failed]
+                 w.n_three_prime_mismatch, w.n_fetch_failed,
+                 "" if w.n_detectable is None else w.n_detectable,
+                 w.n_by_grade.get("at_risk", ""), w.n_by_grade.get("likely_failure", ""),
+                 w.n_by_grade.get("indeterminate", "")]
                 for o in incl.oligos
                 for w in o.windows
             ],

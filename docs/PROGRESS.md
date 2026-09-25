@@ -98,6 +98,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   R3 (likely_failure needs the terminal base plus another in the last 5; both papers' data
   always include the terminal base), wording ("generally <2,0 Ct", "most likely caused by",
   -4 interpolated), low-input note for >= 2 mismatches, pair flag at >= 4 in total. Not built.
+- User: no lab-specific setting for the mix (the tool is for many labs; it is getting complex);
+  build the classes, then pause and recap. Built: oligo/grade.py with the Taq-on-DNA column of
+  Stadhouders Table 1 + Lefever counts + pair rule; grades on target sites; detectable = perfect
+  or tolerated; class counts per year (report, workbook), class chips on variant rows, fixed mix
+  caveat. No switch back to the old rule. 479 tests pass. Not yet run live.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and
