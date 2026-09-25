@@ -28,37 +28,26 @@ The whole-fragment table shows which site variants occur *together* on one genom
 means for detection. Its first part, "Needs attention", lists the combinations that are not
 detectable, most frequent first per outcome:
 
-**11,687 records with all three sites: detectable 92.3%, at risk 4.7%, likely failure 0.6%,
-undetermined 2.5%.**
+[![The "Needs attention" table in the HTML report](docs/images/needs_attention_enterovirus.png)](docs/images/needs_attention_enterovirus.png)
 
-| Outcome | Forward (F1, F2) | Probe | Reverse | Records | Types (organism names) | Example |
-|---|---|---|---|---|---|---|
-| likely failure | at risk, F2 `..G...........A....` | perfect | likely failure `..............A..TT..` | 12 | Enterovirus C109 11; Enterovirus C105 1 | GQ865517.1 |
-| likely failure | likely failure, F1 `.TAAT.T..A.........` | perfect | perfect | 6 | Poliovirus 1 2; Poliovirus 2 2; Poliovirus 3 2 | PP068131.1 |
-| at risk | at risk, F2 `..AA.....A.........` | perfect | perfect | 265 | Poliovirus 2 235; Enterovirus coxsackiepol 27; +3 | MN654096.1 |
-| at risk | at risk, F2 `.TC................` | perfect | perfect | 59 | Coxsackievirus A21 58; Poliovirus 2 1 | D00625.1 |
-| undetermined | perfect | indeterminate `........T........` | perfect | 137 | Coxsackievirus A16 88; Coxsackievirus A7 12; +14 | EF155422.1 |
-
-Each site is written against its oligo: a dot is a matching base, a letter a mismatch in the
-genome; the primer 3′ end is the right-hand end. A genome's outcome is its worst site, or likely
-failure when the two primers together carry too many mismatches (Lefever 2013). "Undetermined"
-here is a single mismatch in an MGB probe: no published data say whether it matters, so these
-genomes are counted neither as detected nor as escapes.
+Each site is written against its oligo in the column header: a dot is a matching base, a letter a
+mismatch in the genome, the primer 3′ end is underlined; (1) and (2) say which of the two forward
+primers binds best. Next to a site's class: how often that site variant occurs among all records.
+A genome's outcome is its worst site, or likely failure when the two primers together carry too
+many mismatches (Lefever 2013). "Undetermined" (further down the table) is a single mismatch in
+an MGB probe: no published data say whether it matters, so those genomes are counted neither as
+detected nor as escapes.
 
 What a laboratory would do with these rows: the 265 poliovirus type 2 records share one at-risk
-F2 variant, so a template of that variant is worth testing and worth checking whether it comes
-from one study; the 137 undetermined records share one probe variant, so one wet-lab test on that
-variant settles most of them.
+F2 variant, so a template of that variant is worth testing, and worth checking whether it comes
+from one study; the small likely-failure groups (4 to 12 records) are worth a look at their
+sequence quality and origin first.
 
 *Example from a run on 2026-09-25 against that day's NCBI data (qpcr-assay-check 1.3.0 with
 later development changes). Numbers change as NCBI grows; they illustrate the output and are not
 a performance claim for this assay. Classes present published primer-mismatch data, not predicted
 Cq values. The oligos are an in-house enterovirus assay supplied by the user, not checked against
 a publication ([docs/examples/enterovirus_realt.yaml](docs/examples/enterovirus_realt.yaml)).*
-
-The same rows as they appear in the report:
-
-[![The "Needs attention" table in the HTML report](docs/images/needs_attention_enterovirus.png)](docs/images/needs_attention_enterovirus.png)
 
 ## Who it is for, and what it is not
 
@@ -136,21 +125,37 @@ for one organism), `qpcr-assay-check panel` lists the genomes that escape every 
 
 ## The assay file
 
+The enterovirus assay of the example (shortened; the full file is
+[docs/examples/enterovirus_realt.yaml](docs/examples/enterovirus_realt.yaml)):
+
 ```yaml
-assay_name: Neisseria gonorrhoeae (two probes)
-forward: {name: NG-F, sequence: GTTGAAACACCGCCCGG}
-reverse: {name: NG-R, sequence: CGGTTTGACCGGTTAAAAAAAGAT}
+assay_name: Enterovirus (realT, in-house)
+forward:                                   # two forward primers in the same mix
+  - {name: realT-Entero-F1, sequence: TCTGCAGCGGAACCGACTA}
+  - {name: realT-Entero-F2, sequence: TCTGTGGCGGAACCGACTA}
+reverse: {name: realT-Entero-DHU-R, sequence: RATTGTCACCATAAGCAGCCA}   # R = A or G
 probe:
-  - {name: NG-P1, sequence: CCCTTCAACATCAGTGAAA, reporter: FAM, modifications: [MGB]}
-  - {name: NG-P2, sequence: CTTTGAACCATCAGTGAAA, reporter: FAM, modifications: [MGB]}
-template_type: DNA
-target: {taxid: 485}
-exclusivity_organisms: [Neisseria meningitidis]
+  - {name: Entero-P, sequence: AAACMCGGACACCCAAA, reporter: FAM, modifications: [MGB]}
+template_type: RNA
+target:
+  taxid: 12059                             # genus Enterovirus
+  taxa:                                    # inside the genus, but not the intended target
+    - {taxid: 3428501, role: must_not_detect, reason: "rhinovirus: Enterovirus alpharhino"}
+    - {taxid: 3428503, role: must_not_detect, reason: "rhinovirus: Enterovirus betarhino"}
+    - {taxid: 3428504, role: must_not_detect, reason: "rhinovirus: Enterovirus cerhino"}
+    - {taxid: 3428509, role: out_of_scope, reason: "animal enterovirus: Enterovirus geswini (EV-G)"}
+    # ... more rhinovirus and animal enterovirus taxa in the full file
+reference_amplicons:
+  - {name: EV-fragment, sequence: TCTGCAGCGGAACCGACTACTTTGGGTGTCCGTGTTTCCTTTTATTCTCATGTTGGCTGCTTATGGTGACAATT}
+exclusivity_organisms: [Parechovirus]
 settings:
-  variants: {source: datasets}   # bacteria: every genome assembly
+  variants:
+    source: blast_partitioned              # viruses: every Nucleotide record
+    nucleotide_query: "6500:8500[SLEN]"    # near-complete genomes only
 ```
 
-Several oligos per role (alternatives in the same mix), degenerate bases, reference amplicons,
+`must_not_detect` taxa are part of the specificity verdict; `out_of_scope` taxa are searched and
+listed for information only. Several oligos per role (alternatives in the same mix), degenerate bases, reference amplicons,
 taxa inside the target that the assay must not detect, and every setting: see
 [the commented template](examples/assay_template.yaml) and the
 [user guide](docs/USER_GUIDE.md#assay-file).
