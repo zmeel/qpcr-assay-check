@@ -153,7 +153,14 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ],
             ["template type", a.template_type.value],
             ["target taxid", a.target.taxid or ""],
-            ["target excluding taxids", ", ".join(map(str, a.target.exclude_taxids))],
+            [
+                "target excluding taxids (must not detect)",
+                ", ".join(map(str, a.target.must_not_detect_taxids)),
+            ],
+            [
+                "target excluding taxids (out of scope)",
+                ", ".join(map(str, a.target.out_of_scope_taxids)),
+            ],
             ["target accession", a.target.accession or ""],
             ["target gene", a.target.gene or ""],
             ["oligo source", a.oligo_source or ""],

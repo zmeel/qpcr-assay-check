@@ -36,7 +36,8 @@ def test_the_entrez_query_leaves_the_excluded_taxa_out():
 
 def test_the_target_tier_excludes_them_and_the_near_neighbours_search_them():
     assay = make_assay(target=TARGET)
-    assert assay.target.exclude_taxids == [200, 300]  # sorted, unique
+    assert assay.target.excluded_taxids == [200, 300]  # sorted, unique
+    assert assay.target.must_not_detect_taxids == [200, 300]  # exclude_taxids = must_not_detect
     plan = plan_searches(assay, load_config(), exclusivity_taxids=[])
     target = {ps.entrez_query for ps in plan.searches if ps.tier == "target"}
     near = [ps for ps in plan.searches if ps.tier == "near_neighbours"]
@@ -47,7 +48,7 @@ def test_the_target_tier_excludes_them_and_the_near_neighbours_search_them():
 @pytest.mark.parametrize(
     ("target", "message"),
     [
-        ({"accession": "NC_045512.2", "exclude_taxids": [200]}, "needs the target's 'taxid'"),
+        ({"accession": "NC_045512.2", "exclude_taxids": [200]}, "need the target's 'taxid'"),
         ({"taxid": 100, "exclude_taxids": [100]}, "own taxid"),
         ({"taxid": 100, "exclude_taxids": [0]}, "positive"),
     ],
@@ -111,3 +112,66 @@ def test_the_search_plan_refuses_an_exclusion_outside_the_target(tmp_path, monke
     with pytest.raises(InputError, match="must lie inside the target taxon 100.*50"):
         execute._resolve_and_plan(make_assay(target={"taxid": 100, "exclude_taxids": [50]}),
                                   load_config(), None, None, only_tiers=None)  # fmt: skip
+
+
+ROLES = {"taxid": 100, "taxa": [
+    {"taxid": 200, "role": "must_not_detect", "reason": "rhinovirus (synthetic ID)"},
+    {"taxid": 400, "role": "out_of_scope", "reason": "animal virus (synthetic ID)"},
+]}  # fmt: skip
+
+
+def test_roles_split_the_searches_must_not_detect_near_out_of_scope_own_tier():
+    assay = make_assay(target=ROLES | {"exclude_taxids": [300]})  # short form: must_not_detect
+    t = assay.target
+    assert t.must_not_detect_taxids == [200, 300] and t.out_of_scope_taxids == [400]
+    assert t.exclude_taxids == [] and t.excluded_taxids == [200, 300, 400]
+    plan = plan_searches(assay, load_config(), exclusivity_taxids=[])
+    by_tier = {ps.tier: ps for ps in plan.searches}
+    assert by_tier["near_neighbours"].taxids == [200, 300]
+    assert by_tier["out_of_scope"].taxids == [400]
+    assert "NOT (txid200[ORGN] OR txid300[ORGN] OR txid400[ORGN])" in (
+        by_tier["target"].entrez_query or ""
+    )
+
+
+def test_a_taxon_listed_twice_is_rejected():
+    with pytest.raises(ValidationError, match="in both 'exclude_taxids' and 'taxa'"):
+        make_assay(target=ROLES | {"exclude_taxids": [200]})
+    with pytest.raises(ValidationError, match="listed twice"):
+        make_assay(target={"taxid": 100, "taxa": [{"taxid": 200}, {"taxid": 200}]})
+
+
+def test_a_loaded_assay_validates_again_unchanged():
+    """Records store the normalised assay; loading it again must give the same assay."""
+    from qpcr_assay_check.models import Assay
+
+    assay = make_assay(target=ROLES | {"exclude_taxids": [300]})
+    assert Assay.model_validate_json(assay.model_dump_json()) == assay
+
+
+def test_out_of_scope_findings_are_information_only():
+    from qpcr_assay_check.specificity.findings import build_findings
+
+    from .test_exclusivity import site
+
+    rules = load_config().specificity
+
+    def severities(tier):
+        findings = build_findings(
+            sites=[site(400, "forward", "critical", tier=tier)], amplicons=[], site_by_id={},
+            counts=[], saturated=[(tier, "forward", "")], off_tiers_seen=[tier],
+            intended_target={}, target_searched=True, n_primer_only=1, n_fetch_failed=0,
+            amplicons_truncated=False, rules=rules,
+        )  # fmt: skip
+        return {f.severity for f in findings if f.message.startswith(f"Tier '{tier}'")}
+
+    assert severities("out_of_scope") == {"INFO"}  # even a saturated hit list
+    assert severities("near_neighbours") == {"INCOMPLETE", "WARN"}  # the same evidence, judged
+
+
+def test_the_report_lists_the_roles_and_reasons():
+    assay = make_assay(target=ROLES)
+    cfg = load_config()
+    html = render_report(evaluate(assay, cfg, qc_only=True), cfg)
+    assert "Must not detect" in html and "rhinovirus (synthetic ID)" in html
+    assert "Out of scope" in html and "animal virus (synthetic ID)" in html

@@ -428,26 +428,34 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
 - Worked example (user-supplied sequences):
   [`docs/examples/neisseria_gonorrhoeae_two_probes.yaml`](docs/examples/neisseria_gonorrhoeae_two_probes.yaml).
 
-### Taxa inside the target that the assay must not detect
+### Taxa inside the target that are not the intended target
 
-Some assays target a taxon but must not detect part of it: an enterovirus assay must not detect
-the rhinoviruses, which NCBI Taxonomy files inside the genus *Enterovirus*. Give them as
-`target.exclude_taxids`:
+Some assays target a taxon but not all of it. An enterovirus assay for a human diagnostic lab must
+not detect the rhinoviruses (which NCBI Taxonomy files inside the genus *Enterovirus*), and the
+animal enteroviruses are simply not what it is for. List such taxa under `target.taxa`, each with
+a role and a reason:
 
 ```yaml
 target:
-  taxid: 12059                                          # genus Enterovirus
-  exclude_taxids: [3428501, 3428503, 3428504, 169066]   # the rhinoviruses
+  taxid: 12059                                   # genus Enterovirus
+  taxa:
+    - {taxid: 3428501, role: must_not_detect, reason: "rhinovirus A"}
+    - {taxid: 3428509, role: out_of_scope,    reason: "animal enterovirus (EV-G)"}
 ```
 
-- The excluded taxa (with their descendants) are left out of the target search, inclusivity and
-  the variant analysis with Entrez `NOT`, and **every oligo is searched against them** as near
-  neighbours: a product or critical site there is an off-target finding.
-- Every excluded taxon must lie inside the target (checked against NCBI Taxonomy when the run
+- Both roles are left out of the target search, inclusivity and the variant analysis (Entrez
+  `NOT`), and **every oligo is still searched against them**.
+- `must_not_detect`: searched as near neighbours; a predicted product there counts against the
+  specificity verdict, as for any off-target organism.
+- `out_of_scope`: searched in their own tier and listed as what the assay *also detects*,
+  information only, not part of the verdict (e.g. a pan-enterovirus assay amplifying pig
+  enteroviruses is expected, not a specificity failure for a human lab).
+- `exclude_taxids: [..]` still works as the short form of `must_not_detect` taxa.
+- Every such taxon must lie inside the target (checked against NCBI Taxonomy when the run
   starts): an ancestor would empty the target search and search the target as off-target.
 - Give such taxa by ID. The name "rhinovirus" resolves to the genus *Enterovirus* itself in
   NCBI Taxonomy (the former genus name is a synonym), so it cannot be used as an organism name.
-- Records of an excluded organism that NCBI files under another taxon (e.g. "unclassified
+- Records of such organisms that NCBI files under another taxon (e.g. "unclassified
   Enterovirus") stay in the target; the report says so.
 - Supported with `variants.source: blast_partitioned` (and `blast_hits`), not with `datasets`.
 - Worked example (user-supplied sequences):

@@ -331,6 +331,7 @@ class SeverityMap(_Strict):
     """How each finding contributes to the specificity verdict."""
 
     primer_site_critical: Severity
+    primer_site_critical_no_product: Severity
     primer_site_warning: Severity
     probe_site_critical: Severity
     amplicon_likely_detected: Severity

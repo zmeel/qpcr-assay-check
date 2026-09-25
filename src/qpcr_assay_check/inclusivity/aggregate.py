@@ -128,7 +128,7 @@ def compute_inclusivity(
     taxid = assay.target.taxid
     current_year = (now or datetime.now(UTC)).year
     years = list(range(current_year - rules.lookback_years + 1, current_year + 1))
-    exclude = assay.target.exclude_taxids
+    exclude = assay.target.excluded_taxids
     populations = {year: _population(eutils, taxid, year, exclude) for year in years}
 
     scoring = realign.Scoring(

@@ -117,7 +117,9 @@ specificity:
     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
   probe_binds_if: critical         # site level the probe needs for an amplicon to be 'likely detected'
   severity:                        # verdict contribution of each finding: FAIL | WARN | INFO
-    primer_site_critical: FAIL
+    primer_site_critical: FAIL     # a critical primer site that is part of a predicted product
+    primer_site_critical_no_product: WARN  # ... that forms no predicted product (no facing
+                                   #   partner): off-target priming, not a product
     primer_site_warning: WARN
     probe_site_critical: WARN      # a probe site alone cannot make a product
     amplicon_likely_detected: FAIL

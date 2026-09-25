@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -45,6 +45,26 @@ class TemplateType(StrEnum):
     RNA = "RNA"
 
 
+TaxonRole = Literal["must_not_detect", "out_of_scope"]
+
+
+class TargetTaxon(BaseModel):
+    """A taxon inside the target taxon that is not part of the intended target.
+
+    ``must_not_detect`` (e.g. the rhinoviruses inside the genus Enterovirus): searched as near
+    neighbours, and a product there counts against the specificity verdict.
+    ``out_of_scope`` (e.g. animal enteroviruses for a human diagnostic assay): searched and
+    reported ("also detects"), but information only, not part of the verdict.
+    Both are left out of the target search, inclusivity and the variant analysis.
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    taxid: int = Field(gt=0, description="NCBI Taxonomy ID (with its descendants)")
+    role: TaxonRole = "must_not_detect"
+    reason: str = Field(default="", max_length=300, description="why, shown in the report")
+
+
 class Target(BaseModel):
     """Intended target of the assay. At least a taxonomy ID or a reference accession is needed."""
 
@@ -55,9 +75,13 @@ class Target(BaseModel):
     gene: str | None = None
     exclude_taxids: list[int] = Field(
         default_factory=list,
-        description="taxa inside the target taxon that the assay must NOT detect (e.g. the "
-        "rhinovirus species inside the genus Enterovirus): left out of the target search, "
-        "inclusivity and the variant analysis, and searched as near neighbours (off-target)",
+        description="short form of 'taxa' with role must_not_detect (kept for existing files; "
+        "moved into 'taxa' on loading)",
+    )
+    taxa: list[TargetTaxon] = Field(
+        default_factory=list,
+        description="taxa inside the target taxon that are not the intended target, each with "
+        "a role (must_not_detect | out_of_scope) and a reason",
     )
 
     @field_validator("accession")
@@ -77,15 +101,41 @@ class Target(BaseModel):
     def _need_taxid_or_accession(self) -> Target:
         if self.taxid is None and self.accession is None:
             raise ValueError("give at least one of 'taxid' or 'accession'")
-        if self.exclude_taxids:
+        if any(t <= 0 for t in self.exclude_taxids):
+            raise ValueError("'exclude_taxids' must be positive taxonomy IDs")
+        listed = {x.taxid for x in self.taxa}
+        if len(listed) != len(self.taxa):
+            raise ValueError("a taxid is listed twice in 'taxa'")
+        both = sorted(listed & set(self.exclude_taxids))
+        if both:
+            raise ValueError(
+                f"taxid(s) {', '.join(map(str, both))} are in both 'exclude_taxids' and "
+                "'taxa'; list each once (in 'taxa', with its role)"
+            )
+        taxa = [*self.taxa, *(TargetTaxon(taxid=t) for t in sorted(set(self.exclude_taxids)))]
+        if taxa:
             if self.taxid is None:
-                raise ValueError("'exclude_taxids' needs the target's 'taxid'")
-            if any(t <= 0 for t in self.exclude_taxids):
-                raise ValueError("'exclude_taxids' must be positive taxonomy IDs")
-            if self.taxid in self.exclude_taxids:
-                raise ValueError("'exclude_taxids' must not contain the target's own taxid")
-            self.exclude_taxids = sorted(set(self.exclude_taxids))
+                raise ValueError("'taxa' / 'exclude_taxids' need the target's 'taxid'")
+            if self.taxid in {x.taxid for x in taxa}:
+                raise ValueError(
+                    "'taxa' / 'exclude_taxids' must not contain the target's own taxid"
+                )
+        self.taxa = sorted(taxa, key=lambda x: x.taxid)
+        self.exclude_taxids = []  # moved into 'taxa'
         return self
+
+    @property
+    def excluded_taxids(self) -> list[int]:
+        """Every taxon left out of the target (both roles), sorted."""
+        return [x.taxid for x in self.taxa]
+
+    @property
+    def must_not_detect_taxids(self) -> list[int]:
+        return [x.taxid for x in self.taxa if x.role == "must_not_detect"]
+
+    @property
+    def out_of_scope_taxids(self) -> list[int]:
+        return [x.taxid for x in self.taxa if x.role == "out_of_scope"]
 
 
 def _clean_oligo(value: Any, label: str) -> str:

@@ -12,6 +12,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 
 from ..config import SpecificitySettings
+from ..search.planner import OUT_OF_SCOPE_TIER
 from ..verdict import Verdict
 from .models import AmpliconResult, Finding, SiteResult, TierCount
 
@@ -63,9 +64,18 @@ def build_findings(
     amplicons_truncated: bool,
     rules: SpecificitySettings,
 ) -> list[Finding]:
-    """All findings, most severe first within each topic."""
+    """All findings, most severe first within each topic.
+
+    Findings of the out-of-scope tier (``target.taxa`` with role out_of_scope) are information
+    only. A critical primer site that forms no predicted product counts as
+    ``primer_site_critical_no_product`` (off-target priming without a product).
+    """
     sev = rules.severity
     out: list[Finding] = []
+    in_product = {i for a in amplicons for i in (a.left_site, a.right_site)}
+
+    def judged(tier: str, severity: str) -> str:
+        return "INFO" if tier == OUT_OF_SCOPE_TIER else severity
 
     scope = f"Off-target tiers assessed: {', '.join(off_tiers_seen) or 'none'}."
     not_searched = [t for t in rules.off_target_tiers if t not in off_tiers_seen]
@@ -89,7 +99,7 @@ def build_findings(
     for tier, labels in by_tier.items():
         out.append(
             Finding(
-                severity="INCOMPLETE",
+                severity=judged(tier, "INCOMPLETE"),
                 message=(
                     f"Tier '{tier}': the BLAST hit list is saturated for "
                     f"{', '.join(sorted(labels))}; relevant hits may be missing. Reduce the "
@@ -102,7 +112,7 @@ def build_findings(
         if c.truncated:
             out.append(
                 Finding(
-                    severity="INCOMPLETE",
+                    severity=judged(c.tier, "INCOMPLETE"),
                     message=(
                         f"Tier '{c.tier}', {c.query}: {c.hsps_relevant} relevant alignments, "
                         f"only the {c.sites_assessed} strongest were assessed "
@@ -124,22 +134,28 @@ def build_findings(
         )
 
     # ---- site findings
-    groups: dict[tuple[str, str, str], list[SiteResult]] = defaultdict(list)
+    groups: dict[tuple[str, str, str, bool], list[SiteResult]] = defaultdict(list)
     for s in sites:
         if s.level == "minor":
             continue
         kind = "probe" if s.role == "probe" else "primer"
-        groups[(s.tier, kind, s.level)].append(s)
-    for (tier, kind, level), members in sorted(groups.items()):
-        if kind == "primer":
-            severity = sev.primer_site_critical if level == "critical" else sev.primer_site_warning
+        product = kind == "primer" and s.level == "critical" and s.id in in_product
+        groups[(s.tier, kind, s.level, product)].append(s)
+    for (tier, kind, level, product), members in sorted(groups.items()):
+        if kind == "primer" and level == "critical":
+            severity = sev.primer_site_critical if product else sev.primer_site_critical_no_product
+            what = "in a predicted product" if product else "forming no predicted product"
+            label = f"{level} {kind} site(s) {what}"
+        elif kind == "primer":
+            severity, label = sev.primer_site_warning, f"{level} {kind} site(s)"
         else:
             severity = sev.probe_site_critical if level == "critical" else "INFO"
+            label = f"{level} {kind} site(s)"
         out.append(
             Finding(
-                severity=severity,
+                severity=judged(tier, severity),
                 message=(
-                    f"Tier '{tier}': {len(members)} {level} {kind} site(s); closest: "
+                    f"Tier '{tier}': {len(members)} {label}; closest: "
                     f"{describe_site(_closest(members))}."
                 ),
                 topic="sites",
@@ -162,7 +178,7 @@ def build_findings(
         if cls == "likely_detected":
             out.append(
                 Finding(
-                    severity=sev.amplicon_likely_detected,
+                    severity=judged(tier, sev.amplicon_likely_detected),
                     message=(
                         f"Tier '{tier}': {len(members)} predicted off-target product(s) that both "
                         f"primers and the probe should give signal for{detail}."
@@ -173,7 +189,7 @@ def build_findings(
         else:
             out.append(
                 Finding(
-                    severity=sev.amplicon_not_detected,
+                    severity=judged(tier, sev.amplicon_not_detected),
                     message=(
                         f"Tier '{tier}': {len(members)} predicted off-target product(s) "
                         "amplified by both primers but unlikely to be detected by the probe"

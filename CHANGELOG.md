@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Roles for taxa inside the target** (`target.taxa`: `{taxid, role, reason}`, role
+  `must_not_detect` | `out_of_scope`; after the advisor's review, user decision 2026-09-25):
+  must-not-detect taxa are near neighbours as before; out-of-scope taxa get their own search tier
+  whose findings are information only ("also detects"), so an assay that amplifies animal
+  enteroviruses no longer fails for it. `exclude_taxids` remains the short form of
+  must-not-detect. The report lists every taxon with its role and reason.
+- **A critical primer site that forms no predicted product is WARN, not FAIL**
+  (`specificity.severity.primer_site_critical_no_product`, default WARN; user decision
+  2026-09-25): off-target priming without a partner cannot give a product; products still FAIL.
+  This also applies to the exclusivity table.
+
 ### Fixed (from a code review of the unreleased changes)
 - Panel: a genome with no target region found anywhere, and (with Nucleotide records) a record
   without a region, no longer counts as "detected by no target"; that needs a real escape.

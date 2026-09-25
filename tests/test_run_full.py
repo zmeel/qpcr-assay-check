@@ -216,7 +216,10 @@ def test_exclusivity_end_to_end_with_a_real_organism_list(env, tmp_path):
     env.install(w)
 
     r = invoke(env, "--yes")
-    assert r.exit_code == 20, r.output  # a critical primer-only site in the exclusivity tier
+    # a critical primer-only site in the exclusivity tier forms no product: WARN, not FAIL
+    # (primer_site_critical_no_product); the run is INCOMPLETE for other reasons here
+    assert r.exit_code != 20, r.output
+    assert "forming no predicted product" in r.output
 
     data = json.loads((run_dir(env) / "results.json").read_text())
     excl = data["exclusivity"]
@@ -254,7 +257,10 @@ def test_exclusivity_uses_the_assay_s_own_list_by_default(env, tmp_path):
     r = runner.invoke(
         app, ["run", str(assay_yaml), "--config", str(env.conf), "-o", str(env.out), "--yes"]
     )
-    assert r.exit_code == 20, r.output  # a critical primer-only site in the exclusivity tier
+    # a critical primer-only site in the exclusivity tier forms no product: WARN, not FAIL
+    # (primer_site_critical_no_product); the run is INCOMPLETE for other reasons here
+    assert r.exit_code != 20, r.output
+    assert "forming no predicted product" in r.output
 
     data = json.loads((run_dir(env) / "results.json").read_text())
     excl = data["exclusivity"]

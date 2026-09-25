@@ -59,7 +59,7 @@ def _resolve_and_plan(
     resolution = None
     excl_taxids = None
     excl_unresolved = 0
-    exclude = assay.target.exclude_taxids
+    exclude = assay.target.excluded_taxids
     if exclude and assay.target.taxid is not None:
         wrong = outside_target(
             Eutils(http, cfg.ncbi.eutils_url), cache, assay.target.taxid, exclude,
@@ -67,7 +67,7 @@ def _resolve_and_plan(
         )  # fmt: skip
         if wrong:
             raise InputError(
-                "target.exclude_taxids must lie inside the target taxon "
+                "Taxa left out of the target (target.taxa) must lie inside the target taxon "
                 f"{assay.target.taxid}; not inside it (by NCBI Taxonomy): "
                 + ", ".join(map(str, wrong))
                 + ". An ancestor would empty the target search, and the near-neighbour search "

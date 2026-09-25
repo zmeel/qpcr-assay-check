@@ -12,7 +12,7 @@ from ..models import Assay
 from ..ncbi.parser import ParsedSearch
 from ..oligo import thermo
 from ..search.orchestrate import SearchOutcome
-from ..search.planner import SearchPlan
+from ..search.planner import OUT_OF_SCOPE_TIER, SearchPlan
 from .duplex import estimate_duplex
 from .fetch import WindowFetcher
 from .findings import build_findings, verdict_of
@@ -56,6 +56,7 @@ def assess_specificity(
 ) -> SpecificityResult:
     """Assess the off-target tiers of a completed search."""
     rules = cfg.specificity
+    assessed = [*rules.off_target_tiers, OUT_OF_SCOPE_TIER]  # out of scope: reported, not judged
     scoring = realign.Scoring(
         rules.alignment.match,
         rules.alignment.mismatch,
@@ -72,7 +73,7 @@ def assess_specificity(
     off_tiers_seen: list[str] = []
 
     for ps in plan.searches:
-        if ps.tier not in rules.off_target_tiers or ps.key not in parsed:
+        if ps.tier not in assessed or ps.key not in parsed:
             continue
         if ps.tier not in off_tiers_seen:
             off_tiers_seen.append(ps.tier)
@@ -153,7 +154,7 @@ def assess_specificity(
     saturated = [
         (r.tier, sat.label, sat.note)
         for r in outcome.searches
-        if r.tier in rules.off_target_tiers
+        if r.tier in assessed
         for sat in r.saturation
         if sat.saturated
     ]

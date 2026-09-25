@@ -146,10 +146,11 @@ def check_members(assays: list[Assay], cfgs: list[Config]) -> None:
                 f"'{a.assay_name}' targets taxon {a.target.taxid}, '{first.assay_name}' taxon "
                 f"{first.target.taxid}: a panel combines assays for the same target."
             )
-        if a.target.exclude_taxids != first.target.exclude_taxids:
+        if a.target.taxa != first.target.taxa:
             raise InputError(
-                f"'{a.assay_name}' and '{first.assay_name}' exclude different taxa from the "
-                "target (target.exclude_taxids), so their genome collections differ."
+                f"'{a.assay_name}' and '{first.assay_name}' leave different taxa out of the "
+                "target, or give them different roles (target.taxa), so their genome "
+                "collections or their interpretation differ."
             )
         if c.variants.source != cfg0.variants.source:
             raise InputError(
@@ -165,10 +166,11 @@ def check_members(assays: list[Assay], cfgs: list[Config]) -> None:
                 )
     if first.target.taxid is None:
         raise InputError("A panel needs the target's taxonomy ID in every assay.")
-    if first.target.exclude_taxids and cfg0.variants.source == "datasets":
+    if first.target.excluded_taxids and cfg0.variants.source == "datasets":
         raise InputError(
-            "target.exclude_taxids is not supported with variants.source: datasets (the NCBI "
-            "Datasets genome listing has no 'NOT' filter); use blast_partitioned."
+            "Taxa left out of the target (target.taxa / exclude_taxids) are not supported "
+            "with variants.source: datasets (the NCBI Datasets genome listing has no 'NOT' "
+            "filter); use blast_partitioned."
         )
     if cfg0.variants.source not in ("datasets", "blast_partitioned"):
         raise InputError(
@@ -255,7 +257,7 @@ def combine(
     return PanelResult(
         panel_name=panel.panel_name,
         target_taxid=assays[0].target.taxid or 0,
-        exclude_taxids=assays[0].target.exclude_taxids,
+        exclude_taxids=assays[0].target.excluded_taxids,
         generated_at=(now or datetime.now(UTC)).isoformat(timespec="seconds"),
         members=members,
         in_all=len(keys),

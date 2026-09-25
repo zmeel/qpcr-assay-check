@@ -281,7 +281,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         cfg,
         outdir,
         confirm=_make_confirm(yes),
-        keep_tiers=set(cfg.specificity.off_target_tiers) | {"target"},
+        keep_tiers=set(cfg.specificity.off_target_tiers) | {"target", "out_of_scope"},
         on_plan=show,
     )
     from .history.store import find_previous_run
@@ -339,7 +339,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
             def collector(store: Any, taxon: int, amplicon: str, context: Any) -> Any:
                 return collect_partitioned(
                     eutils, runner, runner.store, fetcher, store, taxon, amplicon, cfg,
-                    context=context, exclude=assay.target.exclude_taxids,
+                    context=context, exclude=assay.target.excluded_taxids,
                 )  # fmt: skip
 
         try:

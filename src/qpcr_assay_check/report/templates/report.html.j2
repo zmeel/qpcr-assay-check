@@ -147,7 +147,10 @@ td.aln-cell { min-width: 22rem; }
       {% if assay.target.taxid %}taxonomy ID {{ assay.target.taxid | taxon }}{% endif %}
       {% if assay.target.accession %}{% if assay.target.taxid %}; {% endif %}reference {{ assay.target.accession | ncbi }}{% endif %}
       {% if assay.target.gene %}; gene {{ assay.target.gene }}{% endif %}
-      {% if assay.target.exclude_taxids %}<br><strong>Excluding</strong> taxonomy ID{{ 's' if assay.target.exclude_taxids | length > 1 }} {% for t in assay.target.exclude_taxids %}{{ t | taxon }}{{ ', ' if not loop.last }}{% endfor %} and their descendants: taxa inside the target that the assay must not detect. They are left out of the target search, inclusivity and the variant analysis, and every oligo is checked against them as near neighbours (off-target). Records of such organisms filed under another taxon (e.g. an unclassified one) stay in the target.{% endif %}</td></tr>
+      {% if assay.target.taxa %}<br><strong>Excluding</strong> these taxa and their descendants from the target (left out of the target search, inclusivity and the variant analysis; records of such organisms filed under another taxon, e.g. an unclassified one, stay in the target):
+      {% set mnd = assay.target.taxa | selectattr('role', 'equalto', 'must_not_detect') | list %}{% set oos = assay.target.taxa | selectattr('role', 'equalto', 'out_of_scope') | list %}
+      {% if mnd %}<br><em>Must not detect</em> ({{ mnd | length }}; searched as near neighbours, part of the specificity verdict): {% for x in mnd %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}
+      {% if oos %}<br><em>Out of scope</em> ({{ oos | length }}; searched and listed as "also detects", information only, not part of the verdict): {% for x in oos %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}{% endif %}</td></tr>
     {% if assay.oligo_source %}<tr><th scope="row">Oligo source</th><td>{{ assay.oligo_source }}</td></tr>{% endif %}
     {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes | ncbi }}</td></tr>{% endif %}
   </tbody>
@@ -266,6 +269,7 @@ td.aln-cell { min-width: 22rem; }
   re-alignment{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.</p>
 
 <h2>Predicted off-target products</h2>
+{% if spec and spec.amplicons | selectattr('tier', 'equalto', 'out_of_scope') | list %}<p class="meta">Products in tier <code>out_of_scope</code> are taxa the assay is allowed to detect but that are not its intended target (<code>target.taxa</code> with role out_of_scope): they show what the assay <em>also detects</em>, as information, and do not affect the specificity verdict.</p>{% endif %}
 {% if spec.amplicons %}
 <div class="scroll"><table>
   <thead><tr><th>ID</th><th>Tier</th><th>Organism / record</th><th>Position</th><th>Length</th><th>Primers</th><th>Probe</th><th>Class</th></tr></thead>

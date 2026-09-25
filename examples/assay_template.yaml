@@ -16,7 +16,8 @@ target:
   taxid:                                   # NCBI Taxonomy ID of the intended target
   accession:                               # optional reference record, e.g. NC_045512.2
   gene:                                    # optional, for the report
-  exclude_taxids: []                       # optional: taxa inside the target it must NOT detect
+  taxa: []                                 # optional: taxa inside the target that are not the
+                                           # target: {taxid: .., role: must_not_detect | out_of_scope, reason: ..}
 reference_amplicons:                       # optional; the product the primers amplify (sense)
   - {name: reference, sequence: ""}
 exclusivity_organisms: []                  # organism names the assay must NOT detect
@@ -124,7 +125,8 @@ settings:                                  # only what differs from the defaults
 #     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
 #   probe_binds_if: critical       # site level a probe needs for 'likely detected'
 #   severity:                      # FAIL | WARN | INFO per finding
-#     primer_site_critical: FAIL
+#     primer_site_critical: FAIL           # in a predicted product
+#     primer_site_critical_no_product: WARN
 #     primer_site_warning: WARN
 #     probe_site_critical: WARN
 #     amplicon_likely_detected: FAIL

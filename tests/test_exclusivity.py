@@ -38,11 +38,11 @@ def resolution(*rows: Resolution) -> OrganismListResolution:
     return OrganismListResolution(resolutions=list(rows))
 
 
-def test_an_organism_with_a_critical_site_fails_and_shows_up_as_the_best_site():
+def test_an_organism_with_a_critical_site_warns_and_shows_up_as_the_best_site():
     res = resolution(Resolution(name="Chlamydia trachomatis", status="resolved", taxid=CT))
     sites = [site(CT, "forward", "critical")]
     out = build_exclusivity(res, sites, [], SEV, tier_searched=True)
-    assert out.verdict is Verdict.FAIL  # primer_site_critical defaults to FAIL
+    assert out.verdict is Verdict.WARN  # no product: primer_site_critical_no_product (WARN)
     (row,) = out.rows
     assert row.organism == "Chlamydia trachomatis" and row.taxid == CT
     assert row.n_sites == 1 and row.best_site_level == "critical" and row.best_site_id == "S1"

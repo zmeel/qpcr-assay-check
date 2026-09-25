@@ -70,14 +70,20 @@ def _row_verdict_severities(
 ) -> set[str]:
     """Severities contributed by exclusivity-tier evidence, same mapping as specificity findings."""
     out: set[str] = set()
+    in_product = {i for a in amplicons for i in (a.left_site, a.right_site)}
     for s in sites:
         if s.level == "minor":
             continue
         if s.role == "probe":
             if s.level == "critical":
                 out.add(sev.probe_site_critical)
+        elif s.level == "critical":
+            out.add(
+                sev.primer_site_critical if s.id in in_product
+                else sev.primer_site_critical_no_product
+            )  # fmt: skip
         else:
-            out.add(sev.primer_site_critical if s.level == "critical" else sev.primer_site_warning)
+            out.add(sev.primer_site_warning)
     for a in amplicons:
         out.add(
             sev.amplicon_likely_detected

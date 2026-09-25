@@ -67,6 +67,15 @@ verified NCBI facts) at the start of every session. Newest entry first.
   date/country/technology stratification, copy-aware reporting, variant templates for the wet
   lab, and panel refinements (interpretation rule; 'not found' by assembly level; one
   homopolymer rule per panel). Added to FEATURE_IDEAS as proposals; not started.
+- Advisor on an "out of scope" list: split is right; out-of-scope findings as INFO in an "also
+  detects" list; one list with a role and a reason per taxon; for must-not-detect taxa base
+  the verdict on products (a lone primer site WARN). User: build both. Done: `target.taxa`
+  (roles must_not_detect | out_of_scope, reason), out_of_scope search tier (INFO only),
+  `primer_site_critical_no_product: WARN` (also in the exclusivity table); exclude_taxids moved
+  into taxa on loading; enterovirus example converted (5 rhinovirus taxa must_not_detect,
+  36 animal taxa out_of_scope, each with a reason). Same NOT query, so the target search and
+  the region store are reused. Not done: per-taxon severity override (use must_not_detect to
+  make a taxon count). 465 tests pass.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 

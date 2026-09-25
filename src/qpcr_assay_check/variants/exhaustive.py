@@ -654,7 +654,7 @@ def open_store(
     if taxon is None:
         raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
     path = store_path(
-        cache_root, taxon, amplicon, cfg.variants.flank_nt, source, assay.target.exclude_taxids
+        cache_root, taxon, amplicon, cfg.variants.flank_nt, source, assay.target.excluded_taxids
     )
     store = RegionStore(path)
     store.n_refs = len(assay.reference_amplicons) or 1
@@ -716,10 +716,11 @@ def run_exhaustive(
     taxon = assay.target.taxid
     if taxon is None:
         raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
-    if assay.target.exclude_taxids and source == "datasets":
+    if assay.target.excluded_taxids and source == "datasets":
         raise InputError(
-            "target.exclude_taxids is not supported with variants.source: datasets (the NCBI "
-            "Datasets genome listing has no 'NOT' filter); use blast_partitioned."
+            "Taxa left out of the target (target.taxa / exclude_taxids) are not supported "
+            "with variants.source: datasets (the NCBI Datasets genome listing has no 'NOT' "
+            "filter); use blast_partitioned."
         )
     fetched: dict[str, str] = {}
 
@@ -732,7 +733,7 @@ def run_exhaustive(
     others = [r.sequence.upper() for r in assay.reference_amplicons[1:]]
     placed = placements(assay, amplicon, cfg)
     v = cfg.variants
-    exclude = assay.target.exclude_taxids
+    exclude = assay.target.excluded_taxids
     store = open_store(assay, cfg, cache_root, amplicon, source)
     context = ReferenceContext(assay, amplicon, fetch_once, store.path.with_suffix(".context.json"))
     context.other_amplicons = others
