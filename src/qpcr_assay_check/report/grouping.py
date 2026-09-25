@@ -309,3 +309,65 @@ def site_frequency(oligos: list[Any]) -> dict[tuple[str, str, str], float]:
     """(role, oligo alignment, site alignment) -> % of that oligo's records with this variant,
     for the frequency next to each site in the whole-fragment table."""
     return {(o.role, r.q_aln, r.s_aln): r.percent for o in oligos for r in o.rows}
+
+
+# ---------------------------------------------------------------- specificity at a glance
+TIER_TITLE = {"near_neighbours": "Near neighbours", "exclusivity": "Clinical organism list",
+              "background": "Background", "out_of_scope": "Out of scope"}  # fmt: skip
+_ROLES = ("forward", "reverse", "probe")
+
+
+@dataclass
+class TierOverview:
+    tier: str
+    title: str
+    n_taxa: int
+    products: int
+    detected: int  # products the probe would detect
+    closest: dict[str, Any]  # role -> closest site in the tier (None if no site)
+    by_design: list[str]  # roles with a perfect site in the tier
+    discriminating: list[str]  # primer roles without a perfect site
+    incomplete: list[str]  # oligos whose hits were cut (cap) or whose hit list was full
+    discriminating_complete: bool = True  # none of the incomplete oligos discriminates
+
+
+def _perfect_site(s: Any) -> bool:
+    return not s.n_mismatch and not s.n_gap and not s.n_unaligned
+
+
+def spec_overview(spec: Any, assay: Any, search_rows: list[dict[str, Any]]) -> list[TierOverview]:
+    """The answer to "is my assay still specific?" per searched tier (advisor subagent,
+    2026-09-25): products yes or no, which primers carry the discrimination, their closest site,
+    and whether anything was left unassessed. Site counts stay in the findings below."""
+    out: list[TierOverview] = []
+    tiers = [t["tier"] for t in search_rows if t["tier"] != "target"]
+    for tier in sorted(tiers, key=lambda t: TIER_ORDER.get(t, 5)):
+        row = next(t for t in search_rows if t["tier"] == tier)
+        amps = {(a.accession, a.start, a.end, a.roles) for a in spec.amplicons if a.tier == tier}
+        detected = {
+            (a.accession, a.start, a.end, a.roles)
+            for a in spec.amplicons
+            if a.tier == tier and a.classification == "likely_detected"
+        }
+        closest: dict[str, Any] = {}
+        for role in _ROLES:
+            sites = [s for s in spec.sites if s.tier == tier and s.role == role]
+            closest[role] = min(sites, key=_closeness) if sites else None
+        by_design = [r for r in _ROLES if closest[r] is not None and _perfect_site(closest[r])]
+        cut = {c.query for c in spec.counts if c.tier == tier and c.truncated}
+        incomplete = sorted(cut | set(row["saturated"]))
+        discriminating = [r for r in ("forward", "reverse") if r not in by_design]
+        title = TIER_TITLE.get(tier, tier)
+        if tier == "near_neighbours" and assay.target.must_not_detect_taxids:
+            title = "Must not detect"
+        out.append(
+            TierOverview(
+                tier=tier, title=title, n_taxa=len(row["taxids"]), products=len(amps),
+                detected=len(detected), closest=closest, by_design=by_design,
+                discriminating=discriminating, incomplete=incomplete,
+                discriminating_complete=not any(
+                    assay.role_of(q) in discriminating for q in incomplete
+                ),
+            )  # fmt: skip
+        )
+    return out

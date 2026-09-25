@@ -95,6 +95,8 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
         "sent the oligo sequences to NCBI", "Taxon restriction check",
     ):  # fmt: skip
         assert needle in html, needle
+    # specificity at a glance (advisor 2026-09-25): per tier, products yes or no
+    assert "<strong>Background</strong>" in html and "1 predicted product</strong>" in html
     assert 'class="aln"' in html and 'class="mm' in html  # alignment with highlighted mismatches
     # self-contained: no tag loads a remote script, stylesheet, image or font
     assert not re.search(r"<(script|link|img|iframe)\b[^>]*\b(src|href)=[\"']?(https?:)?//", html)

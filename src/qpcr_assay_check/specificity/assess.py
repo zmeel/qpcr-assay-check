@@ -41,6 +41,9 @@ LIMITATIONS = [
     "extension; priming is judged from the mismatch and 3'-end columns.",
     "Products are predicted from the primary record of each BLAST hit group; identical sequences "
     "merged into one hit are not expanded, so a product on a merged record can be missed.",
+    "Products are predicted from a forward and a reverse primer facing each other. A product from "
+    "one primer binding both strands (forward-forward or reverse-reverse) is not predicted; for a "
+    "primer that binds an off-target organism perfectly this is unlikely but not excluded.",
     "Only the tiers named in the scope statement were searched; a passing result says nothing "
     "about organisms outside them. Primer-BLAST remains a useful manual cross-check.",
 ]

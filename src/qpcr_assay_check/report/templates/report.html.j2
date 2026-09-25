@@ -173,9 +173,19 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if spec %}
 <h2>Specificity</h2>
 <p>{{ chip(spec.verdict_sites.value) }} off-target primer and probe sites &nbsp; {{ chip(spec.verdict_amplicons.value) }} predicted off-target products</p>
-<div class="notice"><p><strong>Scope.</strong> {{ spec.scope }} This verdict covers only what was searched and says nothing about organisms outside those tiers.</p></div>
+{% macro site_line(x) %}{% if x.query != x.role %}{{ x.query }} {% endif %}on {{ x.accession | ncbi }} ({{ x.organism or 'unknown organism' }}): {{ x.n_mismatch }} mismatch{{ 'es' if x.n_mismatch != 1 }}{% if x.n_gap %}, {{ x.n_gap }} gap{{ 's' if x.n_gap != 1 }}{% endif %}{% if x.role != 'probe' %}, {{ x.clean_3prime_nt }} clean 3′ nt{% endif %}{% endmacro %}
+<div class="notice">
+{% for t in spec_overview %}
+<p><strong>{{ t.title }}</strong> <span class="meta">({{ t.tier }}, {{ t.n_taxa }} tax{{ 'on' if t.n_taxa == 1 else 'a' }})</span>:
+  {% if t.products %}<strong>{{ t.products }} predicted product{{ '' if t.products == 1 else 's' }}</strong>{% if t.detected %}, {{ t.detected }} detectable by the probe{% endif %}{% else %}<strong>no predicted product</strong>{% endif %}{% if t.tier == 'out_of_scope' %}; information only{% endif %}.
+  {% if t.tier != 'out_of_scope' and t.by_design and t.discriminating %}Discrimination rests on the {{ t.discriminating | join(' and ') }} primer{{ 's' if t.discriminating | length > 1 }}; the {{ t.by_design | join(' and ') }} bind{{ 's' if t.by_design | length == 1 }} this tier perfectly{% if 'probe' in t.by_design %} (a probe gives signal only inside a product){% endif %}.{% endif %}
+  {% if t.tier != 'out_of_scope' %}{% for role in t.discriminating if t.closest[role] %}Closest {{ role }} site: {{ site_line(t.closest[role]) }}. {% endfor %}{% endif %}
+  {% if t.incomplete %}<span class="meta">Not every relevant alignment was assessed for {{ t.incomplete | join(', ') }} (hit list full or cut at max_sites_per_query){% if t.discriminating and t.by_design and t.discriminating_complete %}; the {{ t.discriminating | join(' and ') }} primer{{ 's' if t.discriminating | length > 1 }} were assessed completely{% endif %}.</span>{% else %}<span class="meta">Every relevant alignment was assessed.</span>{% endif %}</p>
+{% endfor %}
+<p class="meta"><strong>Scope.</strong> {{ spec.scope }} This covers only what was searched and says nothing about organisms outside those tiers.</p>
+</div>
 
-<h3>Rationale</h3>
+<h3>All findings</h3>
 <ul>
 {% for f in spec.findings %}
   <li>{{ chip(f.severity) }} {{ f.message }}</li>
@@ -184,27 +194,29 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 
 <h3>Searches</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Tier</th><th>Taxa (NCBI taxonomy ID)</th><th>Searches</th><th>Hits per query</th><th>Hit list saturated</th><th>RIDs</th></tr></thead>
+  <thead><tr><th>Tier</th><th>Taxa (NCBI taxonomy ID)</th><th>Searches</th><th>Complete</th><th>RIDs</th></tr></thead>
   <tbody>
   {% for t in search_rows %}
-  <tr><td>{{ t.tier }}</td><td>{{ t.taxids[:5] | map('taxon') | join(', ') }}{% if t.taxids | length > 5 %} <details class="more"><summary>+{{ t.taxids | length - 5 }} more</summary>{{ t.taxids[5:] | map('taxon') | join(', ') }}</details>{% endif %}</td><td class="num">{{ t.n }}</td>
-    <td>{% for k, v in t.hits.items() %}<span class="nowrap">{{ k }}: {{ v }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
-    <td>{% if t.saturated %}{{ chip('INCOMPLETE') }} {{ t.saturated | join(', ') }}{% else %}no{% endif %}</td>
-    <td class="num">{{ t.rids | join(', ') }}</td></tr>
+  <tr><td>{{ t.tier }}</td><td>{{ t.taxids[:5] | map('taxon') | join(', ') }}{% if t.taxids | length > 5 %} <details class="more"><summary>+{{ t.taxids | length - 5 }} more</summary>{{ t.taxids[5:] | map('taxon') | join(', ') }}</details>{% endif %}{% if t.tier == 'target' and assay.target.excluded_taxids %} <details class="more"><summary>excluding {{ assay.target.excluded_taxids | length }} taxa</summary>{{ assay.target.excluded_taxids | map('taxon') | join(', ') }}</details>{% endif %}</td><td class="num">{{ t.n }}</td>
+    <td>{% if t.tier == 'target' %}<span class="meta">not used for specificity{% if r.inclusivity and r.inclusivity.exhaustive %}; inclusivity and variants use every record of the target{% endif %}</span>{% elif t.saturated or (spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('truncated') | list) %}no: {{ ((t.saturated + (spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('truncated') | map(attribute='query') | list)) | unique | list) | join(', ') }}{% else %}yes{% endif %}</td>
+    <td class="num">{% for rid, day in t.rids %}{{ rid }}{% if day %} <span class="meta">{{ day }}</span>{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
+<p class="meta">Complete: every relevant alignment of every oligo was assessed (no full hit list, nothing cut at max_sites_per_query). RIDs are NCBI's search IDs, with the day they were issued; NCBI keeps results for about 36 hours, so they record provenance rather than live links.</p>
+<details class="qc"><summary>Hits and alignments per oligo</summary>
 <div class="scroll"><table>
-  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th></tr></thead>
+  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Hit list full</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th></tr></thead>
   <tbody>
-  {% for c in spec.counts %}
-  <tr><td>{{ c.tier }}</td><td>{{ c.query }}</td><td class="num">{{ c.blast_hits }}</td><td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td></tr>
-  {% endfor %}
+  {% for t in search_rows %}{% for q, n in t.hits.items() %}{% set c = spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('query', 'equalto', q) | first %}
+  <tr><td>{{ t.tier }}</td><td>{{ q }}</td><td class="num">{{ n }}</td><td>{{ 'yes' if q in t.saturated else 'no' }}</td>{% if c %}<td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td>{% else %}<td colspan="3" class="meta">{{ 'not used for specificity' if t.tier == 'target' else '' }}</td>{% endif %}</tr>
+  {% endfor %}{% endfor %}
   </tbody>
 </table></div>
 <p class="meta">Sites found: {{ spec.n_sites.critical }} critical, {{ spec.n_sites.warning }} warning, {{ spec.n_sites.minor }} minor.
   Levels follow the configured limits (mismatches, gaps and clean 3′ nucleotides). {{ spec.n_fetched }} sequence windows were used for full-length
   re-alignment{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.</p>
+</details>
 
 <h2>Predicted off-target products</h2>
 {% macro product_table(groups) %}<div class="scroll"><table>

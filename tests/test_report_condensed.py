@@ -200,3 +200,27 @@ def test_risky_variants_seen_once_are_one_row_per_class():
     assert [(r.grade, r.count) for r in v.rows] == [("at_risk", 5), ("indeterminate", 2)]
     assert [(g, n) for g, n, _o in v.singles] == [("likely_failure", 2), ("at_risk", 1)]
     assert v.n_perfect == 90
+
+
+def test_spec_overview_names_the_discriminating_primer_and_its_completeness():
+    """Advisor 2026-09-25: per tier, products yes/no, which primer discriminates, its closest
+    site, and whether a cut can concern that primer (enterovirus: F1/F2 vs rhinovirus)."""
+    from qpcr_assay_check.report.grouping import spec_overview
+
+    from .test_exclusivity import site
+
+    fwd = site(1, "forward", "warning", tier="near_neighbours", site_id="S1").model_copy(
+        update={"n_mismatch": 2, "clean_3prime_nt": 4}
+    )
+    rev = site(1, "reverse", "critical", tier="near_neighbours", site_id="S2")
+    prb = site(1, "probe", "critical", tier="near_neighbours", site_id="S3")
+    counts = [NS(tier="near_neighbours", query="R", truncated=True),
+              NS(tier="near_neighbours", query="F", truncated=False)]  # fmt: skip
+    spec = NS(amplicons=[], sites=[fwd, rev, prb], counts=counts)
+    assay = NS(target=NS(must_not_detect_taxids=[1]),
+               role_of=lambda q: {"F": "forward", "R": "reverse", "P": "probe"}[q])  # fmt: skip
+    rows = [{"tier": "near_neighbours", "taxids": [1, 2], "saturated": ["P"]}]
+    (t,) = spec_overview(spec, assay, rows)
+    assert (t.title, t.products, t.discriminating) == ("Must not detect", 0, ["forward"])
+    assert set(t.by_design) == {"reverse", "probe"} and t.closest["forward"] is fwd
+    assert t.incomplete == ["P", "R"] and t.discriminating_complete

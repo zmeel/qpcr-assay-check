@@ -163,7 +163,7 @@ def build_findings(
             severity, label = sev.primer_site_warning, f"{level} {kind} site(s)"
         else:
             severity = sev.probe_site_critical if level == "critical" else "INFO"
-            label = f"{level} {kind} site(s)"
+            label = f"{level} {kind} site(s) (a probe gives signal only inside a product)"
         out.append(
             Finding(
                 severity=judged(tier, severity),

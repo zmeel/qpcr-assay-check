@@ -46,6 +46,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Inclusivity gains a whole-fragment table per year (genome outcome of the three sites);
   the verdict still uses the per-oligo percentages (open question for the recap: base it on
   the genome outcome instead?).
+- Specificity section (advisor): overview per tier on top, Searches one row per tier,
+  probe sites INFO by default, RIDs cached, limitation on single-primer products. Not built
+  (for the recap): rule c (INCOMPLETE -> INFO when the discriminating primers are complete,
+  needs an extra lookup of reverse/probe sites on records with a priming forward site),
+  year-over-year discrimination margin, single-primer products.
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

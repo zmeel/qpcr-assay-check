@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from collections.abc import Callable
@@ -76,6 +77,11 @@ class BlastRunner:
         hit = self.cached(job)
         if hit is not None:
             log.info("Job %s [%s]: served from cache", job.label, job.key[:8])
+            if not job.rid:  # the job record is gone (e.g. a new results folder): keep the RID
+                meta = self.cache.get("blast_rid", job.key, ttl_days=None)
+                if meta:
+                    info = json.loads(meta)
+                    job.rid, job.submitted_at = info.get("rid"), info.get("submitted_at")
             if job.state != "fetched":
                 job.state, job.finished_at = "fetched", self._now().isoformat()
                 self.store.upsert(job)
@@ -144,6 +150,10 @@ class BlastRunner:
         self.store.upsert(job)
         raw = self.api.fetch(job.rid, self.result_format)
         self.cache.put("blast", job.key, raw)
+        # provenance for later runs served from the cache (RIDs expire at NCBI after ~36 h)
+        self.cache.put(
+            "blast_rid", job.key, json.dumps({"rid": job.rid, "submitted_at": job.submitted_at})
+        )
         job.state, job.finished_at, job.error = "fetched", self._now().isoformat(), None
         self.store.upsert(job)
         return raw

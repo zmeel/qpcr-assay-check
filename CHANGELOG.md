@@ -16,6 +16,19 @@ All notable changes to this project are documented here. The format follows
   percentages.
 
 ### Changed
+- **Specificity section answers "is my assay still specific?" first** (user question, advisor
+  2026-09-25): per searched tier one line: predicted products or none; for near neighbours
+  which primer carries the discrimination and which oligos bind by design; the closest site of
+  the discriminating primer; and whether any relevant alignment was left unassessed (and if so,
+  whether that can concern the discriminating primer). "Rationale" is now "All findings".
+  Searches: one row per tier with "Complete" (no full hit list, nothing cut), the target row
+  shows its excluded taxa and "not used for specificity" instead of an INCOMPLETE chip, RIDs
+  carry their date; hits and alignments per oligo are folded.
+- **Critical probe sites are INFO by default** (`specificity.severity.probe_site_critical`, was
+  WARN): a probe gives signal only inside a product, which the product findings judge; the
+  message says so.
+- RIDs are kept with cached BLAST results, so a run served from the cache still shows them.
+- New limitation: products from one primer binding both strands are not predicted.
 - Variants per oligo: variants at risk, likely to fail or indeterminate that occur in a single
   record are one row per class (with their main types) instead of a row each; in the live
   enterovirus run 30-52 rows per oligo were mostly such single records. Every variant stays in

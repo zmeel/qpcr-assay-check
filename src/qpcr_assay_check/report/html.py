@@ -21,6 +21,7 @@ from .grouping import (
     shown_rows,
     site_changes,
     site_frequency,
+    spec_overview,
     species_of,
 )
 from .ncbi_links import linkify, taxon_link
@@ -143,7 +144,7 @@ def _search_rows(spec: Any) -> list[dict[str, Any]]:
         t["n"] += 1
         t["taxids"] += [x for x in r["taxids"] if x not in t["taxids"]]
         if r.get("rid"):
-            t["rids"].append(r["rid"])
+            t["rids"].append((r["rid"], (r.get("submitted_at") or "")[:10]))
         for label, n in r["n_hits"].items():
             t["hits"][label] = t["hits"].get(label, 0) + n
         t["saturated"] += [s["label"] for s in r["saturation"] if s["saturated"]]
@@ -227,6 +228,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
         if vs and vs.fragments
         else None
     )
+    rows_of_searches = _search_rows(spec) if spec is not None else []
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
@@ -250,7 +252,8 @@ def render_report(result: RunResult, cfg: Config) -> str:
         shown_variants=shown,
         hidden_variants=hidden,
         hidden_variant_sites=hidden_sites,
-        search_rows=_search_rows(spec) if spec is not None else [],
+        search_rows=rows_of_searches,
+        spec_overview=spec_overview(spec, result.assay, rows_of_searches) if spec else [],
         pending=[s for s in result.sections if s.state != "evaluated"],
         charts=charts,
         config_yaml=yaml.safe_dump(result.config, sort_keys=False, allow_unicode=True),

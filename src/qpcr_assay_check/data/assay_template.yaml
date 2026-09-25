@@ -128,7 +128,7 @@ settings:                                  # only what differs from the defaults
 #     primer_site_critical: FAIL           # in a predicted product
 #     primer_site_critical_no_product: WARN
 #     primer_site_warning: WARN
-#     probe_site_critical: WARN
+#     probe_site_critical: INFO            # a probe signals only inside a product
 #     amplicon_likely_detected: FAIL
 #     amplicon_not_detected: WARN
 #   eukaryote_taxids: [9606]       # where genomic-DNA hits matter to RNA assays
