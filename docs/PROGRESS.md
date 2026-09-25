@@ -17,6 +17,8 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Released as v1.3.0 (CHANGELOG section, version 1.3.0, README status and version table,
   FEATURE_IDEAS #8 done). About 22,000 older assemblies remain for later runs. The user merges
   and tags.
+- v1.3.0 merged (PR #19) and tagged by the user (verified: annotated, on main's merge commit
+  f03c5be). Next: the user picks the next feature from docs/FEATURE_IDEAS.md.
 
 ## 2026-09-24 — v1.1.1 to v1.2.0 released; v1.3.0 step 1 (several oligos per role, named oligos, assay settings)
 
