@@ -122,6 +122,16 @@ verified NCBI facts) at the start of every session. Newest entry first.
   nt); not gaps (a test showed the aligner writing two 3'-end mismatches as a gap); MGB with 2+
   mismatches at_risk. Genomes: escapes exclude undetermined (own row); inclusivity % leaves them
   out of the denominator. 484 tests. In the last enterovirus run this concerns the 196 genomes.
+- Enterovirus run with the shorter report (10,000 of 13,066): report 116k characters (was 219k);
+  products/sites grouped per species; no product in the must-not-detect taxa (stated); out-of-scope
+  250 products in 5 species collapsed; rare safe variants lumped. Undetermined 235 genomes (MGB
+  probe, 1 mismatch), escapes 503; probe detectable 100% in every year; 91.5% with a detectable
+  copy. Largest remaining table: whole-fragment combinations (106 rows, risky ones never lumped).
+- Seen thanks to the per-species sites table: F2 matches rhinovirus A record AF542452.1 exactly
+  (Human rhinovirus 13, 5' UTR partial, 330 nt; the record ends 14 nt after F2, so no product can
+  be predicted). Checked live: none of 12 complete RV-A13 genomes has the F2 site (best 6
+  mismatches); the fragment reads like enterovirus sequence there. Possibly mislabelled or a
+  contamination: not verified; to mention to the user as a point of attention, not a finding.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and
