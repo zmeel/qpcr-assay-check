@@ -25,6 +25,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   undetermined), per year; panel.html/.xlsx/.json; exit 10 if any genome is detected by no
   target. Refuses assays with different targets, exclusions or variant sources. 447 tests pass.
   Not yet run live: needs two assays for the same target with stored regions.
+- Live: the enterovirus target search (RID BC6V27N6016) stayed WAITING for over 70 min, and
+  restarting only resumed the same RID. Added `ncbi.resubmit_after_minutes` (90) and
+  `--resubmit` on run/search; a resumed search is resubmitted at most once per run. 451 tests.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 

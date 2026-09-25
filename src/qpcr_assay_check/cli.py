@@ -131,6 +131,13 @@ def run(
     yes: Annotated[
         bool, typer.Option("--yes", "-y", help="Do not ask before sending oligos to NCBI.")
     ] = False,
+    resubmit: Annotated[
+        bool,
+        typer.Option(
+            "--resubmit",
+            help="Submit unfinished (WAITING) BLAST searches anew instead of resuming their RID.",
+        ),
+    ] = False,
     verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="More logging.")] = 0,
     name: Annotated[str | None, typer.Option(help="Assay name.")] = None,
     forward: Annotated[str | None, typer.Option(help="Forward primer, 5'->3'.")] = None,
@@ -181,6 +188,8 @@ def run(
     try:
         assay = build_assay(assay_file, overrides)
         cfg = load_config(config, assay.settings)
+        if resubmit:
+            cfg.ncbi.resubmit_after_minutes = 0
         if qc_only:
             result = evaluate(assay, cfg, qc_only=True)
         else:
@@ -442,6 +451,13 @@ def search(
     yes: Annotated[
         bool, typer.Option("--yes", "-y", help="Do not ask before sending oligos to NCBI.")
     ] = False,
+    resubmit: Annotated[
+        bool,
+        typer.Option(
+            "--resubmit",
+            help="Submit unfinished (WAITING) BLAST searches anew instead of resuming their RID.",
+        ),
+    ] = False,
     verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="More logging.")] = 0,
 ) -> None:
     """Run the tiered remote BLAST searches and write hits.tsv and search.json.
@@ -459,6 +475,8 @@ def search(
     try:
         assay = build_assay(assay_file, {})
         cfg = load_config(config, assay.settings)
+        if resubmit:
+            cfg.ncbi.resubmit_after_minutes = 0
     except QpcrAssayCheckError as exc:
         _fail(str(exc))
         return

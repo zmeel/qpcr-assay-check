@@ -159,3 +159,38 @@ def test_response_without_rid_is_an_error_not_a_hang(cfg, tmp_path):
     )()
     with pytest.raises(NcbiError, match="request ID"):
         env.run()
+
+
+def _resumable(env, minutes_ago: float) -> None:
+    env.job.state, env.job.rid = "submitted", "OLD"
+    env.job.submitted_at = (T0 - timedelta(minutes=minutes_ago)).isoformat()
+    env.store.upsert(env.job)
+
+
+def test_a_search_waiting_too_long_is_submitted_anew_when_resumed(env):
+    """Live 2026-09-25: one RID stayed WAITING for over 70 min across restarts."""
+    _resumable(env, env.cfg.ncbi.resubmit_after_minutes + 10)
+    assert "BlastOutput2" in env.run()
+    assert env.fake.n_put == 1 and env.job.rid == "RID0001"
+
+
+def test_a_resumed_search_is_resubmitted_once_when_it_crosses_the_limit(cfg, tmp_path):
+    env = Env(cfg, tmp_path, FakeNcbi(hits_for_payload, statuses=["WAITING"]))
+    _resumable(env, cfg.ncbi.resubmit_after_minutes - 20)
+    with pytest.raises(SearchTimeout):
+        env.run()
+    assert env.fake.n_put == 1 and env.job.rid == "RID0001"  # once, not every 90 min
+
+
+def test_a_recent_search_is_resumed_not_resent(env):
+    _resumable(env, 5)
+    env.fake.searches["OLD"] = env.ps.params  # the fake NCBI knows the resumed RID
+    env.run()
+    assert env.fake.n_put == 0 and env.job.rid == "OLD"
+
+
+def test_resubmit_flag_sends_a_waiting_search_again_at_once(env):
+    env.cfg.ncbi.resubmit_after_minutes = 0  # what `--resubmit` sets
+    _resumable(env, 5)
+    env.run()
+    assert env.fake.n_put == 1 and env.job.rid == "RID0001"

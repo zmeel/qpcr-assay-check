@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Hung BLAST searches are resubmitted** (`ncbi/runner.py`, `ncbi.resubmit_after_minutes`,
+  default 90; `run`/`search --resubmit`): a resumed search NCBI has kept WAITING that long is
+  submitted anew, at most once per run, instead of resuming the same RID forever (live: the
+  enterovirus target search stayed WAITING for over 70 minutes across two restarts).
 - **Panel-level escape detection** (`panel.py`, `report/panel.py`, `qpcr-assay-check panel`;
   FEATURE_IDEAS #1): a panel file lists two or more assay files for the same target; every
   genome all of them processed is judged per assay from the stored regions (best-binding copy,

@@ -147,7 +147,9 @@ record of a BLAST hit group; sequences merged into one hit by core_nt (see below
 Behaviour worth knowing:
 - **Resumable**: if a run is interrupted (network, laptop closed, timeout), run the same command
   again. The request IDs (RIDs) are saved *before* polling starts; NCBI keeps results for about 36
-  hours, after which a job is resubmitted automatically.
+  hours, after which a job is resubmitted automatically. A search NCBI has kept WAITING for 90
+  minutes or more (`ncbi.resubmit_after_minutes`) is submitted anew, once per run;
+  `--resubmit` does that at once for every unfinished search.
 - **Polite**: at least 10 s between BLAST requests, at most one poll per RID per minute, your
   e-mail and the tool name on every request, and exponential backoff on errors.
 - **Saturation is judged by relevance**: a full hit list only triggers a warning (exit code 10)
