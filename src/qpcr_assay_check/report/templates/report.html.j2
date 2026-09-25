@@ -388,25 +388,39 @@ pre.aln.compact { letter-spacing: .06em; }
 
 {% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
-{% if r.variant_summary.fragments %}
-<p class="meta">Each site is shown on one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nucleotides) is underlined. Where a role has alternatives, each cell names the oligo it is read against; the per-oligo tables above show the full alignments.</p>
-<div class="scroll"><table>
-  {% macro role_head(title, role) %}<th>{{ title }}{% for o in assay.by_role(role) %}<br><span class="meta">{% if assay.by_role(role) | length > 1 %}{{ o.name }}: {% endif %}<span class="seq">{{ o.sequence }}</span></span>{% endfor %}</th>{% endmacro %}
-  <thead><tr>{{ role_head('Forward', 'forward') }}{{ role_head('Probe', 'probe') }}{{ role_head('Reverse', 'reverse') }}<th>Count</th><th>Fraction</th><th>Mismatches (F / P / R)</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
-  <tbody>
-  {% set safe = ['perfect', 'tolerated'] %}{% set frare = [] %}{% for f in r.variant_summary.fragments %}{% if f.percent < rare_below and f.forward.grade in safe and f.probe.grade in safe and f.reverse.grade in safe %}{% set _ = frare.append(f) %}{% endif %}{% endfor %}
-  {% for f in r.variant_summary.fragments if f not in frare %}
-  {% macro cell(v, role, tail=5) %}<td class="aln-cell">{% if assay.by_role(role) | length > 1 %}<span class="meta">{{ v.oligo_name }}</span>{% endif %}{{ v | aln_compact(tail) }}</td>{% endmacro %}
-  <tr>{{ cell(f.forward, 'forward') }}{{ cell(f.probe, 'probe', 0) }}{{ cell(f.reverse, 'reverse') }}
-    <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
-    <td>{{ f.forward.n_mismatch + f.forward.n_gap }} / {{ f.probe.n_mismatch + f.probe.n_gap }} / {{ f.reverse.n_mismatch + f.reverse.n_gap }}</td>
-    <td>{{ f.example_accession | ncbi }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
-  {% endfor %}
-  {% if frare %}{% set n_fr = frare | sum(attribute='count') %}
-  <tr class="group"><td colspan="{{ 8 if cov else 7 }}"><strong>{{ frare | length }} other combination{{ '' if frare | length == 1 else 's' }}</strong>, each seen in fewer than {{ rare_below }}% of records with all three sites perfect or tolerated: {{ n_fr }} record{{ '' if n_fr == 1 else 's' }} ({{ pct(100.0 * n_fr / r.variant_summary.fragment_total) }}). All combinations are in the workbook (sheet "Fragment variants").</td></tr>
-  {% endif %}
-  </tbody>
-</table></div>
+{% if fragments %}
+{% set fv = fragments %}
+{% macro outcome_chip(o) %}<span class="chip {{ {'detectable': 's-PASS', 'at risk': 's-WARN', 'likely failure': 's-FAIL', 'undetermined': 's-INCOMPLETE'}.get(o, 's-INFO') }}">{{ o or 'not classified' }}</span>{% endmacro %}
+{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% if assay.by_role(role) | length > 1 %} <span class="meta">{{ v.oligo_name }}</span>{% endif %}<span title="{{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s)">{{ v | aln_compact(tail) }}</span></td>{% endmacro %}
+{% macro role_head(title, role) %}<th>{{ title }}{% for o in assay.by_role(role) %}<br><span class="meta">{% if assay.by_role(role) | length > 1 %}{{ o.name }}: {% endif %}<span class="seq">{{ o.sequence }}</span></span>{% endfor %}</th>{% endmacro %}
+{% macro types(orgs, total) %}{% for name, n in orgs[:3] %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}{% if orgs | length > 3 %}; +{{ orgs | length - 3 }}{% endif %}{% endmacro %}
+{% macro frag_rows(rows) %}{% for f, outcome, by_pair in rows %}
+  <tr><td>{{ outcome_chip(outcome) }}{% if by_pair %}<br><span class="meta">primer-pair rule (Lefever 2013)</span>{% endif %}</td>
+    {{ site_cell(f.forward, 'forward') }}{{ site_cell(f.probe, 'probe', 0) }}{{ site_cell(f.reverse, 'reverse') }}
+    <td class="num">{{ f.count }}<br><span class="meta">{{ pct(f.percent) }}</span></td>
+    <td class="org">{{ types(f.organisms, f.count) }}</td>
+    {% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}
+    <td>{{ f.example_accession | ncbi }}</td></tr>
+{% endfor %}{% endmacro %}
+{% set head %}<thead><tr><th>Outcome</th>{{ role_head('Forward', 'forward') }}{{ role_head('Probe', 'probe') }}{{ role_head('Reverse', 'reverse') }}<th>Records</th><th>Types</th>{% if cov %}<th>First / last release</th>{% endif %}<th>Example</th></tr></thead>{% endset %}
+<p><strong>{{ fv.total }} records with all three sites:</strong>{% for o in ['detectable', 'at risk', 'likely failure', 'undetermined'] %} {{ o }} {{ pct(100.0 * fv.records.get(o, 0) / fv.total) }}{{ ',' if not loop.last }}{% endfor %}.</p>
+<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
+{% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}<h4>Needs attention ({{ n_att }} combination{{ '' if n_att == 1 else 's' }})</h4>
+{% if fv.attention %}
+<div class="scroll"><table>{{ head }}<tbody>
+{{ frag_rows(fv.attention) }}
+{% for o, kind, n, c in fv.attention_grouped %}
+  <tr class="group"><td>{{ outcome_chip(o) }}</td><td colspan="{{ 7 if cov else 6 }}">{{ n }} further combination(s) mainly in {{ kind }}: {{ c }} records. Listed individually in the workbook (sheet "Fragment variants").</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}<p>None: every combination is detectable.</p>{% endif %}
+{% set n_det = fv.detectable_top | length + fv.detectable_rest %}<h4>Detectable ({{ n_det }} combination{{ '' if n_det == 1 else 's' }})</h4>
+<div class="scroll"><table>{{ head }}<tbody>
+{{ frag_rows(fv.detectable_top) }}
+{% if fv.detectable_rest %}
+  <tr class="group"><td>{{ outcome_chip('detectable') }}</td><td colspan="{{ 7 if cov else 6 }}"><strong>{{ fv.detectable_rest }} other detectable combination(s)</strong>, all sites perfect or tolerated: {{ fv.detectable_rest_records }} records ({{ pct(100.0 * fv.detectable_rest_records / fv.total) }}); types {{ types(fv.detectable_rest_types, 0) }}. All combinations are in the workbook (sheet "Fragment variants").</td></tr>
+{% endif %}
+</tbody></table></div>
 {% else %}
 <p>No target-tier record had all three sites (forward, probe, reverse) fully re-aligned, so no whole-fragment variant table could be built.</p>
 {% endif %}

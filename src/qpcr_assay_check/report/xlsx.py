@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 from ..history.models import HistoryResult
 from ..results import RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
+from .grouping import fragment_outcome
 from .ncbi_links import accession_url, taxon_url
 
 _FILL = {
@@ -315,15 +316,20 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ],
             None,
         )  # fmt: skip
+        bulges = bool(result.config.get("variants", {}).get("homopolymer_bulges_detectable"))
         _sheet(
             wb,
             "Fragment variants",
-            ["Forward", "Probe", "Reverse", "Count", "Fraction (%)", "Mismatches (F/P/R)",
-             "Example accession", "Example organism", "First release", "Last release"],
+            ["Outcome", "Pair rule", "Forward", "Probe", "Reverse", "Classes (F/P/R)", "Count",
+             "Fraction (%)", "Mismatches (F/P/R)", "Types", "Example accession",
+             "Example organism", "First release", "Last release"],
             [
-                [f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln, f.count, round(f.percent, 2),
+                [*fragment_outcome(f, bulges), f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln,
+                 "/".join(s.grade or "" for s in (f.forward, f.probe, f.reverse)),
+                 f.count, round(f.percent, 2),
                  f"{f.forward.n_mismatch + f.forward.n_gap}/{f.probe.n_mismatch + f.probe.n_gap}/"
                  f"{f.reverse.n_mismatch + f.reverse.n_gap}",
+                 "; ".join(f"{n} {c}" for n, c in f.organisms),
                  f.example_accession, f.example_organism or "",
                  f.forward.first_seen or "", f.forward.last_seen or ""]
                 for f in vs.fragments

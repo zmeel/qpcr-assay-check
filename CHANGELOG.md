@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Whole-fragment table restructured** (user request; advisor layout, 2026-09-25): a summary
+  line (records detectable / at risk / likely failure / undetermined); part A "Needs attention"
+  lists every combination that is not detectable, worst outcome first (grouped by outcome and
+  type only beyond 30 rows); part B "Detectable" shows the 10 most frequent and one summary row.
+  Per combination: the genome outcome (worst site class, or the primer-pair rule), the class of
+  each site, the one-line sites, records, the organism types and the release dates. The
+  workbook sheet gains the outcome, the classes and the types.
 - **Report layout** (user request 2026-09-25): page width 96rem (was 64rem); the whole-fragment
   table shows each site on one line against the oligo in the column header (dots for matches,
   highlighted letters for mismatches), so all columns fit; alignment cells no longer force a

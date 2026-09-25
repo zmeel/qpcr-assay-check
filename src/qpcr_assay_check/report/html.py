@@ -13,7 +13,7 @@ from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
-from .grouping import group_products, group_sites, species_of
+from .grouping import fragment_view, group_products, group_sites, species_of
 from .ncbi_links import linkify, taxon_link
 
 RARE_VARIANT_PERCENT = 0.1  # rarer perfect/tolerated variants: one summary row (all in workbook)
@@ -215,10 +215,17 @@ def render_report(result: RunResult, cfg: Config) -> str:
         group_products(spec.amplicons, {s.id: s for s in spec.sites}, species) if spec else []
     )
     site_groups = group_sites(spec.sites, species) if spec else []
+    vs = result.variant_summary
+    fragments = (
+        fragment_view(vs.fragments, vs.fragment_total, cfg.variants.homopolymer_bulges_detectable)
+        if vs and vs.fragments
+        else None
+    )
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
         product_groups=product_groups,
+        fragments=fragments,
         site_groups=site_groups,
         rows_shown=GROUP_ROWS_SHOWN,
         grade_caveat=GRADE_CAVEAT,

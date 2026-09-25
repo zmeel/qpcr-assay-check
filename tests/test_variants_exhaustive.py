@@ -284,7 +284,11 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
     html = render_report(result, cfg)
     assert "Match to the oligo" in html and "perfect match" in html
     assert "mismatch in the 3′ end" in html  # the forward variant has a 3'-terminal mismatch
-    assert "Mismatches (F / P / R)" in html
+    # whole fragment (advisor layout 2026-09-25): the 3'-terminal forward mismatch needs attention
+    i = html.index("<h3>Whole fragment")
+    frag = html[i : html.index("<h2>", i)]
+    assert "Needs attention" in frag and "likely failure" in frag and "Detectable (" in frag
+    assert frag.index("likely failure") < frag.index("Detectable (")
 
 
 def test_found_entries_without_plasmid_info_are_rescanned_so_the_split_can_be_shown(tmp_path):

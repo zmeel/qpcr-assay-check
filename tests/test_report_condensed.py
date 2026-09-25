@@ -69,3 +69,39 @@ def test_rare_safe_variants_are_one_row_but_rare_risky_ones_stay(tmp_path):
     html = render_report(result, cfg)
     assert "2 other variants" in html and "RARE2.1" in html
     assert "RARE0.1" not in html and "RARE1.1" not in html
+
+
+def _site(grade, mm=0, rule="", note=""):
+    return NS(grade=grade, n_mismatch=mm, grade_rule=rule, note=note)
+
+
+def _frag(f, p, r, count, org="EV-A71"):
+    return NS(forward=f, probe=p, reverse=r, count=count, organisms=[(org, count)])
+
+
+def test_fragment_outcome_is_the_worst_site_and_the_pair_rule():
+    from qpcr_assay_check.report.grouping import fragment_outcome
+
+    ok, tol = _site("perfect"), _site("tolerated", 1)
+    assert fragment_outcome(_frag(ok, ok, tol, 1)) == ("detectable", False)
+    assert fragment_outcome(_frag(_site("likely_failure", 1), ok, ok, 1))[0] == "likely failure"
+    assert fragment_outcome(_frag(ok, _site("indeterminate", 1, "R9"), ok, 1))[0] == "undetermined"
+    bulge = _site("indeterminate", 0, "R5", note="poly-A run 7->8")
+    assert fragment_outcome(_frag(bulge, ok, ok, 1))[0] == "at risk"  # strict
+    assert fragment_outcome(_frag(bulge, ok, ok, 1), bulges=True)[0] == "detectable"
+    # 3 + 2 tolerated-looking mismatches: the primer-pair rule decides (Lefever 2013)
+    three, two = _site("at_risk", 3), _site("at_risk", 2)
+    assert fragment_outcome(_frag(three, ok, two, 1)) == ("likely failure", True)
+
+
+def test_fragment_view_lists_every_problem_and_lumps_only_detectable():
+    from qpcr_assay_check.report.grouping import fragment_view
+
+    ok, bad = _site("perfect"), _site("likely_failure", 1)
+    frags = [_frag(ok, ok, ok, 100 - i, org=f"T{i}") for i in range(15)]
+    frags += [_frag(bad, ok, ok, 2, org="EV-D68") for _ in range(35)]
+    total = sum(f.count for f in frags)
+    v = fragment_view(frags, total)
+    assert len(v.attention) == 30 and v.attention_grouped == [("likely failure", "EV-D68", 5, 10)]
+    assert len(v.detectable_top) == 10 and v.detectable_rest == 5
+    assert v.records["likely failure"] == 70 and v.records["detectable"] == total - 70

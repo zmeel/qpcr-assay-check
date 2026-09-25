@@ -135,6 +135,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Layout at the user's request: page 96rem wide; whole-fragment table with one-line (dot)
   alignments against the oligos in the header (alternatives named per cell); no forced minimum
   width on alignment cells; wider organism column in the closest off-target sites. 484 tests.
+- Whole-fragment table: the user finds it important; the advisor advised keeping it,
+  restructured: summary line; part A needs attention (never lumped below 30 rows); part B
+  detectable top 10 + one row; outcome, class per site, pair-rule marker, types per combination.
+  Built (report/grouping.fragment_outcome, fragment_view; organisms per combination in
+  FragmentVariantRow; workbook columns). Not built: study count (BioProject field to verify),
+  history flag per row, copies per genome, template export. 486 tests.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and

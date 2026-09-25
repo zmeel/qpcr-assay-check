@@ -22,7 +22,7 @@ from __future__ import annotations
 import itertools
 import logging
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -104,6 +104,9 @@ class FragmentVariantRow(BaseModel):
     level: Level
     example_accession: str
     example_organism: str | None = None
+    organisms: list[tuple[str, int]] = Field(
+        default_factory=list, description="organism names of the records, most frequent first"
+    )
 
 
 class VariantSummary(BaseModel):
@@ -303,6 +306,7 @@ def build_variant_summary(
                 level=level,
                 example_accession=fwd.accession,
                 example_organism=fwd.organism,
+                organisms=Counter(m[0].organism or "unknown" for m in members).most_common(),
             )
         )
     fragments.sort(key=lambda f: (-f.count, f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln))

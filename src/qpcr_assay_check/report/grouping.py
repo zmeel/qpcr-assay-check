@@ -8,9 +8,17 @@ denominator on every row and never hide a WARN or FAIL in a collapsed block.
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 
+from ..oligo.grade import (
+    DETECTABLE,
+    FAILURE,
+    INDETERMINATE,
+    UNDETERMINED_RULES,
+    pair_fails,
+)
 from ..specificity.models import AmpliconResult, SiteResult
 
 TIER_ORDER = {"near_neighbours": 0, "exclusivity": 1, "background": 2, "out_of_scope": 9}
@@ -121,4 +129,89 @@ def group_sites(sites: list[SiteResult], species: dict[int, str]) -> list[SiteGr
         groups.values(),
         key=lambda g: (TIER_ORDER.get(g.tier, 5), g.levels["critical"] == 0,
                        _closeness(g.best) if g.best else (99, 0), -g.n_sites, g.species),
+    )  # fmt: skip
+
+
+# ---------------------------------------------------------------- whole-fragment combinations
+OUTCOMES = ("likely failure", "at risk", "undetermined", "detectable")  # most concerning first
+
+
+def fragment_outcome(f: Any, bulges: bool = False) -> tuple[str, bool]:
+    """The genome-level outcome of one forward/probe/reverse combination, as the variant
+    analysis judges a copy (docs/MISMATCH_CLASSES.md), and whether the primer-pair rule decides
+    it. Rows made before the classes (no grade) get ''."""
+    sites = (f.forward, f.probe, f.reverse)
+    if any(s.grade is None for s in sites):
+        return "", False
+    pair = pair_fails(f.forward.n_mismatch, f.reverse.n_mismatch)
+
+    def state(s: Any) -> str:
+        if s.grade in DETECTABLE:
+            return "detectable"
+        if s.grade == INDETERMINATE:
+            if s.note:  # homopolymer bulge: its own setting
+                return "detectable" if bulges and s.n_mismatch == 0 else "at risk"
+            if s.grade_rule in UNDETERMINED_RULES:
+                return "undetermined"
+            return "at risk"  # an unexplained gap: not detected, no published size
+        return "likely failure" if s.grade == FAILURE else "at risk"
+
+    states = [state(s) for s in sites]
+    if pair:
+        states.append("likely failure")
+    return min(states, key=OUTCOMES.index), pair and not any(
+        s == "likely failure" for s in states[:3]
+    )
+
+
+@dataclass
+class FragmentView:
+    total: int
+    records: Counter  # outcome -> records
+    attention: list[tuple[Any, str, bool]]  # (row, outcome, decided by the pair rule)
+    attention_grouped: list[tuple[str, str, int, int]]  # outcome, type, combinations, records
+    detectable_top: list[tuple[Any, str, bool]]
+    detectable_rest: int  # combinations
+    detectable_rest_records: int
+    detectable_rest_types: list[tuple[str, int]]
+
+
+def fragment_view(
+    fragments: list[Any], total: int, bulges: bool = False, *, top: int = 10, cap: int = 30
+) -> FragmentView:
+    """Part A (needs attention: every combination that is not detectable, never lumped unless
+    more than ``cap`` rows, then the tail grouped by outcome and type) and Part B (detectable:
+    the ``top`` most frequent, the rest in one summary row); advisor subagent, 2026-09-25."""
+    rows = [(f, *fragment_outcome(f, bulges)) for f in fragments]
+    records: Counter = Counter()
+    for f, outcome, _pair in rows:
+        records[outcome or "unclassified"] += f.count
+    attention = sorted(
+        [r for r in rows if r[1] not in ("detectable", "")],
+        key=lambda r: (OUTCOMES.index(r[1]), -r[0].count),
+    )
+    grouped: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
+    for f, outcome, _pair in attention[cap:]:
+        kind = f.organisms[0][0] if f.organisms else "unknown"
+        grouped[(outcome, kind)][0] += 1
+        grouped[(outcome, kind)][1] += f.count
+    detectable = sorted([r for r in rows if r[1] in ("detectable", "")], key=lambda r: -r[0].count)
+    rest = detectable[top:]
+    types: Counter = Counter()
+    for f, _o, _p in rest:
+        types.update(dict(f.organisms))
+    return FragmentView(
+        total=total,
+        records=records,
+        attention=attention[:cap],
+        attention_grouped=[
+            (o, k, n, c)
+            for (o, k), (n, c) in sorted(
+                grouped.items(), key=lambda x: (OUTCOMES.index(x[0][0]), -x[1][1])
+            )
+        ],
+        detectable_top=detectable[:top],
+        detectable_rest=len(rest),
+        detectable_rest_records=sum(f.count for f, _o, _p in rest),
+        detectable_rest_types=types.most_common(5),
     )  # fmt: skip
