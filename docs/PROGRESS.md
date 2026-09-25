@@ -31,6 +31,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Types too wide: site lines now in the header's font size (aligned), header oligos no wrap,
   Types capped at 15rem. MGB probe with 2+ mismatches = likely_failure (user proposal; advisor
   agreed, position-free, expert judgement, unmodified probes unchanged).
+- User: everything that makes the report more readable is on the table. Built: Part A of the
+  fragment table picks rows by records (5 per outcome, then most frequent) so the 283-genome
+  Poliovirus 2 at-risk row is listed; the tail is one row per outcome; oligo numbers after the
+  header sequence keep the dots aligned; the Tm chart is inline SVG (Plotly dropped: 4.8 MB of
+  the 5.1 MB report).
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

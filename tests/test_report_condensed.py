@@ -102,7 +102,8 @@ def test_fragment_view_lists_every_problem_and_lumps_only_detectable():
     frags += [_frag(bad, ok, ok, 2, org="EV-D68") for _ in range(35)]
     total = sum(f.count for f in frags)
     v = fragment_view(frags, total)
-    assert len(v.attention) == 30 and v.attention_grouped == [("likely failure", "EV-D68", 5, 10)]
+    assert len(v.attention) == 30
+    assert v.attention_grouped == [("likely failure", [("EV-D68", 10)], 5, 10, 1)]
     assert len(v.detectable_top) == 10 and v.detectable_rest == 5
     assert v.records["likely failure"] == 70 and v.records["detectable"] == total - 70
 
@@ -149,3 +150,20 @@ def test_fragment_outcome_reads_real_variant_rows():
     assert fragment_outcome(_frag(ok_f, mgb, ok_r, 1))[0] == "undetermined"
     gap = row("probe", "indeterminate", "R5")
     assert fragment_outcome(_frag(ok_f, gap, ok_r, 1))[0] == "at risk"
+
+
+def test_a_frequent_problem_is_never_pushed_out_by_single_genome_failures():
+    """Live enterovirus run: 30 one-genome likely failures filled Part A and an at-risk
+    combination in 283 genomes (Poliovirus 2) ended up in a grouped row."""
+    from qpcr_assay_check.report.grouping import fragment_view
+
+    ok, bad, risk = _site("perfect"), _site("likely_failure", 1), _site("at_risk", 2)
+    frags = [_frag(bad, ok, ok, 1, org=f"EV{i}") for i in range(40)]
+    frags += [_frag(risk, ok, ok, 283, org="Poliovirus 2"), _frag(risk, ok, ok, 2, org="CVA6")]
+    v = fragment_view(frags, sum(f.count for f in frags))
+    listed = [(o, f.count) for f, o, _p in v.attention]
+    assert len(listed) == 30 and ("at risk", 283) in listed and ("at risk", 2) in listed
+    assert listed[0][0] == "likely failure"  # shown worst outcome first
+    # the 12 single-genome failures not listed: one row, with its main types
+    ((outcome, kinds, n, c, n_kinds),) = v.attention_grouped
+    assert (outcome, n, c, n_kinds, len(kinds)) == ("likely failure", 12, 12, 12, 3)

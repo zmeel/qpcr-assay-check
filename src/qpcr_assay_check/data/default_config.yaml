@@ -191,4 +191,4 @@ variants:
                                    #   shows the count under both rules either way
 
 report:
-  include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)
+  include_charts: true                       # oligo Tm chart (inline SVG, a few kB)

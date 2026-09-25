@@ -65,13 +65,11 @@ class _RefCollector(HTMLParser):
 
 def test_report_with_charts_is_self_contained(n1):
     """No tag may make the browser load another file or host (links to NCBI pages are allowed).
-
-    The inlined Plotly bundle contains URL *strings* (map tile servers, logo link) that are
-    only used by map traces and the modebar logo; this report uses neither, so the test inspects
-    real tags instead of grepping the JavaScript text.
-    """
+    The Tm chart is inline SVG: no script at all, and the report stays small (it was about 5 MB
+    with the inlined Plotly bundle; user, 2026-09-25)."""
     html = render(n1, charts=True)
-    assert "Plotly.newPlot" in html
+    assert '<svg class="chart"' in html and "<script" not in html
+    assert len(html.encode()) < 500_000
     parser = _RefCollector()
     parser.feed(html)
     # only plain links to NCBI record pages, which load nothing until clicked
@@ -80,7 +78,6 @@ def test_report_with_charts_is_self_contained(n1):
         for tag, key, value in parser.refs
     ), parser.refs
     assert "<link " not in html
-    assert "displaylogo" in html and '"displaylogo":false' in html.replace(" ", "")
 
 
 def test_three_prime_end_is_marked(n1):

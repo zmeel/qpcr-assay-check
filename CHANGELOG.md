@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Report about 5 MB smaller** (user: report size): the one chart (oligo Tm) is inline SVG
+  instead of an interactive Plotly chart, whose inlined JavaScript bundle was 4.8 MB of the
+  5.1 MB report. The report contains no script; `plotly` is no longer a dependency.
+- **Whole-fragment "Needs attention"** (live enterovirus run): the listed 30 combinations are the
+  5 most frequent of each outcome, then the most frequent of the rest, shown worst outcome
+  first; before, 30 single-genome failures pushed an at-risk combination in 283 genomes
+  (Poliovirus 2) into a grouped row. The rest is one row per outcome with its main types.
+- Whole-fragment header: alternative oligos are numbered after the sequence ("... (1)"), and
+  each site line ends with that number, so the dots line up under the bases; the names are in
+  the explanation above the table.
 - **MGB probe with 2 or more mismatches is `likely_failure`** (was `at_risk`, which ranked
   milder than the single-mismatch "undetermined"; user proposal, advisor agreed 2026-09-25).
   Position-free; unmodified probes unchanged. Every probe class is labelled expert judgement

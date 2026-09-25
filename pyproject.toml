@@ -25,7 +25,6 @@ dependencies = [
   "pydantic>=2.6,<3",
   "PyYAML>=6.0,<7",
   "Jinja2>=3.1,<4",
-  "plotly>=6.0,<8",
   "primer3-py>=2.0,<3",
   "openpyxl>=3.1,<4",
   "requests>=2.31,<3",

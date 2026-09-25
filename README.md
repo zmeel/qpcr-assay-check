@@ -659,8 +659,7 @@ pruning logic changes, rather than treating this one result as permanent proof.
 - Structures are searched at the annealing temperature; one that forms only at lower temperatures
   may not be reported, and the same oligo can be flagged at one annealing temperature and not at
   another.
-- The HTML report embeds Plotly's JavaScript bundle (about 5 MB). That bundle contains URL strings
-  for map tiles that are only used by map charts, which this tool does not produce; the report
+- The HTML report contains no JavaScript; its one chart (oligo Tm) is inline SVG, and the report
   makes no external requests. A test checks that no HTML tag loads another file or host; the only
   references are plain links from accessions and taxonomy IDs to their NCBI pages, opened on click.
 - BLAST is a heuristic (exact 7-base seed): heavily mismatched binding sites can be missed, so "no

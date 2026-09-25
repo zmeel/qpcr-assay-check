@@ -87,11 +87,11 @@ pre.aln { font-family: var(--mono); font-size: .78rem; line-height: 1.3; margin:
 .aln .tail { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
 td.aln-cell { white-space: nowrap; }
 td.org { min-width: 16rem; }
+svg.chart { width: 100%; max-width: 44rem; height: auto; display: block; }
 pre.aln.compact { font-size: .92rem; letter-spacing: .04em; } /* as .seq: lines up with the header */
 table.frag th .seq { white-space: nowrap; word-break: normal; }
 table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </style>
-{% if plotly_js %}<script>{{ plotly_js }}</script>{% endif %}
 </head>
 <body>
 <main>
@@ -393,8 +393,9 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if fragments %}
 {% set fv = fragments %}
 {% macro outcome_chip(o) %}<span class="chip {{ {'detectable': 's-PASS', 'at risk': 's-WARN', 'likely failure': 's-FAIL', 'undetermined': 's-INCOMPLETE'}.get(o, 's-INFO') }}">{{ o or 'not classified' }}</span>{% endmacro %}
-{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% if assay.by_role(role) | length > 1 %} <span class="meta">{{ v.oligo_name }}</span>{% endif %}<span title="{{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s)">{{ v | aln_compact(tail) }}</span></td>{% endmacro %}
-{% macro role_head(title, role) %}<th>{{ title }}{% for o in assay.by_role(role) %}<br><span class="meta">{% if assay.by_role(role) | length > 1 %}{{ o.name }}: {% endif %}<span class="seq">{{ o.sequence }}</span></span>{% endfor %}</th>{% endmacro %}
+{% macro oligo_no(role, name) %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{% for o in olis %}{% if o.name == name %}({{ loop.index }}){% endif %}{% endfor %}{% endif %}{% endmacro %}
+{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s)">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
+{% macro role_head(title, role) %}{% set olis = assay.by_role(role) %}<th>{{ title }}{% for o in olis %}<br><span class="meta"><span class="seq" title="{{ o.name }}">{{ o.sequence }}</span>{% if olis | length > 1 %} ({{ loop.index }}){% endif %}</span>{% endfor %}</th>{% endmacro %}
 {% macro types(orgs, total) %}{% for name, n in orgs[:3] %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}{% if orgs | length > 3 %}; +{{ orgs | length - 3 }}{% endif %}{% endmacro %}
 {% macro frag_rows(rows) %}{% for f, outcome, by_pair in rows %}
   <tr><td>{{ outcome_chip(outcome) }}{% if by_pair %}<br><span class="meta">primer-pair rule (Lefever 2013)</span>{% endif %}</td>
@@ -406,13 +407,13 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% endfor %}{% endmacro %}
 {% set head %}<thead><tr><th>Outcome</th>{{ role_head('Forward', 'forward') }}{{ role_head('Probe', 'probe') }}{{ role_head('Reverse', 'reverse') }}<th>Records</th><th>Types</th>{% if cov %}<th>First / last release</th>{% endif %}<th>Example</th></tr></thead>{% endset %}
 <p><strong>{{ fv.total }} records with all three sites:</strong>{% for o in ['detectable', 'at risk', 'likely failure', 'undetermined'] + (['not classified'] if fv.records.get('not classified') else []) %} {{ o }} {{ pct(100.0 * fv.records.get(o, 0) / fv.total) }}{{ ',' if not loop.last }}{% endfor %}.</p>
-<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
+<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
 {% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}<h4>Needs attention ({{ n_att }} combination{{ '' if n_att == 1 else 's' }})</h4>
 {% if fv.attention %}
 <div class="scroll"><table class="frag">{{ head }}<tbody>
 {{ frag_rows(fv.attention) }}
-{% for o, kind, n, c in fv.attention_grouped %}
-  <tr class="group"><td>{{ outcome_chip(o) }}</td><td colspan="{{ 7 if cov else 6 }}">{{ n }} further combination(s) mainly in {{ kind }}: {{ c }} records. Listed individually in the workbook (sheet "Fragment variants").</td></tr>
+{% for o, kinds, n, c, n_kinds in fv.attention_grouped %}
+  <tr class="group"><td>{{ outcome_chip(o) }}</td><td colspan="{{ 7 if cov else 6 }}">{{ n }} further, less frequent combination(s): {{ c }} records ({{ pct(100.0 * c / fv.total) }}); types {{ types(kinds, 0) }}{% if n_kinds > 3 %} and {{ n_kinds - 3 }} more{% endif %}. Listed individually in the workbook (sheet "Fragment variants").</td></tr>
 {% endfor %}
 </tbody></table></div>
 {% else %}<p>None: every combination is detectable.</p>{% endif %}

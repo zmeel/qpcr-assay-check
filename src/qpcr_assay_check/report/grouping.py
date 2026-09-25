@@ -187,7 +187,8 @@ class FragmentView:
     total: int
     records: Counter  # outcome -> records
     attention: list[tuple[Any, str, bool]]  # (row, outcome, decided by the pair rule)
-    attention_grouped: list[tuple[str, str, int, int]]  # outcome, type, combinations, records
+    # per outcome: its 3 main types (name, records), combinations, records, number of types
+    attention_grouped: list[tuple[str, list[tuple[str, int]], int, int, int]]
     detectable_top: list[tuple[Any, str, bool]]
     detectable_rest: int  # combinations
     detectable_rest_records: int
@@ -195,26 +196,42 @@ class FragmentView:
 
 
 def fragment_view(
-    fragments: list[Any], total: int, bulges: bool = False, *, top: int = 10, cap: int = 30
+    fragments: list[Any], total: int, bulges: bool = False, *, top: int = 10, cap: int = 30,
+    per_outcome: int = 5,
 ) -> FragmentView:
-    """Part A (needs attention: every combination that is not detectable, never lumped unless
-    more than ``cap`` rows, then the tail grouped by outcome and type) and Part B (detectable:
-    the ``top`` most frequent, the rest in one summary row); advisor subagent, 2026-09-25.
-    Combinations without a class (sites not graded) are never shown as detectable: they go to
-    Part A as "not classified"."""
+    """Part A (needs attention: every combination that is not detectable) and Part B
+    (detectable: the ``top`` most frequent, the rest in one summary row); advisor subagent,
+    2026-09-25.
+
+    Part A lists up to ``cap`` combinations: the ``per_outcome`` most frequent of each outcome,
+    then the most frequent of the rest, so a problem in hundreds of genomes is never pushed out
+    by single-genome failures (user, 2026-09-25). Listed rows are shown worst outcome first; the
+    others are one row per outcome with their main types. Combinations without a class (sites
+    not graded) are never shown as detectable: they go to Part A as "not classified"."""
     rows = [(f, *fragment_outcome(f, bulges)) for f in fragments]
     records: Counter = Counter()
     for f, outcome, _pair in rows:
         records[outcome or "not classified"] += f.count
+    by_count = sorted([r for r in rows if r[1] != "detectable"], key=lambda r: -r[0].count)
+    chosen: list[int] = []
+    for outcome in _ORDER:
+        chosen += [id(r) for r in by_count if r[1] == outcome][:per_outcome]
+    chosen = chosen[:cap]
+    chosen += [id(r) for r in by_count if id(r) not in set(chosen)][: cap - len(chosen)]
+    keep = set(chosen)
     attention = sorted(
-        [r for r in rows if r[1] != "detectable"],
-        key=lambda r: (_ORDER.index(r[1]), -r[0].count),
+        [r for r in by_count if id(r) in keep], key=lambda r: (_ORDER.index(r[1]), -r[0].count)
     )
-    grouped: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
-    for f, outcome, _pair in attention[cap:]:
-        kind = f.organisms[0][0] if f.organisms else "unknown"
-        grouped[(outcome, kind)][0] += 1
-        grouped[(outcome, kind)][1] += f.count
+    n_combos: Counter = Counter()
+    n_records: Counter = Counter()
+    kinds: dict[str, Counter] = defaultdict(Counter)
+    for r in by_count:
+        if id(r) in keep:
+            continue
+        f, outcome, _pair = r
+        n_combos[outcome] += 1
+        n_records[outcome] += f.count
+        kinds[outcome].update(dict(f.organisms) if f.organisms else {"unknown": f.count})
     detectable = sorted([r for r in rows if r[1] == "detectable"], key=lambda r: -r[0].count)
     rest = detectable[top:]
     types: Counter = Counter()
@@ -223,12 +240,10 @@ def fragment_view(
     return FragmentView(
         total=total,
         records=records,
-        attention=attention[:cap],
+        attention=attention,
         attention_grouped=[
-            (o, k, n, c)
-            for (o, k), (n, c) in sorted(
-                grouped.items(), key=lambda x: (_ORDER.index(x[0][0]), -x[1][1])
-            )
+            (o, kinds[o].most_common(3), n_combos[o], n_records[o], len(kinds[o]))
+            for o in sorted(n_combos, key=_ORDER.index)
         ],
         detectable_top=detectable[:top],
         detectable_rest=len(rest),
