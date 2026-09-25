@@ -213,7 +213,8 @@ def test_a_rare_variant_shows_as_below_0_1_percent_not_zero(n1):
     html = render_report(_variant_result(n1, list_full=False, n_rare=1), load_config())
     i = html.index("<h3>Variants per oligo")
     per_oligo = html[i : html.index("<h2>", i)]
-    assert '<span class="meta">&lt;0.1%</span>' in per_oligo and ">0.0%<" not in per_oligo
+    assert "each seen in 1 record</strong>: 1 record (&lt;0.1%)" in per_oligo
+    assert "(0.0%)" not in per_oligo
 
 
 def test_only_primers_get_the_3prime_underline():

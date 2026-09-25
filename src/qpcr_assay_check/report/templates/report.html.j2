@@ -88,6 +88,7 @@ pre.aln { font-family: var(--mono); font-size: .78rem; line-height: 1.3; margin:
 td.aln-cell { white-space: nowrap; }
 td.org { min-width: 16rem; }
 svg.chart { width: 100%; max-width: 44rem; height: auto; display: block; }
+details.qc > summary { cursor: pointer; font-family: var(--sans); color: var(--muted); margin: .4rem 0 1rem; }
 pre.aln.compact { font-size: .92rem; letter-spacing: .04em; } /* as .seq: lines up with the header */
 table.frag th .seq { white-space: nowrap; word-break: normal; }
 table.frag td.types { min-width: 9rem; max-width: 15rem; }
@@ -167,76 +168,6 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if degenerate %}
 <p>Degenerate oligos were expanded and every variant was evaluated; the worst variant decides each status:
   {% for o in degenerate %}{{ o.role }} → {{ o.n_variants }} variants{% if not loop.last %}, {% endif %}{% endfor %}.</p>
-{% endif %}
-
-<h2>Oligo quality control</h2>
-{% if qc.tm_unreliable_reasons %}
-<div class="notice"><p><strong>Tm reliability.</strong> The probe carries {{ qc.tm_unreliable_reasons | join(', ') }}.
-  Nearest-neighbour Tm and dimer estimates do not model these modifications; use vendor-specific values.</p></div>
-{% endif %}
-{% for c in charts %}
-<figure>
-  {{ c.html }}
-  <figcaption>{{ c.caption }}</figcaption>
-</figure>
-{% endfor %}
-<div class="scroll"><table>
-  <thead><tr><th>Check</th><th>Value</th><th>Result</th><th>Rule applied</th></tr></thead>
-  <tbody>
-  {% for title, items in groups %}
-    <tr class="group"><th colspan="4">{{ title }}</th></tr>
-    {% for c in items %}
-    <tr>
-      <td>{{ c.name }}{% if c.message %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
-      <td class="num">{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td>
-      <td>{{ chip(c.status.value) }}</td>
-      <td class="note">{{ c.rule }}</td>
-    </tr>
-    {% endfor %}
-  {% endfor %}
-  </tbody>
-</table></div>
-{% if qc.amplicon_note %}<p class="meta">{{ qc.amplicon_note }}</p>{% endif %}
-
-<h2>Hairpins and dimers</h2>
-<p>Calculated at the annealing temperature of {{ r.config.reaction.annealing_temp_C }} °C
-  (Na⁺ {{ r.config.reaction.na_mM }} mM, Mg²⁺ {{ r.config.reaction.mg_mM }} mM, dNTP {{ r.config.reaction.dntp_mM }} mM).
-  A structure is flagged when its melting temperature reaches
-  {{ r.config.thresholds.structures.warn_tm_c }} °C (WARN) or the
-  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (FAIL).
-  “3′ end” rows test whether the 3′ end of the first oligo can anneal to the second and be extended.</p>
-<div class="scroll"><table>
-  <thead><tr><th>Structure</th><th>Tm (°C)</th><th>ΔG (kcal/mol)</th><th>Result</th></tr></thead>
-  <tbody>
-  {% for s in qc.structures %}
-  <tr>
-    <td>{{ s.label }}{% if s.n_total > s.n_evaluated %}<br><span class="meta">{{ s.n_evaluated }} of {{ s.n_total }} variant combinations evaluated</span>{% endif %}
-      {% if s.variant %}<br><span class="meta">worst case: {{ s.variant }}</span>{% endif %}</td>
-    <td class="num">{{ s.tm_c | tm }}</td>
-    <td class="num">{{ s.dg_kcal | dg }}</td>
-    <td>{{ chip(s.status.value) }}</td>
-  </tr>
-  {% if s.ascii_lines %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
-  {% endfor %}
-  </tbody>
-</table></div>
-<p class="meta">Tm “none” means no structure was found; “&lt; 0” means the only structure is far too weak to matter.
-  Thermodynamic values are estimates from primer3 nearest-neighbour parameters.</p>
-
-{% if qc.amplicon %}
-<h2>Amplicon</h2>
-{% set a = qc.amplicon %}
-<div class="scroll"><table><tbody>
-  {% if assay.reference_amplicons | length > 1 %}
-  <tr><th scope="row">Reference amplicons</th><td>{% for ref in assay.reference_amplicons %}{{ ref.name }} ({{ ref.sequence | length }} nt){% if not loop.last %}, {% endif %}{% endfor %}<br><span class="meta">Each oligo is placed in the reference it fits best (see the checks above); the rows below describe {{ assay.reference_amplicons[0].name }}.</span></td></tr>
-  {% else %}
-  <tr><th scope="row">Reference amplicon</th><td>{{ a.input_length_nt }} nt</td></tr>
-  {% endif %}
-  {% if a.product_length_nt %}<tr><th scope="row">Primer-defined product</th><td>{{ a.product_length_nt }} bp, {{ '%.1f' % a.product_gc_percent }}% GC</td></tr>{% endif %}
-  {% for site in [a.forward_site, a.reverse_site, a.probe_site] if site %}
-  <tr><th scope="row">{{ site.oligo | capitalize if site.oligo in ('forward', 'reverse', 'probe') else site.oligo }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
-  {% endfor %}
-</tbody></table></div>
 {% endif %}
 
 {% if spec %}
@@ -370,7 +301,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% set fv = fragments %}
 {% macro outcome_chip(o) %}<span class="chip {{ {'detectable': 's-PASS', 'at risk': 's-WARN', 'likely failure': 's-FAIL', 'undetermined': 's-INCOMPLETE'}.get(o, 's-INFO') }}">{{ o or 'not classified' }}</span>{% endmacro %}
 {% macro oligo_no(role, name) %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{% for o in olis %}{% if o.name == name %}({{ loop.index }}){% endif %}{% endfor %}{% endif %}{% endmacro %}
-{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% set freq = site_pct.get((role, v.q_aln, v.s_aln)) %}{% if freq is not none and v.grade != 'perfect' %} <span class="meta" title="this {{ role }} site variant, whatever the other sites are">{{ pct(freq) }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s)">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
+{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% set freq = site_pct.get((role, v.q_aln, v.s_aln)) %}{% if freq is not none and v.grade != 'perfect' %} <span class="meta" title="this {{ role }} site variant, whatever the other sites are">{{ pct(freq) }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s){% if v.note %}; {{ v.note }}{% endif %}">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
 {% macro role_head(title, role) %}{% set olis = assay.by_role(role) %}<th>{{ title }}{% for o in olis %}<br><span class="meta"><span class="seq" title="{{ o.name }}">{{ o.sequence }}</span>{% if olis | length > 1 %} ({{ loop.index }}){% endif %}</span>{% endfor %}</th>{% endmacro %}
 {% macro types(orgs, total) %}{% for name, n in orgs[:3] %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}{% if orgs | length > 3 %}; +{{ orgs | length - 3 }}{% endif %}{% endmacro %}
 {% macro frag_rows(rows) %}{% for f, outcome, by_pair in rows %}
@@ -407,13 +338,13 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.{% if r.variant_summary.target_list_full %} With a full hit list, each oligo's hits are a separate selection of records, so most records appear in only one or two of the three lists.{% endif %}</p>{% endif %}
 <h3>Variants per oligo</h3>
 {% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
-<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first; variants at risk, likely to fail or indeterminate always, tolerated ones the {{ tolerated_shown }} most frequent. Changes are written as position from the 3′ end and the mismatch as oligo base–template base (Stadhouders' convention, as in the class notes); open a change for the full alignment. Every variant is in the workbook (sheet "Oligo variants").</p>
+<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Changes are written as position from the 3′ end and the mismatch as oligo base–template base (Stadhouders' convention, as in the class notes); open a change for the full alignment. Every variant is in the workbook (sheet "Oligo variants").</p>
 {% for v in oligo_views %}{% set o = r.variant_summary.oligos[loop.index0] %}
 {% if o.rows %}
 {% set alts = assay.by_role(o.role) %}
 <h4>{{ o.role | capitalize }}{% if alts | length > 1 %} <span class="meta">({{ alts | map(attribute='name') | join(', ') }}: for each record the best-binding one)</span>{% elif alts[0].name != o.role %} <span class="meta">{{ alts[0].name }}</span>{% endif %}</h4>
-<p>Perfect in <strong>{{ v.n_perfect }}</strong> of {{ v.total }} records ({{ pct(100.0 * v.n_perfect / v.total) if v.total else '0%' }}){% if not v.rows %}; no other variant{% endif %}.</p>
-{% if v.rows %}
+<p>Perfect in <strong>{{ v.n_perfect }}</strong> of {{ v.total }} records ({{ pct(100.0 * v.n_perfect / v.total) if v.total else '0%' }}){% if not (v.rows or v.singles or v.lumped) %}; no other variant{% endif %}.</p>
+{% if v.rows or v.singles or v.lumped %}
 <div class="scroll"><table>
   <thead><tr><th>Class</th>{% if alts | length > 1 %}<th>Oligo</th>{% endif %}<th>Changes</th><th>Records</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
@@ -423,6 +354,9 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
     <td class="aln-cell"><details><summary><span class="seq">{{ row | changes }}</span>{% if row.note %} <span class="meta">{{ row.note }}</span>{% endif %}</summary>{{ row | aln_html(0 if o.role == 'probe' else 5) }}{% if row.grade_note %}<p class="meta">{{ row.grade_note }}</p>{% endif %}</details></td>
     <td class="num">{{ row.count }}<br><span class="meta">{{ pct(row.percent) }}</span></td>
     <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
+  {% endfor %}
+  {% for grade, n, orgs in v.singles %}
+  <tr class="group"><td><span class="chip {{ grade_css(grade) }}">{{ (grade or 'not classified') | replace('_', ' ') }}</span></td><td colspan="{{ (5 if cov else 4) - (0 if alts | length > 1 else 1) }}"><strong>{{ n }} other {{ (grade or 'unclassified') | replace('_', ' ') }} variant{{ '' if n == 1 else 's' }}, each seen in 1 record</strong>: {{ n }} record{{ '' if n == 1 else 's' }} ({{ pct(100.0 * n / v.total) }}); types {% for name, k in orgs %}{{ name }} {{ k }}{{ '; ' if not loop.last }}{% endfor %}. Listed individually in the workbook (sheet "Oligo variants").</td></tr>
   {% endfor %}
   {% if v.lumped %}
   <tr class="group"><td colspan="{{ (6 if cov else 5) - (0 if alts | length > 1 else 1) }}"><strong>{{ v.lumped }} other tolerated variant{{ '' if v.lumped == 1 else 's' }}</strong>: {{ v.lumped_records }} record{{ '' if v.lumped_records == 1 else 's' }} ({{ pct(100.0 * v.lumped_records / v.total) }}). All variants are in the workbook (sheet "Oligo variants").</td></tr>
@@ -676,6 +610,80 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   <ul>{% for s in pending %}<li>{{ s.title }}: {{ s.note | ncbi }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
+
+<h2>Oligo quality control</h2>
+{% set qc_states = (qc.checks | map(attribute='status.value') | list) + (qc.structures | map(attribute='status.value') | list) %}
+<p>{{ qc_states | select('equalto', 'FAIL') | list | length }} FAIL, {{ qc_states | select('equalto', 'WARN') | list | length }} WARN among {{ qc.checks | length }} checks and {{ qc.structures | length }} hairpin and dimer calculations; the findings are listed under the verdict. These checks depend only on the oligo sequences, so they stay the same from run to run and matter mainly when designing the PCR.</p>
+<details class="qc"><summary>Show the oligo checks, hairpins and dimers, and the amplicon</summary>
+{% if qc.tm_unreliable_reasons %}
+<div class="notice"><p><strong>Tm reliability.</strong> The probe carries {{ qc.tm_unreliable_reasons | join(', ') }}.
+  Nearest-neighbour Tm and dimer estimates do not model these modifications; use vendor-specific values.</p></div>
+{% endif %}
+{% for c in charts %}
+<figure>
+  {{ c.html }}
+  <figcaption>{{ c.caption }}</figcaption>
+</figure>
+{% endfor %}
+<div class="scroll"><table>
+  <thead><tr><th>Check</th><th>Value</th><th>Result</th><th>Rule applied</th></tr></thead>
+  <tbody>
+  {% for title, items in groups %}
+    <tr class="group"><th colspan="4">{{ title }}</th></tr>
+    {% for c in items %}
+    <tr>
+      <td>{{ c.name }}{% if c.message %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
+      <td class="num">{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td>
+      <td>{{ chip(c.status.value) }}</td>
+      <td class="note">{{ c.rule }}</td>
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if qc.amplicon_note %}<p class="meta">{{ qc.amplicon_note }}</p>{% endif %}
+
+<h3>Hairpins and dimers</h3>
+<p>Calculated at the annealing temperature of {{ r.config.reaction.annealing_temp_C }} °C
+  (Na⁺ {{ r.config.reaction.na_mM }} mM, Mg²⁺ {{ r.config.reaction.mg_mM }} mM, dNTP {{ r.config.reaction.dntp_mM }} mM).
+  A structure is flagged when its melting temperature reaches
+  {{ r.config.thresholds.structures.warn_tm_c }} °C (WARN) or the
+  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (FAIL).
+  “3′ end” rows test whether the 3′ end of the first oligo can anneal to the second and be extended.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Structure</th><th>Tm (°C)</th><th>ΔG (kcal/mol)</th><th>Result</th></tr></thead>
+  <tbody>
+  {% for s in qc.structures %}
+  <tr>
+    <td>{{ s.label }}{% if s.n_total > s.n_evaluated %}<br><span class="meta">{{ s.n_evaluated }} of {{ s.n_total }} variant combinations evaluated</span>{% endif %}
+      {% if s.variant %}<br><span class="meta">worst case: {{ s.variant }}</span>{% endif %}</td>
+    <td class="num">{{ s.tm_c | tm }}</td>
+    <td class="num">{{ s.dg_kcal | dg }}</td>
+    <td>{{ chip(s.status.value) }}</td>
+  </tr>
+  {% if s.ascii_lines %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">Tm “none” means no structure was found; “&lt; 0” means the only structure is far too weak to matter.
+  Thermodynamic values are estimates from primer3 nearest-neighbour parameters.</p>
+
+{% if qc.amplicon %}
+<h3>Amplicon</h3>
+{% set a = qc.amplicon %}
+<div class="scroll"><table><tbody>
+  {% if assay.reference_amplicons | length > 1 %}
+  <tr><th scope="row">Reference amplicons</th><td>{% for ref in assay.reference_amplicons %}{{ ref.name }} ({{ ref.sequence | length }} nt){% if not loop.last %}, {% endif %}{% endfor %}<br><span class="meta">Each oligo is placed in the reference it fits best (see the checks above); the rows below describe {{ assay.reference_amplicons[0].name }}.</span></td></tr>
+  {% else %}
+  <tr><th scope="row">Reference amplicon</th><td>{{ a.input_length_nt }} nt</td></tr>
+  {% endif %}
+  {% if a.product_length_nt %}<tr><th scope="row">Primer-defined product</th><td>{{ a.product_length_nt }} bp, {{ '%.1f' % a.product_gc_percent }}% GC</td></tr>{% endif %}
+  {% for site in [a.forward_site, a.reverse_site, a.probe_site] if site %}
+  <tr><th scope="row">{{ site.oligo | capitalize if site.oligo in ('forward', 'reverse', 'probe') else site.oligo }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
+  {% endfor %}
+</tbody></table></div>
+{% endif %}
+</details>
 
 <h2>Methods</h2>
 <div class="scroll"><table><tbody>

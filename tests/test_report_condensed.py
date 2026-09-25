@@ -183,3 +183,20 @@ def test_a_frequent_problem_is_never_pushed_out_by_single_genome_failures():
     # the 12 single-genome failures not listed: one row, with its main types
     ((outcome, kinds, n, c, n_kinds),) = v.attention_grouped
     assert (outcome, n, c, n_kinds, len(kinds)) == ("likely failure", 12, 12, 12, 3)
+
+
+def test_risky_variants_seen_once_are_one_row_per_class():
+    """Live enterovirus run (user, 2026-09-25): 30-52 rows per oligo, mostly single records."""
+    from qpcr_assay_check.report.grouping import oligo_view
+
+    def row(grade, count, org="EV"):
+        return NS(grade=grade, count=count, n_mismatch=1, n_gap=0, example_organism=org)
+
+    rows = [row("perfect", 90), row("at_risk", 5), row("likely_failure", 1, "PV1"),
+            row("likely_failure", 1, "PV2"), row("at_risk", 1),
+            row("indeterminate", 2)]  # fmt: skip
+    rows[0].n_mismatch = 0
+    v = oligo_view(NS(role="forward", total_measured=100, rows=rows))
+    assert [(r.grade, r.count) for r in v.rows] == [("at_risk", 5), ("indeterminate", 2)]
+    assert [(g, n) for g, n, _o in v.singles] == [("likely_failure", 2), ("at_risk", 1)]
+    assert v.n_perfect == 90

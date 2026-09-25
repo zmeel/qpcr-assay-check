@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- Variants per oligo: variants at risk, likely to fail or indeterminate that occur in a single
+  record are one row per class (with their main types) instead of a row each; in the live
+  enterovirus run 30-52 rows per oligo were mostly such single records. Every variant stays in
+  the workbook. A homopolymer note shows when hovering the site in the whole-fragment table.
+- **Oligo quality control moved to the end** (user, 2026-09-25): just before Methods, with a
+  one-line count (FAIL, WARN) and the checks, hairpins and dimers and the amplicon folded; they
+  depend only on the oligo sequences and matter mainly when designing the PCR. Their findings
+  still appear under the verdict.
 - **Variants section reordered and shortened** (user proposal, advisor layout 2026-09-25): the
   whole-fragment table comes first as the main view; "Variants per oligo" follows as the
   reference for frequencies and history: per oligo one line "perfect in N of M records", then

@@ -101,3 +101,13 @@ def test_workbook_has_expected_sheets(n1, tmp_path):
     assert summary["Assay"] == "CDC N1"
     assert summary["Overall verdict"] == "WARN"
     assert wb["Oligo QC"].max_row == len(result.oligo_qc.checks) + 1
+
+
+def test_oligo_quality_control_is_collapsed_just_before_methods(n1):
+    """User 2026-09-25: the oligo checks do not change between runs and matter mainly when
+    designing the PCR, so they sit folded near the end."""
+    html = render(n1)
+    qc = html.index("<h2>Oligo quality control</h2>")
+    assert qc < html.index("<h2>Methods</h2>") and html.index("<h2>Assay as evaluated</h2>") < qc
+    assert '<details class="qc">' in html[qc:] and "<h3>Hairpins and dimers</h3>" in html
+    assert "<h2>Hairpins and dimers</h2>" not in html

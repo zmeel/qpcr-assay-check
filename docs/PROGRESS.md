@@ -40,6 +40,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   history traceability, blast_hits coverage, full alignment for sign-off). Built points 1-4:
   fragment table first, compact "Variants per oligo" after it, % per non-perfect site in the
   fragment table, coverage line for blast_hits. Cross-links (point 5) left out for simplicity.
+- Live run with 660e57f: report 335 kB, new layout works; per oligo still 30-52 rows (risky
+  variants always listed, mostly single records). Built: single-record risky variants one row
+  per class. Oligo QC (checks, hairpins/dimers, amplicon) folded just before Methods.
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

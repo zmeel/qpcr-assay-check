@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from datetime import UTC, datetime
 
 import pytest
@@ -287,7 +286,8 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
     i = html.index("<h3>Variants per oligo")
     per_oligo = html[i : html.index("<h2>", i)]
     assert "Perfect in <strong>" in per_oligo
-    assert re.search(r'<span class="seq">-1 [ACGT]-[ACGT]', per_oligo)  # 3'-terminal mismatch
+    # the 3'-terminal forward mismatch is seen in one record: one row for its class
+    assert "other likely failure variant, each seen in 1 record" in per_oligo
     assert html.index("<h3>Whole fragment") < i  # the whole fragment first
     # whole fragment (advisor layout 2026-09-25): the 3'-terminal forward mismatch needs attention
     i = html.index("<h3>Whole fragment")
