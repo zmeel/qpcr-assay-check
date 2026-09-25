@@ -25,6 +25,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   nearly all single MGB-probe mismatches; 1 reverse). Fragment table: 135 combinations need
   attention (30 listed, the tail is only undetermined rows), 96 detectable. Forward: F1 covers
   59.4%, F2 36.7%, none 488. report.html is 5.2 MB: to look at in the recap.
+- Correction: the grouped tail of "Needs attention" also holds at-risk rows (by design beyond 30
+  rows), not only undetermined ones as first reported to the user.
+- User feedback: the whole-fragment table is what the program is for. Oligo columns too narrow,
+  Types too wide: site lines now in the header's font size (aligned), header oligos no wrap,
+  Types capped at 15rem. MGB probe with 2+ mismatches = likely_failure (user proposal; advisor
+  agreed, position-free, expert judgement, unmodified probes unchanged).
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

@@ -7,6 +7,12 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **MGB probe with 2 or more mismatches is `likely_failure`** (was `at_risk`, which ranked
+  milder than the single-mismatch "undetermined"; user proposal, advisor agreed 2026-09-25).
+  Position-free; unmodified probes unchanged. Every probe class is labelled expert judgement
+  with no quantitative source.
+- Whole-fragment table: site lines in the same font size as the oligo in the column header, so
+  they line up and read more easily; header oligos no longer wrap; the Types column is capped.
 - **Whole-fragment table restructured** (user request; advisor layout, 2026-09-25): a summary
   line (records detectable / at risk / likely failure / undetermined); part A "Needs attention"
   lists every combination that is not detectable, worst outcome first (grouped by outcome and

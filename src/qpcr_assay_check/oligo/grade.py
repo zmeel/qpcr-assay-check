@@ -171,8 +171,9 @@ def grade_primer(q_aln: str, s_aln: str) -> Grade:
 
 
 def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
-    """R9: neither source tested probe mismatches. The current rule is kept (at most 1 mismatch,
-    none in the last 5 nt, no gap = tolerated); MGB probes with one mismatch are indeterminate."""
+    """R9: neither source tested probe mismatches; every probe class is expert judgement with no
+    quantitative source (advisor subagent, 2026-09-25). MGB probes: 1 mismatch undetermined, 2 or
+    more likely failure. Other probes: 1 mismatch outside the last 5 nt tolerated, else at risk."""
     mm, amb, gap = _mismatches(q_aln, s_aln)
     if gap:
         return Grade(INDETERMINATE, "R5", "gap or bulge in the probe site")
@@ -181,13 +182,20 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
         if not mm:
             return Grade(PERFECT, "", "")
         if mgb and len(mm) == 1:
-            return Grade(INDETERMINATE, "R9", "one mismatch in an MGB probe site: no source "
-                         "for its effect (MGB probes are more mismatch-selective); "
-                         "undetermined")  # fmt: skip
+            return Grade(INDETERMINATE, "R9", "one mismatch in an MGB probe: may or may not "
+                         "suppress the signal (MGB probes discriminate single bases; the effect "
+                         "depends on position and sequence); expert judgement, no quantitative "
+                         "source; undetermined")  # fmt: skip
+        if mgb:
+            return Grade(FAILURE, "R9", f"{len(mm)} mismatches in a short MGB probe: no stable "
+                         "probe duplex expected; expert judgement from MGB probe chemistry, no "
+                         "quantitative source")  # fmt: skip
         if len(mm) == 1 and mm[0].pos > 5:
-            return Grade(TOLERATED, "R9", "one probe mismatch outside the last 5 nt (current "
-                         "rule; no source)")  # fmt: skip
-        return Grade(AT_RISK, "R9", "probe mismatches beyond the current rule (no source)")
+            return Grade(TOLERATED, "R9", "one probe mismatch outside the last 5 nt: a longer "
+                         "unmodified probe usually tolerates it; expert judgement, no "
+                         "quantitative source")  # fmt: skip
+        return Grade(AT_RISK, "R9", "probe mismatches beyond one internal mismatch; expert "
+                     "judgement, no quantitative source")  # fmt: skip
 
     return _with_ambiguity(by_mismatches, mm, amb)
 

@@ -82,7 +82,8 @@ def test_probes_keep_the_current_rule_and_mgb_mismatches_are_indeterminate():
     assert g.grade_probe(probe, one_internal, mgb=True).cls == g.INDETERMINATE
     assert g.grade_probe(probe, probe[:-1] + "G", mgb=False).cls == g.AT_RISK
     two = one_internal[:9] + "T" + one_internal[10:]
-    assert g.grade_probe(probe, two, mgb=True).cls == g.AT_RISK  # 2+ in an MGB probe: not detected
+    assert g.grade_probe(probe, two, mgb=True).cls == g.FAILURE  # 2+ in an MGB probe
+    assert g.grade_probe(probe, two, mgb=False).cls == g.AT_RISK  # unmodified probe: unchanged
 
 
 def test_primer_pair_rule_r8():

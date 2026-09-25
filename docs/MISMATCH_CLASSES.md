@@ -142,8 +142,14 @@ figure), for which the paper states no rule, so the worse single class may under
 
 **R9**: no rule from these two papers (neither tested probe mismatches). MGB probes are known to be
 more mismatch-selective (Kutyavin et al. 2000, cited by the advisor from the abstract; full text
-not checked). Until a source is checked: probe sites keep the current rule, and every probe
-mismatch on an MGB probe is marked `indeterminate` rather than `tolerated`.
+not checked). Every probe class is expert judgement with no quantitative source (advisor
+subagent, 2026-09-25; user decision the same day):
+- MGB probe, 1 mismatch: `indeterminate` (undetermined; neither detected nor an escape).
+- MGB probe, 2 or more mismatches: `likely_failure`, position-free (a short MGB probe is not
+  expected to form a stable duplex). Before 2026-09-25 (later) this was `at_risk`, which ranked
+  milder than a single mismatch.
+- Unmodified probe: 1 mismatch outside the last 5 nt `tolerated`, otherwise `at_risk` (longer
+  probes are less mismatch-discriminating).
 
 ## 7. What changes in the reports
 
@@ -159,7 +165,7 @@ mismatch on an MGB probe is marked `indeterminate` rather than `tolerated`.
   `indeterminate` sites are not: an unexplained gap near a primer's 3' end is often how the
   aligner writes two mismatches (seen in a test), so it counts as not detected, as before the
   classes; homopolymer bulges follow `homopolymer_bulges_detectable`. An MGB probe with 2 or more
-  mismatches is `at_risk` (not detected), like other probes.
+  mismatches is `likely_failure` (R9).
 - Copies/escapes: a genome's best copy is chosen by the class (then as now).
 - History: a class change for a known variant is a history event (not built yet; the history
   compares the per-year detectable percentages).

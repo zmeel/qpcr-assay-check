@@ -87,7 +87,9 @@ pre.aln { font-family: var(--mono); font-size: .78rem; line-height: 1.3; margin:
 .aln .tail { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
 td.aln-cell { white-space: nowrap; }
 td.org { min-width: 16rem; }
-pre.aln.compact { letter-spacing: .06em; }
+pre.aln.compact { font-size: .92rem; letter-spacing: .04em; } /* as .seq: lines up with the header */
+table.frag th .seq { white-space: nowrap; word-break: normal; }
+table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </style>
 {% if plotly_js %}<script>{{ plotly_js }}</script>{% endif %}
 </head>
@@ -398,7 +400,7 @@ pre.aln.compact { letter-spacing: .06em; }
   <tr><td>{{ outcome_chip(outcome) }}{% if by_pair %}<br><span class="meta">primer-pair rule (Lefever 2013)</span>{% endif %}</td>
     {{ site_cell(f.forward, 'forward') }}{{ site_cell(f.probe, 'probe', 0) }}{{ site_cell(f.reverse, 'reverse') }}
     <td class="num">{{ f.count }}<br><span class="meta">{{ pct(f.percent) }}</span></td>
-    <td class="org">{{ types(f.organisms, f.count) }}</td>
+    <td class="types">{{ types(f.organisms, f.count) }}</td>
     {% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}
     <td>{{ f.example_accession | ncbi }}</td></tr>
 {% endfor %}{% endmacro %}
@@ -407,7 +409,7 @@ pre.aln.compact { letter-spacing: .06em; }
 <p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
 {% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}<h4>Needs attention ({{ n_att }} combination{{ '' if n_att == 1 else 's' }})</h4>
 {% if fv.attention %}
-<div class="scroll"><table>{{ head }}<tbody>
+<div class="scroll"><table class="frag">{{ head }}<tbody>
 {{ frag_rows(fv.attention) }}
 {% for o, kind, n, c in fv.attention_grouped %}
   <tr class="group"><td>{{ outcome_chip(o) }}</td><td colspan="{{ 7 if cov else 6 }}">{{ n }} further combination(s) mainly in {{ kind }}: {{ c }} records. Listed individually in the workbook (sheet "Fragment variants").</td></tr>
@@ -415,7 +417,7 @@ pre.aln.compact { letter-spacing: .06em; }
 </tbody></table></div>
 {% else %}<p>None: every combination is detectable.</p>{% endif %}
 {% set n_det = fv.detectable_top | length + fv.detectable_rest %}<h4>Detectable ({{ n_det }} combination{{ '' if n_det == 1 else 's' }})</h4>
-<div class="scroll"><table>{{ head }}<tbody>
+<div class="scroll"><table class="frag">{{ head }}<tbody>
 {{ frag_rows(fv.detectable_top) }}
 {% if fv.detectable_rest %}
   <tr class="group"><td>{{ outcome_chip('detectable') }}</td><td colspan="{{ 7 if cov else 6 }}"><strong>{{ fv.detectable_rest }} other detectable combination(s)</strong>, all sites perfect or tolerated: {{ fv.detectable_rest_records }} records ({{ pct(100.0 * fv.detectable_rest_records / fv.total) }}); types {{ types(fv.detectable_rest_types, 0) }}. All combinations are in the workbook (sheet "Fragment variants").</td></tr>
