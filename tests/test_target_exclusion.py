@@ -74,3 +74,40 @@ def test_the_report_names_the_excluded_taxa():
     cfg = load_config()
     html = render_report(evaluate(assay, cfg, qc_only=True), cfg)
     assert "Excluding" in html and "wwwtax.cgi?id=200" in html and "near neighbours" in html
+
+
+class _FakeTaxonomy:
+    """E-utilities stand-in: taxonomy XML with a lineage per taxon (SYNTHETIC IDs)."""
+
+    LINEAGES = {200: [1, 50, 100], 300: [1, 50, 100, 200], 50: [1]}
+
+    def __init__(self):
+        self.calls = 0
+
+    def fetch_taxonomy(self, taxids):
+        self.calls += 1
+        parts = []
+        for t in taxids:
+            lin = "".join(f"<Taxon><TaxId>{a}</TaxId></Taxon>" for a in self.LINEAGES[t])
+            parts.append(f"<Taxon><TaxId>{t}</TaxId><LineageEx>{lin}</LineageEx></Taxon>")
+        return "<TaxaSet>" + "".join(parts) + "</TaxaSet>"
+
+
+def test_excluded_taxa_outside_the_target_are_found(tmp_path):
+    from qpcr_assay_check.ncbi.cache import Cache
+    from qpcr_assay_check.taxonomy.resolve import outside_target
+
+    fake, cache = _FakeTaxonomy(), Cache(tmp_path / "cache")
+    assert outside_target(fake, cache, 100, [200, 300], ttl_days=30) == []
+    assert outside_target(fake, cache, 100, [50, 200], ttl_days=30) == [50]  # an ancestor
+    assert fake.calls == 2  # 200 came from the cache the second time
+    assert outside_target(fake, cache, 100, [50], ttl_days=30) == [50] and fake.calls == 2
+
+
+def test_the_search_plan_refuses_an_exclusion_outside_the_target(tmp_path, monkeypatch):
+    from qpcr_assay_check.search import execute
+
+    monkeypatch.setattr(execute, "outside_target", lambda *a, **k: [50])
+    with pytest.raises(InputError, match="must lie inside the target taxon 100.*50"):
+        execute._resolve_and_plan(make_assay(target={"taxid": 100, "exclude_taxids": [50]}),
+                                  load_config(), None, None, only_tiers=None)  # fmt: skip

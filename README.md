@@ -443,6 +443,8 @@ target:
 - The excluded taxa (with their descendants) are left out of the target search, inclusivity and
   the variant analysis with Entrez `NOT`, and **every oligo is searched against them** as near
   neighbours: a product or critical site there is an off-target finding.
+- Every excluded taxon must lie inside the target (checked against NCBI Taxonomy when the run
+  starts): an ancestor would empty the target search and search the target as off-target.
 - Give such taxa by ID. The name "rhinovirus" resolves to the genus *Enterovirus* itself in
   NCBI Taxonomy (the former genus name is a synonym), so it cannot be used as an organism name.
 - Records of an excluded organism that NCBI files under another taxon (e.g. "unclassified
@@ -474,9 +476,13 @@ qpcr-assay-check panel ct_panel.yaml -o results
 - Each genome is judged per assay exactly as in that assay's report (best-binding copy, the
   inclusivity criterion, the assay's own homopolymer-bulge setting): detected, escape (region
   found but no detectable copy), region not found, or not assessable (hidden by N, cut by a
-  contig end). Per genome: detected by every target, by some, by **no target**, or undetermined.
+  contig end). Per genome: detected by every target, by some, by **no target** (no target
+  detects it and at least one shows an escape), or undetermined (no target detects it, but no
+  region is found or assessable: more often an incomplete assembly or a partial record). With
+  Nucleotide records (`blast_partitioned`), "region not found" counts as not assessable, as a
+  record is often another gene or a partial sequence.
 - Only genomes processed by every assay are combined; the rest are counted. The assays must
-  share the target taxon, its exclusions and the variant source.
+  share the target taxon, its exclusions, the variant source and its record filters.
 - Writes `panel.html` (genomes detected by no target first, per release year), `panel.xlsx`
   (every genome with its outcome per assay) and `panel.json`. Exit code 10 when at least one
   genome is detected by no target.

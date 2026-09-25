@@ -94,8 +94,38 @@ def test_outcome_rules():
     D, E, N, U = State.DETECTED, State.ESCAPE, State.NOT_FOUND, State.UNKNOWN
     assert classify([D, D]) is PanelClass.ALL
     assert classify([D, U]) is PanelClass.SOME
-    assert classify([E, N]) is PanelClass.NONE
+    assert classify([E, N]) is PanelClass.NONE  # a genome assembly: a missing region counts
+    assert classify([E, E]) is PanelClass.NONE
     assert classify([E, U]) is PanelClass.UNDETERMINED
+
+
+def test_no_region_found_anywhere_is_not_an_escape():
+    """Review finding: a genome without any target region is more often incomplete."""
+    N = State.NOT_FOUND
+    assert classify([N, N]) is PanelClass.UNDETERMINED
+
+
+def test_with_nucleotide_records_a_missing_region_is_not_assessable():
+    """Review finding: a VP1-only record is 'region not found' for a 5'UTR assay."""
+    E, N = State.ESCAPE, State.NOT_FOUND
+    assert classify([E, N], partial_records=True) is PanelClass.UNDETERMINED
+    assert classify([E, E], partial_records=True) is PanelClass.NONE
+
+
+def test_the_newest_accession_version_is_shown():
+    from types import SimpleNamespace as NS
+
+    from qpcr_assay_check.panel import PanelFile, combine
+
+    def item(acc):
+        return NS(accession=acc, status="found", release_date="2026-01-01", organism="x")
+
+    call = lambda acc: NS(accession=acc, role_good={"forward": True})  # noqa: E731
+    per_member = [([item("X.1")], [call("X.1")], "a"), ([item("X.2")], [call("X.2")], "b")]
+    cfg = load_config()
+    res = combine(PanelFile(panel_name="p", assays=["a.yaml", "b.yaml"]), [assay_a(), assay_b()],
+                  [cfg, cfg], per_member)  # fmt: skip
+    assert [g.accession for g in res.genomes] == ["X.2"]
 
 
 def test_the_report_workbook_and_cli(tmp_path):
@@ -128,3 +158,36 @@ def test_a_panel_needs_two_assays(tmp_path):
     p.write_text(yaml.safe_dump({"panel_name": "x", "assays": ["a.yaml"]}))
     r = CliRunner().invoke(app, ["panel", str(p)])
     assert r.exit_code == 64 and "at least two assay files" in r.output
+
+
+def test_assays_with_different_record_filters_are_refused(tmp_path):
+    panel = run_both(tmp_path)
+    data = yaml.safe_load((tmp_path / "b.yaml").read_text())
+    data["settings"] = {"variants": {"exclude_atypical": False}}
+    (tmp_path / "b.yaml").write_text(yaml.safe_dump(data))
+    r = CliRunner().invoke(app, ["panel", str(panel)])
+    assert r.exit_code == 64 and "variants.exclude_atypical" in r.output
+
+
+def test_exclusions_with_the_datasets_source_are_refused_up_front(tmp_path):
+    panel = run_both(tmp_path)
+    for name in ("a.yaml", "b.yaml"):
+        data = yaml.safe_load((tmp_path / name).read_text())
+        data["target"]["exclude_taxids"] = [814]
+        (tmp_path / name).write_text(yaml.safe_dump(data))
+    r = CliRunner().invoke(app, ["panel", str(panel)])
+    assert r.exit_code == 64 and "not supported with variants.source: datasets" in r.output
+
+
+def test_the_panel_judges_genomes_exactly_as_the_assay_report(tmp_path):
+    """Review gap: stored_calls must agree with run_exhaustive, also with bulges tolerated."""
+    from qpcr_assay_check.variants.exhaustive import stored_calls
+
+    fake = FakeDatasets([FakeAssembly(a, "2026-02-01", g) for a, g in GENOMES.items()])
+    cfg, _f, client, _a = setup(tmp_path, fake=fake)
+    cfg.variants.homopolymer_bulges_detectable = True
+    res = run_exhaustive(assay_a(), cfg, client, tmp_path / "cache", _no_fetch, now=NOW)
+    _items, calls, _p = stored_calls(assay_a(), cfg, tmp_path / "cache", _no_fetch, "datasets")
+    detected = sum(all(c.role_good.values()) for c in calls)
+    assert len(calls) == res.coverage.copies.genomes
+    assert detected == res.coverage.copies.with_detectable_copy

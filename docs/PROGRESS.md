@@ -48,6 +48,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (host unclear): "Mammalian enterovirus" (MAG), "Enterovirus mbel", "WUHARV Enterovirus".
   Live: 13,066 near-complete records (was 13,796). New exclusions = new region store: the
   first 2,000 records are scanned again on the next run.
+- The user asked for a reviewing subagent: a read-only review of v1.3.0..HEAD found 8 points;
+  7 confirmed and fixed (panel NOT_FOUND counted as escape; exclusions outside the target not
+  checked; resubmission bypassed the confirmation; panel filter/datasets checks; accession
+  version; shared client). Not a bug: "panel cache root ignores assay settings" (assay
+  settings cannot contain ncbi). Also found: two runner tests mutated the session-scoped cfg
+  fixture (now monkeypatched). 460 tests pass.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 

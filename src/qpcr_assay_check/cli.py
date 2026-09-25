@@ -550,15 +550,17 @@ def panel(
         assay = build_assay(path, {})
         return assay, load_config(config, assay.settings)
 
+    clients: list[Any] = []  # one shared E-utilities client (throttling), made on first use
+
     def fetch_fasta(acc: str) -> str:  # only for an assay without a reference amplicon
         from .ncbi.eutils import Eutils
         from .ncbi.http import NcbiHttp
         from .ncbi.settings import credentials_from_env
 
-        cfg = load_config(config)
-        return Eutils(NcbiHttp(cfg.ncbi, credentials_from_env()), cfg.ncbi.eutils_url).fetch_fasta(
-            acc
-        )
+        if not clients:
+            cfg = load_config(config)
+            clients.append(Eutils(NcbiHttp(cfg.ncbi, credentials_from_env()), cfg.ncbi.eutils_url))
+        return clients[0].fetch_fasta(acc)
 
     try:
         cache_root = Cache(load_config(config).ncbi.cache_dir).root

@@ -189,8 +189,16 @@ def test_a_recent_search_is_resumed_not_resent(env):
     assert env.fake.n_put == 0 and env.job.rid == "OLD"
 
 
-def test_resubmit_flag_sends_a_waiting_search_again_at_once(env):
-    env.cfg.ncbi.resubmit_after_minutes = 0  # what `--resubmit` sets
+def test_resubmit_flag_sends_a_waiting_search_again_at_once(env, monkeypatch):
+    monkeypatch.setattr(env.cfg.ncbi, "resubmit_after_minutes", 0)  # what `--resubmit` sets
     _resumable(env, 5)
     env.run()
     assert env.fake.n_put == 1 and env.job.rid == "RID0001"
+
+
+def test_a_resubmission_counts_as_sending_so_the_user_is_asked(env, monkeypatch):
+    """Review finding: --resubmit (or the 90-minute rule) must not bypass the confirmation."""
+    _resumable(env, 5)
+    assert not env.runner.needs_submission(env.job)
+    monkeypatch.setattr(env.cfg.ncbi, "resubmit_after_minutes", 0)
+    assert env.runner.needs_submission(env.job)

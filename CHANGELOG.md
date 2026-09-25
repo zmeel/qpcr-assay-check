@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed (from a code review of the unreleased changes)
+- Panel: a genome with no target region found anywhere, and (with Nucleotide records) a record
+  without a region, no longer counts as "detected by no target"; that needs a real escape.
+- Panel: assays with different record filters (nucleotide_query, current/atypical filters) or
+  with exclusions on the Datasets source are refused up front; rows show the newest accession
+  version any store holds; one shared E-utilities client.
+- `target.exclude_taxids` must lie inside the target taxon (checked against NCBI Taxonomy,
+  cached): an ancestor would have emptied the target search.
+- A BLAST search that will be resubmitted (the 90-minute rule or `--resubmit`) now counts as
+  sending, so the user is asked first unless `--yes` is given.
+
 ### Added
 - **Hung BLAST searches are resubmitted** (`ncbi/runner.py`, `ncbi.resubmit_after_minutes`,
   default 90; `run`/`search --resubmit`): a resumed search NCBI has kept WAITING that long is

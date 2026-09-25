@@ -64,13 +64,14 @@ class State(StrEnum):
 
 
 AFFECTED = (State.ESCAPE, State.NOT_FOUND)
+PARTIAL_RECORD_SOURCES = ("blast_partitioned",)  # records are often single genes or partial
 
 
 class PanelClass(StrEnum):
     ALL = "detected by every target"
     SOME = "detected by some targets"
-    NONE = "detected by no target"  # every target affected: the panel misses the genome
-    UNDETERMINED = "undetermined"  # no target detects it, and at least one is not assessable
+    NONE = "detected by no target"  # an escape, and no target detects it: the panel misses it
+    UNDETERMINED = "undetermined"  # no target detects it, and none shows an escape
 
 
 class MemberSummary(BaseModel):
@@ -113,6 +114,10 @@ class PanelResult(BaseModel):
     years: list[YearRow]
     genomes: list[GenomeRow]
     notes: str = ""
+    partial_records: bool = Field(
+        default=False,
+        description="Nucleotide records: 'region not found' counted as not assessable",
+    )
 
     def of_class(self, cls: PanelClass) -> list[GenomeRow]:
         return [g for g in self.genomes if g.panel_class == cls.value]
@@ -152,8 +157,19 @@ def check_members(assays: list[Assay], cfgs: list[Config]) -> None:
                 f"'{first.assay_name}' {cfg0.variants.source}: the genomes must come from the "
                 "same source to be combined."
             )
+        for key in ("nucleotide_query", "current_assemblies_only", "exclude_atypical"):
+            if getattr(c.variants, key) != getattr(cfg0.variants, key):
+                raise InputError(
+                    f"'{a.assay_name}' and '{first.assay_name}' use a different "
+                    f"variants.{key}, so their genome collections differ and cannot be combined."
+                )
     if first.target.taxid is None:
         raise InputError("A panel needs the target's taxonomy ID in every assay.")
+    if first.target.exclude_taxids and cfg0.variants.source == "datasets":
+        raise InputError(
+            "target.exclude_taxids is not supported with variants.source: datasets (the NCBI "
+            "Datasets genome listing has no 'NOT' filter); use blast_partitioned."
+        )
     if cfg0.variants.source not in ("datasets", "blast_partitioned"):
         raise InputError(
             "A panel needs the exhaustive variant analysis (variants.source datasets or "
@@ -179,12 +195,21 @@ def member_states(items: list[Any], calls: list[Any]) -> dict[str, tuple[State, 
     return out
 
 
-def classify(states: list[State]) -> PanelClass:
+def classify(states: list[State], *, partial_records: bool = False) -> PanelClass:
+    """The panel outcome for one genome from its per-assay states.
+
+    "Detected by no target" needs at least one real escape (the region is there, but no copy
+    is detectable): a genome in which no target region is found at all is more often an
+    incomplete assembly than a strain with every region deleted, so it is undetermined.
+    ``partial_records`` (Nucleotide records): "region not found" usually means the record is
+    another gene or a partial sequence, so it counts as not assessable, not as a miss.
+    """
     if all(s is State.DETECTED for s in states):
         return PanelClass.ALL
     if any(s is State.DETECTED for s in states):
         return PanelClass.SOME
-    if all(s in AFFECTED for s in states):
+    missed = (State.ESCAPE,) if partial_records else AFFECTED
+    if all(s in missed for s in states) and State.ESCAPE in states:
         return PanelClass.NONE
     return PanelClass.UNDETERMINED
 
@@ -210,14 +235,17 @@ def combine(
     ]  # fmt: skip
     keys = set.intersection(*(set(m) for m in maps))
     union = set.union(*(set(m) for m in maps))
+    partial = cfgs[0].variants.source in PARTIAL_RECORD_SOURCES
     genomes: list[GenomeRow] = []
     for key in keys:
         states = [m[key][0] for m in maps]
-        it = maps[0][key][1]
+        # the newest version any assay holds (stores may have caught different versions)
+        it = max((m[key][1] for m in maps), key=lambda x: _version(x.accession))
         genomes.append(
             GenomeRow(
                 accession=it.accession, release_date=it.release_date, organism=it.organism,
-                states=[s.value for s in states], panel_class=classify(states).value,
+                states=[s.value for s in states],
+                panel_class=classify(states, partial_records=partial).value,
             )
         )  # fmt: skip
     genomes.sort(key=lambda g: (g.release_date, g.accession), reverse=True)
@@ -239,7 +267,13 @@ def combine(
         ],
         genomes=genomes,
         notes=panel.notes,
+        partial_records=partial,
     )
+
+
+def _version(accession: str) -> int:
+    tail = accession.rpartition(".")[2]
+    return int(tail) if tail.isdigit() else 0
 
 
 def run_panel(

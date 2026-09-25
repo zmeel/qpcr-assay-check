@@ -51,7 +51,7 @@ a { color: #1D5C8C; }
 
 <div class="key">
   <div class="big">{{ n_none }} genome{{ '' if n_none == 1 else 's' }} detected by no target</div>
-  <p>of {{ p.in_all }} genomes processed by every assay of the panel ({{ pct(n_none, p.in_all) }}). A genome is <em>detected by no target</em> when every assay either finds the target region without a detectable copy (an escape) or does not find the region at all.</p>
+  <p>of {{ p.in_all }} genomes processed by every assay of the panel ({{ pct(n_none, p.in_all) }}). A genome is <em>detected by no target</em> when no assay detects it and at least one finds its target region without a detectable copy (an escape){% if p.partial_records %}; the others escape too{% else %}; the others escape too or do not find their region at all{% endif %}.</p>
 </div>
 
 <h2>How genomes were combined</h2>
@@ -80,7 +80,7 @@ a { color: #1D5C8C; }
   {% endfor %}
   </tbody>
 </table></div>
-<p class="meta">Undetermined: no target detects the genome and at least one target is not assessable there.</p>
+<p class="meta">Undetermined: no target detects the genome, but none shows an escape either (its regions are not found or not assessable). A genome in which no target region is found at all is more often an incomplete assembly or a partial record than a strain with every region deleted.{% if p.partial_records %} With Nucleotide records (variants.source blast_partitioned) "region not found" usually means the record is another gene or a partial sequence, so it counts as not assessable.{% endif %}</p>
 
 <h3>Per release year</h3>
 <div class="scroll"><table>

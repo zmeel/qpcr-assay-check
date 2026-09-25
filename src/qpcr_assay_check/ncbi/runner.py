@@ -63,10 +63,13 @@ class BlastRunner:
         return (self._now() - datetime.fromisoformat(job.submitted_at)).total_seconds() / 60
 
     def needs_submission(self, job: Job) -> bool:
-        """True if running this job would send something to NCBI."""
-        return self.cached(job) is None and not (
-            job.state in ("submitted", "ready") and self._rid_alive(job)
-        )
+        """True if running this job would send something to NCBI (so the user is asked first):
+        a new search, an expired one, or one waiting so long that it is resubmitted."""
+        if self.cached(job) is not None:
+            return False
+        if not (job.state in ("submitted", "ready") and self._rid_alive(job)):
+            return True
+        return job.state == "submitted" and self._waited(job) >= self.s.resubmit_after_minutes
 
     def run(self, job: Job, query_fasta: str, put_params: dict[str, str]) -> str:
         """Return the raw result text for ``job``, submitting/polling/fetching as needed."""

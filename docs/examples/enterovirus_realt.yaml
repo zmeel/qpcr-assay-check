@@ -22,7 +22,7 @@
 #     target (live count 2026-09-25); the report says so. Parechovirus is genus 138954.
 #   * Human enteroviruses only (the user's choice, 2026-09-25, after the first run): also
 #     excluded are the animal species E-L, swine vesicular disease virus (12075, inside
-#     E. betacoxsackie) and the 30 direct children of "unclassified Enterovirus" (90010) whose
+#     E. betacoxsackie) and the 27 direct children of "unclassified Enterovirus" (90010) whose
 #     NCBI name names an animal host (bovine, porcine, ovine, goat, yak, takin, marmot,
 #     squirrel, raccoon dog, rodent, simian, rhesus monkey, chimpanzee); selected by name, live.
 #     Left in the target because their host is not clear from the name: "Mammalian

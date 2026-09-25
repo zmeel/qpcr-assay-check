@@ -17,6 +17,7 @@ organism list updated with the current name directly (see ``data/clinical_organi
 
 from __future__ import annotations
 
+import json
 import logging
 import xml.etree.ElementTree as ET
 from typing import Literal
@@ -143,3 +144,30 @@ def fetch_lineages(
                 lin.model_dump_json(),
             )  # fmt: skip
     return out
+
+
+def outside_target(
+    eutils: Eutils, cache: Cache, target: int, taxids: list[int], *, ttl_days: float
+) -> list[int]:
+    """The taxa in ``taxids`` that are not descendants of ``target`` (by their NCBI lineage).
+
+    Used for ``target.exclude_taxids``: excluding an ancestor or an unrelated taxon would empty
+    the target search or search the target itself as an off-target tier. Cached per taxon.
+    """
+    ancestors: dict[int, set[int]] = {}
+    missing: list[int] = []
+    for t in taxids:
+        cached = cache.get("taxonomy_ancestors", content_key({"ancestors": t}), ttl_days=ttl_days)
+        if cached is None:
+            missing.append(t)
+        else:
+            ancestors[t] = set(json.loads(cached))
+    if missing:
+        root = ET.fromstring(eutils.fetch_taxonomy(missing))
+        for taxon in root.findall("Taxon"):
+            tid = int(taxon.findtext("TaxId") or 0)
+            ids = {int(x.findtext("TaxId") or 0) for x in taxon.iterfind("LineageEx/Taxon")}
+            ancestors[tid] = ids
+            key = content_key({"ancestors": tid})
+            cache.put("taxonomy_ancestors", key, json.dumps(sorted(ids)))
+    return [t for t in taxids if target not in ancestors.get(t, set())]
