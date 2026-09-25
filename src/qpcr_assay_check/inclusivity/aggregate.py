@@ -59,15 +59,16 @@ def _sample(candidates: list[Candidate], n: int) -> list[Candidate]:
     return [ordered[int(i * step)] for i in range(n)]
 
 
-def detectable_percent(w: WindowStats) -> float:
+def detectable_percent(w: WindowStats) -> float | None:
     """Share of the window's records that the oligo is expected to detect: the graded classes
-    perfect + tolerated, or (records made before the classes) 0-1 mismatch, clean 3' end."""
+    perfect + tolerated, or (records made before the classes) 0-1 mismatch, clean 3' end.
+    Undetermined records are left out; None when no record is left (or the window is empty)."""
     if w.sample_size == 0:
-        return 0.0
+        return None
     if w.n_detectable is not None:
         good = w.n_detectable
         base = w.sample_size - w.n_undetermined
-        return 100.0 * good / base if base > 0 else 0.0
+        return 100.0 * good / base if base > 0 else None
     else:
         good = max(0, w.n_perfect + w.n_one_mismatch - w.n_three_prime_mismatch)
     return 100.0 * good / w.sample_size
@@ -271,11 +272,15 @@ def _verdict(
     """Worst oligo/window's % at 0-1 mismatch (no 3' mismatch) decides the verdict."""
     rationale: list[str] = []
     worst_pct: float | None = None
+    all_undetermined: list[str] = []
     for o in oligos:
         for w in o.windows:
             if w.sample_size == 0:
                 continue
             pct = detectable_percent(w)
+            if pct is None:  # every record undetermined: no basis for a percentage
+                all_undetermined.append(f"{o.role} {w.year}")
+                continue
             if worst_pct is None or pct < worst_pct:
                 worst_pct = pct
             if pct < rules.warn_below_percent:
@@ -290,12 +295,20 @@ def _verdict(
                     + " (below "
                     f"{rules.warn_below_percent:g}%)."
                 )
+    if all_undetermined:
+        rationale.append(
+            f"{', '.join(all_undetermined)}: every assessed record is undetermined (no published "
+            "basis for its mismatch), so no percentage is given."
+        )
     if worst_pct is None:
+        if all_undetermined:
+            return Verdict.INCOMPLETE, rationale
         return Verdict.INCOMPLETE, ["No target-tier record with a known submission year was found."]
     if worst_pct < rules.fail_below_percent:
         return Verdict.FAIL, rationale
     if worst_pct < rules.warn_below_percent:
         return Verdict.WARN, rationale
     return Verdict.PASS, [
-        "Every assessed year is at or above the configured inclusivity threshold."
+        "Every assessed year is at or above the configured inclusivity threshold.",
+        *rationale,
     ]

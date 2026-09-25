@@ -14,6 +14,7 @@ base on the template strand facing it, i.e. the complement of the site base.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from . import iupac
@@ -81,13 +82,17 @@ def _single_in_last5(m: _Mismatch) -> Grade:
     return Grade(cls, "R1", note)
 
 
-def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], bool, bool]:
-    """Mismatches by position from the 3' end; whether there is a gap; whether an ambiguity code
-    in the site falls in the last 5 nt."""
+def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], list[_Mismatch], bool]:
+    """Mismatches by position from the 3' end; ambiguity codes in the site that are compatible
+    with the oligo and fall in the last 5 nt (a match or a mismatch, the genome does not say);
+    whether there is a gap. An ambiguity code further from the 3' end is read as a match; one
+    that cannot pair with the oligo base is a mismatch. An unaligned end of a worst-case site
+    ('.', the window could not be fetched) is a mismatch of unknown type."""
     length = sum(c != "-" for c in q_aln)
     pos = 0
     out: list[_Mismatch] = []
-    gap = amb_last5 = False
+    amb: list[_Mismatch] = []
+    gap = False
     for qc, sc in zip(q_aln.upper(), s_aln.upper(), strict=True):
         if qc == "-":
             gap = True
@@ -97,26 +102,37 @@ def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], bool, bool]:
         if sc == "-":
             gap = True
             continue
-        if sc not in "ACGT":
-            if from_3 <= 5:
-                amb_last5 = True
-            if iupac.compatible(qc, sc):
-                continue  # counted as uncertain via amb_last5 only in the last 5 nt
+        if sc == ".":
+            out.append(_Mismatch(from_3, ""))
+            continue
         if iupac.compatible(qc, sc):
+            if sc not in "ACGT" and from_3 <= 5:
+                amb.append(_Mismatch(from_3, ""))
             continue
         kind = f"{qc}-{_COMPLEMENT[sc]}" if qc in "ACGT" and sc in "ACGT" else ""
         out.append(_Mismatch(from_3, kind))
-    return out, gap, amb_last5
+    return out, amb, gap
 
 
-def grade_primer(q_aln: str, s_aln: str) -> Grade:
-    """The class of one primer site (rules R1-R3, R5, R6)."""
-    mm, gap, amb_last5 = _mismatches(q_aln, s_aln)
-    if gap:
-        return Grade(INDETERMINATE, "R5", "gap or bulge: neither source tested insertions or "
-                     "deletions")  # fmt: skip
-    if amb_last5:
-        return Grade(INDETERMINATE, "R6", "ambiguity code in the genome in the last 5 nt")
+def _with_ambiguity(grade: Callable[[list[_Mismatch]], Grade], mm: list[_Mismatch],
+                    amb: list[_Mismatch]) -> Grade:
+    """R6: grade with the ambiguity codes in the last 5 nt read as matches and as mismatches.
+    Only when that decides between detectable and not is the site indeterminate; a class that
+    holds either way is kept, so an ambiguity code never hides a real failure."""
+    as_match = grade(mm)
+    if not amb:
+        return as_match
+    as_mismatch = grade(sorted(mm + amb, key=lambda m: m.pos))
+    if as_match.cls not in DETECTABLE:
+        return Grade(as_match.cls, as_match.rule, as_match.note
+                     + "; an ambiguity code in the last 5 nt may make it worse")  # fmt: skip
+    if as_mismatch.cls in DETECTABLE:
+        return as_mismatch
+    return Grade(INDETERMINATE, "R6", "ambiguity code in the genome in the last 5 nt decides "
+                 "whether the site is detectable")  # fmt: skip
+
+
+def _grade_primer_mm(mm: list[_Mismatch]) -> Grade:
     if not mm:
         return Grade(PERFECT, "", "")
     last5 = [m for m in mm if m.pos <= 5]
@@ -140,28 +156,40 @@ def grade_primer(q_aln: str, s_aln: str) -> Grade:
     positions = sorted(m.pos for m in mm)
     adjacent = positions[-1] - positions[0] == len(positions) - 1
     if len(mm) == 4 and adjacent and not last5:
-        return Grade(AT_RISK, "R3", f"4 adjacent mismatches near the 5' end ({LEFEVER} "
-                     f"exception; class ours){low_input}")  # fmt: skip
+        return Grade(AT_RISK, "R3", f"4 adjacent mismatches away from the 3' end ({LEFEVER} "
+                     f"exception, seen near the 5' end; class ours){low_input}")  # fmt: skip
     return Grade(FAILURE, "R3", f"{len(mm)} mismatches ({LEFEVER}: blocked almost completely)")
+
+
+def grade_primer(q_aln: str, s_aln: str) -> Grade:
+    """The class of one primer site (rules R1-R3, R5, R6)."""
+    mm, amb, gap = _mismatches(q_aln, s_aln)
+    if gap:
+        return Grade(INDETERMINATE, "R5", "gap or bulge: neither source tested insertions or "
+                     "deletions")  # fmt: skip
+    return _with_ambiguity(_grade_primer_mm, mm, amb)
 
 
 def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
     """R9: neither source tested probe mismatches. The current rule is kept (at most 1 mismatch,
-    none in the last 5 nt, no gap = tolerated); MGB probes with any mismatch are indeterminate."""
-    mm, gap, amb_last5 = _mismatches(q_aln, s_aln)
+    none in the last 5 nt, no gap = tolerated); MGB probes with one mismatch are indeterminate."""
+    mm, amb, gap = _mismatches(q_aln, s_aln)
     if gap:
         return Grade(INDETERMINATE, "R5", "gap or bulge in the probe site")
-    if not mm and not amb_last5:
-        return Grade(PERFECT, "", "")
-    if mgb and len(mm) == 1:
-        return Grade(INDETERMINATE, "R9", "one mismatch in an MGB probe site: no source for its "
-                     "effect (MGB probes are more mismatch-selective); undetermined")  # fmt: skip
-    if amb_last5:
-        return Grade(INDETERMINATE, "R6", "ambiguity code in the genome in the last 5 nt")
-    if len(mm) == 1 and mm[0].pos > 5:
-        return Grade(TOLERATED, "R9", "one probe mismatch outside the last 5 nt (current rule; "
-                     "no source)")  # fmt: skip
-    return Grade(AT_RISK, "R9", "probe mismatches beyond the current rule (no source)")
+
+    def by_mismatches(mm: list[_Mismatch]) -> Grade:
+        if not mm:
+            return Grade(PERFECT, "", "")
+        if mgb and len(mm) == 1:
+            return Grade(INDETERMINATE, "R9", "one mismatch in an MGB probe site: no source "
+                         "for its effect (MGB probes are more mismatch-selective); "
+                         "undetermined")  # fmt: skip
+        if len(mm) == 1 and mm[0].pos > 5:
+            return Grade(TOLERATED, "R9", "one probe mismatch outside the last 5 nt (current "
+                         "rule; no source)")  # fmt: skip
+        return Grade(AT_RISK, "R9", "probe mismatches beyond the current rule (no source)")
+
+    return _with_ambiguity(by_mismatches, mm, amb)
 
 
 def pair_fails(n_forward: int, n_reverse: int) -> bool:

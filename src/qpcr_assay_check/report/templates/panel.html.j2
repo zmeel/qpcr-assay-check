@@ -45,7 +45,7 @@ a { color: #1D5C8C; }
 </head>
 <body>
 <main>
-{% macro chip(state) %}<span class="chip c-{{ {'detected': 'detected', 'escape': 'escape', 'region not found': 'notfound', 'not assessable': 'unknown'}[state] }}">{{ state }}</span>{% endmacro %}
+{% macro chip(state) %}<span class="chip c-{{ {'detected': 'detected', 'escape': 'escape', 'region not found': 'notfound', 'not assessable': 'unknown', 'undetermined': 'unknown'}[state] }}">{{ state }}</span>{% endmacro %}
 <h1>{{ p.panel_name }}</h1>
 <p class="meta">Panel escape check · target taxonomy ID {{ p.target_taxid | taxon }}{% if p.exclude_taxids %}, excluding {% for t in p.exclude_taxids %}{{ t | taxon }}{{ ', ' if not loop.last }}{% endfor %}{% endif %} · generated {{ p.generated_at }} (UTC) · qpcr-assay-check v{{ version }}</p>
 
@@ -57,15 +57,15 @@ a { color: #1D5C8C; }
 <h2>How genomes were combined</h2>
 <p>Each assay's own variant analysis stored the target region of every genome it processed. Here each genome is judged per assay exactly as in that assay's report: by its best-binding copy, detectable with at most 1 mismatch, no gap and no mismatch in the last 5 nucleotides of every oligo role (homopolymer bulges as set per assay, below). No genome was downloaded again.</p>
 <ul>
-  <li><strong>detected</strong>: a detectable copy; <strong>escape</strong>: the region is there but no copy is detectable; <strong>region not found</strong>: no exact stretch of the amplicon (variants.seed_length bases) in the genome (absent, deleted or too divergent); <strong>not assessable</strong>: hidden by N or cut by a contig or record end.</li>
+  <li><strong>detected</strong>: a detectable copy; <strong>escape</strong>: the region is there but no copy is detectable; <strong>region not found</strong>: no exact stretch of the amplicon (variants.seed_length bases) in the genome (absent, deleted or too divergent); <strong>not assessable</strong>: hidden by N or cut by a contig or record end; <strong>undetermined</strong>: no detectable copy, but the only problem has no published basis (a single mismatch in an MGB probe, or an ambiguity code in the genome that decides the class), so it is not counted as an escape.</li>
   <li>Only genomes processed by every assay are combined: {{ p.in_all }}; {{ p.not_in_all }} processed by only some of them (run those assays again to catch up).</li>
 </ul>
 <div class="scroll"><table>
-  <thead><tr><th>Assay</th><th>Genomes processed</th><th>Detected</th><th>Escape</th><th>Region not found</th><th>Not assessable</th><th>Homopolymer bulges</th></tr></thead>
+  <thead><tr><th>Assay</th><th>Genomes processed</th><th>Detected</th><th>Escape</th><th>Region not found</th><th>Not assessable</th><th>Undetermined</th><th>Homopolymer bulges</th></tr></thead>
   <tbody>
   {% for m in p.members %}
   <tr><td>{{ m.assay_name }}<br><span class="meta">{{ m.file }}</span></td><td class="num">{{ m.processed }}</td>
-    {% for s in ['detected', 'escape', 'region not found', 'not assessable'] %}<td class="num">{{ m.states.get(s, 0) }}</td>{% endfor %}
+    {% for s in ['detected', 'escape', 'region not found', 'not assessable', 'undetermined'] %}<td class="num">{{ m.states.get(s, 0) }}</td>{% endfor %}
     <td>{{ 'detectable' if m.homopolymer_bulges_detectable else 'not detectable (strict)' }}</td></tr>
   {% endfor %}
   </tbody>
@@ -80,7 +80,7 @@ a { color: #1D5C8C; }
   {% endfor %}
   </tbody>
 </table></div>
-<p class="meta">Undetermined: no target detects the genome, but none shows an escape either (its regions are not found or not assessable). A genome in which no target region is found at all is more often an incomplete assembly or a partial record than a strain with every region deleted.{% if p.partial_records %} With Nucleotide records (variants.source blast_partitioned) "region not found" usually means the record is another gene or a partial sequence, so it counts as not assessable.{% endif %}</p>
+<p class="meta">Undetermined: no target detects the genome, but none shows an escape either (its regions are not found, not assessable or undetermined). A genome in which no target region is found at all is more often an incomplete assembly or a partial record than a strain with every region deleted.{% if p.partial_records %} With Nucleotide records (variants.source blast_partitioned) "region not found" usually means the record is another gene or a partial sequence, so it counts as not assessable.{% endif %}</p>
 
 <h3>Per release year</h3>
 <div class="scroll"><table>

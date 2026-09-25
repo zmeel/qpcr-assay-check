@@ -161,3 +161,21 @@ def test_a_full_target_hit_list_is_stated_as_a_bias_toward_perfect_matches(tmp_p
         tier_searched=True, now=NOW,
     )  # fmt: skip
     assert any("hit list was full" in r and "biased toward perfect" in r for r in result.rationale)
+
+
+def test_a_year_where_every_record_is_undetermined_has_no_percentage():
+    """Review finding: all-undetermined windows gave 0 % and a false WARN or FAIL."""
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.inclusivity.aggregate import _verdict, detectable_percent
+    from qpcr_assay_check.inclusivity.models import InclusivityOligoResult, WindowStats
+
+    undet = WindowStats(year=2024, population_size=3, sample_size=3, n_perfect=0,
+                        n_one_mismatch=3, n_two_plus_mismatch=0, n_three_prime_mismatch=0,
+                        n_detectable=0, n_undetermined=3, per_position_mismatches=[])  # fmt: skip
+    good = undet.model_copy(update={"year": 2025, "n_detectable": 3, "n_undetermined": 0})
+    assert detectable_percent(undet) is None and detectable_percent(good) == 100.0
+    rules = load_config().inclusivity
+    oligo = InclusivityOligoResult.model_construct(role="probe", windows=[undet, good])
+    verdict, rationale = _verdict([oligo], rules)
+    assert verdict.value == "PASS" and any("every assessed record is undetermined" in r
+                                           for r in rationale)  # fmt: skip

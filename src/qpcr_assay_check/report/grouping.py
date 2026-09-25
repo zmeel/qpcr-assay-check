@@ -3,7 +3,9 @@
 Every product and site stays in the workbook and hits.tsv; the HTML shows one row per tier and
 species, most concerning first (must-not-detect tiers before background, out of scope last),
 with the counts it summarises. Advice of the advisor subagent (2026-09-25): state the
-denominator on every row and never hide a WARN or FAIL in a collapsed block.
+denominator on every row and never hide a WARN or FAIL in a collapsed block. Rows that can
+fail the verdict (must-not-detect tiers, products the probe would detect, critical sites) are
+always shown; only the remaining rows beyond a fixed number go to the workbook.
 """
 
 from __future__ import annotations
@@ -106,6 +108,10 @@ class SiteGroup:
     def n_records(self) -> int:
         return len(self.records)
 
+    @property
+    def n_critical(self) -> int:
+        return self.levels["critical"]
+
 
 def _closeness(s: SiteResult) -> tuple[int, int]:
     return (s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
@@ -132,8 +138,20 @@ def group_sites(sites: list[SiteResult], species: dict[int, str]) -> list[SiteGr
     )  # fmt: skip
 
 
+def shown_rows(groups: list[Any], flagged: str, limit: int) -> tuple[list[Any], int]:
+    """The judged rows (out of scope excluded) to show and how many more are in the workbook:
+    near-neighbour rows and rows whose ``flagged`` count is non-zero always, then the others up
+    to ``limit``; the order of ``groups`` is kept."""
+    judged = [g for g in groups if g.tier != "out_of_scope"]
+    keep = {id(g) for g in judged if g.tier == "near_neighbours" or getattr(g, flagged)}
+    rest = [g for g in judged if id(g) not in keep]
+    keep |= {id(g) for g in rest[:limit]}
+    return [g for g in judged if id(g) in keep], max(0, len(rest) - limit)
+
+
 # ---------------------------------------------------------------- whole-fragment combinations
 OUTCOMES = ("likely failure", "at risk", "undetermined", "detectable")  # most concerning first
+_ORDER = (*OUTCOMES, "")  # "": sites without a class (not graded), listed after the rest
 
 
 def fragment_outcome(f: Any, bulges: bool = False) -> tuple[str, bool]:
@@ -181,21 +199,23 @@ def fragment_view(
 ) -> FragmentView:
     """Part A (needs attention: every combination that is not detectable, never lumped unless
     more than ``cap`` rows, then the tail grouped by outcome and type) and Part B (detectable:
-    the ``top`` most frequent, the rest in one summary row); advisor subagent, 2026-09-25."""
+    the ``top`` most frequent, the rest in one summary row); advisor subagent, 2026-09-25.
+    Combinations without a class (sites not graded) are never shown as detectable: they go to
+    Part A as "not classified"."""
     rows = [(f, *fragment_outcome(f, bulges)) for f in fragments]
     records: Counter = Counter()
     for f, outcome, _pair in rows:
-        records[outcome or "unclassified"] += f.count
+        records[outcome or "not classified"] += f.count
     attention = sorted(
-        [r for r in rows if r[1] not in ("detectable", "")],
-        key=lambda r: (OUTCOMES.index(r[1]), -r[0].count),
+        [r for r in rows if r[1] != "detectable"],
+        key=lambda r: (_ORDER.index(r[1]), -r[0].count),
     )
     grouped: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
     for f, outcome, _pair in attention[cap:]:
         kind = f.organisms[0][0] if f.organisms else "unknown"
         grouped[(outcome, kind)][0] += 1
         grouped[(outcome, kind)][1] += f.count
-    detectable = sorted([r for r in rows if r[1] in ("detectable", "")], key=lambda r: -r[0].count)
+    detectable = sorted([r for r in rows if r[1] == "detectable"], key=lambda r: -r[0].count)
     rest = detectable[top:]
     types: Counter = Counter()
     for f, _o, _p in rest:
@@ -207,7 +227,7 @@ def fragment_view(
         attention_grouped=[
             (o, k, n, c)
             for (o, k), (n, c) in sorted(
-                grouped.items(), key=lambda x: (OUTCOMES.index(x[0][0]), -x[1][1])
+                grouped.items(), key=lambda x: (_ORDER.index(x[0][0]), -x[1][1])
             )
         ],
         detectable_top=detectable[:top],

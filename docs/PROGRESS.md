@@ -3,6 +3,20 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-25 (later) — Second code review of the unreleased changes
+
+- The reviewer subagent reviewed `69b53ab..8e30922`: 11 findings, all verified against the code.
+  Fixed with a regression test each: worst-case site KeyError (1), R6 hiding real mismatches (2),
+  all-undetermined year at 0 % (3), panel undetermined vs escape (4), ungraded fragment rows shown
+  as detectable and `blast_hits` target sites not graded (5), out-of-scope fetch failures and
+  "no tier searched" (6), rows that can fail cut after 15 (7), non-existent template attribute
+  (8), docs vs code in MISMATCH_CLASSES (9), panel refusing different reason text (11).
+- Not changed (10): the inclusivity percentage ignores `homopolymer_bulges_detectable` (bulges
+  count as not detectable there), while copy coverage and the fragment table honour it; older
+  than this diff. R8 applies to genomes, not to the per-role percentage (by design). Both for the
+  recap.
+- 494 tests pass, ruff clean. Commits are local; push only after the user's go-ahead.
+
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 
 - The user supplied an in-house enterovirus RT-qPCR (two forward primers, degenerate reverse

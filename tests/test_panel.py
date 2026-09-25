@@ -191,3 +191,33 @@ def test_the_panel_judges_genomes_exactly_as_the_assay_report(tmp_path):
     detected = sum(all(c.role_good.values()) for c in calls)
     assert len(calls) == res.coverage.copies.genomes
     assert detected == res.coverage.copies.with_detectable_copy
+
+
+def test_an_undetermined_genome_is_not_a_panel_escape():
+    """Review finding: an MGB-probe mismatch (undetermined in the assay report) was an escape."""
+    from types import SimpleNamespace as NS
+
+    from qpcr_assay_check.panel import member_states
+    from qpcr_assay_check.variants.exhaustive import GenomeCall
+
+    call = GenomeCall(accession="G1.1", n_copies=1, n_detectable=0, best_is_first=True,
+                      n_detectable_other_rule=0, oligo_good={}, role_good={"probe": False},
+                      role_state={"forward": "ok", "reverse": "ok",
+                                  "probe": "undetermined"})  # fmt: skip
+    item = NS(accession="G1.1", status="ok")
+    ((state, _it),) = member_states([item], [call]).values()
+    assert state is State.UNDETERMINED
+    assert classify([state, State.NOT_FOUND]) is PanelClass.UNDETERMINED  # not "no target"
+
+
+def test_assays_differing_only_in_the_reason_text_are_accepted():
+    """Review finding: the reason text of target.taxa is not part of the genome collection."""
+    from qpcr_assay_check.panel import check_members
+
+    cfg = load_config()
+    cfg.variants.source = "blast_partitioned"
+
+    def assay(reason):
+        return make_assay(target={"taxid": 100, "taxa": [{"taxid": 200, "reason": reason}]})
+
+    check_members([assay("rhinovirus"), assay("a rhinovirus, not detected")], [cfg, cfg])

@@ -96,7 +96,9 @@ lost at 20 molecules for 2 mismatches and at 20-2,000 for 3), so these classes c
   from the figure, so `at_risk` may understate);
 - 4: `likely_failure` (Lefever: blocked "almost completely"), except 4 internal adjacent
   mismatches, which the authors attribute to "their location near the primer's 5' end" (p. 1476,
-  Fig. 5); the paper gives no size for this exception, `at_risk` is our choice.
+  Fig. 5); the paper gives no size for this exception, `at_risk` is our choice. The code applies
+  it to any 4 adjacent mismatches with none in the last 5 nt (e.g. -6 to -9), wider than the
+  paper's example near the 5' end.
 - These counts come from DNA assays (Lefever: intercalating dye, 20-mers, no RT step);
   Stadhouders' multi-mismatch RNA constructs were all in the forward primer (p. 114). They are
   not relaxed for the reverse primer in one-step RT-PCR (untested).
@@ -114,10 +116,14 @@ of the caveat the report prints.
 insertions or deletions. The `homopolymer_bulges_detectable` setting stays for the headline count
 until a source exists.
 
-**R6. Ambiguity codes in the genome sequence** (R, Y, ... in a consensus): today they count as a
-match. Proposed: `indeterminate` when an ambiguity code falls in the last 5 nt, else the class of
-the site with the code treated as a mismatch, flagged "uncertain base". No source; this is a
-presentation of uncertainty, not a prediction.
+**R6. Ambiguity codes in the genome sequence** (R, Y, ... in a consensus). Built: a code that can
+pair with the oligo base counts as a match when it lies beyond the last 5 nt. In the last 5 nt the
+site is graded twice, with the code as a match and as a mismatch: when both give a detectable
+class (or both do not), that class is kept (the worse one if both are detectable; the note says
+when the code could make a failing site worse); only when the code decides between detectable
+and not is the site `indeterminate` (R6). So an ambiguity code never hides a real failure. A
+code that cannot pair with the oligo base is a mismatch. No source; this is a presentation of
+uncertainty, not a prediction.
 
 **R7. Degenerate primers**: the best-matching variant is used (as now). No source for the effect of
 a partially matching primer pool; print that the class assumes the matching variant is present at
@@ -146,14 +152,17 @@ mismatch on an MGB probe is marked `indeterminate` rather than `tolerated`.
   the verdict thresholds (`warn_below_percent`, `fail_below_percent`) apply to
   `perfect + tolerated`; `at_risk` counts as not detected.
 - **Undetermined** (user decision 2026-09-25): a single mismatch in an MGB probe (R9) and an
-  ambiguity code in the genome in the last 5 nt (R6) are neither detected nor escaped: left out
-  of the inclusivity percentage and counted as "undetermined" genomes, not escapes. Other
+  ambiguity code in the genome in the last 5 nt that decides the class (R6) are neither detected
+  nor escaped: left out of the inclusivity percentage and counted as "undetermined" genomes, not
+  escapes (also in the panel check). A year in which every record is undetermined gets no
+  percentage and does not count in the verdict; the rationale says so. Other
   `indeterminate` sites are not: an unexplained gap near a primer's 3' end is often how the
   aligner writes two mismatches (seen in a test), so it counts as not detected, as before the
   classes; homopolymer bulges follow `homopolymer_bulges_detectable`. An MGB probe with 2 or more
   mismatches is `at_risk` (not detected), like other probes.
 - Copies/escapes: a genome's best copy is chosen by the class (then as now).
-- History: a class change for a known variant is a history event.
+- History: a class change for a known variant is a history event (not built yet; the history
+  compares the per-year detectable percentages).
 - No switch back to the old rule (kept simple). Records made before the classes still load: their
   inclusivity windows have no class counts and keep the old "0-1 mismatch, clean 3' end" figure,
   so the first comparison with such a record shows a change once.
@@ -175,7 +184,7 @@ mismatch on an MGB probe is marked `indeterminate` rather than `tolerated`.
 ## 9. Built, and still open
 
 Built: `oligo/grade.py` (R1-R3, R5, R6, R8, R9), grades on every target site of the variant
-analysis and of the sampled inclusivity, detectability and the primer-pair rule in the genome
+analysis (both sources) and of the sampled inclusivity, detectability and the primer-pair rule in the genome
 judgement, class counts per year (report and workbook) with the verdict on perfect + tolerated,
 the class on every variant row, tests per rule.
 

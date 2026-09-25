@@ -230,7 +230,8 @@ def assess_target_sites(
             found = assess_candidates(
                 cands, site_rules, fetcher, scoring, rules.window_padding_nt, ids
             )
-            sites += [s.model_copy(update={"id": f"T{s.id[1:]}"}) for s in found]
+            # graded as in the exhaustive analysis, so the fragment table can classify the rows
+            sites += [assay.graded(s).model_copy(update={"id": f"T{s.id[1:]}"}) for s in found]
 
     best: dict[tuple[str, str], SiteResult] = {}
     for s in sites:

@@ -209,3 +209,25 @@ def test_out_of_scope_products_cannot_crowd_out_judged_products():
     amps, _used, cut = predict_amplicons(sites, rules, make_assay())
     assert cut == {"out_of_scope"}
     assert sum(a.tier == "near_neighbours" for a in amps) == 1  # the judged product survives
+
+
+def test_out_of_scope_fetch_failures_and_searches_do_not_decide_the_verdict():
+    """Review finding: a failed window fetch in the out-of-scope tier made the verdict
+    INCOMPLETE, and an out-of-scope search alone counted as an assessed off-target tier."""
+    from qpcr_assay_check.specificity.findings import build_findings
+
+    rules = load_config().specificity
+
+    def findings(tiers, failed, failed_oos):
+        return build_findings(
+            sites=[], amplicons=[], site_by_id={}, counts=[], saturated=[],
+            off_tiers_seen=tiers, intended_target={}, target_searched=True, n_primer_only=0,
+            n_fetch_failed=failed, n_fetch_failed_out_of_scope=failed_oos,
+            amplicons_truncated=False, rules=rules,
+        )  # fmt: skip
+
+    f = findings(["near_neighbours", "out_of_scope"], 0, 2)
+    assert "INCOMPLETE" not in {x.severity for x in f}
+    assert any("could not be fetched" in x.message and x.severity == "INFO" for x in f)
+    only_oos = findings(["out_of_scope"], 0, 0)
+    assert any("No off-target tier was searched" in x.message for x in only_oos)

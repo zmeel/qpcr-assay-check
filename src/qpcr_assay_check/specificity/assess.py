@@ -110,12 +110,15 @@ def assess_specificity(
 
     # ---- fetch windows for the candidates that could still matter, then re-align
     log.info("Re-aligning %d partial hits (windows are cached)", len(pending))
+    failed_by_tier: dict[str, int] = defaultdict(int)
     for n, c in enumerate(pending, start=1):
         site_rules = rules.probe_site if c.role == "probe" else rules.primer_site
         window = None
         if c.accession != "unknown":
             lo, hi = window_for(c, rules.window_padding_nt, c.hit.length)
+            before = fetcher.n_failed
             window = fetcher.get(c.accession, lo, hi)
+            failed_by_tier[c.tier] += fetcher.n_failed - before
         if window is None:
             sites.append(site_from_bound(c, site_rules, f"S{next(ids)}"))
         else:
@@ -175,7 +178,8 @@ def assess_specificity(
         target_searched=any(r.tier == "target" for r in outcome.searches),
         oligo_roles={o.name: o.role for o in assay.oligo_list},
         n_primer_only=n_primer_only,
-        n_fetch_failed=fetcher.n_failed,
+        n_fetch_failed=sum(n for t, n in failed_by_tier.items() if t != OUT_OF_SCOPE_TIER),
+        n_fetch_failed_out_of_scope=failed_by_tier.get(OUT_OF_SCOPE_TIER, 0),
         amplicons_truncated=amp_truncated,
         rules=rules,
     )

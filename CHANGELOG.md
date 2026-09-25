@@ -51,6 +51,20 @@ All notable changes to this project are documented here. The format follows
   This also applies to the exclusivity table.
 
 ### Fixed (from a code review of the unreleased changes)
+- Second review (mismatch classes, report grouping): grading a worst-case site (window fetch
+  failed, unaligned ends '.') crashed the run with a KeyError; its unaligned ends are now
+  mismatches of unknown type. An ambiguity code near a 3' end no longer hides real mismatches:
+  the site is graded with the code as a match and as a mismatch, and is undetermined (R6) only
+  when the code decides between detectable and not. A year in which every record is
+  undetermined gets no percentage (was 0 %, a false WARN or FAIL). The panel counts undetermined
+  genomes as undetermined, not as escapes, and accepts assays whose target taxa differ only in
+  the reason text. Target sites of the sampled variant analysis (`blast_hits`) are graded, and
+  ungraded fragment combinations are "not classified", never shown as detectable. Out-of-scope
+  window fetch failures are information only, and an out-of-scope search alone no longer counts
+  as an assessed off-target tier. Grouped product and site rows that can fail the verdict are
+  always shown (only the rest is cut after 15 rows); the "no product" line names the tiers
+  actually searched. docs/MISMATCH_CLASSES.md now matches the code (R6, the R3 four-adjacent
+  exception, class changes in the history not built yet).
 - `specificity.max_amplicons` now applies per tier: in the live enterovirus run 500
   out-of-scope products (animal enteroviruses) filled the shared cap, made the products section
   INCOMPLETE, and could have crowded out products in judged tiers. A cut out-of-scope list is

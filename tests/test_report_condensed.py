@@ -105,3 +105,25 @@ def test_fragment_view_lists_every_problem_and_lumps_only_detectable():
     assert len(v.attention) == 30 and v.attention_grouped == [("likely failure", "EV-D68", 5, 10)]
     assert len(v.detectable_top) == 10 and v.detectable_rest == 5
     assert v.records["likely failure"] == 70 and v.records["detectable"] == total - 70
+
+
+def test_ungraded_combinations_are_never_shown_as_detectable():
+    """Review finding: rows without a class ('') were lumped into 'Detectable'."""
+    from qpcr_assay_check.report.grouping import fragment_view
+
+    ungraded = _site(None, 1)
+    v = fragment_view([_frag(ungraded, ungraded, ungraded, 5)], 5)
+    assert not v.detectable_top and v.detectable_rest == 0
+    assert [o for _f, o, _p in v.attention] == [""] and v.records["not classified"] == 5
+
+
+def test_rows_that_can_fail_are_always_shown():
+    """Review finding: products the probe would detect beyond 15 rows were only in the workbook."""
+    from qpcr_assay_check.report.grouping import shown_rows
+
+    groups = [NS(tier="background", n_detected=0, name=i) for i in range(20)]
+    groups += [NS(tier="exclusivity", n_detected=1, name=f"D{i}") for i in range(5)]
+    groups += [NS(tier="out_of_scope", n_detected=3, name="O")]
+    shown, hidden = shown_rows(groups, "n_detected", 15)
+    assert hidden == 5 and len(shown) == 20
+    assert all(g in shown for g in groups[20:25]) and groups[-1] not in shown

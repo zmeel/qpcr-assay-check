@@ -104,3 +104,24 @@ def test_one_mgb_mismatch_is_undetermined_not_an_escape(tmp_path):
         update={"grade": g.INDETERMINATE, "grade_rule": "R5", "n_gap": 1}
     )
     assert site_state(mgb1) == "undetermined" and site_state(gap) == "fail"
+
+
+def test_a_worst_case_site_is_graded_not_a_crash():
+    """Review finding: unaligned ends of a worst-case site ('.', window not fetched) raised
+    KeyError; they are mismatches of unknown type."""
+    grade = g.grade_primer(PRIMER, SITE[:-3] + "...")
+    assert grade.cls == g.FAILURE
+
+
+def test_an_ambiguity_code_never_hides_a_real_failure():
+    """Review finding: R6 was returned before the real mismatches were looked at."""
+    terminal = mutated(1)  # a terminal mismatch alone: likely failure
+    with_code = site_with({3: "Y"}, base=terminal)  # plus a compatible code at -3 (C)
+    grade = g.grade_primer(PRIMER, with_code)
+    assert grade.cls == g.FAILURE and "ambiguity" in grade.note
+    # the code decides between detectable and not: undetermined
+    assert g.grade_primer(PRIMER, site_with({2: "Y"})).rule == "R6"
+    # beyond the last 5 nt a compatible code is a match
+    assert g.grade_primer(PRIMER, site_with({6: "Y"})).cls == g.PERFECT  # -6 is C
+    # a code that cannot pair with the primer base is a plain mismatch
+    assert g.grade_primer(PRIMER, site_with({1: "Y"})).rule == "R1"  # -1 is A

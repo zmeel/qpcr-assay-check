@@ -61,6 +61,7 @@ def build_findings(
     oligo_roles: dict[str, str] | None = None,
     n_primer_only: int,
     n_fetch_failed: int,
+    n_fetch_failed_out_of_scope: int = 0,
     amplicons_truncated: bool | set[str],
     rules: SpecificitySettings,
 ) -> list[Finding]:
@@ -84,7 +85,7 @@ def build_findings(
             f" Configured off-target tiers not searched in this run: {', '.join(not_searched)}."
         )
     out.append(Finding(severity="INFO", message=scope, topic="search"))
-    if not off_tiers_seen:
+    if not [t for t in off_tiers_seen if t != OUT_OF_SCOPE_TIER]:
         out.append(
             Finding(
                 severity="INCOMPLETE",
@@ -128,6 +129,18 @@ def build_findings(
                 message=(
                     f"{n_fetch_failed} sequence window(s) could not be fetched; those hits were "
                     "assessed with worst-case assumptions and should be re-checked."
+                ),
+                topic="search",
+            )
+        )
+    if n_fetch_failed_out_of_scope:
+        out.append(
+            Finding(
+                severity="INFO",
+                message=(
+                    f"Tier '{OUT_OF_SCOPE_TIER}': {n_fetch_failed_out_of_scope} sequence "
+                    "window(s) could not be fetched; those hits were assessed with worst-case "
+                    "assumptions (information only)."
                 ),
                 topic="search",
             )

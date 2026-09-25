@@ -83,7 +83,7 @@ def _resolved_amplicon(a: AmpliconResult) -> AmpliconChange:
 
 
 def _pct(w: WindowStats) -> float | None:
-    return None if w.sample_size == 0 else detectable_percent(w)
+    return detectable_percent(w)
 
 
 def _inclusivity_changes(

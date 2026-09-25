@@ -13,11 +13,11 @@ from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
-from .grouping import fragment_view, group_products, group_sites, species_of
+from .grouping import fragment_view, group_products, group_sites, shown_rows, species_of
 from .ncbi_links import linkify, taxon_link
 
 RARE_VARIANT_PERCENT = 0.1  # rarer perfect/tolerated variants: one summary row (all in workbook)
-GROUP_ROWS_SHOWN = 15  # rows per grouped specificity table (must-not-detect rows always shown)
+GROUP_ROWS_SHOWN = 15  # further rows per grouped table (rows that can fail: always shown)
 CLOSEST_VARIANTS_SHOWN = 10  # closest off-target binding variants shown (all in the workbook)
 
 _GROUPS = [
@@ -228,6 +228,8 @@ def render_report(result: RunResult, cfg: Config) -> str:
         fragments=fragments,
         site_groups=site_groups,
         rows_shown=GROUP_ROWS_SHOWN,
+        products_shown=shown_rows(product_groups, "n_detected", GROUP_ROWS_SHOWN),
+        sites_shown=shown_rows(site_groups, "n_critical", GROUP_ROWS_SHOWN),
         grade_caveat=GRADE_CAVEAT,
         rare_below=RARE_VARIANT_PERCENT,
         list_full_note=LIST_FULL_NOTE,

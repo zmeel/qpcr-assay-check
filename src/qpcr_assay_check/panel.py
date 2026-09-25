@@ -61,6 +61,8 @@ class State(StrEnum):
     ESCAPE = "escape"  # region found, but no detectable copy
     NOT_FOUND = "region not found"  # the target region is absent or too divergent to find
     UNKNOWN = "not assessable"  # hidden by N, cut by a contig/record end
+    UNDETERMINED = "undetermined"  # no detectable copy, but no published basis to call it
+    # an escape either (a single MGB-probe mismatch, an ambiguity code near a 3' end)
 
 
 AFFECTED = (State.ESCAPE, State.NOT_FOUND)
@@ -137,6 +139,11 @@ def load_panel(path: Path) -> PanelFile:
         raise InputError(f"Invalid panel file {path}:\n{format_validation_error(exc)}") from exc
 
 
+def _roles(assay: Assay) -> set[tuple[int, str]]:
+    """The target's left-out taxa and their roles; the reason text does not matter."""
+    return {(t.taxid, t.role) for t in assay.target.taxa}
+
+
 def check_members(assays: list[Assay], cfgs: list[Config]) -> None:
     """Every assay must look at the same collection of genomes, or combining them is wrong."""
     first, cfg0 = assays[0], cfgs[0]
@@ -146,7 +153,7 @@ def check_members(assays: list[Assay], cfgs: list[Config]) -> None:
                 f"'{a.assay_name}' targets taxon {a.target.taxid}, '{first.assay_name}' taxon "
                 f"{first.target.taxid}: a panel combines assays for the same target."
             )
-        if a.target.taxa != first.target.taxa:
+        if _roles(a) != _roles(first):
             raise InputError(
                 f"'{a.assay_name}' and '{first.assay_name}' leave different taxa out of the "
                 "target, or give them different roles (target.taxa), so their genome "
@@ -191,6 +198,8 @@ def member_states(items: list[Any], calls: list[Any]) -> dict[str, tuple[State, 
             state = State.UNKNOWN  # hidden by N, or every copy cut by a contig/record end
         elif all(call_of[it.accession].role_good.values()):
             state = State.DETECTED
+        elif call_of[it.accession].undetermined:
+            state = State.UNDETERMINED
         else:
             state = State.ESCAPE
         out[it.accession.partition(".")[0]] = (state, it)
