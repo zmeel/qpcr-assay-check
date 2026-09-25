@@ -19,6 +19,10 @@ All notable changes to this project are documented here. The format follows
   This also applies to the exclusivity table.
 
 ### Fixed (from a code review of the unreleased changes)
+- `specificity.max_amplicons` now applies per tier: in the live enterovirus run 500
+  out-of-scope products (animal enteroviruses) filled the shared cap, made the products section
+  INCOMPLETE, and could have crowded out products in judged tiers. A cut out-of-scope list is
+  information only.
 - Panel: a genome with no target region found anywhere, and (with Nucleotide records) a record
   without a region, no longer counts as "detected by no target"; that needs a real escape.
 - Panel: assays with different record filters (nucleotide_query, current/atypical filters) or

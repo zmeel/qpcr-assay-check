@@ -83,6 +83,15 @@ verified NCBI facts) at the start of every session. Newest entry first.
   a type not tested at that position; "acceptable" for Taq + MMLV one-step mixes but "avoid in
   the reverse primer" with rTth, so it depends on the lab's RT-PCR mix. Wet-lab test still
   advised. NG poly-A bulges: not covered by the paper.
+- Lefever 2013 full text and the lab's mix (TaqMan Fast Virus 1-Step Master Mix, Applied
+  Biosystems) sent to the advisor; answer pending.
+- Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
+  target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
+  primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and
+  hit the shared max_amplicons cap -> products section INCOMPLETE: fixed (cap per tier, a cut
+  out-of-scope list is INFO). Overall FAIL now comes from inclusivity: reverse 2024 60% (below
+  fail_below_percent 80), driven by EV-D68 (816 of 5,130 records, 15.9%, C-A at -3).
+  74.4% with a detectable copy; F1 59.7%, F2 33.3%, none 365; reverse 81.2%; probe 99.9%.
 
 ## 2026-09-25 — v1.3.0 confirmed live and released
 

@@ -61,7 +61,7 @@ def build_findings(
     oligo_roles: dict[str, str] | None = None,
     n_primer_only: int,
     n_fetch_failed: int,
-    amplicons_truncated: bool,
+    amplicons_truncated: bool | set[str],
     rules: SpecificitySettings,
 ) -> list[Finding]:
     """All findings, most severe first within each topic.
@@ -198,11 +198,16 @@ def build_findings(
                     topic="amplicons",
                 )
             )
-    if amplicons_truncated:
+    cut = (
+        sorted(amplicons_truncated) if isinstance(amplicons_truncated, set)
+        else (["all tiers"] if amplicons_truncated else [])
+    )  # fmt: skip
+    for tier in cut:
         out.append(
             Finding(
-                severity="INCOMPLETE",
-                message="The list of predicted products was cut at max_amplicons.",
+                severity=judged(tier, "INCOMPLETE"),
+                message=f"Tier '{tier}': the list of predicted products was cut at "
+                "max_amplicons (per tier).",
                 topic="amplicons",
             )
         )

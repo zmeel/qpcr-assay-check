@@ -175,3 +175,37 @@ def test_the_report_lists_the_roles_and_reasons():
     html = render_report(evaluate(assay, cfg, qc_only=True), cfg)
     assert "Must not detect" in html and "rhinovirus (synthetic ID)" in html
     assert "Out of scope" in html and "animal virus (synthetic ID)" in html
+
+
+def test_out_of_scope_products_cannot_crowd_out_judged_products():
+    """Live 2026-09-25: 500 out-of-scope products filled max_amplicons (then shared by all
+    tiers) and made the products section INCOMPLETE. The cap is now per tier."""
+    from qpcr_assay_check.specificity.pairing import predict_amplicons
+
+    from .test_exclusivity import site
+
+    def primer(tier, acc, role, start, orient, sid):
+        s = site(1, role, "critical", tier=tier, site_id=sid)
+        return s.model_copy(
+            update={
+                "accession": acc,
+                "subject_start": start,
+                "subject_end": start + 19,
+                "orientation": orient,
+            }
+        )
+
+    sites = []
+    for i in range(3):  # three out-of-scope products, one judged product
+        sites += [
+            primer("out_of_scope", f"OOS{i}", "forward", 1, "+", f"O{i}F"),
+            primer("out_of_scope", f"OOS{i}", "reverse", 80, "-", f"O{i}R"),
+        ]
+    sites += [
+        primer("near_neighbours", "RV1", "forward", 1, "+", "NF"),
+        primer("near_neighbours", "RV1", "reverse", 80, "-", "NR"),
+    ]
+    rules = load_config().specificity.model_copy(update={"max_amplicons": 2})
+    amps, _used, cut = predict_amplicons(sites, rules, make_assay())
+    assert cut == {"out_of_scope"}
+    assert sum(a.tier == "near_neighbours" for a in amps) == 1  # the judged product survives

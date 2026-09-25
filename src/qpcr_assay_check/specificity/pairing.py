@@ -47,8 +47,10 @@ def _note(assay: Assay, rules: SpecificitySettings, site: SiteResult, rtype: str
 
 def predict_amplicons(
     sites: list[SiteResult], rules: SpecificitySettings, assay: Assay
-) -> tuple[list[AmpliconResult], set[str], bool]:
-    """Pair forward and reverse primer sites; returns ``(amplicons, ids of sites used, truncated)``.
+) -> tuple[list[AmpliconResult], set[str], set[str]]:
+    """Pair forward and reverse primer sites; returns ``(amplicons, ids of sites used, tiers
+    whose product list was cut)``. ``max_amplicons`` applies per tier, so one tier with many
+    products (e.g. out-of-scope relatives) cannot crowd out another tier's products.
 
     A pair forms a product when one site lies on each strand, they face each other (the '+' site
     starts first and the '-' site ends last), and the product is at most ``max_amplicon_size``.
@@ -62,8 +64,12 @@ def predict_amplicons(
 
     out: list[AmpliconResult] = []
     used: set[str] = set()
-    truncated = False
+    truncated: set[str] = set()
+    per_tier: dict[str, int] = defaultdict(int)
     for key in sorted(groups):
+        tier = key[0]
+        if tier in truncated:
+            continue
         members = sorted(groups[key], key=lambda x: (x.subject_start, x.subject_end, x.id))
         plus = [s for s in members if primer_can_prime(s) and s.orientation == "+"]
         minus = [s for s in members if primer_can_prime(s) and s.orientation == "-"]
@@ -80,9 +86,10 @@ def predict_amplicons(
                 length = right.subject_end - left.subject_start + 1
                 if length > rules.max_amplicon_size:
                     continue
-                if len(out) >= rules.max_amplicons:
-                    truncated = True
-                    return out, used, truncated
+                if per_tier[tier] >= rules.max_amplicons:
+                    truncated.add(tier)
+                    break
+                per_tier[tier] += 1
                 inside = [
                     p
                     for p in probes
