@@ -103,6 +103,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Stadhouders Table 1 + Lefever counts + pair rule; grades on target sites; detectable = perfect
   or tolerated; class counts per year (report, workbook), class chips on variant rows, fixed mix
   caveat. No switch back to the old rule. 479 tests pass. Not yet run live.
+- Enterovirus run with the classes (8,000 of 13,066): per-tier product cap works (products
+  INCOMPLETE -> PASS). With a detectable copy 90.6% (was 74.4%): reverse 98.5% (EV-D68 C-A at -3
+  now tolerated; 2024 60% -> 97%), forward none 389, probe none 196 = MGB probe with 1 mismatch
+  (indeterminate, R9) counted as escapes. Found: (1) the class columns and explanation were
+  hidden because the template looked at the first year only (empty 2017): fixed, test now
+  reproduces it; (2) indeterminate is counted as not detected / escape, while the design says
+  it counts as neither: to decide with the user.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and

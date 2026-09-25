@@ -131,6 +131,7 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     genomes = [
         FakeAssembly("GCA_000000110.1", "2026-02-01", copies(10, AMP.replace(F, longer_run))),
         FakeAssembly("GCA_000000111.1", "2026-03-01", copies(11, both_bad, AMP.replace(P, P2))),
+        FakeAssembly("GCA_000000099.1", "2025-05-01", {"CTG99.1": filler(3000, 99)}),  # no region
     ]
     res = run(tmp_path, genomes, probe=probes)
     assay = make_assay(reference_amplicon=AMP, target={"taxid": 813}, probe=probes)
@@ -143,7 +144,9 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     assert "poly-A run 4→5 (homopolymer length variant)" in html
     assert "Probe channels" in html and "any channel" in html
     assert "not counted (strict)" in html and "if homopolymer bulges are tolerated" in html
-    assert "Mismatch classes" in html and "Stadhouders" in html  # graded classes explained
+    # graded classes: the columns and the explanation, although the first year (2017) is empty
+    # (live 2026-09-25 they were hidden, as the template looked at the first year only)
+    assert "<th>Detectable</th>" in html and "<h3>Mismatch classes</h3>" in html
     assert 'class="chip s-INCOMPLETE"' in html  # the homopolymer bulge: indeterminate
     write_workbook(result, tmp_path / "r.xlsx")
     ws = load_workbook(tmp_path / "r.xlsx")["Copies and coverage"]
