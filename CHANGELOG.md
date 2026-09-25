@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Shorter, readable report** (user request 2026-09-25; layout advice from the advisor
+  subagent): predicted off-target products and off-target sites are one row per search tier and
+  species (identical products counted once, most concerning first, out-of-scope rows in a
+  collapsed "also detects" block, an explicit statement when the must-not-detect taxa have no
+  product); the per-taxid taxonomic breakdown moved to the workbook; closest off-target
+  variants cut to 10; variants and fragment combinations below 0.1 % that are perfect or
+  tolerated are one summary row (rare variants at risk, likely to fail or indeterminate are
+  always listed); the Searches table wraps its taxa list (5 shown, the rest folded). Every row
+  stays in the workbook (now also with the mismatch class) and hits.tsv.
 - **Graded mismatch classes replace the "0-1 mismatch, clean 3' end" rule** on the target
   (`oligo/grade.py`, variant analysis, inclusivity, report, workbook; docs/MISMATCH_CLASSES.md;
   user decision 2026-09-25): perfect / tolerated / at risk / likely failure / indeterminate, from

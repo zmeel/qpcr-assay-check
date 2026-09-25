@@ -302,12 +302,13 @@ def write_workbook(result: RunResult, path: Path) -> None:
             wb,
             "Oligo variants",
             ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Mismatches",
-             "Gaps", "Matching 3' nt", "Example accession", "Example organism",
-             "First release", "Last release"],
+             "Gaps", "Matching 3' nt", "Class", "Class rule", "Example accession",
+             "Example organism", "First release", "Last release"],
             [
                 [o.role if row.oligo_name in ("", o.role) else f"{o.role} {row.oligo_name}",
                  row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
-                 row.clean_3prime_nt, row.example_accession, row.example_organism or "",
+                 row.clean_3prime_nt, row.grade or "", row.grade_note,
+                 row.example_accession, row.example_organism or "",
                  row.first_seen or "", row.last_seen or ""]
                 for o in vs.oligos
                 for row in o.rows

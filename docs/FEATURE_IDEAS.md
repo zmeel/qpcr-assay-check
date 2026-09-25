@@ -168,6 +168,15 @@ Still not covered: probe/MGB mismatches, bulges, degenerate primers.
 
 Built (unreleased): [MISMATCH_CLASSES.md](MISMATCH_CLASSES.md), without a mix setting.
 
+## Report layout (advisor, 2026-09-25): not built yet
+
+- A first page for sign-off: assay identity, verdict per section in one sentence, key numbers
+  (records assessed, detectable per class, escapes, must-not-detect products or an explicit
+  none), top 5 escape clusters, at most 5 changes since the last run, the required statements.
+- Oligo QC and structures: only WARN/FAIL rows, with a count of the checks that passed.
+- Methods, settings and limitations in collapsed sections; never a WARN/FAIL inside one.
+- A `--full` option that renders every table, for the lab that wants the long form.
+
 ## Related tools (context, 2026-09-23)
 
 A short web search (not a full literature review; maintenance status not checked) found no

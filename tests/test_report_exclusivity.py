@@ -107,17 +107,19 @@ def test_the_exclusivity_table_shows_hit_and_zero_hit_and_unresolved_rows(n1):
     assert "likely_detected" in html
 
 
-def test_the_taxonomy_breakdown_table_appears(n1):
+def test_off_target_sites_are_shown_per_species(n1):
+    """The per-taxid breakdown (175 rows live) became one row per tier and species; the full
+    breakdown with genus and family stays in the workbook."""
     html = render_report(_result(n1), load_config())
-    assert "Taxonomic breakdown of off-target sites" in html
-    assert "Chlamydiaceae" in html
+    assert "Off-target sites per species" in html
+    assert "Chlamydia trachomatis" in html and "Chlamydiaceae" not in html
 
 
 def test_no_exclusivity_or_breakdown_when_not_computed(n1):
     cfg = load_config()
     html = render_report(evaluate(n1, cfg, qc_only=True, now=NOW), cfg)
     assert "<h2>Exclusivity against the clinical organism list</h2>" not in html
-    assert "<h2>Taxonomic breakdown of off-target sites</h2>" not in html
+    assert "<h2>Off-target sites per species</h2>" not in html
 
 
 def test_workbook_gets_exclusivity_and_taxonomy_sheets(n1, tmp_path):

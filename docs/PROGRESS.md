@@ -110,6 +110,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   hidden because the template looked at the first year only (empty 2017): fixed, test now
   reproduces it; (2) indeterminate is counted as not detected / escape, while the design says
   it counts as neither: to decide with the user.
+- Report made shorter at the user's request (too many endless tables); the advisor advised on a
+  clinical sign-off layout. Done: Searches taxa wrapped; products and sites grouped per tier and
+  species (report/grouping.py; duplicates from degenerate primer variants counted once);
+  taxonomic breakdown table -> workbook; closest variants top 10; rare (< 0.1 %) variants lumped
+  only when perfect/tolerated (advisor: rare risky variants must stay visible); class columns
+  in the workbook. 482 tests. Not done (advisor ideas, in FEATURE_IDEAS): first-page summary,
+  top escape clusters, QC table showing only WARN/FAIL, a --full option.
 - Enterovirus run with roles (6,000 of 13,066 records): new searches READY in ~1 min each;
   target search from cache. No rhinovirus product; rhinovirus primer sites now "critical
   primer site(s) forming no predicted product" (WARN). All 500 products were out_of_scope and

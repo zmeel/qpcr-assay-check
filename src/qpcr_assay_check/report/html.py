@@ -13,7 +13,12 @@ from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
+from .grouping import group_products, group_sites, species_of
 from .ncbi_links import linkify, taxon_link
+
+RARE_VARIANT_PERCENT = 0.1  # rarer perfect/tolerated variants: one summary row (all in workbook)
+GROUP_ROWS_SHOWN = 15  # rows per grouped specificity table (must-not-detect rows always shown)
+CLOSEST_VARIANTS_SHOWN = 10  # closest off-target binding variants shown (all in the workbook)
 
 _GROUPS = [
     ("forward", "Forward primer"),
@@ -173,13 +178,22 @@ def render_report(result: RunResult, cfg: Config) -> str:
     hidden = hidden_sites = 0
     if spec is not None:
         grouped = group_off_target_sites(spec.sites)
-        limit = max(cfg.specificity.report_top_sites * 2, 40)
+        limit = CLOSEST_VARIANTS_SHOWN
         shown, hidden = grouped[:limit], max(0, len(grouped) - limit)
         hidden_sites = sum(g.n_sites for g in grouped[limit:])
+    species = species_of(result.taxonomy_breakdown)
+    product_groups = (
+        group_products(spec.amplicons, {s.id: s for s in spec.sites}, species) if spec else []
+    )
+    site_groups = group_sites(spec.sites, species) if spec else []
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
+        product_groups=product_groups,
+        site_groups=site_groups,
+        rows_shown=GROUP_ROWS_SHOWN,
         grade_caveat=GRADE_CAVEAT,
+        rare_below=RARE_VARIANT_PERCENT,
         list_full_note=LIST_FULL_NOTE,
         qc=result.oligo_qc,
         assay=result.assay,

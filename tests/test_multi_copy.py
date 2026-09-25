@@ -114,13 +114,10 @@ def test_a_second_reference_finds_a_lineage_the_first_cannot(tmp_path):
     assert res.coverage.not_found == 0 and res.coverage.found == 1  # rescanned once, found
 
 
-def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(tmp_path):
-    from openpyxl import load_workbook
-
+def run_report_result(tmp_path):
+    """A full RunResult from a small SYNTHETIC multi-copy run (used by report tests)."""
     from qpcr_assay_check.config import load_config
     from qpcr_assay_check.pipeline import evaluate
-    from qpcr_assay_check.report.html import render_report
-    from qpcr_assay_check.report.xlsx import write_workbook
 
     from .test_variants_exhaustive import _empty_specificity
 
@@ -136,9 +133,19 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     res = run(tmp_path, genomes, probe=probes)
     assay = make_assay(reference_amplicon=AMP, target={"taxid": 813}, probe=probes)
     cfg = load_config()
-    result = evaluate(assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
-                      release_dates=res.release_dates, inclusivity=res.inclusivity,
-                      specificity=_empty_specificity())  # fmt: skip
+    return evaluate(assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+                    release_dates=res.release_dates, inclusivity=res.inclusivity,
+                    specificity=_empty_specificity())  # fmt: skip
+
+
+def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(tmp_path):
+    from openpyxl import load_workbook
+
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+    from qpcr_assay_check.report.xlsx import write_workbook
+
+    result, cfg = run_report_result(tmp_path), load_config()
     html = render_report(result, cfg)
     assert "Copies, coverage per oligo, and escapes" in html and "none of them" in html
     assert "poly-A run 4→5 (homopolymer length variant)" in html

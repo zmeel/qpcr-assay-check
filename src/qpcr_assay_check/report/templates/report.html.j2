@@ -55,6 +55,8 @@ th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(
 thead th { background: #EAEFF3; font-weight: 600; }
 tr.group th { background: #F1F4F7; font-size: .8rem; color: var(--muted); font-weight: 600; }
 td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+details.more { display: inline; } details.more summary { cursor: pointer; color: var(--muted); display: inline; }
 td.note { color: var(--muted); }
 .scroll { overflow-x: auto; }
 .seq { font-family: var(--mono); font-size: .92rem; letter-spacing: .04em; word-break: break-all; }
@@ -250,8 +252,8 @@ td.aln-cell { min-width: 22rem; }
   <thead><tr><th>Tier</th><th>Taxa (NCBI taxonomy ID)</th><th>Searches</th><th>Hits per query</th><th>Hit list saturated</th><th>RIDs</th></tr></thead>
   <tbody>
   {% for t in search_rows %}
-  <tr><td>{{ t.tier }}</td><td class="num">{{ t.taxids | map('taxon') | join(', ') }}</td><td class="num">{{ t.n }}</td>
-    <td>{% for k, v in t.hits.items() %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+  <tr><td>{{ t.tier }}</td><td>{{ t.taxids[:5] | map('taxon') | join(', ') }}{% if t.taxids | length > 5 %} <details class="more"><summary>+{{ t.taxids | length - 5 }} more</summary>{{ t.taxids[5:] | map('taxon') | join(', ') }}</details>{% endif %}</td><td class="num">{{ t.n }}</td>
+    <td>{% for k, v in t.hits.items() %}<span class="nowrap">{{ k }}: {{ v }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
     <td>{% if t.saturated %}{{ chip('INCOMPLETE') }} {{ t.saturated | join(', ') }}{% else %}no{% endif %}</td>
     <td class="num">{{ t.rids | join(', ') }}</td></tr>
   {% endfor %}
@@ -270,23 +272,31 @@ td.aln-cell { min-width: 22rem; }
   re-alignment{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.</p>
 
 <h2>Predicted off-target products</h2>
-{% if spec and spec.amplicons | selectattr('tier', 'equalto', 'out_of_scope') | list %}<p class="meta">Products in tier <code>out_of_scope</code> are taxa the assay is allowed to detect but that are not its intended target (<code>target.taxa</code> with role out_of_scope): they show what the assay <em>also detects</em>, as information, and do not affect the specificity verdict.</p>{% endif %}
-{% if spec.amplicons %}
-<div class="scroll"><table>
-  <thead><tr><th>ID</th><th>Tier</th><th>Organism / record</th><th>Position</th><th>Length</th><th>Primers</th><th>Probe</th><th>Class</th></tr></thead>
+{% macro product_table(groups) %}<div class="scroll"><table>
+  <thead><tr><th>Tier</th><th>Species</th><th>Products</th><th>Probe signal</th><th>Closest product</th><th>Length</th><th>Primer pairs</th></tr></thead>
   <tbody>
-  {% for a in spec.amplicons %}
-  <tr><td>{{ a.id }}</td><td>{{ a.tier }}</td><td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession | ncbi }} ({{ a.record_type }})</span></td>
-    <td class="num">{{ a.start }}–{{ a.end }}</td><td class="num">{{ a.length }} bp</td><td>{{ a.roles }}</td>
-    <td>{{ a.probe_site or 'no site' }}</td><td>{{ chip(a.classification) }}{% if a.note %}<br><span class="meta">{{ a.note | ncbi }}</span>{% endif %}</td></tr>
+  {% for g in groups %}
+  <tr><td>{{ g.tier }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
+    <td class="num">{{ g.n_products }}<br><span class="meta">{{ g.n_records }} record{{ '' if g.n_records == 1 else 's' }}</span></td>
+    <td>{% if g.n_detected %}{{ chip('likely_detected') }} {{ g.n_detected }}{% endif %}{% if g.n_products - g.n_detected %}{% if g.n_detected %}<br>{% endif %}{{ chip('amplified_not_detected') }} {{ g.n_products - g.n_detected }}{% endif %}</td>
+    <td>{{ g.best_mismatches }} primer mismatch{{ '' if g.best_mismatches == 1 else 'es' }}<br><span class="meta">{{ g.best.accession | ncbi }} {{ g.best.start }}–{{ g.best.end }}</span></td>
+    <td class="num">{{ g.length_range }}</td><td>{% for pair, c in g.pairs.most_common(3) %}{{ pair }}{% if g.pairs | length > 1 %} ({{ c }}){% endif %}{{ '<br>' | safe if not loop.last }}{% endfor %}</td></tr>
   {% endfor %}
   </tbody>
-</table></div>
-<p class="meta">A product is predicted when two primer sites of at least warning level face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp.
-  “Likely detected” means the probe also binds inside it; “amplified, not detected” means it does not.
-  {{ spec.n_primer_only }} primer site(s) at warning or critical level formed no product.</p>
+</table></div>{% endmacro %}
+{% if spec.amplicons %}
+{% set judged = product_groups | rejectattr('tier', 'equalto', 'out_of_scope') | list %}
+{% set oos = product_groups | selectattr('tier', 'equalto', 'out_of_scope') | list %}
+<p class="meta">One row per search tier and species (identical products counted once), most concerning first: products the probe would detect, then the fewest primer mismatches. Every product is listed in the workbook (sheet "Predicted products"). A product is predicted when two primer sites of at least warning level face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp; {{ spec.n_primer_only }} primer site(s) at warning or critical level formed no product.</p>
+{% if judged %}{% set must = judged | selectattr('tier', 'equalto', 'near_neighbours') | list %}{{ product_table(must + (judged | rejectattr('tier', 'equalto', 'near_neighbours') | list)[:rows_shown]) }}{% if (judged | length) - (must | length) > rows_shown %}<p class="meta">{{ (judged | length) - (must | length) - rows_shown }} further species row(s): see the workbook.</p>{% endif %}
+{% else %}<p>No product was predicted in the judged tiers ({{ spec.off_target_tiers_seen | default([]) | join(', ') or 'near neighbours, background, exclusivity' }}).</p>{% endif %}
+{% if assay.target.must_not_detect_taxids and not (judged | selectattr('tier', 'equalto', 'near_neighbours') | list) %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}
+{% if oos %}<details><summary><strong>Also detects (out of scope, information only):</strong> {{ oos | sum(attribute='n_products') }} product(s) in {{ oos | length }} species</summary>
+<p class="meta">Taxa the assay is allowed to detect but that are not its intended target (<code>target.taxa</code> with role out_of_scope); not part of the specificity verdict.</p>
+{{ product_table(oos) }}</details>{% endif %}
 {% else %}
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
+{% if assay.target.must_not_detect_taxids %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}
 {% endif %}
 
 {% if r.variant_summary and ((r.variant_summary.oligos | selectattr('rows') | list) or r.variant_summary.coverage) %}
@@ -356,12 +366,16 @@ td.aln-cell { min-width: 22rem; }
 <div class="scroll"><table>
   <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Match to the oligo</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
-  {% for row in o.rows %}
+  {% set rare = o.rows | selectattr('percent', 'lt', rare_below) | selectattr('grade', 'in', ['perfect', 'tolerated']) | list %}{% set shown = o.rows | reject('in', rare) | list %}
+  {% for row in shown %}
   <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
     <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
     <td>{% if alts | length > 1 %}<strong>{{ row.oligo_name }}</strong>: {% endif %}{{ match(row, o.role != 'probe') }}</td>
     <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
+  {% if rare %}{% set n_rare = rare | sum(attribute='count') %}
+  <tr class="group"><td colspan="{{ 6 if cov else 5 }}"><strong>{{ rare | length }} other variant{{ '' if rare | length == 1 else 's' }}</strong>, each seen in fewer than {{ rare_below }}% of records and all perfect or tolerated: {{ n_rare }} record{{ '' if n_rare == 1 else 's' }} ({{ pct(100.0 * n_rare / o.total_measured) }}). Rare variants at risk, likely to fail or indeterminate are always listed above. All variants are in the workbook (sheet "Oligo variants").</td></tr>
+  {% endif %}
   </tbody>
 </table></div>
 {% if o.n_excluded_unmeasured %}<p class="meta">{{ o.n_excluded_unmeasured }} further target-tier site(s) for this oligo excluded from this table: not fully re-aligned (worst-case estimate only).</p>{% endif %}
@@ -374,12 +388,16 @@ td.aln-cell { min-width: 22rem; }
 <div class="scroll"><table>
   <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Mismatches (F / P / R)</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
-  {% for f in r.variant_summary.fragments %}
+  {% set safe = ['perfect', 'tolerated'] %}{% set frare = [] %}{% for f in r.variant_summary.fragments %}{% if f.percent < rare_below and f.forward.grade in safe and f.probe.grade in safe and f.reverse.grade in safe %}{% set _ = frare.append(f) %}{% endif %}{% endfor %}
+  {% for f in r.variant_summary.fragments if f not in frare %}
   <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
     <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
     <td>{{ f.forward.n_mismatch + f.forward.n_gap }} / {{ f.probe.n_mismatch + f.probe.n_gap }} / {{ f.reverse.n_mismatch + f.reverse.n_gap }}</td>
     <td>{{ f.example_accession | ncbi }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
+  {% if frare %}{% set n_fr = frare | sum(attribute='count') %}
+  <tr class="group"><td colspan="{{ 8 if cov else 7 }}"><strong>{{ frare | length }} other combination{{ '' if frare | length == 1 else 's' }}</strong>, each seen in fewer than {{ rare_below }}% of records with all three sites perfect or tolerated: {{ n_fr }} record{{ '' if n_fr == 1 else 's' }} ({{ pct(100.0 * n_fr / r.variant_summary.fragment_total) }}). All combinations are in the workbook (sheet "Fragment variants").</td></tr>
+  {% endif %}
   </tbody>
 </table></div>
 {% else %}
@@ -465,17 +483,25 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 
 {% if r.taxonomy_breakdown %}
-<h2>Taxonomic breakdown of off-target sites</h2>
-<p class="meta">Every off-target tier (near neighbours, background, exclusivity), by the taxon each site's subject record belongs to. Species/genus/family come from
-  Entrez Taxonomy lineages, cached; a blank rank means the lineage could not be determined.</p>
-<div class="scroll"><table>
-  <thead><tr><th>Organism</th><th>Species</th><th>Genus</th><th>Family</th><th>Sites</th></tr></thead>
+<h2>Off-target sites per species</h2>
+{% macro site_table(groups) %}<div class="scroll"><table>
+  <thead><tr><th>Tier</th><th>Species</th><th>Sites</th><th>Critical / warning</th><th>Closest site</th></tr></thead>
   <tbody>
-  {% for t in r.taxonomy_breakdown %}
-  <tr><td>{{ t.scientific_name or 'taxid' }}<br><span class="meta">taxid {{ t.taxid | taxon }}</span></td><td>{{ t.species or '–' }}</td><td>{{ t.genus or '–' }}</td><td>{{ t.family or '–' }}</td><td class="num">{{ t.n_sites }}</td></tr>
+  {% for g in groups %}
+  <tr><td>{{ g.tier }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
+    <td class="num">{{ g.n_sites }}<br><span class="meta">{{ g.n_records }} record{{ '' if g.n_records == 1 else 's' }}</span></td>
+    <td class="num">{{ g.levels['critical'] }} / {{ g.levels['warning'] }}</td>
+    <td>{{ g.best.query }}: {{ g.best.n_mismatch }} mismatch{{ '' if g.best.n_mismatch == 1 else 'es' }}{% if g.best.n_gap %} + {{ g.best.n_gap }} gap{% endif %}, {{ g.best.clean_3prime_nt }} clean 3′ nt<br><span class="meta">{{ g.best.accession | ncbi }}</span></td></tr>
   {% endfor %}
   </tbody>
-</table></div>
+</table></div>{% endmacro %}
+{% if site_groups %}
+{% set judged_s = site_groups | rejectattr('tier', 'equalto', 'out_of_scope') | list %}{% set oos_s = site_groups | selectattr('tier', 'equalto', 'out_of_scope') | list %}
+<p class="meta">Off-target sites at warning or critical level, one row per search tier and species (species from NCBI Taxonomy lineages), closest first. Every site is in hits.tsv and the workbook (sheets "Off-target sites" and "Taxonomy breakdown").</p>
+{% set must_s = judged_s | selectattr('tier', 'equalto', 'near_neighbours') | list %}{{ site_table(must_s + (judged_s | rejectattr('tier', 'equalto', 'near_neighbours') | list)[:rows_shown]) }}
+{% if (judged_s | length) - (must_s | length) > rows_shown %}<p class="meta">{{ (judged_s | length) - (must_s | length) - rows_shown }} further species row(s): see the workbook.</p>{% endif %}
+{% if oos_s %}<details><summary><strong>Out of scope (information only):</strong> {{ oos_s | sum(attribute='n_sites') }} site(s) in {{ oos_s | length }} species</summary>{{ site_table(oos_s) }}</details>{% endif %}
+{% else %}<p>No off-target site at warning or critical level.</p>{% endif %}
 {% endif %}
 
 <h2>Closest off-target sites</h2>
@@ -483,7 +509,7 @@ td.aln-cell { min-width: 22rem; }
 <p class="meta">Off-target sites grouped by oligo and alignment: sites where an oligo aligns identically bind the same way, so each row is one binding variant, with how many sites and records have it and in which organisms.
   Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
   shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The primer 3′ end (last 5 nucleotides) is underlined.
-  Closest (most likely to bind) first; every single site is in hits.tsv and the workbook's "Off-target sites" sheet.</p>
+  Only the closest (most likely to bind) variants are shown; every single site is in hits.tsv and the workbook's "Off-target sites" sheet.</p>
 <div class="scroll"><table>
   <thead><tr><th>Level</th><th>Oligo</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th><th>Sites</th><th>Organisms</th></tr></thead>
   <tbody>
