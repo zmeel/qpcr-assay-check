@@ -127,3 +127,25 @@ def test_rows_that_can_fail_are_always_shown():
     shown, hidden = shown_rows(groups, "n_detected", 15)
     assert hidden == 5 and len(shown) == 20
     assert all(g in shown for g in groups[20:25]) and groups[-1] not in shown
+
+
+def test_fragment_outcome_reads_real_variant_rows():
+    """Live-run crash (2026-09-25): VariantRow had no grade_rule, so an indeterminate site in the
+    whole-fragment table raised AttributeError. Built from real rows, not stand-ins."""
+    from qpcr_assay_check.report.grouping import fragment_outcome
+    from qpcr_assay_check.specificity.variants import _variant_row
+
+    from .test_exclusivity import site
+
+    def row(role, grade, rule="", n_mismatch=0):
+        s = site(1, role, "critical").model_copy(
+            update={"grade": grade, "grade_rule": rule, "n_mismatch": n_mismatch}
+        )
+        return _variant_row(s, 1, 1)
+
+    ok_f, ok_r = row("forward", "perfect"), row("reverse", "perfect")
+    mgb = row("probe", "indeterminate", "R9", 1)
+    assert mgb.grade_rule == "R9"
+    assert fragment_outcome(_frag(ok_f, mgb, ok_r, 1))[0] == "undetermined"
+    gap = row("probe", "indeterminate", "R5")
+    assert fragment_outcome(_frag(ok_f, gap, ok_r, 1))[0] == "at risk"

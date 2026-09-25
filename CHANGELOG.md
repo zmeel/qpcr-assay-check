@@ -51,6 +51,9 @@ All notable changes to this project are documented here. The format follows
   This also applies to the exclusivity table.
 
 ### Fixed (from a code review of the unreleased changes)
+- The whole-fragment table crashed the report (`AttributeError: 'VariantRow' object has no
+  attribute 'grade_rule'`) when a combination held an indeterminate site (live enterovirus run,
+  2026-09-25); variant rows now carry the rule, and the test uses real rows.
 - Second review (mismatch classes, report grouping): grading a worst-case site (window fetch
   failed, unaligned ends '.') crashed the run with a KeyError; its unaligned ends are now
   mismatches of unknown type. An ambiguity code near a 3' end no longer hides real mismatches:

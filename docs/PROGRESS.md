@@ -15,7 +15,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   count as not detectable there), while copy coverage and the fragment table honour it; older
   than this diff. R8 applies to genomes, not to the per-role percentage (by design). Both for the
   recap.
-- 494 tests pass, ruff clean. Commits are local; push only after the user's go-ahead.
+- Pushed (ca32c23..e342037). The user's next live run then crashed while writing report.html:
+  `VariantRow` had no `grade_rule`, read by `fragment_outcome` for indeterminate sites (the
+  tests used stand-in objects). Fixed, with a test on real rows (fails without the fix).
+  Lesson: grouping tests should build real models, not SimpleNamespace stand-ins.
+- 495 tests pass, ruff clean. Push only after the user's go-ahead.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 

@@ -62,6 +62,7 @@ class VariantRow(BaseModel):
     oligo_name: str = Field(default="", description="the oligo (of the role's alternatives) seen")
     note: str = Field(default="", description="e.g. a homopolymer run-length variant")
     grade: str | None = Field(default=None, description="graded mismatch class")
+    grade_rule: str = Field(default="", description="the rule that set the class, e.g. R1")
     grade_note: str = ""
     count: int
     percent: float
@@ -149,6 +150,7 @@ def _variant_row(
         oligo_name=_DEGENERATE.sub("", s.query),
         note=s.note,
         grade=s.grade,
+        grade_rule=s.grade_rule or "",
         grade_note=(f"{s.grade_rule}: {s.grade_note}" if s.grade_rule else s.grade_note),
         count=count,
         percent=100.0 * count / total if total else 0.0,
