@@ -83,6 +83,22 @@ def _single_in_last5(m: _Mismatch) -> Grade:
     return Grade(cls, "R1", note)
 
 
+def _terminal_gap_columns(q_aln: str, s_aln: str) -> set[int]:
+    """Columns where an oligo base at either end has no partner in the genome (the alignment
+    starts or ends with genome gaps): read as mismatches at those positions, not as a gap
+    (user, 2026-09-26: a 5'-terminal overhang made a poly-A 7->8 site 'indeterminate')."""
+    q, s = q_aln.upper(), s_aln.upper()
+    cols: set[int] = set()
+    for order in (range(len(q)), range(len(q) - 1, -1, -1)):
+        for i in order:
+            if q[i] == "-":
+                break
+            if s[i] != "-":
+                break
+            cols.add(i)
+    return cols
+
+
 def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], list[_Mismatch], bool]:
     """Mismatches by position from the 3' end; ambiguity codes in the site that are compatible
     with the oligo and fall in the last 5 nt (a match or a mismatch, the genome does not say);
@@ -90,18 +106,22 @@ def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], list[_Mismatch
     that cannot pair with the oligo base is a mismatch. An unaligned end of a worst-case site
     ('.', the window could not be fetched) is a mismatch of unknown type."""
     length = sum(c != "-" for c in q_aln)
+    ends = _terminal_gap_columns(q_aln, s_aln)
     pos = 0
     out: list[_Mismatch] = []
     amb: list[_Mismatch] = []
     gap = False
-    for qc, sc in zip(q_aln.upper(), s_aln.upper(), strict=True):
+    for i, (qc, sc) in enumerate(zip(q_aln.upper(), s_aln.upper(), strict=True)):
         if qc == "-":
             gap = True
             continue
         pos += 1
         from_3 = length - pos + 1
         if sc == "-":
-            gap = True
+            if i in ends:  # an oligo end without a partner base: a mismatch there, not a gap
+                out.append(_Mismatch(from_3, ""))
+            else:
+                gap = True
             continue
         if sc == ".":
             out.append(_Mismatch(from_3, ""))
@@ -182,7 +202,9 @@ def _homopolymer_bulge(q_aln: str, s_aln: str, min_run: int = 3) -> _Bulge | Non
     """The gap, if it is one block that only changes the length of a single-base run of at least
     ``min_run`` bases in the oligo (the position of such a gap within the run is arbitrary)."""
     q, s = q_aln.upper(), s_aln.upper()
-    cols = [i for i, (a, b) in enumerate(zip(q, s, strict=True)) if a == "-" or b == "-"]
+    ends = _terminal_gap_columns(q_aln, s_aln)
+    cols = [i for i, (a, b) in enumerate(zip(q, s, strict=True))
+            if (a == "-" or b == "-") and i not in ends]  # fmt: skip
     if not cols or cols[-1] - cols[0] + 1 != len(cols):
         return None
     in_q = q[cols[0]] == "-"

@@ -249,3 +249,14 @@ def test_history_site_changes_are_grouped_and_minor_ones_only_counted():
                     ("new", "background", "Homo sapiens", 3),
                     ("resolved", "background", "Homo sapiens", 1)]  # fmt: skip
     assert v.groups[1].example.accession == "C1"  # the critical one is the example
+
+
+def test_runs_of_inserted_or_deleted_bases_are_written_once():
+    """Live Neisseria report (user, 2026-09-26): 'insertion between -11 and -10' was repeated
+    once per inserted base."""
+    from qpcr_assay_check.report.grouping import site_changes
+
+    two_in = NS(q_aln="CGGTTTGACCGGTT--AAAAAAAGAT", s_aln="CGGTTTGACCGGTTAAAAAAAAAGAT")
+    assert site_changes(two_in) == "2-base insertion between -11 and -10"
+    two_del = NS(q_aln="CCCTTCAACATCAGTGAAA", s_aln="CCCTTCA--ATCAGTGAAA")
+    assert site_changes(two_del) == "-12 to -11 deleted (2 bases)"

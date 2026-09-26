@@ -131,6 +131,10 @@ All notable changes to this project are documented here. The format follows
   This also applies to the exclusivity table.
 
 ### Fixed (from a code review of the unreleased changes)
+- An oligo end without a partner base in the genome counts as a mismatch at that position, not
+  as a gap, so e.g. a 5'-terminal overhang plus poly-A 7->8 is at risk (R5b) like the other 7->8
+  sites instead of indeterminate. Runs of inserted or deleted bases are written once in the
+  variant tables ("2-base insertion between -11 and -10", "-12 to -11 deleted (2 bases)").
 - Assemblies whose download fails on repeated runs (2 attempts) count as "could not be
   downloaded": left out, listed, tried again each run, and no longer keep the variant analysis
   "incomplete" with "run again to continue" (live Neisseria runs: the same 39 failed every run).

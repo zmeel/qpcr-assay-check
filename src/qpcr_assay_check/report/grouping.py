@@ -232,26 +232,50 @@ _COMP = {"A": "T", "C": "G", "G": "C", "T": "A"}
 def site_changes(row: Any) -> str:
     """The differences of a site from its oligo, short: position from the 3' end and the type
     primer-template (as in the class notes, Stadhouders' convention), e.g. "-3 C-A, -12 G-T".
-    Degenerate or ambiguous bases are written oligo/site; gaps and unaligned ends by name."""
+    Degenerate or ambiguous bases are written oligo/site; runs of inserted or deleted bases are
+    written once ("2-base insertion between -11 and -10", "-12 to -11 deleted")."""
     q, s = row.q_aln.upper(), row.s_aln.upper()
     length = sum(c != "-" for c in q)
     pos = 0
     out: list[str] = []
+    ins = 0  # bases inserted in the genome since the last oligo base
+    deleted: list[int] = []  # consecutive oligo positions without a genome base
+
+    def flush() -> None:
+        nonlocal ins
+        if ins:
+            where = f"between -{length - pos + 1} and -{length - pos}"
+            out.append(f"insertion {where}" if ins == 1 else f"{ins}-base insertion {where}")
+            ins = 0
+        if deleted:
+            n = len(deleted)
+            span = f"-{deleted[0]}" if n == 1 else f"-{deleted[0]} to -{deleted[-1]}"
+            out.append(f"{span} deleted" + (f" ({n} bases)" if n > 1 else ""))
+            deleted.clear()
+
     for qc, sc in zip(q, s, strict=True):
         if qc == "-":
-            out.append(f"insertion between -{length - pos + 1} and -{length - pos}")
+            if deleted:
+                flush()
+            ins += 1
             continue
+        if ins:
+            flush()
         pos += 1
         at = length - pos + 1
         if sc == "-":
-            out.append(f"-{at} deleted")
-        elif sc == ".":
+            deleted.append(at)
+            continue
+        if deleted:
+            flush()
+        if sc == ".":
             out.append(f"-{at} unaligned")
         elif qc in _COMP and sc in _COMP:
             if qc != sc:
                 out.append(f"-{at} {qc}-{_COMP[sc]}")
         elif not iupac.compatible(qc, sc):
             out.append(f"-{at} {qc}/{sc}")
+    flush()
     return ", ".join(out) or "none"
 
 

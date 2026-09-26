@@ -160,3 +160,14 @@ def test_a_gap_never_hides_mismatches_that_already_fail():
     assert g.grade_primer(PRIMER[:-1] + "-", mutated(1, 2, 3)[:-1] + "A").cls == g.FAILURE
     # a gap alone (no mismatches) stays indeterminate
     assert g.grade_probe(probe, "CCCTTCA-CATCAGTGAAA", mgb=True).rule == "R5"
+
+
+def test_an_oligo_end_without_a_partner_base_is_a_mismatch_not_a_gap():
+    """Live Neisseria report (user, 2026-09-26): '-24 deleted' plus poly-A 7->8 was
+    indeterminate because of two gap blocks; the 5'-terminal base without a partner is a 5'
+    mismatch, so the site is graded like the other poly-A 7->8 sites. SYNTHETIC alignments."""
+    q, s = "CGGTTTGACCGGTT-AAAAAAAGAT", "-GGTTTGACCGGTTAAAAAAAAGAT"
+    assert (g.grade_primer(q, s).cls, g.grade_primer(q, s).rule) == (g.AT_RISK, "R5b")
+    # a 3'-terminal base without a partner is a terminal mismatch: likely failure
+    three = g.grade_primer("ACGTACGTACGTACGTACGT", "ACGTACGTACGTACGTACG-")
+    assert three.cls == g.FAILURE and three.rule == "R1"
