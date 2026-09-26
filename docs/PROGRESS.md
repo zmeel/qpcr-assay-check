@@ -69,8 +69,8 @@ verified NCBI facts) at the start of every session. Newest entry first.
   discrimination in the MGB (3') region; no data by position; keep "undetermined", optionally show
   the zone, and add a lab-evidence override in the assay file (built on the user's request: `evidence:`,
   rule LAB; zone display not built).
-- v1.4.0 prepared (2026-09-26): version, CHANGELOG section. The user merges and tags
-  (tag pushes are blocked from this environment).
+- v1.4.0 released (2026-09-26): PR #20 merged (5b56c3f), tag v1.4.0 set by the user on the
+  merge commit. CI runs `ruff format --check` too: run it before every commit.
 - Open for the recap: CP171264.1 (N. meningitidis with a perfect product, record to check),
   inclusivity verdict on the genome outcome instead of per-oligo percentages, MGB zone display,
   simplification.
