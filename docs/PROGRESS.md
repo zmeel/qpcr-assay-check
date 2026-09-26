@@ -74,6 +74,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - After v1.4.0: inclusivity verdict now on the whole fragment over the last 3 years + current
   (advisor; user decision). Open: CP171264.1 (N. meningitidis with a perfect product, record to
   check), MGB zone display, simplification.
+- Live runs on the verdict code (Neisseria FAIL 79.0% of 49,614, window 2023-2026; enterovirus
+  WARN 90.7% of 4,503, 99.4% including at risk, mostly the at-risk poliovirus 2 F2 variant).
+  Fixed from them: year-table percentages on the verdict's base with a window row, per-year
+  lines only when they change the verdict, stale mismatch-class text, QC count wording,
+  "-7.0 °C above".
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 

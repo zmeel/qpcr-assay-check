@@ -106,9 +106,10 @@ def evaluate(
             note=(
                 f"{sum(c.status is Status.FAIL for c in qc.checks)} FAIL, "
                 f"{sum(c.status is Status.WARN for c in qc.checks)} WARN among "
-                f"{len(qc.checks)} checks; "
-                f"{sum(s.status in (Status.WARN, Status.FAIL) for s in qc.structures)} of "
-                f"{len(qc.structures)} structure calculations flagged."
+                f"{len(qc.checks)} checks, "
+                f"{sum(s.status is Status.FAIL for s in qc.structures)} FAIL and "
+                f"{sum(s.status is Status.WARN for s in qc.structures)} WARN among "
+                f"{len(qc.structures)} hairpin and dimer calculations."
             ),
         )
     ]

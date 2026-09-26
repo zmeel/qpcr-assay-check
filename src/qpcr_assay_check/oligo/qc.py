@@ -234,7 +234,8 @@ def _probe_checks(
             rule=t.tm_minus_mean_primer_c.describe("°C")
             + ("; capped at WARN because the probe is modified" if unreliable else ""),
             hint=lambda v: (
-                f"Probe Tm is {v:.1f} °C above the mean primer Tm, outside the preferred range."
+                f"Probe Tm is {abs(v):.1f} °C {'above' if v >= 0 else 'below'} the mean primer "
+                "Tm, outside the preferred range."
             ),
         )
     )
