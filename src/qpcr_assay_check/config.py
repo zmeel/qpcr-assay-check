@@ -386,11 +386,18 @@ class InclusivitySettings(_Strict):
     sample_per_window: int
     warn_below_percent: float
     fail_below_percent: float
+    # exhaustive analysis (advisor subagent, 2026-09-26): the verdict uses the whole-fragment
+    # genome outcome over the last `verdict_window_years` complete years plus the current year
+    verdict_window_years: int = 3
+    min_genomes_for_verdict: int = 100
+    min_genomes_per_year: int = 30
 
     @model_validator(mode="after")
     def _sane(self) -> InclusivitySettings:
         if self.lookback_years < 1 or self.sample_per_window < 1:
             raise ValueError("lookback_years and sample_per_window must be >= 1")
+        if self.verdict_window_years < 0 or self.min_genomes_for_verdict < 1:
+            raise ValueError("verdict_window_years must be >= 0, min_genomes_for_verdict >= 1")
         if not (0 <= self.fail_below_percent <= self.warn_below_percent <= 100):
             raise ValueError("require 0 <= fail_below_percent <= warn_below_percent <= 100")
         return self

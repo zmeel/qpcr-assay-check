@@ -110,7 +110,8 @@ anything; `run --qc-only` uses no network at all.
   the whole-fragment table (above), then the variants per oligo, each with how often it occurs.
 - **Mismatch classes**: per site, with the rule and source; see
   [docs/MISMATCH_CLASSES.md](docs/MISMATCH_CLASSES.md).
-- **Inclusivity per year**: the whole fragment and each oligo, against the number of records NCBI
+- **Inclusivity**: the verdict uses the whole fragment over the last 3 years plus the current one;
+  per year the whole fragment and each oligo, against the number of records NCBI
   lists for that year.
 - **Specificity**: per search tier whether any off-target product is predicted, which primer
   carries the discrimination and its closest site, and whether anything was left unassessed; the

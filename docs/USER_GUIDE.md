@@ -266,6 +266,17 @@ finding.
 
 ### Inclusivity across the intended target (v0.4.0)
 
+**Verdict with the exhaustive analysis (since 1.4.x):** the whole-fragment genome outcome (the
+three best-copy sites together: detectable = all perfect or tolerated, primer-pair rule,
+homopolymer setting and laboratory evidence included), pooled over the last
+`inclusivity.verdict_window_years` (default 3) complete release years plus the current year.
+Undetermined genomes are left out of the denominator and counted next to it; at risk counts as
+not detected (the report also gives the figure including at risk). Below `warn_below_percent`
+WARN, below `fail_below_percent` FAIL; fewer than `min_genomes_for_verdict` (100) genomes in the
+window INCOMPLETE; a single year with at least `min_genomes_per_year` (30) genomes below the FAIL
+limit gives at least WARN ("drop in <year>"). The per-oligo and per-year tables are diagnostics.
+With the sampled source (`blast_hits`) the worst oligo and year still decide, as described below.
+
 A full `run` also gives a year-by-year trend of how well the oligos still match the intended
 target: the "target" tier search every run already makes (perfect full-length hits or near enough)
 is bucketed by each hit's own submission year afterwards (via ESummary), sampled deterministically

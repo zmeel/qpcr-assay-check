@@ -28,7 +28,7 @@ from typing import Any
 from ..align import realign
 from ..config import Config, SiteRules
 from ..errors import InputError
-from ..inclusivity.aggregate import _stats, _verdict
+from ..inclusivity.aggregate import _stats
 from ..inclusivity.models import FragmentYear, InclusivityOligoResult, InclusivityResult
 from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
@@ -36,6 +36,7 @@ from ..oligo import grade, iupac
 from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
+from ..verdict import Verdict
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .locate import CONTEXT_NT, scan_region
 from .models import (
@@ -694,6 +695,59 @@ def _fragment_years(
     return [out[y] for y in shown]
 
 
+def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, list[str]]:
+    """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
+    2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
+    current one, undetermined genomes left out of the denominator, at risk counted as not
+    detected; too few genomes in the window is INCOMPLETE; a single year with at least
+    ``min_genomes_per_year`` genomes below ``fail_below_percent`` gives at least WARN. The
+    per-oligo figures are diagnostics only."""
+    with_data = [y for y in years if y.with_region]
+    if not with_data:
+        return Verdict.INCOMPLETE, ["No genome with the target region in the years shown."]
+    last = max(y.year for y in with_data)
+    window = [y for y in years if last - rules.verdict_window_years <= y.year <= last]
+    n_region = sum(y.with_region for y in window)
+    undet = sum(y.undetermined for y in window)
+    n = n_region - undet
+    det = sum(y.detectable for y in window)
+    risk = sum(y.at_risk for y in window)
+    fail = sum(y.likely_failure for y in window)
+    span = f"{min(y.year for y in window)}-{last}"
+    if n < rules.min_genomes_for_verdict:
+        return Verdict.INCOMPLETE, [
+            f"Too few recent genomes to judge: {n} with the target region released {span} "
+            f"(at least {rules.min_genomes_for_verdict} needed; setting "
+            "inclusivity.min_genomes_for_verdict)."
+        ]
+    pct = 100.0 * det / n
+    lines = [
+        f"Whole fragment, genomes released {span}: {pct:.1f}% detectable (perfect or "
+        f"tolerated), {100.0 * (det + risk) / n:.1f}% including at risk, "
+        f"{100.0 * fail / n:.1f}% likely failure, of {n} genomes with the target region "
+        f"(undetermined, not counted: {undet}). The per-oligo and per-year figures are "
+        "diagnostics; the verdict uses the whole fragment over this window."
+    ]
+    if pct < rules.fail_below_percent:
+        verdict = Verdict.FAIL
+    elif pct < rules.warn_below_percent:
+        verdict = Verdict.WARN
+    else:
+        verdict = Verdict.PASS
+    lines[0] += f" Verdict {verdict.value}" + (
+        f" (below {rules.warn_below_percent:g}%)." if verdict is not Verdict.PASS else "."
+    )
+    for y in years:
+        n_y = y.with_region - y.undetermined
+        if n_y >= rules.min_genomes_per_year:
+            p_y = 100.0 * y.detectable / n_y
+            if p_y < rules.fail_below_percent:
+                lines.append(f"Drop in {y.year}: {p_y:.1f}% detectable of {n_y} genomes.")
+                if verdict is Verdict.PASS:
+                    verdict = Verdict.WARN
+    return verdict, lines
+
+
 def exhaustive_inclusivity(
     sites: list[SiteResult],
     items: list[StoredAssembly],
@@ -718,10 +772,10 @@ def exhaustive_inclusivity(
         ]  # fmt: skip
         oligo = " / ".join(o.sequence for o in assay.by_role(role))
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
-    verdict, rationale = _verdict(oligos, cfg.inclusivity, sampled=False)
     fragment_years = _fragment_years(
         sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable
     )
+    verdict, rationale = fragment_verdict(fragment_years, cfg.inclusivity)
     rationale += [
         f"{y.year}: {y.listed} "
         + (

@@ -506,3 +506,34 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
     assert html.index("<h3>Whole fragment (forward + probe + reverse combined)</h3>", i) < (
         html.index("<h3>Forward</h3>", i)
     )
+
+
+def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():
+    """Advisor 2026-09-26 (built on the user's request): whole-fragment outcome pooled over the
+    last 3 complete years plus the current one; too few genomes = INCOMPLETE; a single large
+    year below the FAIL limit gives at least WARN; small years do not decide."""
+    from qpcr_assay_check.inclusivity.models import FragmentYear
+    from qpcr_assay_check.variants.exhaustive import fragment_verdict
+    from qpcr_assay_check.verdict import Verdict
+
+    rules = load_config().inclusivity
+
+    def year(y, det, risk=0, fail=0, undet=0):
+        return FragmentYear(year=y, with_region=det + risk + fail + undet, detectable=det,
+                            at_risk=risk, likely_failure=fail, undetermined=undet)  # fmt: skip
+
+    good = [year(2014, 1, fail=4)] + [year(y, 98, risk=2) for y in range(2023, 2027)]
+    verdict, lines = fragment_verdict(good, rules)
+    assert verdict is Verdict.PASS and "2023-2026" in lines[0] and "98.0% detectable" in lines[0]
+    # the old small year 2014 (1 of 5) does not decide; an undetermined genome is not counted
+    warn = [year(y, 90, risk=8, fail=2, undet=5) for y in range(2023, 2027)]
+    verdict, lines = fragment_verdict(warn, rules)
+    assert verdict is Verdict.WARN and "90.0% detectable" in lines[0]
+    assert "98.0% including at risk" in lines[0] and "not counted: 20" in lines[0]
+    assert fragment_verdict([year(2026, 50, fail=50)], rules)[0] is Verdict.FAIL
+    few = fragment_verdict([year(2026, 20)], rules)
+    assert few[0] is Verdict.INCOMPLETE and "Too few recent genomes" in few[1][0]
+    # one large year drops below the FAIL limit while the window passes: WARN
+    drop = [year(y, 400) for y in range(2023, 2026)] + [year(2026, 20, fail=30)]
+    verdict, lines = fragment_verdict(drop, rules)
+    assert verdict is Verdict.WARN and any("Drop in 2026" in x for x in lines)
