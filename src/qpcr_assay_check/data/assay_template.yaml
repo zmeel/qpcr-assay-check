@@ -145,6 +145,9 @@ settings:                                  # only what differs from the defaults
 #   sample_per_window: 20          # records per year for variants source blast_hits (a sample)
 #   warn_below_percent: 95         # % at 0-1 mismatch without a 3'-end mismatch
 #   fail_below_percent: 80
+#   verdict_window_years: 3        # exhaustive: whole-fragment verdict over the last 3 years + now
+#   min_genomes_for_verdict: 100   # fewer in the window: INCOMPLETE
+#   min_genomes_per_year: 30       # a single year this large below the FAIL limit: at least WARN
 # variants:                        # the exhaustive variant analysis
 #   source: datasets               # datasets | blast_partitioned | blast_hits (biased sample)
 #   current_assemblies_only: true

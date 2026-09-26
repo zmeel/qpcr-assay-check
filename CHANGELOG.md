@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Inclusivity verdict on the whole fragment** (exhaustive analysis; advisor's advice, user
+  decision 2026-09-26): the genome outcome of the three sites together, pooled over the last
+  `verdict_window_years` (3) complete release years plus the current year, undetermined left out
+  of the denominator, at risk counted as not detected; fewer than `min_genomes_for_verdict` (100)
+  genomes is INCOMPLETE; a single year with at least `min_genomes_per_year` (30) genomes below the
+  FAIL limit gives at least WARN. Before, the worst oligo and year decided, so a year with 5
+  records or one oligo's shortfall (ignoring the pair rule and lab evidence) set the verdict.
+  The sampled source (`blast_hits`) keeps the old rule.
+
 ## [1.4.0] - 2026-09-26
 
 Graded mismatch classes and a report built around the whole fragment. Every primer and probe site

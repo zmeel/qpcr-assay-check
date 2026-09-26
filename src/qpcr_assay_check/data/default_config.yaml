@@ -155,7 +155,14 @@ inclusivity:
   sample_per_window: 20            # records assessed per year, evenly sampled; never the whole
                                     # population for a well-sequenced target (sample, not census)
   warn_below_percent: 95           # % of the assessed sample at 0-1 mismatch (no 3' mismatch)
-  fail_below_percent: 80           # below this, WARN/FAIL; the worst oligo/window decides
+  fail_below_percent: 80           # below this, WARN/FAIL. Exhaustive analysis: applied to the
+                                    # whole-fragment genome outcome over the verdict window below;
+                                    # sampled (blast_hits): the worst oligo/year decides
+  verdict_window_years: 3          # exhaustive: the last N complete release years + this year
+  min_genomes_for_verdict: 100     # fewer genomes with the region in the window: INCOMPLETE
+  min_genomes_per_year: 30         # a single year with at least this many genomes below
+                                    # fail_below_percent gives at least WARN ("drop in <year>");
+                                    # smaller years are marked "few records" and only shown
 
 variants:
   # Exhaustive variant analysis of the intended target: the variant summary and inclusivity are

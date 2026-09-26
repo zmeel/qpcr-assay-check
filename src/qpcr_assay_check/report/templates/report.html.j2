@@ -435,12 +435,12 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
 {% if r.inclusivity.fragment_years %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
-<p class="meta">Per year, each genome's outcome from its three sites together, as in the whole-fragment table: detectable when all three are perfect or tolerated, otherwise the worst site, and likely failure by the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Percentages are of the records with all three sites. The tables per oligo below show each site on its own.</p>
+<p class="meta">The inclusivity verdict uses this outcome, pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete release years and the current one (see Rationale below); a single year with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives at least WARN, smaller years are marked "few records" and only shown. Per year, each genome's outcome from its three sites together, as in the whole-fragment table: detectable when all three are perfect or tolerated, otherwise the worst site, and likely failure by the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Percentages are of the records with all three sites. The tables per oligo below show each site on its own; they explain the verdict but do not decide it.</p>
 <div class="scroll"><table>
   <thead><tr><th>Year</th><th>{{ 'Records' if nuc else 'Assemblies' }}</th><th>With region</th><th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Undetermined</th></tr></thead>
   <tbody>
   {% for f in r.inclusivity.fragment_years %}
-  <tr><td class="num">{{ f.year }}</td><td class="num">{{ f.population_size if f.population_size is not none else '–' }}</td><td class="num">{{ f.with_region }}</td>
+  <tr><td class="num">{{ f.year }}{% if f.with_region - f.undetermined < (r.config.inclusivity.min_genomes_per_year | default(30)) %}<br><span class="meta">few records</span>{% endif %}</td><td class="num">{{ f.population_size if f.population_size is not none else '–' }}</td><td class="num">{{ f.with_region }}</td>
     {% for n in [f.detectable, f.at_risk, f.likely_failure, f.undetermined] %}<td class="num">{{ n }}{% if f.with_region %} <span class="meta">({{ pct(100.0 * n / f.with_region) }})</span>{% endif %}{% if loop.index == 3 and f.by_pair_rule %}<br><span class="meta">{{ f.by_pair_rule }} by the pair rule</span>{% endif %}</td>{% endfor %}</tr>
   {% endfor %}
   {% set tot = r.inclusivity.fragment_years | sum(attribute='with_region') %}

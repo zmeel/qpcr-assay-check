@@ -71,9 +71,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   rule LAB; zone display not built).
 - v1.4.0 released (2026-09-26): PR #20 merged (5b56c3f), tag v1.4.0 set by the user on the
   merge commit. CI runs `ruff format --check` too: run it before every commit.
-- Open for the recap: CP171264.1 (N. meningitidis with a perfect product, record to check),
-  inclusivity verdict on the genome outcome instead of per-oligo percentages, MGB zone display,
-  simplification.
+- After v1.4.0: inclusivity verdict now on the whole fragment over the last 3 years + current
+  (advisor; user decision). Open: CP171264.1 (N. meningitidis with a perfect product, record to
+  check), MGB zone display, simplification.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 
