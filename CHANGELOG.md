@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-26
+
+Graded mismatch classes and a report built around the whole fragment. Every primer and probe site
+gets a class (perfect, tolerated, at risk, likely failure, indeterminate) from Stadhouders 2010 and
+Lefever 2013, with the primer-pair rule, MGB-probe rules, a graded homopolymer rule (R5b) and
+laboratory evidence per variant; genomes are judged on their best whole-fragment copy. The report
+leads with the whole-fragment table ("Needs attention"), compact variants per oligo, a
+specificity summary per tier, taxa inside the target with roles (must not detect, out of scope),
+a panel escape check, and is about 250 kB instead of 5 MB (no JavaScript). Checked live on the
+N. gonorrhoeae and enterovirus assays.
+
 ### Added
 - **Laboratory evidence per oligo variant** (advisor's advice, user request 2026-09-26): an
   `evidence:` list in the assay file (oligo, the variant as the report writes it, detected |
@@ -29,6 +40,23 @@ All notable changes to this project are documented here. The format follows
   genome outcome is shared with the whole-fragment variant table
   (`oligo.grade.combination_outcome`). The inclusivity verdict still uses the per-oligo
   percentages.
+- **Hung BLAST searches are resubmitted** (`ncbi/runner.py`, `ncbi.resubmit_after_minutes`,
+  default 90; `run`/`search --resubmit`): a resumed search NCBI has kept WAITING that long is
+  submitted anew, at most once per run, instead of resuming the same RID forever (live: the
+  enterovirus target search stayed WAITING for over 70 minutes across two restarts).
+- **Panel-level escape detection** (`panel.py`, `report/panel.py`, `qpcr-assay-check panel`;
+  FEATURE_IDEAS #1): a panel file lists two or more assay files for the same target; every
+  genome all of them processed is judged per assay from the stored regions (best-binding copy,
+  as in the assay reports) and classified as detected by every target, by some, by no target,
+  or undetermined, per release year. HTML, workbook and JSON outputs; no NCBI requests.
+- **Taxa inside the target that the assay must not detect** (`target.exclude_taxids`; models,
+  search plan, inclusivity, partitioned variant analysis, report, workbook): left out of the
+  target search, inclusivity populations and the Nucleotide listing with Entrez `NOT` (checked
+  live for ESearch and BLAST), and searched as near neighbours so every oligo is checked
+  against them. The region store is keyed by the exclusions. Not supported with the Datasets
+  source. Worked example: `docs/examples/enterovirus_realt.yaml` (user-supplied in-house
+  enterovirus assay; rhinoviruses excluded by taxonomy ID, since the name "rhinovirus"
+  resolves to the genus *Enterovirus*).
 
 ### Changed
 - Variants per oligo: each variant is a dotted line against the oligo in the column header, as in
@@ -136,7 +164,7 @@ All notable changes to this project are documented here. The format follows
   2026-09-25): off-target priming without a partner cannot give a product; products still FAIL.
   This also applies to the exclusivity table.
 
-### Fixed (from a code review of the unreleased changes)
+### Fixed
 - Specificity summary: when both primers have a perfect site in a tier (live enterovirus run: a
   rhinovirus fragment with a perfect forward site) no primer was named as discriminating and no
   closest site was shown. The closest forward and reverse sites are now always shown, and this
@@ -183,25 +211,6 @@ All notable changes to this project are documented here. The format follows
   cached): an ancestor would have emptied the target search.
 - A BLAST search that will be resubmitted (the 90-minute rule or `--resubmit`) now counts as
   sending, so the user is asked first unless `--yes` is given.
-
-### Added
-- **Hung BLAST searches are resubmitted** (`ncbi/runner.py`, `ncbi.resubmit_after_minutes`,
-  default 90; `run`/`search --resubmit`): a resumed search NCBI has kept WAITING that long is
-  submitted anew, at most once per run, instead of resuming the same RID forever (live: the
-  enterovirus target search stayed WAITING for over 70 minutes across two restarts).
-- **Panel-level escape detection** (`panel.py`, `report/panel.py`, `qpcr-assay-check panel`;
-  FEATURE_IDEAS #1): a panel file lists two or more assay files for the same target; every
-  genome all of them processed is judged per assay from the stored regions (best-binding copy,
-  as in the assay reports) and classified as detected by every target, by some, by no target,
-  or undetermined, per release year. HTML, workbook and JSON outputs; no NCBI requests.
-- **Taxa inside the target that the assay must not detect** (`target.exclude_taxids`; models,
-  search plan, inclusivity, partitioned variant analysis, report, workbook): left out of the
-  target search, inclusivity populations and the Nucleotide listing with Entrez `NOT` (checked
-  live for ESearch and BLAST), and searched as near neighbours so every oligo is checked
-  against them. The region store is keyed by the exclusions. Not supported with the Datasets
-  source. Worked example: `docs/examples/enterovirus_realt.yaml` (user-supplied in-house
-  enterovirus assay; rhinoviruses excluded by taxonomy ID, since the name "rhinovirus"
-  resolves to the genus *Enterovirus*).
 
 ## [1.3.0] - 2026-09-25
 

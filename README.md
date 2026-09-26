@@ -43,8 +43,8 @@ F2 variant, so a template of that variant is worth testing, and worth checking w
 from one study; the small likely-failure groups (4 to 12 records) are worth a look at their
 sequence quality and origin first.
 
-*Example from a run on 2026-09-25 against that day's NCBI data (qpcr-assay-check 1.3.0 with
-later development changes). Numbers change as NCBI grows; they illustrate the output and are not
+*Example from a run on 2026-09-25 against that day's NCBI data (qpcr-assay-check 1.4.0
+during development). Numbers change as NCBI grows; they illustrate the output and are not
 a performance claim for this assay. Classes present published primer-mismatch data, not predicted
 Cq values. The oligos are an in-house enterovirus assay supplied by the user, not checked against
 a publication ([docs/examples/enterovirus_realt.yaml](docs/examples/enterovirus_realt.yaml)).*

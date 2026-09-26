@@ -69,7 +69,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   discrimination in the MGB (3') region; no data by position; keep "undetermined", optionally show
   the zone, and add a lab-evidence override in the assay file (built on the user's request: `evidence:`,
   rule LAB; zone display not built).
-- Agreed next step: pause and recap before any new feature.
+- v1.4.0 prepared (2026-09-26): version, CHANGELOG section. The user merges and tags
+  (tag pushes are blocked from this environment).
+- Open for the recap: CP171264.1 (N. meningitidis with a perfect product, record to check),
+  inclusivity verdict on the genome outcome instead of per-oligo percentages, MGB zone display,
+  simplification.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 
