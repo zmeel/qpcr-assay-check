@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="qpcr-assay-check {{ version }}">
+<title>{{ p.panel_name }} – panel escape check</title>
+<style>
+:root { --ink: #17222D; --muted: #55636F; --paper: #F4F6F8; --panel: #FFFFFF; --rule: #D3DBE2;
+  --pass: #1F7A5A; --pass-bg: #DDF0E7; --warn: #9A5F00; --warn-bg: #FBEBC8;
+  --fail: #B23B3B; --fail-bg: #F6D9D9; --info: #55636F; --info-bg: #E6EAEE;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; color: var(--ink); font-family: var(--serif); font-size: 17px; line-height: 1.55; }
+main { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+h1, h2, h3, table, .chip, .meta { font-family: var(--sans); }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .35rem; }
+h2 { font-size: 1.25rem; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+p { margin: .6rem 0; max-width: 46rem; }
+.meta { color: var(--muted); font-size: .85rem; }
+.key { background: var(--panel); border: 1px solid var(--rule); border-left: 10px solid {{ 'var(--fail)' if n_none else 'var(--pass)' }}; padding: 1.2rem 1.4rem; margin-top: 1.5rem; }
+.key .big { font-family: var(--sans); font-size: 2.2rem; font-weight: 700; color: {{ 'var(--fail)' if n_none else 'var(--pass)' }}; line-height: 1.1; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; background: var(--panel); border: 1px solid var(--rule); }
+th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th { background: #EAEFF3; font-weight: 600; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.scroll { overflow-x: auto; }
+.chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 3px; white-space: nowrap; }
+.c-detected, .c-all { background: var(--pass-bg); color: var(--pass); }
+.c-escape, .c-some { background: var(--warn-bg); color: var(--warn); }
+.c-notfound, .c-none { background: var(--fail-bg); color: var(--fail); }
+.c-unknown, .c-undetermined { background: var(--info-bg); color: var(--info); }
+.notice { background: var(--panel); border: 1px solid var(--rule); padding: .8rem 1.2rem; }
+a { color: #1D5C8C; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #E4E9EE; --muted: #A3AFBA; --paper: #10161C; --panel: #18212A; --rule: #2E3A46;
+    --pass-bg: #1C3A2F; --pass: #7BD1AC; --warn-bg: #3E3018; --warn: #E8B862;
+    --fail-bg: #45222A; --fail: #F09A9A; --info-bg: #26313C; --info: #B4C0CB; }
+  thead th { background: #212C37; }
+  a { color: #8CC4F0; }
+}
+</style>
+</head>
+<body>
+<main>
+{% macro chip(state) %}<span class="chip c-{{ {'detected': 'detected', 'escape': 'escape', 'region not found': 'notfound', 'not assessable': 'unknown', 'undetermined': 'unknown'}[state] }}">{{ state }}</span>{% endmacro %}
+<h1>{{ p.panel_name }}</h1>
+<p class="meta">Panel escape check · target taxonomy ID {{ p.target_taxid | taxon }}{% if p.exclude_taxids %}, excluding {% for t in p.exclude_taxids %}{{ t | taxon }}{{ ', ' if not loop.last }}{% endfor %}{% endif %} · generated {{ p.generated_at }} (UTC) · qpcr-assay-check v{{ version }}</p>
+
+<div class="key">
+  <div class="big">{{ n_none }} genome{{ '' if n_none == 1 else 's' }} detected by no target</div>
+  <p>of {{ p.in_all }} genomes processed by every assay of the panel ({{ pct(n_none, p.in_all) }}). A genome is <em>detected by no target</em> when no assay detects it and at least one finds its target region without a detectable copy (an escape){% if p.partial_records %}; the others escape too{% else %}; the others escape too or do not find their region at all{% endif %}.</p>
+</div>
+
+<h2>How genomes were combined</h2>
+<p>Each assay's own variant analysis stored the target region of every genome it processed. Here each genome is judged per assay exactly as in that assay's report: by its best-binding copy, detectable with at most 1 mismatch, no gap and no mismatch in the last 5 nucleotides of every oligo role (homopolymer bulges as set per assay, below). No genome was downloaded again.</p>
+<ul>
+  <li><strong>detected</strong>: a detectable copy; <strong>escape</strong>: the region is there but no copy is detectable; <strong>region not found</strong>: no exact stretch of the amplicon (variants.seed_length bases) in the genome (absent, deleted or too divergent); <strong>not assessable</strong>: hidden by N or cut by a contig or record end; <strong>undetermined</strong>: no detectable copy, but the only problem has no published basis (a single mismatch in an MGB probe, or an ambiguity code in the genome that decides the class), so it is not counted as an escape.</li>
+  <li>Only genomes processed by every assay are combined: {{ p.in_all }}; {{ p.not_in_all }} processed by only some of them (run those assays again to catch up).</li>
+</ul>
+<div class="scroll"><table>
+  <thead><tr><th>Assay</th><th>Genomes processed</th><th>Detected</th><th>Escape</th><th>Region not found</th><th>Not assessable</th><th>Undetermined</th><th>Homopolymer bulges</th></tr></thead>
+  <tbody>
+  {% for m in p.members %}
+  <tr><td>{{ m.assay_name }}<br><span class="meta">{{ m.file }}</span></td><td class="num">{{ m.processed }}</td>
+    {% for s in ['detected', 'escape', 'region not found', 'not assessable', 'undetermined'] %}<td class="num">{{ m.states.get(s, 0) }}</td>{% endfor %}
+    <td>{{ 'detectable' if m.homopolymer_bulges_detectable else 'not detectable (strict)' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h2>Panel outcome</h2>
+<div class="scroll"><table>
+  <thead><tr><th>Outcome</th><th>Genomes</th><th>Share</th></tr></thead>
+  <tbody>
+  {% for cls, css in [('detected by every target', 'all'), ('detected by some targets', 'some'), ('detected by no target', 'none'), ('undetermined', 'undetermined')] %}
+  <tr><td><span class="chip c-{{ css }}">{{ cls }}</span></td><td class="num">{{ p.counts[cls] }}</td><td class="num">{{ pct(p.counts[cls], p.in_all) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">Undetermined: no target detects the genome, but none shows an escape either (its regions are not found, not assessable or undetermined). A genome in which no target region is found at all is more often an incomplete assembly or a partial record than a strain with every region deleted.{% if p.partial_records %} With Nucleotide records (variants.source blast_partitioned) "region not found" usually means the record is another gene or a partial sequence, so it counts as not assessable.{% endif %}</p>
+
+<h3>Per release year</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Year</th><th>Genomes</th><th>Every target</th><th>Some targets</th><th>No target</th><th>Undetermined</th></tr></thead>
+  <tbody>
+  {% for y in p.years %}
+  <tr><td>{{ y.year }}</td><td class="num">{{ y.genomes }}</td>
+    {% for cls in ['detected by every target', 'detected by some targets', 'detected by no target', 'undetermined'] %}<td class="num">{% if cls == 'detected by no target' and y.counts.get(cls, 0) %}<strong>{{ y.counts[cls] }}</strong>{% else %}{{ y.counts.get(cls, 0) }}{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h2>Genomes detected by no target</h2>
+{% if none_rows %}
+<p>Review these first: each would be missed by the whole panel. Check whether the region is really absent or changed (and not an incomplete assembly), and whether the strain is relevant for your laboratory.{% if none_rows | length > shown %} The first {{ shown }} are shown; the workbook lists all {{ none_rows | length }}.{% endif %}</p>
+<div class="scroll"><table>
+  <thead><tr><th>Genome</th><th>Released</th>{% for m in p.members %}<th>{{ m.assay_name }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for g in none_rows[:shown] %}
+  <tr><td>{{ g.accession | ncbi }}<br><span class="meta">{{ g.organism }}</span></td><td>{{ g.release_date }}</td>{% for s in g.states %}<td>{{ chip(s) }}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>None: every combined genome is detected by at least one target, or undetermined.</p>
+{% endif %}
+
+{% if some_rows %}
+<h2>Genomes detected by some targets only</h2>
+<p>Still detected by the panel, but with less margin: one more change could make them escape.{% if some_rows | length > shown %} The first {{ shown }} are shown; the workbook lists all {{ some_rows | length }}.{% endif %}</p>
+<div class="scroll"><table>
+  <thead><tr><th>Genome</th><th>Released</th>{% for m in p.members %}<th>{{ m.assay_name }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for g in some_rows[:shown] %}
+  <tr><td>{{ g.accession | ncbi }}</td><td>{{ g.release_date }}</td>{% for s in g.states %}<td>{{ chip(s) }}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+
+{% if p.notes %}<h2>Notes</h2><p>{{ p.notes }}</p>{% endif %}
+
+<h2>Limitations</h2>
+<ul>
+  <li>Only genomes in public NCBI collections, and only those every assay has processed so far; this is not every strain in circulation.</li>
+  <li>"Region not found" may be a real deletion or an incomplete assembly (e.g. a plasmid missing from a draft assembly). Check the record before drawing conclusions.</li>
+  <li>Genomes are grouped by NCBI release year, not by sample collection date.</li>
+  <li>Each assay is judged by sequence alone with the same criterion; the chemistry of each assay (probe type, cycling) is not modelled here. See each assay's own report for the details per oligo.</li>
+</ul>
+
+<h2>Required statements</h2>
+<div class="notice">
+  <p><strong>In silico analysis does not replace experimental validation.</strong> The outcome of this check must be interpreted together with wet-laboratory verification of the assays.</p>
+  <p><strong>The laboratory is responsible for verifying this software within its own quality system</strong> before relying on its output.</p>
+</div>
+</main>
+</body>
+</html>

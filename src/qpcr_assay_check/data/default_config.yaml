@@ -68,6 +68,9 @@ ncbi:
   blast_min_interval_s: 10         # NCBI: contact the BLAST server at most once per 10 s
   poll_interval_s: 60              # NCBI: poll a given RID at most once per minute
   max_wait_minutes: 240            # give up waiting (the job stays resumable); a human search took 61 min
+  resubmit_after_minutes: 90       # a search resumed in a later run that has been WAITING this
+                                   #   long since submission is submitted anew (once per run);
+                                   #   `run/search --resubmit` does so at once
   rid_lifetime_hours: 36           # NCBI keeps results for about 36 h; older jobs are resubmitted
   blast_cache_ttl_days: 7          # BLAST results are only reused within a run / a resume
   taxonomy_cache_ttl_days: 30
@@ -114,9 +117,12 @@ specificity:
     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
   probe_binds_if: critical         # site level the probe needs for an amplicon to be 'likely detected'
   severity:                        # verdict contribution of each finding: FAIL | WARN | INFO
-    primer_site_critical: FAIL
+    primer_site_critical: FAIL     # a critical primer site that is part of a predicted product
+    primer_site_critical_no_product: WARN  # ... that forms no predicted product (no facing
+                                   #   partner): off-target priming, not a product
     primer_site_warning: WARN
-    probe_site_critical: WARN      # a probe site alone cannot make a product
+    probe_site_critical: INFO      # a probe site alone cannot make a product: the probe signals
+                                   #   only inside one (see amplicon_*); advisor 2026-09-25
     amplicon_likely_detected: FAIL
     amplicon_not_detected: WARN
   eukaryote_taxids: [9606]         # organisms for which genomic-DNA hits matter to RNA assays
@@ -182,8 +188,9 @@ variants:
                                    #   all = only if every channel does
   homopolymer_bulges_detectable: false  # a site differing only by the length of a single-base
                                    #   run (e.g. poly-A 7->8), without any mismatch: false =
-                                   #   not detectable (strict); true = detectable. The report
-                                   #   shows the count under both rules either way
+                                   #   its class decides (primers: rule R5b, at risk or likely
+                                   #   failure); true = detectable. The report shows the count
+                                   #   under both rules either way
 
 report:
-  include_charts: true                       # interactive Plotly charts (adds ~5 MB of inline JS)
+  include_charts: true                       # oligo Tm chart (inline SVG, a few kB)

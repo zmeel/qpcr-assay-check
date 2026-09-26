@@ -152,6 +152,30 @@ def test_a_failed_download_is_retried_on_the_next_run(tmp_path):
     assert run(tmp_path, cfg, client, assay).coverage.complete
 
 
+def test_an_assembly_that_keeps_failing_is_left_out_without_blocking_completion(tmp_path):
+    """Live Neisseria runs (user, 2026-09-26): the same 39 downloads failed on every run, so the
+    analysis stayed 'incomplete' with 'run again to continue' forever."""
+    fake = FakeDatasets(assemblies(), missing_from_download={"GCF_000000001.1"})
+    cfg, fake, client, assay = setup(tmp_path, fake=fake)
+    first = run(tmp_path, cfg, client, assay).coverage
+    assert (first.unavailable, first.complete) == (0, False)  # one failure: try again
+    second = run(tmp_path, cfg, client, assay).coverage
+    assert second.download_failed_this_run == 1  # still tried
+    assert (second.unavailable, second.complete) == (1, True)
+    assert second.unavailable_examples == ["GCF_000000001.1"]
+    res = run(tmp_path, cfg, client, assay)
+    result = evaluate(assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+                      release_dates=res.release_dates, inclusivity=res.inclusivity,
+                      specificity=_empty_specificity())  # fmt: skip
+    text = " ".join(result.findings) if hasattr(result, "findings") else result.model_dump_json()
+    assert "could not be downloaded after repeated attempts" in text
+    assert "Run again to continue" not in text
+    assert "could not be downloaded after repeated attempts" in render_report(result, cfg)
+    fake.missing_from_download.clear()  # available again: stored, no longer unavailable
+    third = run(tmp_path, cfg, client, assay).coverage
+    assert (third.unavailable, third.assessed_total, third.complete) == (0, 5, True)
+
+
 def test_the_region_store_survives_a_restart(tmp_path):
     cfg, fake, client, assay = setup(tmp_path)
     run(tmp_path, cfg, client, assay)
@@ -282,9 +306,20 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    assert "Match to the oligo" in html and "perfect match" in html
-    assert "mismatch in the 3′ end" in html  # the forward variant has a 3'-terminal mismatch
-    assert "Mismatches (F / P / R)" in html
+    # per oligo (advisor 2026-09-25): perfect as one line, other variants by their changes
+    i = html.index("<h3>Variants per oligo")
+    per_oligo = html[i : html.index("<h2>", i)]
+    assert "Perfect in <strong>" in per_oligo
+    # the 3'-terminal forward mismatch is seen in one record: one row for its class
+    assert "other likely failure variant, each seen in 1 record" in per_oligo
+    assert html.index("<h3>Whole fragment") < i  # the whole fragment first
+    # whole fragment (advisor layout 2026-09-25): the 3'-terminal forward mismatch needs attention
+    i = html.index("<h3>Whole fragment")
+    frag = html[i : html.index("<h2>", i)]
+    assert "Needs attention" in frag and "likely failure" in frag and "Detectable (" in frag
+    assert frag.index("likely failure") < frag.index("Detectable (")
+    # the frequency of a non-perfect site variant sits next to its class
+    assert 'title="this forward site variant, whatever the other sites are"' in frag
 
 
 def test_found_entries_without_plasmid_info_are_rescanned_so_the_split_can_be_shown(tmp_path):
@@ -447,3 +482,27 @@ def test_not_found_entries_stored_before_v1_1_1_are_checked_once_for_a_masked_re
     c = go().coverage
     assert c.processed_this_run == 2 and (c.masked, c.not_found) == (1, 1)
     assert go().coverage.processed_this_run == 0  # checked once, not every run
+
+
+def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
+    """User 2026-09-25: next to the per-oligo tables, one table with the genome outcome of the
+    three sites together; it agrees with the copy coverage."""
+    cfg, fake, client, assay = setup(tmp_path)
+    res = run(tmp_path, cfg, client, assay)
+    years = res.inclusivity.fragment_years
+    assert years and all(
+        f.detectable + f.at_risk + f.likely_failure + f.undetermined == f.with_region for f in years
+    )
+    cc = res.coverage.copies
+    assert sum(f.detectable for f in years) == cc.with_detectable_copy
+    assert sum(f.undetermined for f in years) == cc.undetermined
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    html = render_report(result, cfg)
+    i = html.index("<h2>Inclusivity across")
+    assert html.index("<h3>Whole fragment (forward + probe + reverse combined)</h3>", i) < (
+        html.index("<h3>Forward</h3>", i)
+    )

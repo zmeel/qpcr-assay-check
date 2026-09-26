@@ -21,10 +21,12 @@ from datetime import UTC, datetime
 from ..align import realign
 from ..config import Config, InclusivitySettings
 from ..models import Assay
+from ..ncbi.blast import build_entrez_query
 from ..ncbi.cache import Cache
 from ..ncbi.eutils import Eutils
 from ..ncbi.http import NcbiError
 from ..ncbi.parser import ParsedSearch
+from ..oligo.grade import DETECTABLE, INDETERMINATE, UNDETERMINED_RULES
 from ..search.planner import SearchPlan
 from ..specificity.fetch import WindowFetcher
 from ..specificity.models import SiteResult
@@ -57,6 +59,21 @@ def _sample(candidates: list[Candidate], n: int) -> list[Candidate]:
     return [ordered[int(i * step)] for i in range(n)]
 
 
+def detectable_percent(w: WindowStats) -> float | None:
+    """Share of the window's records that the oligo is expected to detect: the graded classes
+    perfect + tolerated, or (records made before the classes) 0-1 mismatch, clean 3' end.
+    Undetermined records are left out; None when no record is left (or the window is empty)."""
+    if w.sample_size == 0:
+        return None
+    if w.n_detectable is not None:
+        good = w.n_detectable
+        base = w.sample_size - w.n_undetermined
+        return 100.0 * good / base if base > 0 else None
+    else:
+        good = max(0, w.n_perfect + w.n_one_mismatch - w.n_three_prime_mismatch)
+    return 100.0 * good / w.sample_size
+
+
 def _stats(
     sites: list[SiteResult], year: int, population: int | None, oligo_len: int
 ) -> WindowStats:
@@ -78,6 +95,15 @@ def _stats(
             n_perfect += 1
         if s.mismatches_last5:
             n_three_prime += 1
+    graded = bool(sites) and all(s.grade is not None for s in sites)
+    # MGB-probe mismatches and ambiguity codes (R9, R6): no published basis, left out of the %
+    n_undetermined = sum(
+        1 for s in sites if s.grade == INDETERMINATE and s.grade_rule in UNDETERMINED_RULES
+    )
+    by_grade: dict[str, int] = defaultdict(int)
+    for s in sites:
+        if s.grade is not None:
+            by_grade[s.grade] += 1
     return WindowStats(
         year=year,
         population_size=population,
@@ -88,12 +114,17 @@ def _stats(
         n_three_prime_mismatch=n_three_prime,
         per_position_mismatches=per_position,
         n_fetch_failed=n_failed,
+        n_detectable=sum(by_grade[g] for g in DETECTABLE) if graded else None,
+        n_by_grade=dict(by_grade),
+        n_undetermined=n_undetermined,
     )
 
 
-def _population(eutils: Eutils, taxid: int, year: int) -> int | None:
+def _population(
+    eutils: Eutils, taxid: int, year: int, exclude: list[int] | None = None
+) -> int | None:
     try:
-        term = f"txid{taxid}[ORGN] AND {year}/01/01:{year}/12/31[PDAT]"
+        term = f"{build_entrez_query([taxid], exclude)} AND {year}/01/01:{year}/12/31[PDAT]"
         return eutils.esearch_count("nuccore", term)
     except NcbiError as exc:
         log.warning("Could not count year %d population: %s", year, exc)
@@ -125,7 +156,8 @@ def compute_inclusivity(
     taxid = assay.target.taxid
     current_year = (now or datetime.now(UTC)).year
     years = list(range(current_year - rules.lookback_years + 1, current_year + 1))
-    populations = {year: _population(eutils, taxid, year) for year in years}
+    exclude = assay.target.excluded_taxids
+    populations = {year: _population(eutils, taxid, year, exclude) for year in years}
 
     scoring = realign.Scoring(
         cfg.specificity.alignment.match, cfg.specificity.alignment.mismatch,
@@ -179,6 +211,7 @@ def compute_inclusivity(
             sites = assess_candidates(
                 sample, site_rules, fetcher, scoring, cfg.specificity.window_padding_nt, ids
             )
+            sites = [assay.graded(s) for s in sites]
             windows.append(_stats(sites, year, populations[year], oligo_len))
         oligo_results.append(
             InclusivityOligoResult(role=role, oligo=oligo, windows=windows, n_no_date=n_no_date)
@@ -239,28 +272,43 @@ def _verdict(
     """Worst oligo/window's % at 0-1 mismatch (no 3' mismatch) decides the verdict."""
     rationale: list[str] = []
     worst_pct: float | None = None
+    all_undetermined: list[str] = []
     for o in oligos:
         for w in o.windows:
             if w.sample_size == 0:
                 continue
-            good = w.n_perfect + w.n_one_mismatch - w.n_three_prime_mismatch
-            good = max(0, good)
-            pct = 100.0 * good / w.sample_size
+            pct = detectable_percent(w)
+            if pct is None:  # every record undetermined: no basis for a percentage
+                all_undetermined.append(f"{o.role} {w.year}")
+                continue
             if worst_pct is None or pct < worst_pct:
                 worst_pct = pct
             if pct < rules.warn_below_percent:
                 rationale.append(
                     f"{o.role}, {w.year}: {pct:.0f}% of {w.sample_size} "
-                    f"{'sampled' if sampled else 'assessed'} record(s) at "
-                    "0-1 mismatch with no 3'-end mismatch (below "
+                    f"{'sampled' if sampled else 'assessed'} record(s) "
+                    + (
+                        "detectable (mismatch class perfect or tolerated)"
+                        if w.n_detectable is not None
+                        else "at 0-1 mismatch with no 3'-end mismatch"
+                    )
+                    + " (below "
                     f"{rules.warn_below_percent:g}%)."
                 )
+    if all_undetermined:
+        rationale.append(
+            f"{', '.join(all_undetermined)}: every assessed record is undetermined (no published "
+            "basis for its mismatch), so no percentage is given."
+        )
     if worst_pct is None:
+        if all_undetermined:
+            return Verdict.INCOMPLETE, rationale
         return Verdict.INCOMPLETE, ["No target-tier record with a known submission year was found."]
     if worst_pct < rules.fail_below_percent:
         return Verdict.FAIL, rationale
     if worst_pct < rules.warn_below_percent:
         return Verdict.WARN, rationale
     return Verdict.PASS, [
-        "Every assessed year is at or above the configured inclusivity threshold."
+        "Every assessed year is at or above the configured inclusivity threshold.",
+        *rationale,
     ]

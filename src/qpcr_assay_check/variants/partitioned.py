@@ -47,8 +47,8 @@ ESUMMARY_BATCH = 200
 _DATE_RE = re.compile(r"(\d{4})/(\d{2})/(\d{2})")
 
 
-def base_term(taxon: int, extra: str | None) -> str:
-    term = f"txid{taxon}[ORGN]"
+def base_term(taxon: int, extra: str | None, exclude: list[int] | None = None) -> str:
+    term = blast.build_entrez_query([taxon], exclude) or ""
     return f"{term} AND ({extra})" if extra else term
 
 
@@ -89,14 +89,17 @@ def collect_partitioned(
     *,
     now: datetime | None = None,
     context: Callable[[], tuple[str, str]] | None = None,
+    exclude: list[int] | None = None,
 ) -> tuple[list[YearCoverage], int, int, int, list[str]]:
     """List, scan or BLAST, and store the region of new records.
+
+    ``exclude``: taxa inside the target left out of the listing (``target.exclude_taxids``).
 
     ``context``: the reference sequence on each side of the amplicon, to recognise a region
     wholly hidden by N (see :func:`~.locate.find_masked_by_context`).
     """
     v = cfg.variants
-    term = base_term(taxon, v.nucleotide_query)
+    term = base_term(taxon, v.nucleotide_query, exclude)
     total = eutils.esearch_count("nuccore", term)
     budget = v.blast_max_records_per_run
     year = (now or datetime.now(UTC)).year

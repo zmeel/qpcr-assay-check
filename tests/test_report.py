@@ -65,13 +65,11 @@ class _RefCollector(HTMLParser):
 
 def test_report_with_charts_is_self_contained(n1):
     """No tag may make the browser load another file or host (links to NCBI pages are allowed).
-
-    The inlined Plotly bundle contains URL *strings* (map tile servers, logo link) that are
-    only used by map traces and the modebar logo; this report uses neither, so the test inspects
-    real tags instead of grepping the JavaScript text.
-    """
+    The Tm chart is inline SVG: no script at all, and the report stays small (it was about 5 MB
+    with the inlined Plotly bundle; user, 2026-09-25)."""
     html = render(n1, charts=True)
-    assert "Plotly.newPlot" in html
+    assert '<svg class="chart"' in html and "<script" not in html
+    assert len(html.encode()) < 500_000
     parser = _RefCollector()
     parser.feed(html)
     # only plain links to NCBI record pages, which load nothing until clicked
@@ -80,7 +78,6 @@ def test_report_with_charts_is_self_contained(n1):
         for tag, key, value in parser.refs
     ), parser.refs
     assert "<link " not in html
-    assert "displaylogo" in html and '"displaylogo":false' in html.replace(" ", "")
 
 
 def test_three_prime_end_is_marked(n1):
@@ -104,3 +101,13 @@ def test_workbook_has_expected_sheets(n1, tmp_path):
     assert summary["Assay"] == "CDC N1"
     assert summary["Overall verdict"] == "WARN"
     assert wb["Oligo QC"].max_row == len(result.oligo_qc.checks) + 1
+
+
+def test_oligo_quality_control_is_collapsed_just_before_methods(n1):
+    """User 2026-09-25: the oligo checks do not change between runs and matter mainly when
+    designing the PCR, so they sit folded near the end."""
+    html = render(n1)
+    qc = html.index("<h2>Oligo quality control</h2>")
+    assert qc < html.index("<h2>Methods</h2>") and html.index("<h2>Assay as evaluated</h2>") < qc
+    assert '<details class="qc">' in html[qc:] and "<h3>Hairpins and dimers</h3>" in html
+    assert "<h2>Hairpins and dimers</h2>" not in html

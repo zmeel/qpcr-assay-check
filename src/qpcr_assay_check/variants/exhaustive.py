@@ -18,20 +18,21 @@ from __future__ import annotations
 
 import json
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from ..align import realign
 from ..config import Config, SiteRules
 from ..errors import InputError
 from ..inclusivity.aggregate import _stats, _verdict
-from ..inclusivity.models import InclusivityOligoResult, InclusivityResult
+from ..inclusivity.models import FragmentYear, InclusivityOligoResult, InclusivityResult
 from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
-from ..oligo import iupac
+from ..oligo import grade, iupac
 from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
@@ -42,6 +43,7 @@ from .models import (
     CopyCoverage,
     ExhaustiveCoverage,
     OligoCoverageRow,
+    RunLengthBreakdown,
     YearCoverage,
 )
 from .store import RegionStore, StoredAssembly, StoredLocus, store_path
@@ -193,8 +195,8 @@ def collect(
         n_year = client.count(taxon, first=f"{year}-01-01", last=f"{year}-12-31", **flt)
         if n_year:
             listed += n_year
+            pending: list[AssemblyRecord] = []
             if processed < budget:
-                pending: list[AssemblyRecord] = []
                 for rec in client.year(taxon, year, **flt):
                     if store.done(rec.accession):
                         continue
@@ -214,7 +216,9 @@ def collect(
                 processed, failed = processed + p, failed + f
                 failed_accessions += accs
             assessed = sum(1 for it in store.items.values() if it.year == year)
-            years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year)))
+            unavailable = sum(1 for r in pending if store.unavailable(r.accession))
+            years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year),
+                                      unavailable=unavailable))  # fmt: skip
         year -= 1
     log.info(
         "Variant analysis: %d assemblies listed, %d processed this run (%d failed downloads)",
@@ -247,6 +251,7 @@ def _process(
             if fasta is None:
                 failed += 1
                 failed_accessions.append(rec.accession)
+                store.record_failure(rec.accession)
                 continue
             records_ = parse_fasta_records(fasta)
             contigs = {name: seq for name, (_d, seq) in records_.items()}
@@ -291,21 +296,59 @@ class GenomeCall:
     n_detectable_other_rule: int  # copies detectable under the other homopolymer-bulge rule
     oligo_good: dict[str, bool]  # oligo name -> detectable on the best copy
     role_good: dict[str, bool]
+    role_state: dict[str, str] = field(default_factory=dict)  # ok | undetermined | fail
+    assembly_level: str = ""
+    run_variants: list[str] = field(default_factory=list)  # "role: label" in any copy
+    run_on_best: bool = False  # the best copy carries a run-length variant
+    run_mixed: bool = False  # copies disagree: some read the oligo's run length at that site
+
+    @property
+    def undetermined(self) -> bool:
+        """No detectable copy, but no failing role either: only sites without a published basis
+        (e.g. a mismatch in an MGB probe); counted neither as detected nor as an escape."""
+        states = set(self.role_state.values())
+        return self.n_detectable == 0 and "fail" not in states and "undetermined" in states
 
 
 def detectable(s: SiteResult, bulges: bool = False) -> bool:
-    """At most 1 mismatch, no gap, no mismatch in the last 5 nt (the inclusivity criterion).
+    """Graded class perfect or tolerated (docs/MISMATCH_CLASSES.md); for an ungraded site the
+    earlier rule: at most 1 mismatch, no gap, no mismatch in the last 5 nt.
 
     ``bulges``: also accept a site that differs only by the length of a single-base run (a
     labelled homopolymer bulge without any mismatch); strict (False) by default.
     """
+    if s.grade is not None:
+        if s.grade in grade.DETECTABLE:
+            return True
+        # a labelled run-length variant (primer: class R5b at risk or likely failure; probe:
+        # indeterminate) counts as detectable only under the lenient setting
+        return bulges and bool(s.note) and s.n_mismatch == 0
     if s.n_gap == 0:
         return s.n_mismatch <= 1 and s.mismatches_last5 == 0
     return bulges and bool(s.note) and s.n_mismatch == 0
 
 
+def undetermined(s: SiteResult) -> bool:
+    """No published basis either way: a mismatch in an MGB probe (rule R9) or an ambiguity code
+    in the genome in the last 5 nt (R6); counted neither as detected nor as an escape (user
+    decision 2026-09-25). Gaps are not: an unexplained gap near a primer's 3' end is often how
+    the aligner writes two mismatches, so it keeps counting as not detected; homopolymer bulges
+    follow ``homopolymer_bulges_detectable``."""
+    return s.grade == grade.INDETERMINATE and s.grade_rule in grade.UNDETERMINED_RULES
+
+
+def site_state(s: SiteResult, bulges: bool = False) -> str:
+    """ok (detectable) | undetermined | fail."""
+    if detectable(s, bulges):
+        return "ok"
+    return "undetermined" if undetermined(s) else "fail"
+
+
+_STATE_RANK = {"ok": 0, "undetermined": 1, "fail": 2}
+
+
 def _closeness_key(s: SiteResult, bulges: bool = False) -> tuple[int, int, int]:
-    return (0 if detectable(s, bulges) else 1, s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
+    return (_STATE_RANK[site_state(s, bulges)], s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
 
 
 def assess(
@@ -365,30 +408,70 @@ def assess(
                 GenomeCall(
                     accession=it.accession,
                     n_copies=len(copies),
-                    n_detectable=sum(
-                        all(detectable(x, bulges) for x in c.values()) for c, _a in copies
-                    ),
+                    n_detectable=sum(all(roles_ok(c, bulges).values()) for c, _a in copies),
                     best_is_first=best_i == 0,
                     n_detectable_other_rule=sum(
                         all(
-                            detectable(
-                                _role_site(assay, r, a, channel_rule, not bulges), not bulges
-                            )
-                            for r in ROLES
+                            roles_ok(
+                                {
+                                    r: _role_site(assay, r, a, channel_rule, not bulges)
+                                    for r in ROLES
+                                },
+                                not bulges,
+                            ).values()
                         )
                         for _c, a in copies
                     ),  # fmt: skip
                     oligo_good={name: detectable(x, bulges) for name, x in all_sites.items()},
-                    role_good={r: detectable(chosen[r], bulges) for r in ROLES},
+                    role_good=roles_ok(chosen, bulges),
+                    role_state=roles_state(chosen, bulges),
+                    assembly_level=it.assembly_level,
+                    **_run_length_fields([c for c, _a in copies], chosen),
                 )
             )
     return sites, contig_break, masked_site
 
 
-def _copy_key(chosen: dict[str, SiteResult], bulges: bool = False) -> tuple[int, int, int]:
+def _run_length_fields(copies: list[dict[str, SiteResult]],
+                       best: dict[str, SiteResult]) -> dict[str, Any]:  # fmt: skip
+    """Run-length variants (labelled homopolymer bulges) across a genome's copies."""
+    labels: list[str] = []
+    mixed = False
+    for role in ROLES:
+        variant = [c[role] for c in copies if c[role].note]
+        if not variant:
+            continue
+        labels += sorted({f"{role}: {c.note}" for c in variant})
+        mixed = mixed or any(not c[role].note and c[role].n_gap == 0 for c in copies)
+    return {
+        "run_variants": labels,
+        "run_on_best": any(s.note for s in best.values()),
+        "run_mixed": mixed,
+    }
+
+
+def roles_state(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str, str]:
+    """Per role ok | undetermined | fail on this copy; both primers fail together when the pair
+    has too many mismatches in total (rule R8, Lefever 2013; docs/MISMATCH_CLASSES.md)."""
+    state = {r: site_state(s, bulges) for r, s in chosen.items()}
+    fwd, rev = chosen.get("forward"), chosen.get("reverse")
+    graded = fwd is not None and rev is not None and fwd.grade is not None
+    if graded and grade.pair_fails(fwd.n_mismatch, rev.n_mismatch):  # type: ignore[union-attr]
+        state["forward"] = state["reverse"] = "fail"
+    return state
+
+
+def roles_ok(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str, bool]:
+    """Per role whether its site on this copy is detectable (see :func:`roles_state`)."""
+    return {r: v == "ok" for r, v in roles_state(chosen, bulges).items()}
+
+
+def _copy_key(chosen: dict[str, SiteResult], bulges: bool = False) -> tuple[int, int, int, int]:
     roles = list(chosen.values())
+    states = list(roles_state(chosen, bulges).values())
     return (
-        sum(not detectable(x, bulges) for x in roles),
+        states.count("fail"),
+        states.count("undetermined"),
         sum(x.n_mismatch + x.n_gap for x in roles),
         -sum(x.clean_3prime_nt for x in roles),
     )
@@ -424,7 +507,8 @@ def _assess_copy(
             if key not in memo:
                 memo[key] = _align(key[0], oriented, scoring, rules)
             aln, note = memo[key]
-            every[o.name] = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
+            site = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
+            every[o.name] = assay.graded(site)
         chosen[role] = _role_site(assay, role, every, channel_rule, bulges)
     return chosen, every
 
@@ -467,6 +551,26 @@ def _role_site(
     return max(per_channel, key=key)
 
 
+def _run_length_breakdown(calls: list[GenomeCall], bulges: bool) -> RunLengthBreakdown | None:
+    with_variant = [c for c in calls if c.run_variants]
+    if not with_variant:
+        return None
+    levels: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for c in calls:
+        level = c.assembly_level or "unknown"
+        levels[level][1] += 1
+        levels[level][0] += bool(c.run_variants)
+    variants: Counter = Counter(v for c in with_variant for v in set(c.run_variants))
+    return RunLengthBreakdown(
+        genomes=len(with_variant),
+        on_best_copy=sum(c.run_on_best for c in with_variant),
+        mixed=sum(c.run_mixed for c in with_variant),
+        decided_by_rule=sum((c.n_detectable > 0) != (c.n_detectable_other_rule > 0) for c in calls),
+        by_level=dict(sorted(levels.items(), key=lambda x: -x[1][1])),
+        variants=variants.most_common(5),
+    )
+
+
 def copy_coverage(
     calls: list[GenomeCall], assay: Assay, rule: str, bulges: bool = False
 ) -> CopyCoverage:
@@ -487,8 +591,11 @@ def copy_coverage(
         with_detectable_copy_strict=other if bulges else configured,
         with_detectable_copy_bulges=configured if bulges else other,
     )
-    escapes = [c.accession for c in calls if not all(c.role_good.values())]
+    out.run_length = _run_length_breakdown(calls, bulges)
+    escapes = [c.accession for c in calls if not all(c.role_good.values()) and not c.undetermined]
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
+    undet = [c.accession for c in calls if c.undetermined]
+    out.undetermined, out.undetermined_examples = len(undet), undet[:20]
     for role in ROLES:
         members = assay.by_role(role)
         for o in members:
@@ -506,9 +613,13 @@ def copy_coverage(
                     ),
                 )  # fmt: skip
             )
-        none = [c.accession for c in calls
-                if not any(c.oligo_good.get(o.name, False) for o in members)]  # fmt: skip
+        uncovered = [c for c in calls
+                     if not any(c.oligo_good.get(o.name, False) for o in members)]  # fmt: skip
+        none = [c.accession for c in uncovered if c.role_state.get(role) != "undetermined"]
         out.role_none[role], out.role_none_examples[role] = len(none), none[:20]
+        out.role_undetermined[role] = sum(
+            c.role_state.get(role) == "undetermined" for c in uncovered
+        )
     channels: dict[str, list[str]] = defaultdict(list)
     for o in assay.probe:
         channels[o.reporter or "unspecified"].append(o.name)
@@ -553,6 +664,36 @@ def _site(it: StoredAssembly, locus: StoredLocus, o: Oligo, strand: str, lo: int
     )  # fmt: skip
 
 
+def _fragment_years(
+    sites: list[SiteResult], year_of: dict[str, int | None], listed: dict[int, int],
+    shown: list[int], bulges: bool,
+) -> list[FragmentYear]:  # fmt: skip
+    """Per year, each genome's outcome from its three best-copy sites together, as in the
+    whole-fragment table (user, 2026-09-25: one summary next to the per-oligo tables)."""
+    by_genome: dict[str, dict[str, SiteResult]] = defaultdict(dict)
+    for s in sites:
+        by_genome[s.accession][s.role] = s
+    out = {y: FragmentYear(year=y, population_size=listed.get(y), with_region=0) for y in shown}
+    for acc, roles in by_genome.items():
+        row = out.get(year_of.get(acc))  # type: ignore[arg-type]
+        if row is None or len(roles) < len(ROLES):
+            continue
+        outcome, by_pair = grade.combination_outcome(
+            roles["forward"], roles["probe"], roles["reverse"], bulges
+        )
+        row.with_region += 1
+        if outcome == "detectable":
+            row.detectable += 1
+        elif outcome == "at risk":
+            row.at_risk += 1
+        elif outcome == "likely failure":
+            row.likely_failure += 1
+            row.by_pair_rule += by_pair
+        elif outcome == "undetermined":
+            row.undetermined += 1
+    return [out[y] for y in shown]
+
+
 def exhaustive_inclusivity(
     sites: list[SiteResult],
     items: list[StoredAssembly],
@@ -578,6 +719,9 @@ def exhaustive_inclusivity(
         oligo = " / ".join(o.sequence for o in assay.by_role(role))
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
     verdict, rationale = _verdict(oligos, cfg.inclusivity, sampled=False)
+    fragment_years = _fragment_years(
+        sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable
+    )
     rationale += [
         f"{y.year}: {y.listed} "
         + (
@@ -586,7 +730,13 @@ def exhaustive_inclusivity(
             else f"record{'' if y.listed == 1 else 's'}"
         )
         + " listed, "
-        f"{y.assessed} assessed so far; the rest follow on later runs."
+        f"{y.assessed} assessed so far"
+        + (
+            f", {y.unavailable} could not be downloaded after repeated attempts"
+            if y.unavailable
+            else ""
+        )
+        + ("; the rest follow on later runs." if y.assessed + y.unavailable < y.listed else ".")
         for y in sorted(years, key=lambda y: y.year)
         if y.year in shown and y.assessed < y.listed
     ]
@@ -595,6 +745,7 @@ def exhaustive_inclusivity(
         exhaustive=True,
         target_taxid=assay.target.taxid,
         oligos=oligos,
+        fragment_years=fragment_years,
         sample_scheme=(
             (
                 "Every genome assembly of the target in NCBI Datasets (current versions, one copy "
@@ -633,6 +784,52 @@ def exhaustive_inclusivity(
 
 
 # ------------------------------------------------------------------ one call for the CLI
+def placements(assay: Assay, amplicon: str, cfg: Config) -> list[dict[str, tuple[str, int, int]]]:
+    """The oligo windows per reference amplicon (the first, then each further one)."""
+    mm = cfg.thresholds.amplicon.max_site_mismatches
+    placed = [oligo_sites(assay, amplicon, mm)]
+    for ref in assay.reference_amplicons[1:]:  # one that cannot place a role uses the first's
+        try:
+            placed.append(oligo_sites(assay, ref.sequence.upper(), mm))
+        except InputError:
+            placed.append(placed[0])
+    return placed
+
+
+def open_store(
+    assay: Assay, cfg: Config, cache_root: Path, amplicon: str, source: str
+) -> RegionStore:
+    """The assay's region store (keyed by the first reference only, so adding a lineage
+    reference keeps the stored regions)."""
+    taxon = assay.target.taxid
+    if taxon is None:
+        raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
+    path = store_path(
+        cache_root, taxon, amplicon, cfg.variants.flank_nt, source, assay.target.excluded_taxids
+    )
+    store = RegionStore(path)
+    store.n_refs = len(assay.reference_amplicons) or 1
+    return store
+
+
+def stored_calls(
+    assay: Assay,
+    cfg: Config,
+    cache_root: Path,
+    fetch_fasta: Callable[[str], str],
+    source: str,
+) -> tuple[list[StoredAssembly], list[GenomeCall], Path]:
+    """Every genome already in the assay's region store, judged by its best copy (no new
+    downloads): the stored items, one :class:`GenomeCall` per genome with a complete copy, and
+    the store's path. ``fetch_fasta`` is only used when the assay has no reference amplicon."""
+    amplicon, _src = reference_amplicon(assay, fetch_fasta)
+    store = open_store(assay, cfg, cache_root, amplicon, source)
+    items = current_items(store)
+    calls: list[GenomeCall] = []
+    assess(items, assay, amplicon, placements(assay, amplicon, cfg), cfg, calls=calls)
+    return items, calls, store.path
+
+
 Collector = Callable[
     [RegionStore, int, str, Callable[[], tuple[str, str]]],
     tuple[list[YearCoverage], int, int, int, list[str]],
@@ -670,6 +867,12 @@ def run_exhaustive(
     taxon = assay.target.taxid
     if taxon is None:
         raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
+    if assay.target.excluded_taxids and source == "datasets":
+        raise InputError(
+            "Taxa left out of the target (target.taxa / exclude_taxids) are not supported "
+            "with variants.source: datasets (the NCBI Datasets genome listing has no 'NOT' "
+            "filter); use blast_partitioned."
+        )
     fetched: dict[str, str] = {}
 
     def fetch_once(acc: str) -> str:  # the amplicon and its context come from one record
@@ -679,17 +882,10 @@ def run_exhaustive(
 
     amplicon, amp_source = reference_amplicon(assay, fetch_once)
     others = [r.sequence.upper() for r in assay.reference_amplicons[1:]]
-    mm = cfg.thresholds.amplicon.max_site_mismatches
-    placed = [oligo_sites(assay, amplicon, mm)]
-    for ref in others:  # windows per reference; one that cannot place a role uses the first's
-        try:
-            placed.append(oligo_sites(assay, ref, mm))
-        except InputError:
-            placed.append(placed[0])
+    placed = placements(assay, amplicon, cfg)
     v = cfg.variants
-    # keyed by the first reference only, so adding a lineage reference keeps the stored regions
-    store = RegionStore(store_path(cache_root, taxon, amplicon, v.flank_nt, source))
-    store.n_refs = 1 + len(others)
+    exclude = assay.target.excluded_taxids
+    store = open_store(assay, cfg, cache_root, amplicon, source)
     context = ReferenceContext(assay, amplicon, fetch_once, store.path.with_suffix(".context.json"))
     context.other_amplicons = others
     if collector is None:
@@ -726,11 +922,14 @@ def run_exhaustive(
              "exclude_atypical": v.exclude_atypical, "one_copy_per_genbank_refseq_pair": True}
             if source == "datasets"
             else {"nucleotide_query": v.nucleotide_query or ""}
-        ),
+        )
+        | ({"excluded_taxids": ", ".join(map(str, exclude))} if exclude else {}),
         listed_total=total,
         assessed_total=len(items),
         processed_this_run=processed,
         download_failed_this_run=failed,
+        unavailable=sum(y.unavailable for y in years),
+        unavailable_examples=sorted(a for a in store.failures if store.unavailable(a))[:20],
         budget_per_run=(
             v.max_assemblies_per_run if source == "datasets" else v.blast_max_records_per_run
         ),

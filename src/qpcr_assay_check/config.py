@@ -224,6 +224,7 @@ class NcbiSettings(_Strict):
     blast_min_interval_s: float
     poll_interval_s: float
     max_wait_minutes: float
+    resubmit_after_minutes: float
     rid_lifetime_hours: float
     blast_cache_ttl_days: float
     taxonomy_cache_ttl_days: float
@@ -237,6 +238,8 @@ class NcbiSettings(_Strict):
             raise ValueError("blast_min_interval_s must be at least 10 (NCBI usage guideline)")
         if self.poll_interval_s < 60:
             raise ValueError("poll_interval_s must be at least 60 (NCBI usage guideline)")
+        if self.resubmit_after_minutes < 0:
+            raise ValueError("resubmit_after_minutes must not be negative")
         if self.max_retries < 0 or self.backoff_base_s <= 0:
             raise ValueError("max_retries must be >= 0 and backoff_base_s > 0")
         if not 1 <= self.datasets_batch_size <= 100:
@@ -328,6 +331,7 @@ class SeverityMap(_Strict):
     """How each finding contributes to the specificity verdict."""
 
     primer_site_critical: Severity
+    primer_site_critical_no_product: Severity
     primer_site_warning: Severity
     probe_site_critical: Severity
     amplicon_likely_detected: Severity

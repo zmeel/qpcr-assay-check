@@ -19,6 +19,7 @@ from ..ncbi.runner import BlastRunner
 from ..ncbi.settings import credentials_from_env
 from ..pipeline import inputs_hash
 from ..taxonomy.plan import OrganismListResolution, resolve_organism_list
+from ..taxonomy.resolve import outside_target
 from .orchestrate import SearchOutcome, run_search
 from .planner import PlannedSearch, SearchPlan, plan_searches
 
@@ -58,6 +59,20 @@ def _resolve_and_plan(
     resolution = None
     excl_taxids = None
     excl_unresolved = 0
+    exclude = assay.target.excluded_taxids
+    if exclude and assay.target.taxid is not None:
+        wrong = outside_target(
+            Eutils(http, cfg.ncbi.eutils_url), cache, assay.target.taxid, exclude,
+            ttl_days=cfg.ncbi.taxonomy_cache_ttl_days,
+        )  # fmt: skip
+        if wrong:
+            raise InputError(
+                "Taxa left out of the target (target.taxa) must lie inside the target taxon "
+                f"{assay.target.taxid}; not inside it (by NCBI Taxonomy): "
+                + ", ".join(map(str, wrong))
+                + ". An ancestor would empty the target search, and the near-neighbour search "
+                "would then search the target itself."
+            )
     if only_tiers is None or "exclusivity" in only_tiers:
         resolution = resolve_organism_list(cfg, Eutils(http, cfg.ncbi.eutils_url), cache, assay)
         excl_unresolved = len(resolution.unresolved)

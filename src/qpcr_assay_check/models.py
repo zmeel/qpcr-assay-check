@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -45,6 +45,26 @@ class TemplateType(StrEnum):
     RNA = "RNA"
 
 
+TaxonRole = Literal["must_not_detect", "out_of_scope"]
+
+
+class TargetTaxon(BaseModel):
+    """A taxon inside the target taxon that is not part of the intended target.
+
+    ``must_not_detect`` (e.g. the rhinoviruses inside the genus Enterovirus): searched as near
+    neighbours, and a product there counts against the specificity verdict.
+    ``out_of_scope`` (e.g. animal enteroviruses for a human diagnostic assay): searched and
+    reported ("also detects"), but information only, not part of the verdict.
+    Both are left out of the target search, inclusivity and the variant analysis.
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    taxid: int = Field(gt=0, description="NCBI Taxonomy ID (with its descendants)")
+    role: TaxonRole = "must_not_detect"
+    reason: str = Field(default="", max_length=300, description="why, shown in the report")
+
+
 class Target(BaseModel):
     """Intended target of the assay. At least a taxonomy ID or a reference accession is needed."""
 
@@ -53,6 +73,16 @@ class Target(BaseModel):
     taxid: int | None = Field(default=None, gt=0, description="NCBI Taxonomy ID")
     accession: str | None = Field(default=None, description="Reference accession, e.g. NC_045512.2")
     gene: str | None = None
+    exclude_taxids: list[int] = Field(
+        default_factory=list,
+        description="short form of 'taxa' with role must_not_detect (kept for existing files; "
+        "moved into 'taxa' on loading)",
+    )
+    taxa: list[TargetTaxon] = Field(
+        default_factory=list,
+        description="taxa inside the target taxon that are not the intended target, each with "
+        "a role (must_not_detect | out_of_scope) and a reason",
+    )
 
     @field_validator("accession")
     @classmethod
@@ -71,7 +101,41 @@ class Target(BaseModel):
     def _need_taxid_or_accession(self) -> Target:
         if self.taxid is None and self.accession is None:
             raise ValueError("give at least one of 'taxid' or 'accession'")
+        if any(t <= 0 for t in self.exclude_taxids):
+            raise ValueError("'exclude_taxids' must be positive taxonomy IDs")
+        listed = {x.taxid for x in self.taxa}
+        if len(listed) != len(self.taxa):
+            raise ValueError("a taxid is listed twice in 'taxa'")
+        both = sorted(listed & set(self.exclude_taxids))
+        if both:
+            raise ValueError(
+                f"taxid(s) {', '.join(map(str, both))} are in both 'exclude_taxids' and "
+                "'taxa'; list each once (in 'taxa', with its role)"
+            )
+        taxa = [*self.taxa, *(TargetTaxon(taxid=t) for t in sorted(set(self.exclude_taxids)))]
+        if taxa:
+            if self.taxid is None:
+                raise ValueError("'taxa' / 'exclude_taxids' need the target's 'taxid'")
+            if self.taxid in {x.taxid for x in taxa}:
+                raise ValueError(
+                    "'taxa' / 'exclude_taxids' must not contain the target's own taxid"
+                )
+        self.taxa = sorted(taxa, key=lambda x: x.taxid)
+        self.exclude_taxids = []  # moved into 'taxa'
         return self
+
+    @property
+    def excluded_taxids(self) -> list[int]:
+        """Every taxon left out of the target (both roles), sorted."""
+        return [x.taxid for x in self.taxa]
+
+    @property
+    def must_not_detect_taxids(self) -> list[int]:
+        return [x.taxid for x in self.taxa if x.role == "must_not_detect"]
+
+    @property
+    def out_of_scope_taxids(self) -> list[int]:
+        return [x.taxid for x in self.taxa if x.role == "out_of_scope"]
 
 
 def _clean_oligo(value: Any, label: str) -> str:
@@ -146,6 +210,32 @@ class Oligo(BaseModel):
             if token in labels:
                 found[token] = None
         return list(found)
+
+
+class LabEvidence(BaseModel):
+    """A wet-lab result for one oligo variant (advisor subagent, 2026-09-26): genomes with this
+    exact site variant take the laboratory's outcome instead of the in silico class."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    oligo: str = Field(description="the oligo's name, as in forward/reverse/probe")
+    variant: str = Field(
+        min_length=5,
+        description="the site as the report's variant tables write it against the oligo: '.' "
+        "for a matching base, the genome's base for a mismatch, '-' for a gap",
+    )
+    outcome: Literal["detected", "not_detected"]
+    note: str = Field(min_length=1, description="what was tested, and the lab's reference")
+
+    @field_validator("variant")
+    @classmethod
+    def _variant(cls, v: str) -> str:
+        v = v.upper()
+        if not re.fullmatch(r"[.ACGTRYSWKMBDHVN-]+", v):
+            raise ValueError(
+                "variant: use '.', '-' and base letters, exactly as the report writes the site"
+            )
+        return v
 
 
 class ReferenceAmplicon(BaseModel):
@@ -263,6 +353,10 @@ class Assay(BaseModel):
     )
     oligo_source: str | None = Field(default=None, description="Where the oligos come from")
     notes: str | None = None
+    evidence: list[LabEvidence] = Field(
+        default_factory=list,
+        description="wet-lab results per oligo variant; they replace the in silico class",
+    )
     settings: dict[str, Any] = Field(
         default_factory=dict,
         description="This assay's own settings, in config.yaml's structure, applied over the "
@@ -323,6 +417,11 @@ class Assay(BaseModel):
             if o.name in seen:
                 raise ValueError(f"oligo name '{o.name}' is used twice; names must be unique")
             seen.add(o.name)
+        for e in self.evidence:
+            if e.oligo not in seen:
+                raise ValueError(
+                    f"evidence: no oligo named '{e.oligo}' (oligos: {', '.join(sorted(seen))})"
+                )
         for p in self.probe:
             p.reporter = p.reporter or self.probe_reporter
             p.quencher = p.quencher or self.probe_quencher
@@ -376,6 +475,28 @@ class Assay(BaseModel):
 
     def oligo(self, name: str) -> Oligo:
         return next(o for o in self.oligo_list if o.name == name)
+
+    def graded(self, site: Any) -> Any:
+        """A target-tier SiteResult with its graded mismatch class (docs/MISMATCH_CLASSES.md)."""
+        from .oligo.grade import grade_fields, is_mgb, lab_fields
+
+        name = _DEGENERATE_SUFFIX.sub("", site.query)
+        o = next((x for x in self.oligo_list if x.name == name), None)
+        mgb = o is not None and is_mgb(o.modifications)
+        fields = grade_fields(site.q_aln, site.s_aln, site.role, mgb=mgb)
+        lab = self.evidence_for(name, site.q_aln, site.s_aln)
+        if lab is not None:
+            fields = lab_fields(lab, fields)
+        return site.model_copy(update=fields)
+
+    def evidence_for(self, oligo: str, q_aln: str, s_aln: str) -> LabEvidence | None:
+        """The lab result recorded for this oligo and site variant, if any."""
+        if not self.evidence:
+            return None
+        from .oligo.grade import site_string
+
+        key = site_string(q_aln, s_aln)
+        return next((e for e in self.evidence if e.oligo == oligo and e.variant == key), None)
 
     def role_of(self, label: str) -> str:
         """Role of an oligo name or query label (``NG-P1`` or a degenerate ``NG-P1_v2``)."""

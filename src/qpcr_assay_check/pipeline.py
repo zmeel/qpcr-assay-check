@@ -289,6 +289,18 @@ def evaluate(
             "Run again to continue; the variant tables and inclusivity cover only the assessed "
             f"{'records' if c.source == 'blast_partitioned' else 'assemblies'} until then."
         )
+    if variant_coverage is not None and variant_coverage.unavailable:
+        c = variant_coverage
+        one = c.unavailable == 1
+        what = (
+            ("record" if one else "records") if c.source == "blast_partitioned"
+            else ("assembly" if one else "assemblies")
+        )  # fmt: skip
+        findings.append(
+            f"Variant analysis: {c.unavailable} {what} "
+            "could not be downloaded after repeated attempts and are left out (tried again on "
+            f"each run; e.g. {', '.join(c.unavailable_examples[:5])})."
+        )
     if (
         variant_coverage is not None
         and variant_coverage.target_on_plasmid

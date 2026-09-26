@@ -1,10 +1,14 @@
 # Example assay: Neisseria gonorrhoeae, one primer pair with two alternative FAM-MGB probes.
 #
 # STATUS
-#   v1.3.0 format: named oligos, several per role (README "Several oligos per role"). The variant
-#   analysis judges each genome by its best-binding copy of this multi-copy target, reports
-#   coverage per oligo and the escapes, and tries NG-fragment-P2 where NG-fragment-P1 finds
-#   nothing. Settings for this assay are in its own 'settings:' section at the end.
+#   Current format (after v1.3.0): named oligos, several per role (docs/USER_GUIDE.md "Several oligos per
+#   role"). The variant analysis judges each genome by its best-binding copy of this multi-copy
+#   target, reports coverage per oligo and the escapes, and tries NG-fragment-P2 where
+#   NG-fragment-P1 finds nothing. Since v1.3.0 every site gets a graded mismatch class
+#   (docs/MISMATCH_CLASSES.md); both probes carry MGB, so a single probe mismatch is
+#   "undetermined" and two or more are "likely failure". No taxa inside N. gonorrhoeae are left
+#   out of the target (target.taxa stays empty). Settings for this assay are in its own
+#   'settings:' section at the end.
 #
 # PROVENANCE
 #   Sequences supplied by the user (2026-09-24); not checked against a publication or kit insert.
@@ -54,3 +58,5 @@ settings:                       # only what differs from the defaults, for this 
     background_taxids: [9606]   # human background search; [] skips it
   variants:
     source: datasets            # bacterium: every genome assembly
+    homopolymer_bulges_detectable: false  # strict (the default): the poly-T length variants at
+                                # the reverse site count as not detected; both counts are shown

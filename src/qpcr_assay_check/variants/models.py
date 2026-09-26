@@ -9,6 +9,9 @@ class YearCoverage(BaseModel):
     year: int
     listed: int = Field(description="assemblies NCBI Datasets lists for this release year")
     assessed: int = Field(description="of those, assessed so far (this run and earlier runs)")
+    unavailable: int = Field(
+        default=0, description="of those, not downloadable after repeated attempts"
+    )
 
 
 class OligoCoverageRow(BaseModel):
@@ -27,6 +30,35 @@ class ChannelCoverageRow(BaseModel):
     reporter: str
     probes: list[str]
     covered: int
+
+
+class RunLengthBreakdown(BaseModel):
+    """How far to trust the homopolymer length variants (advisor subagent, 2026-09-26): run
+    length is a known sequencing and assembly error mode, so the variants are broken down by
+    whether a genome's copies agree and by assembly level."""
+
+    genomes: int = Field(
+        default=0, description="genomes with a run-length variant in at least one copy of a site"
+    )
+    on_best_copy: int = Field(
+        default=0, description="of those, genomes judged on a copy that carries the variant"
+    )
+    mixed: int = Field(
+        default=0,
+        description="of those, genomes whose copies disagree: other copies read the oligo's run "
+        "length at that site (read or assembly error in some copies, or real copy variation)",
+    )
+    decided_by_rule: int = Field(
+        default=0,
+        description="genomes whose detection depends on the homopolymer-bulge setting",
+    )
+    by_level: dict[str, list[int]] = Field(
+        default_factory=dict,
+        description="assembly level -> [genomes with a variant, genomes assessed]",
+    )
+    variants: list[tuple[str, int]] = Field(
+        default_factory=list, description="the most frequent variants (role: label, genomes)"
+    )
 
 
 class CopyCoverage(BaseModel):
@@ -52,11 +84,20 @@ class CopyCoverage(BaseModel):
     with_detectable_copy: int = 0
     escapes: int = Field(default=0, description="genomes without any detectable copy")
     escape_examples: list[str] = Field(default_factory=list)
+    undetermined: int = Field(
+        default=0,
+        description="genomes without a detectable copy whose only problems have no published "
+        "basis (e.g. a mismatch in an MGB probe): neither detected nor an escape",
+    )
+    undetermined_examples: list[str] = Field(default_factory=list)
     oligos: list[OligoCoverageRow] = Field(default_factory=list)
     role_none: dict[str, int] = Field(
         default_factory=dict, description="per role: genomes that none of its oligos covers"
     )
     role_none_examples: dict[str, list[str]] = Field(default_factory=dict)
+    role_undetermined: dict[str, int] = Field(
+        default_factory=dict, description="per role: genomes whose best site is undetermined"
+    )
     channels: list[ChannelCoverageRow] = Field(default_factory=list)
     any_channel: int = 0
     all_channels: int = 0
@@ -74,6 +115,7 @@ class CopyCoverage(BaseModel):
     with_detectable_copy_bulges: int = Field(
         default=0, description="genomes with a detectable copy when bulges count"
     )
+    run_length: RunLengthBreakdown | None = None
 
 
 class ExhaustiveCoverage(BaseModel):
@@ -88,6 +130,12 @@ class ExhaustiveCoverage(BaseModel):
     assessed_total: int
     processed_this_run: int
     download_failed_this_run: int
+    unavailable: int = Field(
+        default=0,
+        description="assemblies whose download failed on repeated runs; left out, tried again "
+        "each run, and not counted as work still to do",
+    )
+    unavailable_examples: list[str] = Field(default_factory=list)
     budget_per_run: int
     found: int
     not_found: int
@@ -142,4 +190,4 @@ class ExhaustiveCoverage(BaseModel):
 
     @property
     def complete(self) -> bool:
-        return self.assessed_total >= self.listed_total
+        return self.assessed_total + self.unavailable >= self.listed_total

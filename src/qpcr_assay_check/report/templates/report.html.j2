@@ -20,7 +20,7 @@
 * { box-sizing: border-box; }
 html { background: var(--paper); }
 body { margin: 0; color: var(--ink); font-family: var(--serif); font-size: 17px; line-height: 1.55; }
-main { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+main { max-width: 96rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
 h1, h2, h3, table, .chip, .meta, .rec { font-family: var(--sans); }
 h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .35rem; }
 h2 { font-size: 1.25rem; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
@@ -55,6 +55,8 @@ th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(
 thead th { background: #EAEFF3; font-weight: 600; }
 tr.group th { background: #F1F4F7; font-size: .8rem; color: var(--muted); font-weight: 600; }
 td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+details.more { display: inline; } details.more summary { cursor: pointer; color: var(--muted); display: inline; }
 td.note { color: var(--muted); }
 .scroll { overflow-x: auto; }
 .seq { font-family: var(--mono); font-size: .92rem; letter-spacing: .04em; word-break: break-all; }
@@ -83,14 +85,22 @@ pre.aln { font-family: var(--mono); font-size: .78rem; line-height: 1.3; margin:
 .aln .gp { background: var(--warn-bg); }
 .aln .un { color: var(--muted); }
 .aln .tail { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
-td.aln-cell { min-width: 22rem; }
+td.aln-cell { white-space: nowrap; }
+td.org { min-width: 16rem; }
+svg.chart { width: 100%; max-width: 44rem; height: auto; display: block; }
+details.qc > summary { cursor: pointer; font-family: var(--sans); color: var(--muted); margin: .4rem 0 1rem; }
+details.changes { margin: 0; } details.changes > summary { cursor: pointer; list-style: none; font-size: .85rem; }
+details.changes > summary::-webkit-details-marker { display: none; }
+pre.aln.compact { font-size: .92rem; letter-spacing: .04em; } /* as .seq: lines up with the header */
+table.frag th .seq { white-space: nowrap; word-break: normal; }
+table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </style>
-{% if plotly_js %}<script>{{ plotly_js }}</script>{% endif %}
 </head>
 <body>
 <main>
 {% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
-{% macro match(row, primer) %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro match(row, primer) %}{% if row.grade %}<span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ row.grade | replace('_', ' ') }}</span><br>{% endif %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro grade_css(g) %}{{ {'perfect': 's-PASS', 'tolerated': 's-PASS', 'at_risk': 's-WARN', 'likely_failure': 's-FAIL', 'indeterminate': 's-INCOMPLETE'}.get(g, 's-INFO') }}{% endmacro %}
 {% macro pct(value) %}{% if 0 < value < 0.05 %}&lt;0.1%{% else %}{{ '%.1f' % value }}%{% endif %}{% endmacro %}
 
 <header>
@@ -146,8 +156,13 @@ td.aln-cell { min-width: 22rem; }
     <tr><th scope="row">Intended target</th><td>
       {% if assay.target.taxid %}taxonomy ID {{ assay.target.taxid | taxon }}{% endif %}
       {% if assay.target.accession %}{% if assay.target.taxid %}; {% endif %}reference {{ assay.target.accession | ncbi }}{% endif %}
-      {% if assay.target.gene %}; gene {{ assay.target.gene }}{% endif %}</td></tr>
+      {% if assay.target.gene %}; gene {{ assay.target.gene }}{% endif %}
+      {% if assay.target.taxa %}<br><strong>Excluding</strong> these taxa and their descendants from the target (left out of the target search, inclusivity and the variant analysis; records of such organisms filed under another taxon, e.g. an unclassified one, stay in the target):
+      {% set mnd = assay.target.taxa | selectattr('role', 'equalto', 'must_not_detect') | list %}{% set oos = assay.target.taxa | selectattr('role', 'equalto', 'out_of_scope') | list %}
+      {% if mnd %}<br><em>Must not detect</em> ({{ mnd | length }}; searched as near neighbours, part of the specificity verdict): {% for x in mnd %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}
+      {% if oos %}<br><em>Out of scope</em> ({{ oos | length }}; searched and listed as "also detects", information only, not part of the verdict): {% for x in oos %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}{% endif %}</td></tr>
     {% if assay.oligo_source %}<tr><th scope="row">Oligo source</th><td>{{ assay.oligo_source }}</td></tr>{% endif %}
+    {% if evidence_rows %}<tr><th scope="row">Laboratory evidence</th><td>{% for e, n in evidence_rows %}{{ e.oligo }} <span class="seq">{{ e.variant }}</span>: <strong>{{ e.outcome | replace('_', ' ') }}</strong> <span class="meta">({{ e.note }}); {% if n %}applied to {{ n }} record{{ '' if n == 1 else 's' }} in this run{% else %}<strong>matched no site in this run</strong>: check the oligo name and the variant string{% endif %}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}<br><span class="meta">A laboratory result replaces the in silico class for sites with exactly this variant (rule LAB: detected = tolerated, not detected = likely failure).</span></td></tr>{% endif %}
     {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes | ncbi }}</td></tr>{% endif %}
   </tbody>
 </table></div>
@@ -158,82 +173,22 @@ td.aln-cell { min-width: 22rem; }
   {% for o in degenerate %}{{ o.role }} → {{ o.n_variants }} variants{% if not loop.last %}, {% endif %}{% endfor %}.</p>
 {% endif %}
 
-<h2>Oligo quality control</h2>
-{% if qc.tm_unreliable_reasons %}
-<div class="notice"><p><strong>Tm reliability.</strong> The probe carries {{ qc.tm_unreliable_reasons | join(', ') }}.
-  Nearest-neighbour Tm and dimer estimates do not model these modifications; use vendor-specific values.</p></div>
-{% endif %}
-{% for c in charts %}
-<figure>
-  {{ c.html }}
-  <figcaption>{{ c.caption }}</figcaption>
-</figure>
-{% endfor %}
-<div class="scroll"><table>
-  <thead><tr><th>Check</th><th>Value</th><th>Result</th><th>Rule applied</th></tr></thead>
-  <tbody>
-  {% for title, items in groups %}
-    <tr class="group"><th colspan="4">{{ title }}</th></tr>
-    {% for c in items %}
-    <tr>
-      <td>{{ c.name }}{% if c.message %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
-      <td class="num">{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td>
-      <td>{{ chip(c.status.value) }}</td>
-      <td class="note">{{ c.rule }}</td>
-    </tr>
-    {% endfor %}
-  {% endfor %}
-  </tbody>
-</table></div>
-{% if qc.amplicon_note %}<p class="meta">{{ qc.amplicon_note }}</p>{% endif %}
-
-<h2>Hairpins and dimers</h2>
-<p>Calculated at the annealing temperature of {{ r.config.reaction.annealing_temp_C }} °C
-  (Na⁺ {{ r.config.reaction.na_mM }} mM, Mg²⁺ {{ r.config.reaction.mg_mM }} mM, dNTP {{ r.config.reaction.dntp_mM }} mM).
-  A structure is flagged when its melting temperature reaches
-  {{ r.config.thresholds.structures.warn_tm_c }} °C (WARN) or the
-  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (FAIL).
-  “3′ end” rows test whether the 3′ end of the first oligo can anneal to the second and be extended.</p>
-<div class="scroll"><table>
-  <thead><tr><th>Structure</th><th>Tm (°C)</th><th>ΔG (kcal/mol)</th><th>Result</th></tr></thead>
-  <tbody>
-  {% for s in qc.structures %}
-  <tr>
-    <td>{{ s.label }}{% if s.n_total > s.n_evaluated %}<br><span class="meta">{{ s.n_evaluated }} of {{ s.n_total }} variant combinations evaluated</span>{% endif %}
-      {% if s.variant %}<br><span class="meta">worst case: {{ s.variant }}</span>{% endif %}</td>
-    <td class="num">{{ s.tm_c | tm }}</td>
-    <td class="num">{{ s.dg_kcal | dg }}</td>
-    <td>{{ chip(s.status.value) }}</td>
-  </tr>
-  {% if s.ascii_lines %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
-  {% endfor %}
-  </tbody>
-</table></div>
-<p class="meta">Tm “none” means no structure was found; “&lt; 0” means the only structure is far too weak to matter.
-  Thermodynamic values are estimates from primer3 nearest-neighbour parameters.</p>
-
-{% if qc.amplicon %}
-<h2>Amplicon</h2>
-{% set a = qc.amplicon %}
-<div class="scroll"><table><tbody>
-  {% if assay.reference_amplicons | length > 1 %}
-  <tr><th scope="row">Reference amplicons</th><td>{% for ref in assay.reference_amplicons %}{{ ref.name }} ({{ ref.sequence | length }} nt){% if not loop.last %}, {% endif %}{% endfor %}<br><span class="meta">Each oligo is placed in the reference it fits best (see the checks above); the rows below describe {{ assay.reference_amplicons[0].name }}.</span></td></tr>
-  {% else %}
-  <tr><th scope="row">Reference amplicon</th><td>{{ a.input_length_nt }} nt</td></tr>
-  {% endif %}
-  {% if a.product_length_nt %}<tr><th scope="row">Primer-defined product</th><td>{{ a.product_length_nt }} bp, {{ '%.1f' % a.product_gc_percent }}% GC</td></tr>{% endif %}
-  {% for site in [a.forward_site, a.reverse_site, a.probe_site] if site %}
-  <tr><th scope="row">{{ site.oligo | capitalize if site.oligo in ('forward', 'reverse', 'probe') else site.oligo }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
-  {% endfor %}
-</tbody></table></div>
-{% endif %}
-
 {% if spec %}
 <h2>Specificity</h2>
 <p>{{ chip(spec.verdict_sites.value) }} off-target primer and probe sites &nbsp; {{ chip(spec.verdict_amplicons.value) }} predicted off-target products</p>
-<div class="notice"><p><strong>Scope.</strong> {{ spec.scope }} This verdict covers only what was searched and says nothing about organisms outside those tiers.</p></div>
+{% macro site_line(x) %}{% if x.query != x.role %}{{ x.query }} {% endif %}on {{ x.accession | ncbi }} ({{ x.organism or 'unknown organism' }}): {{ x.n_mismatch }} mismatch{{ 'es' if x.n_mismatch != 1 }}{% if x.n_gap %}, {{ x.n_gap }} gap{{ 's' if x.n_gap != 1 }}{% endif %}{% if x.role != 'probe' %}, {{ x.clean_3prime_nt }} clean 3′ nt{% endif %}{% endmacro %}
+<div class="notice">
+{% for t in spec_overview %}
+<p><strong>{{ t.title }}</strong> <span class="meta">({{ t.tier }}, {{ t.n_taxa }} tax{{ 'on' if t.n_taxa == 1 else 'a' }})</span>:
+  {% if t.products %}<strong>{{ t.products }} predicted product{{ '' if t.products == 1 else 's' }}</strong>{% if t.detected %}, {{ t.detected }} detectable by the probe{% endif %}{% else %}<strong>no predicted product</strong>{% endif %}{% if t.tier == 'out_of_scope' %}; information only{% endif %}.
+  {% if t.tier != 'out_of_scope' %}{% if t.by_design and t.discriminating %}Discrimination rests on the {{ t.discriminating | join(' and ') }} primer{{ 's' if t.discriminating | length > 1 }}; the {{ t.by_design | join(' and ') }} bind{{ 's' if t.by_design | length == 1 }} this tier perfectly{% if 'probe' in t.by_design %} (a probe gives signal only inside a product){% endif %}.{% elif 'forward' in t.by_design and 'reverse' in t.by_design %}<strong>Both primers have a perfect site in this tier</strong>, but never facing each other on one record within product distance, so no product is predicted; check those records (a partial record or fragment can hide the other site). {% endif %}
+  {% for role in ['forward', 'reverse'] if t.closest[role] %}Closest {{ role }} site: {{ site_line(t.closest[role]) }}. {% endfor %}{% endif %}
+  {% if t.incomplete %}<span class="meta">Not every relevant alignment was assessed for {{ t.incomplete | join(', ') }} (hit list full or cut at max_sites_per_query){% if t.discriminating and t.by_design and t.discriminating_complete %}; the {{ t.discriminating | join(' and ') }} primer{{ 's' if t.discriminating | length > 1 }} were assessed completely{% endif %}.</span>{% else %}<span class="meta">Every relevant alignment was assessed.</span>{% endif %}</p>
+{% endfor %}
+<p class="meta"><strong>Scope.</strong> {{ spec.scope }} This covers only what was searched and says nothing about organisms outside those tiers.</p>
+</div>
 
-<h3>Rationale</h3>
+<h3>All findings</h3>
 <ul>
 {% for f in spec.findings %}
   <li>{{ chip(f.severity) }} {{ f.message }}</li>
@@ -242,58 +197,69 @@ td.aln-cell { min-width: 22rem; }
 
 <h3>Searches</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Tier</th><th>Taxa (NCBI taxonomy ID)</th><th>Searches</th><th>Hits per query</th><th>Hit list saturated</th><th>RIDs</th></tr></thead>
+  <thead><tr><th>Tier</th><th>Taxa (NCBI taxonomy ID)</th><th>Searches</th><th>Complete</th><th>RIDs</th></tr></thead>
   <tbody>
   {% for t in search_rows %}
-  <tr><td>{{ t.tier }}</td><td class="num">{{ t.taxids | map('taxon') | join(', ') }}</td><td class="num">{{ t.n }}</td>
-    <td>{% for k, v in t.hits.items() %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
-    <td>{% if t.saturated %}{{ chip('INCOMPLETE') }} {{ t.saturated | join(', ') }}{% else %}no{% endif %}</td>
-    <td class="num">{{ t.rids | join(', ') }}</td></tr>
+  <tr><td>{{ t.tier }}</td><td>{{ t.taxids[:5] | map('taxon') | join(', ') }}{% if t.taxids | length > 5 %} <details class="more"><summary>+{{ t.taxids | length - 5 }} more</summary>{{ t.taxids[5:] | map('taxon') | join(', ') }}</details>{% endif %}{% if t.tier == 'target' and assay.target.excluded_taxids %} <details class="more"><summary>excluding {{ assay.target.excluded_taxids | length }} taxa</summary>{{ assay.target.excluded_taxids | map('taxon') | join(', ') }}</details>{% endif %}</td><td class="num">{{ t.n }}</td>
+    <td>{% if t.tier == 'target' %}<span class="meta">not used for specificity{% if r.inclusivity and r.inclusivity.exhaustive %}; inclusivity and variants use every record of the target{% endif %}</span>{% elif t.saturated or (spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('truncated') | list) %}no: {{ ((t.saturated + (spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('truncated') | map(attribute='query') | list)) | unique | list) | join(', ') }}{% else %}yes{% endif %}</td>
+    <td class="num">{% for rid, day in t.rids %}{{ rid }}{% if day %} <span class="meta">{{ day }}</span>{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
+<p class="meta">Complete: every relevant alignment of every oligo was assessed (no full hit list, nothing cut at max_sites_per_query). RIDs are NCBI's search IDs, with the day they were issued; NCBI keeps results for about 36 hours, so they record provenance rather than live links.</p>
+<details class="qc"><summary>Hits and alignments per oligo</summary>
 <div class="scroll"><table>
-  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th></tr></thead>
+  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Hit list full</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th></tr></thead>
   <tbody>
-  {% for c in spec.counts %}
-  <tr><td>{{ c.tier }}</td><td>{{ c.query }}</td><td class="num">{{ c.blast_hits }}</td><td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td></tr>
-  {% endfor %}
+  {% for t in search_rows %}{% for q, n in t.hits.items() %}{% set c = spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('query', 'equalto', q) | first %}
+  <tr><td>{{ t.tier }}</td><td>{{ q }}</td><td class="num">{{ n }}</td><td>{{ 'yes' if q in t.saturated else 'no' }}</td>{% if c %}<td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td>{% else %}<td colspan="3" class="meta">{{ 'not used for specificity' if t.tier == 'target' else '' }}</td>{% endif %}</tr>
+  {% endfor %}{% endfor %}
   </tbody>
 </table></div>
 <p class="meta">Sites found: {{ spec.n_sites.critical }} critical, {{ spec.n_sites.warning }} warning, {{ spec.n_sites.minor }} minor.
   Levels follow the configured limits (mismatches, gaps and clean 3′ nucleotides). {{ spec.n_fetched }} sequence windows were used for full-length
   re-alignment{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.</p>
+</details>
 
 <h2>Predicted off-target products</h2>
-{% if spec.amplicons %}
-<div class="scroll"><table>
-  <thead><tr><th>ID</th><th>Tier</th><th>Organism / record</th><th>Position</th><th>Length</th><th>Primers</th><th>Probe</th><th>Class</th></tr></thead>
+{% macro product_table(groups) %}<div class="scroll"><table>
+  <thead><tr><th>Tier</th><th>Species</th><th>Products</th><th>Probe signal</th><th>Closest product</th><th>Length</th><th>Primer pairs</th></tr></thead>
   <tbody>
-  {% for a in spec.amplicons %}
-  <tr><td>{{ a.id }}</td><td>{{ a.tier }}</td><td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession | ncbi }} ({{ a.record_type }})</span></td>
-    <td class="num">{{ a.start }}–{{ a.end }}</td><td class="num">{{ a.length }} bp</td><td>{{ a.roles }}</td>
-    <td>{{ a.probe_site or 'no site' }}</td><td>{{ chip(a.classification) }}{% if a.note %}<br><span class="meta">{{ a.note | ncbi }}</span>{% endif %}</td></tr>
+  {% for g in groups %}
+  <tr><td>{{ g.tier }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
+    <td class="num">{{ g.n_products }}<br><span class="meta">{{ g.n_records }} record{{ '' if g.n_records == 1 else 's' }}</span></td>
+    <td>{% if g.n_detected %}{{ chip('likely_detected') }} {{ g.n_detected }}{% endif %}{% if g.n_products - g.n_detected %}{% if g.n_detected %}<br>{% endif %}{{ chip('amplified_not_detected') }} {{ g.n_products - g.n_detected }}{% endif %}</td>
+    <td>{{ g.best_mismatches }} primer mismatch{{ '' if g.best_mismatches == 1 else 'es' }}<br><span class="meta">{{ g.best.accession | ncbi }} {{ g.best.start }}–{{ g.best.end }}</span></td>
+    <td class="num">{{ g.length_range }}</td><td>{% for pair, c in g.pairs.most_common(3) %}{{ pair }}{% if g.pairs | length > 1 %} ({{ c }}){% endif %}{{ '<br>' | safe if not loop.last }}{% endfor %}</td></tr>
   {% endfor %}
   </tbody>
-</table></div>
-<p class="meta">A product is predicted when two primer sites of at least warning level face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp.
-  “Likely detected” means the probe also binds inside it; “amplified, not detected” means it does not.
-  {{ spec.n_primer_only }} primer site(s) at warning or critical level formed no product.</p>
+</table></div>{% endmacro %}
+{% if spec.amplicons %}
+{% set judged = product_groups | rejectattr('tier', 'equalto', 'out_of_scope') | list %}
+{% set oos = product_groups | selectattr('tier', 'equalto', 'out_of_scope') | list %}
+<p class="meta">One row per search tier and species (identical products counted once), most concerning first: products the probe would detect, then the fewest primer mismatches. Every product is listed in the workbook (sheet "Predicted products"). A product is predicted when two primer sites of at least warning level face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp; {{ spec.n_primer_only }} primer site(s) at warning or critical level formed no product.</p>
+{% if judged %}{{ product_table(products_shown[0]) }}{% if products_shown[1] %}<p class="meta">{{ products_shown[1] }} further species row(s) with products the probe would not detect: see the workbook.</p>{% endif %}
+{% else %}<p>No product was predicted in the judged tiers ({{ spec.counts | map(attribute='tier') | reject('equalto', 'out_of_scope') | unique | join(', ') or 'none searched' }}).</p>{% endif %}
+{% if assay.target.must_not_detect_taxids and not (judged | selectattr('tier', 'equalto', 'near_neighbours') | list) %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}
+{% if oos %}<details><summary><strong>Also detects (out of scope, information only):</strong> {{ oos | sum(attribute='n_products') }} product(s) in {{ oos | length }} species</summary>
+<p class="meta">Taxa the assay is allowed to detect but that are not its intended target (<code>target.taxa</code> with role out_of_scope); not part of the specificity verdict.</p>
+{{ product_table(oos) }}</details>{% endif %}
 {% else %}
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
+{% if assay.target.must_not_detect_taxids %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}
 {% endif %}
 
 {% if r.variant_summary and ((r.variant_summary.oligos | selectattr('rows') | list) or r.variant_summary.coverage) %}
 <h2>Variant summary (assay's own target)</h2>
 {% set cov = r.variant_summary.coverage %}
 {% if cov %}
-{% if cov.source == 'blast_partitioned' %}<div class="notice"><p><strong>Scope: every NCBI Nucleotide record{% if not cov.complete %} assessed so far{% endif %}.</strong> Built from the Nucleotide records of the target (taxonomy ID {{ cov.taxon }}){% if cov.filters.nucleotide_query %}, narrowed by <code>{{ cov.filters.nucleotide_query }}</code>{% endif %}, newest publication year first. The {{ cov.amplicon_length }} bp reference amplicon ({{ cov.amplicon_source }}) was BLASTed against lists of at most {{ r.config.variants.blast_records_per_search }} of these records at a time, so no search could fill its hit list; hits outside each list were ignored, and partial hits were completed from the record itself. These are counts over all assessed records, not a sample. A record without the region is usually a different gene or a partial sequence, not a missing target.</p></div>
+{% if cov.source == 'blast_partitioned' %}<div class="notice"><p><strong>Scope: every NCBI Nucleotide record{% if not cov.complete %} assessed so far{% endif %}.</strong> Built from the Nucleotide records of the target (taxonomy ID {{ cov.taxon }}{% if cov.filters.excluded_taxids %}, excluding {{ cov.filters.excluded_taxids }}{% endif %}){% if cov.filters.nucleotide_query %}, narrowed by <code>{{ cov.filters.nucleotide_query }}</code>{% endif %}, newest publication year first. The {{ cov.amplicon_length }} bp reference amplicon ({{ cov.amplicon_source }}) was BLASTed against lists of at most {{ r.config.variants.blast_records_per_search }} of these records at a time, so no search could fill its hit list; hits outside each list were ignored, and partial hits were completed from the record itself. These are counts over all assessed records, not a sample. A record without the region is usually a different gene or a partial sequence, not a missing target.</p></div>
 {% else %}<div class="notice"><p><strong>Scope: every genome assembly{% if not cov.complete %} assessed so far{% endif %}.</strong> Built from the genome assemblies of the target (taxonomy ID {{ cov.taxon }}) in NCBI Datasets: current versions{% if cov.filters.exclude_atypical %}, atypical assemblies excluded{% endif %}, one copy per GenBank/RefSeq pair. Each genome was scanned for the {{ cov.amplicon_length }} bp reference amplicon ({{ cov.amplicon_source }}); the oligos were re-aligned end to end in the best complete copy. These are counts over all assessed assemblies, not a sample. Sequences submitted without a genome assembly (single genes, amplicons) are not part of this collection.</p></div>{% endif %}
 <div class="scroll"><table>
   <tbody>
   <tr><th scope="row">{{ 'Records' if cov.source == 'blast_partitioned' else 'Assemblies' }} listed</th><td>{{ cov.listed_total }} (listed {{ cov.listed_at }})</td></tr>
   <tr><th scope="row">Assessed</th><td>{{ cov.assessed_total }}{% if not cov.complete %} &mdash; <strong>incomplete</strong>: at most {{ cov.budget_per_run }} new {{ 'records' if cov.source == 'blast_partitioned' else 'assemblies' }} are processed per run, newest first; run again to continue{% endif %}</td></tr>
-  <tr><th scope="row">Processed in this run</th><td>{{ cov.processed_this_run }}{% if cov.download_failed_this_run %}; {{ cov.download_failed_this_run }} download(s) failed and will be retried next run{% endif %}</td></tr>
+  <tr><th scope="row">Processed in this run</th><td>{{ cov.processed_this_run }}{% if cov.download_failed_this_run %}; {{ cov.download_failed_this_run }} download(s) failed and will be retried next run{% endif %}{% if cov.unavailable %}<br><span class="meta">{{ cov.unavailable }} could not be downloaded after repeated attempts; they are left out, not counted as work still to do, and tried again on each run: {{ cov.unavailable_examples[:10] | join(', ') | ncbi }}</span>{% endif %}</td></tr>
   <tr><th scope="row">Amplicon region found</th><td>{{ cov.found }} with all three oligo sites complete</td></tr>
   <tr><th scope="row">Region cut by a {{ 'record' if cov.source == 'blast_partitioned' else 'contig' }} end</th><td>{{ cov.contig_break }} ({{ 'the record ends inside the amplicon' if cov.source == 'blast_partitioned' else 'draft assemblies' }}; not counted in the tables)</td></tr>
   <tr><th scope="row">Region hidden by N</th><td>{{ cov.masked }}{% if cov.masked_examples %}<br><span class="meta">e.g. {{ cov.masked_examples[:10] | join(', ') | ncbi }}</span>{% endif %}<br><span class="meta">The region is there, but the whole region or an oligo site in it reads N (low-coverage sequencing): not counted in the tables, since an N is neither a match nor a variant. A region that is N from end to end is placed by the reference sequence on either side of the amplicon (from the assay's target accession).</span></td></tr>
@@ -308,12 +274,15 @@ td.aln-cell { min-width: 22rem; }
 {% set cc = cov.copies %}
 {% if cc and cc.genomes %}
 <h3>Copies, coverage per oligo, and escapes</h3>
-<p class="meta">Every stored copy of the region is assessed with every oligo of the mix. A site is <em>detectable</em> with at most 1 mismatch, no gap and no mismatch in its last 5 nucleotides (the inclusivity criterion){% if cc.homopolymer_bulges_detectable %}, or with no mismatch and only a gap from a single-base run of another length (a homopolymer bulge, e.g. poly-A 7&rarr;8; setting <code>variants.homopolymer_bulges_detectable: true</code>){% else %}; a homopolymer bulge (a single-base run of another length, e.g. poly-A 7&rarr;8) is a gap and is <strong>not</strong> counted as detectable (strict; setting <code>variants.homopolymer_bulges_detectable: false</code>){% endif %}; a copy is detectable when every role is; each genome is judged by its best copy, as the PCR needs only one copy it can amplify. The variant tables below use that best copy.</p>
+<p class="meta">Every stored copy of the region is assessed with every oligo of the mix. A site is <em>detectable</em> when its graded mismatch class is <em>perfect</em> or <em>tolerated</em> (see "Mismatch classes" under Inclusivity; primers: Stadhouders 2010 and Lefever 2013; probes: at most 1 mismatch outside the last 5 nucleotides, and none for MGB probes){% if cc.homopolymer_bulges_detectable %}, or with no mismatch and only a gap from a single-base run of another length (a homopolymer bulge, e.g. poly-A 7&rarr;8; setting <code>variants.homopolymer_bulges_detectable: true</code>){% else %}; a primer site that differs only by the length of a single-base run (a homopolymer bulge, e.g. poly-A 7&rarr;8) is <em>at risk</em> when one base differs and the run stays out of the last 3 nucleotides, otherwise <em>likely failure</em> (rule R5b; no PCR study measured such bulges), and not counted as detectable (setting <code>variants.homopolymer_bulges_detectable: false</code>){% endif %}; a copy is detectable when every role is; each genome is judged by its best copy, as the PCR needs only one copy it can amplify. The variant tables below use that best copy.</p>
 <div class="scroll"><table><tbody>
   <tr><th scope="row">Genomes assessed</th><td>{{ cc.genomes }}; {{ cc.multi_copy }} with more than one copy (at most {{ cc.max_copies }}){% if cc.copies_capped %}<br><span class="meta">{{ cc.copies_capped }} stored before v1.3.0 with at most 5 of their copies; they are downloaded and scanned again on the next runs (within the per-run maximum), so all copies are assessed.</span>{% endif %}</td></tr>
   <tr><th scope="row">Best copy not the first found</th><td>{{ cc.best_copy_not_first }}<br><span class="meta">genomes whose best-binding copy differs from the copy found most confidently (earlier versions assessed only that one)</span></td></tr>
   <tr><th scope="row">With a detectable copy</th><td>{{ cc.with_detectable_copy }} of {{ cc.genomes }} ({{ pct(100.0 * cc.with_detectable_copy / cc.genomes) }}; homopolymer bulges {{ 'counted as detectable' if cc.homopolymer_bulges_detectable else 'not counted (strict)' }})<br><span class="meta">Under both rules: {{ cc.with_detectable_copy_strict }} ({{ pct(100.0 * cc.with_detectable_copy_strict / cc.genomes) }}) strict; {{ cc.with_detectable_copy_bulges }} ({{ pct(100.0 * cc.with_detectable_copy_bulges / cc.genomes) }}) if homopolymer bulges are tolerated. Whether a bulge is amplified or detected is not known from sequence alone; a wet-lab check decides.</span></td></tr>
   <tr><th scope="row"><strong>Escapes</strong></th><td><strong>{{ cc.escapes }}</strong> genome(s) without a detectable copy{% if cc.escape_examples %}<br><span class="meta">e.g. {{ cc.escape_examples[:10] | join(', ') | ncbi }}</span>{% endif %}</td></tr>
+  {% if cc.run_length %}{% set rl = cc.run_length %}<tr><th scope="row">Homopolymer length variants</th><td>{{ rl.genomes }} genome(s) with a site that differs from an oligo only by the length of a single-base run in at least one copy; {{ rl.on_best_copy }} are judged on such a copy, and the detection of {{ rl.decided_by_rule }} depends on the homopolymer-bulge setting (see above).
+  <br><span class="meta">Run length is a known sequencing and assembly error, so check how far to trust these: in {{ rl.mixed }} of the {{ rl.genomes }} genomes the copies disagree (other copies read the oligo's run length at that site), which is either real copy variation or an error in some copies. By assembly level (genomes with a variant / assessed): {% for level, (n, tot) in rl.by_level.items() %}{{ level }} {{ n }}/{{ tot }} ({{ pct(100.0 * n / tot) if tot else '–' }}){{ '; ' if not loop.last }}{% endfor %}. Far more variants in draft than in complete genomes points to assembly error. Most frequent: {% for v, n in rl.variants %}{{ v }} ({{ n }}){{ '; ' if not loop.last }}{% endfor %}.</span></td></tr>{% endif %}
+{% if cc.undetermined %}<tr><th scope="row">Undetermined</th><td>{{ cc.undetermined }} genome(s) without a detectable copy whose only problem has no published basis: a single mismatch in an MGB probe, or an ambiguity code in the genome near a 3′ end that decides whether the site is detectable. Counted neither as detected nor as an escape; a wet-lab check decides.{% if cc.undetermined_examples %}<br><span class="meta">e.g. {{ cc.undetermined_examples[:10] | join(', ') | ncbi }}</span>{% endif %}</td></tr>{% endif %}
 </tbody></table></div>
 <div class="scroll"><table>
   <thead><tr><th>Role</th><th>Oligo</th><th>Covers (best copy)</th><th>Only this oligo</th></tr></thead>
@@ -322,6 +291,7 @@ td.aln-cell { min-width: 22rem; }
   {% for o in cc.oligos if o.role == role %}
   <tr><td>{{ role }}</td><td>{{ o.name }}{% if o.reporter %} <span class="meta">{{ o.reporter }}</span>{% endif %}</td><td class="num">{{ o.covered }} ({{ pct(100.0 * o.covered / cc.genomes) }})</td><td class="num">{% if assay.by_role(role) | length > 1 %}{{ o.only }}{% else %}–{% endif %}</td></tr>
   {% endfor %}
+  {% if cc.role_undetermined.get(role) %}<tr><td>{{ role }}</td><td><em>undetermined</em></td><td class="num">{{ cc.role_undetermined[role] }}</td><td></td></tr>{% endif %}
   <tr><td>{{ role }}</td><td><em>none of them</em></td><td class="num"><strong>{{ cc.role_none[role] }}</strong>{% if cc.role_none_examples[role] %}<br><span class="meta">e.g. {{ cc.role_none_examples[role][:5] | join(', ') | ncbi }}</span>{% endif %}</td><td></td></tr>
   {% endfor %}
   </tbody>
@@ -343,43 +313,76 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 {% if r.variant_summary.target_list_full %}<div class="notice"><p><strong>Biased toward perfect matches.</strong> {{ list_full_note }}</p></div>{% endif %}
 
-{% for o in r.variant_summary.oligos %}
-{% if o.rows %}
-{% set alts = assay.by_role(o.role) %}
-<h3>{{ o.role | capitalize }}{% if alts | length > 1 %} <span class="meta">({{ alts | map(attribute='name') | join(', ') }}: for each record the best-binding one is shown)</span>{% elif alts[0].name != o.role %} <span class="meta">{{ alts[0].name }}</span>{% endif %}</h3>
-<div class="scroll"><table>
-  <thead><tr><th>Variant</th><th>Count</th><th>Fraction</th><th>Match to the oligo</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
-  <tbody>
-  {% for row in o.rows %}
-  <tr><td class="aln-cell">{{ row | aln_html(0 if o.role == 'probe' else 5) }}</td><td class="num">{{ row.count }}</td>
-    <td class="num">{{ pct(row.percent) }} of {{ o.total_measured }}</td>
-    <td>{% if alts | length > 1 %}<strong>{{ row.oligo_name }}</strong>: {% endif %}{{ match(row, o.role != 'probe') }}</td>
-    <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-{% if o.n_excluded_unmeasured %}<p class="meta">{{ o.n_excluded_unmeasured }} further target-tier site(s) for this oligo excluded from this table: not fully re-aligned (worst-case estimate only).</p>{% endif %}
-{% endif %}
-{% endfor %}
-
-{% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
-{% if r.variant_summary.fragments %}
-<div class="scroll"><table>
-  <thead><tr><th>Forward</th><th>Probe</th><th>Reverse</th><th>Count</th><th>Fraction</th><th>Mismatches (F / P / R)</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
-  <tbody>
-  {% for f in r.variant_summary.fragments %}
-  <tr><td class="aln-cell">{{ f.forward | aln_html }}</td><td class="aln-cell">{{ f.probe | aln_html(0) }}</td><td class="aln-cell">{{ f.reverse | aln_html }}</td>
-    <td class="num">{{ f.count }}</td><td class="num">{{ pct(f.percent) }} of {{ r.variant_summary.fragment_total }}</td>
-    <td>{{ f.forward.n_mismatch + f.forward.n_gap }} / {{ f.probe.n_mismatch + f.probe.n_gap }} / {{ f.reverse.n_mismatch + f.reverse.n_gap }}</td>
-    <td>{{ f.example_accession | ncbi }}{% if f.example_organism %}<br><span class="meta">{{ f.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}</tr>
-  {% endfor %}
-  </tbody>
-</table></div>
+{% macro oligo_no(role, name) %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{% for o in olis %}{% if o.name == name %}({{ loop.index }}){% endif %}{% endfor %}{% endif %}{% endmacro %}
+{% macro role_head(title, role) %}{% set olis = assay.by_role(role) %}<th>{{ title }}{% for o in olis %}<br><span class="meta"><span class="seq" title="{{ o.name }}">{{ o.sequence }}</span>{% if olis | length > 1 %} ({{ loop.index }}){% endif %}</span>{% endfor %}</th>{% endmacro %}
+{% if fragments %}
+{% set fv = fragments %}
+{% macro outcome_chip(o) %}<span class="chip {{ {'detectable': 's-PASS', 'at risk': 's-WARN', 'likely failure': 's-FAIL', 'undetermined': 's-INCOMPLETE'}.get(o, 's-INFO') }}">{{ o or 'not classified' }}</span>{% endmacro %}
+{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% set freq = site_pct.get((role, v.q_aln, v.s_aln)) %}{% if freq is not none and v.grade != 'perfect' %} <span class="meta" title="this {{ role }} site variant, whatever the other sites are">{{ pct(freq) }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s){% if v.note %}; {{ v.note }}{% endif %}">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
+{% macro types(orgs, total) %}{% for name, n in orgs[:3] %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}{% if orgs | length > 3 %}; +{{ orgs | length - 3 }}{% endif %}{% endmacro %}
+{% macro frag_rows(rows) %}{% for f, outcome, by_pair in rows %}
+  <tr><td>{{ outcome_chip(outcome) }}{% if by_pair %}<br><span class="meta">primer-pair rule (Lefever 2013)</span>{% endif %}</td>
+    {{ site_cell(f.forward, 'forward') }}{{ site_cell(f.probe, 'probe', 0) }}{{ site_cell(f.reverse, 'reverse') }}
+    <td class="num">{{ f.count }}<br><span class="meta">{{ pct(f.percent) }}</span></td>
+    <td class="types">{{ types(f.organisms, f.count) }}</td>
+    {% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}
+    <td>{{ f.example_accession | ncbi }}</td></tr>
+{% endfor %}{% endmacro %}
+{% set head %}<thead><tr><th>Outcome</th>{{ role_head('Forward', 'forward') }}{{ role_head('Probe', 'probe') }}{{ role_head('Reverse', 'reverse') }}<th>Records</th><th>Types</th>{% if cov %}<th>First / last release</th>{% endif %}<th>Example</th></tr></thead>{% endset %}
+{% if not cov %}<p class="meta">This table covers the {{ fv.total }} records in which all three sites were fully re-aligned; the per-oligo tables below count every fully re-aligned site of that oligo ({% for o in r.variant_summary.oligos %}{{ o.role }} {{ o.total_measured }}{{ ', ' if not loop.last }}{% endfor %} records).</p>{% endif %}
+<p><strong>{{ fv.total }} records with all three sites:</strong>{% for o in ['detectable', 'at risk', 'likely failure', 'undetermined'] + (['not classified'] if fv.records.get('not classified') else []) %} {{ o }} {{ pct(100.0 * fv.records.get(o, 0) / fv.total) }}{{ ',' if not loop.last }}{% endfor %}.</p>
+<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are (see Variants per oligo). Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
+{% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}<h4>Needs attention ({{ n_att }} combination{{ '' if n_att == 1 else 's' }})</h4>
+{% if fv.attention %}
+<div class="scroll"><table class="frag">{{ head }}<tbody>
+{{ frag_rows(fv.attention) }}
+{% for o, kinds, n, c, n_kinds in fv.attention_grouped %}
+  <tr class="group"><td>{{ outcome_chip(o) }}</td><td colspan="{{ 7 if cov else 6 }}">{{ n }} further, less frequent combination(s): {{ c }} records ({{ pct(100.0 * c / fv.total) }}); types {{ types(kinds, 0) }}{% if n_kinds > 3 %} and {{ n_kinds - 3 }} more{% endif %}. Listed individually in the workbook (sheet "Fragment variants").</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}<p>None: every combination is detectable.</p>{% endif %}
+{% set n_det = fv.detectable_top | length + fv.detectable_rest %}<h4>Detectable ({{ n_det }} combination{{ '' if n_det == 1 else 's' }})</h4>
+<div class="scroll"><table class="frag">{{ head }}<tbody>
+{{ frag_rows(fv.detectable_top) }}
+{% if fv.detectable_rest %}
+  <tr class="group"><td>{{ outcome_chip('detectable') }}</td><td colspan="{{ 7 if cov else 6 }}"><strong>{{ fv.detectable_rest }} other detectable combination(s)</strong>, all sites perfect or tolerated: {{ fv.detectable_rest_records }} records ({{ pct(100.0 * fv.detectable_rest_records / fv.total) }}); types {{ types(fv.detectable_rest_types, 0) }}. All combinations are in the workbook (sheet "Fragment variants").</td></tr>
+{% endif %}
+</tbody></table></div>
 {% else %}
 <p>No target-tier record had all three sites (forward, probe, reverse) fully re-aligned, so no whole-fragment variant table could be built.</p>
 {% endif %}
 {% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.{% if r.variant_summary.target_list_full %} With a full hit list, each oligo's hits are a separate selection of records, so most records appear in only one or two of the three lists.{% endif %}</p>{% endif %}
+<h3>Variants per oligo</h3>
+{% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
+<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Each variant is one line against the oligo in the column header, as in the whole-fragment table (a dot is a matching base, a letter a mismatch, the primer 3′ end underlined); below it the changes, as position from the 3′ end and oligo base–template base (Stadhouders' convention, as in the class notes). Click the changes to open the three-line alignment and the class note. Every variant is in the workbook (sheet "Oligo variants").</p>
+{% for v in oligo_views %}{% set o = r.variant_summary.oligos[loop.index0] %}
+{% if o.rows %}
+{% set alts = assay.by_role(o.role) %}
+<h4>{{ o.role | capitalize }}{% if alts | length > 1 %} <span class="meta">({{ alts | map(attribute='name') | join(', ') }}: for each record the best-binding one)</span>{% elif alts[0].name != o.role %} <span class="meta">{{ alts[0].name }}</span>{% endif %}</h4>
+<p>Perfect in <strong>{{ v.n_perfect }}</strong> of {{ v.total }} records ({{ pct(100.0 * v.n_perfect / v.total) if v.total else '0%' }}){% if not (v.rows or v.singles or v.lumped) %}; no other variant{% endif %}.</p>
+{% if v.rows or v.singles or v.lumped %}
+<div class="scroll"><table>
+  <thead><tr><th>Class</th>{{ role_head('Variant', o.role) }}<th>Records</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for row in v.rows %}
+  <tr><td><span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ (row.grade or 'not classified') | replace('_', ' ') }}</span>{% if row.grade_rule %}<br><span class="meta">{{ row.grade_rule }}</span>{% endif %}</td>
+    <td class="aln-cell">{{ row | aln_compact(0 if o.role == 'probe' else 5, oligo_no(o.role, row.oligo_name) | trim) }}<details class="changes"><summary class="meta" title="show the full alignment">{{ row | changes }}{% if row.note %}; {{ row.note }}{% endif %}</summary>{{ row | aln_html(0 if o.role == 'probe' else 5) }}{% if row.grade_note %}<p class="meta">{{ row.grade_note }}</p>{% endif %}</details></td>
+    <td class="num">{{ row.count }}<br><span class="meta">{{ pct(row.percent) }}</span></td>
+    <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
+  {% endfor %}
+  {% for grade, n, orgs in v.singles %}
+  <tr class="group"><td><span class="chip {{ grade_css(grade) }}">{{ (grade or 'not classified') | replace('_', ' ') }}</span></td><td colspan="{{ 4 if cov else 3 }}"><strong>{{ n }} other {{ (grade or 'unclassified') | replace('_', ' ') }} variant{{ '' if n == 1 else 's' }}, each seen in 1 record</strong>: {{ n }} record{{ '' if n == 1 else 's' }} ({{ pct(100.0 * n / v.total) }}); types {% for name, k in orgs %}{{ name }} {{ k }}{{ '; ' if not loop.last }}{% endfor %}. Listed individually in the workbook (sheet "Oligo variants").</td></tr>
+  {% endfor %}
+  {% if v.lumped %}
+  <tr class="group"><td colspan="{{ 5 if cov else 4 }}"><strong>{{ v.lumped }} other tolerated variant{{ '' if v.lumped == 1 else 's' }}</strong>: {{ v.lumped_records }} record{{ '' if v.lumped_records == 1 else 's' }} ({{ pct(100.0 * v.lumped_records / v.total) }}). All variants are in the workbook (sheet "Oligo variants").</td></tr>
+  {% endif %}
+  </tbody>
+</table></div>
+{% endif %}
+{% if o.n_excluded_unmeasured %}<p class="meta">{{ o.n_excluded_unmeasured }} further target-tier site(s) for this oligo excluded from this table: not fully re-aligned (worst-case estimate only).</p>{% endif %}
+{% endif %}
+{% endfor %}
 {% endif %}
 
 {% if r.exclusivity %}
@@ -430,18 +433,37 @@ td.aln-cell { min-width: 22rem; }
 <p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
 {% else %}
 <div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
+{% if r.inclusivity.fragment_years %}
+<h3>Whole fragment (forward + probe + reverse combined)</h3>
+<p class="meta">Per year, each genome's outcome from its three sites together, as in the whole-fragment table: detectable when all three are perfect or tolerated, otherwise the worst site, and likely failure by the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Percentages are of the records with all three sites. The tables per oligo below show each site on its own.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Year</th><th>{{ 'Records' if nuc else 'Assemblies' }}</th><th>With region</th><th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Undetermined</th></tr></thead>
+  <tbody>
+  {% for f in r.inclusivity.fragment_years %}
+  <tr><td class="num">{{ f.year }}</td><td class="num">{{ f.population_size if f.population_size is not none else '–' }}</td><td class="num">{{ f.with_region }}</td>
+    {% for n in [f.detectable, f.at_risk, f.likely_failure, f.undetermined] %}<td class="num">{{ n }}{% if f.with_region %} <span class="meta">({{ pct(100.0 * n / f.with_region) }})</span>{% endif %}{% if loop.index == 3 and f.by_pair_rule %}<br><span class="meta">{{ f.by_pair_rule }} by the pair rule</span>{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}
+  {% set tot = r.inclusivity.fragment_years | sum(attribute='with_region') %}
+  <tr class="group"><th scope="row">All years shown</th><td></td><td class="num">{{ tot }}</td>{% for key in ['detectable', 'at_risk', 'likely_failure', 'undetermined'] %}{% set n = r.inclusivity.fragment_years | sum(attribute=key) %}<td class="num">{{ n }}{% if tot %} <span class="meta">({{ pct(100.0 * n / tot) }})</span>{% endif %}</td>{% endfor %}</tr>
+  </tbody>
+</table></div>
+{% endif %}
 {% for o in r.inclusivity.oligos %}
 <h3>{{ o.role | capitalize }}</h3>
 <div class="scroll"><table>
-  <thead><tr><th>Year</th><th>{{ ('Records' if nuc else 'Assemblies') if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th></tr></thead>
+  <thead><tr><th>Year</th><th>{{ ('Records' if nuc else 'Assemblies') if r.inclusivity.exhaustive else 'Population' }}</th><th>{{ 'With region' if r.inclusivity.exhaustive else 'Sample' }}</th><th>Perfect</th><th>1 mismatch</th><th>2+ mismatch/gap</th><th>3′ mismatch</th><th>Fetch failed</th>{% if o.windows | rejectattr('n_detectable', 'none') | list %}<th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Indeterminate</th>{% endif %}</tr></thead>
   <tbody>
   {% for w in o.windows %}
   <tr><td class="num">{{ w.year }}</td><td class="num">{{ w.population_size if w.population_size is not none else '–' }}</td>
     <td class="num">{{ w.sample_size }}</td><td class="num">{{ w.n_perfect }}</td><td class="num">{{ w.n_one_mismatch }}</td>
-    <td class="num">{{ w.n_two_plus_mismatch }}</td><td class="num">{{ w.n_three_prime_mismatch }}</td><td class="num">{{ w.n_fetch_failed }}</td></tr>
+    <td class="num">{{ w.n_two_plus_mismatch }}</td><td class="num">{{ w.n_three_prime_mismatch }}</td><td class="num">{{ w.n_fetch_failed }}</td>{% if w.n_detectable is not none %}<td class="num">{{ w.n_detectable }}{% if w.sample_size %} ({{ pct(100.0 * w.n_detectable / w.sample_size) }}){% endif %}</td><td class="num">{{ w.n_by_grade.get('at_risk', 0) }}</td><td class="num">{{ w.n_by_grade.get('likely_failure', 0) }}</td><td class="num">{{ w.n_by_grade.get('indeterminate', 0) }}</td>{% elif o.windows | rejectattr('n_detectable', 'none') | list %}<td></td><td></td><td></td><td></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table></div>
+{% if loop.last and r.inclusivity.oligos | map(attribute='windows') | map('rejectattr', 'n_detectable', 'none') | map('list') | select | list %}
+<h3>Mismatch classes</h3>
+<p class="meta">Each oligo site on the target gets a class (docs/MISMATCH_CLASSES.md): <em>perfect</em>; <em>tolerated</em> (expected to cost little); <em>at risk</em> (a measurable delay is expected, worse near the limit of detection); <em>likely failure</em> (blocked or strongly delayed in the published data); <em>indeterminate</em> (no published basis: gaps and homopolymer bulges, ambiguity codes in the genome, mismatches in MGB probes). <em>Detectable</em> = perfect or tolerated; the verdict thresholds apply to it. A single mismatch in an MGB probe and an ambiguity code in the genome near a 3′ end are <em>undetermined</em>: left out of the percentage (neither detected nor escaped). Gaps count as not detected (homopolymer bulges: see the setting). Primers: single mismatches in the last 5 nt by type and position after Stadhouders et al., J Mol Diagn 2010 (Table 1, Taq polymerase on DNA); farther positions and the number of mismatches per primer and per primer pair after Lefever et al., Clin Chem 2013. Probes: no published rule was used (at most 1 mismatch outside the last 5 nt is tolerated). {{ grade_caveat }}</p>
+{% endif %}
 {% if o.n_no_date %}<p class="meta">{{ o.n_no_date }} sampled hit(s) had no determinable submission year and were excluded from the yearly buckets.</p>{% endif %}
 {% endfor %}
 {% if r.inclusivity.rationale %}
@@ -455,17 +477,25 @@ td.aln-cell { min-width: 22rem; }
 {% endif %}
 
 {% if r.taxonomy_breakdown %}
-<h2>Taxonomic breakdown of off-target sites</h2>
-<p class="meta">Every off-target tier (near neighbours, background, exclusivity), by the taxon each site's subject record belongs to. Species/genus/family come from
-  Entrez Taxonomy lineages, cached; a blank rank means the lineage could not be determined.</p>
-<div class="scroll"><table>
-  <thead><tr><th>Organism</th><th>Species</th><th>Genus</th><th>Family</th><th>Sites</th></tr></thead>
+<h2>Off-target sites per species</h2>
+{% macro site_table(groups) %}<div class="scroll"><table>
+  <thead><tr><th>Tier</th><th>Species</th><th>Sites</th><th>Critical / warning</th><th>Closest site</th></tr></thead>
   <tbody>
-  {% for t in r.taxonomy_breakdown %}
-  <tr><td>{{ t.scientific_name or 'taxid' }}<br><span class="meta">taxid {{ t.taxid | taxon }}</span></td><td>{{ t.species or '–' }}</td><td>{{ t.genus or '–' }}</td><td>{{ t.family or '–' }}</td><td class="num">{{ t.n_sites }}</td></tr>
+  {% for g in groups %}
+  <tr><td>{{ g.tier }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
+    <td class="num">{{ g.n_sites }}<br><span class="meta">{{ g.n_records }} record{{ '' if g.n_records == 1 else 's' }}</span></td>
+    <td class="num">{{ g.levels['critical'] }} / {{ g.levels['warning'] }}</td>
+    <td>{{ g.best.query }}: {{ g.best.n_mismatch }} mismatch{{ '' if g.best.n_mismatch == 1 else 'es' }}{% if g.best.n_gap %} + {{ g.best.n_gap }} gap{% endif %}, {{ g.best.clean_3prime_nt }} clean 3′ nt<br><span class="meta">{{ g.best.accession | ncbi }}</span></td></tr>
   {% endfor %}
   </tbody>
-</table></div>
+</table></div>{% endmacro %}
+{% if site_groups %}
+{% set judged_s = site_groups | rejectattr('tier', 'equalto', 'out_of_scope') | list %}{% set oos_s = site_groups | selectattr('tier', 'equalto', 'out_of_scope') | list %}
+<p class="meta">Off-target sites at warning or critical level, one row per search tier and species (species from NCBI Taxonomy lineages), closest first. Every site is in hits.tsv and the workbook (sheets "Off-target sites" and "Taxonomy breakdown").</p>
+{{ site_table(sites_shown[0]) }}
+{% if sites_shown[1] %}<p class="meta">{{ sites_shown[1] }} further species row(s) with warning-level sites only: see the workbook.</p>{% endif %}
+{% if oos_s %}<details><summary><strong>Out of scope (information only):</strong> {{ oos_s | sum(attribute='n_sites') }} site(s) in {{ oos_s | length }} species</summary>{{ site_table(oos_s) }}</details>{% endif %}
+{% else %}<p>No off-target site at warning or critical level.</p>{% endif %}
 {% endif %}
 
 <h2>Closest off-target sites</h2>
@@ -473,7 +503,7 @@ td.aln-cell { min-width: 22rem; }
 <p class="meta">Off-target sites grouped by oligo and alignment: sites where an oligo aligns identically bind the same way, so each row is one binding variant, with how many sites and records have it and in which organisms.
   Each alignment shows the oligo (top) against the subject (bottom), oriented as the oligo. Highlighted subject bases are mismatches;
   shaded columns are gaps; dots mark bases BLAST left unaligned and that were not re-aligned (worst-case assessment). The primer 3′ end (last 5 nucleotides) is underlined.
-  Closest (most likely to bind) first; every single site is in hits.tsv and the workbook's "Off-target sites" sheet.</p>
+  Only the closest (most likely to bind) variants are shown; every single site is in hits.tsv and the workbook's "Off-target sites" sheet.</p>
 <div class="scroll"><table>
   <thead><tr><th>Level</th><th>Oligo</th><th>Alignment</th><th>Mismatches</th><th>Clean 3′</th><th>Duplex</th><th>Sites</th><th>Organisms</th></tr></thead>
   <tbody>
@@ -484,7 +514,7 @@ td.aln-cell { min-width: 22rem; }
     <td class="num">{{ g.clean_3prime_nt }}</td>
     <td class="num">{% if g.tm_c is not none %}Tm {{ '%.1f' % g.tm_c }} °C<br><span class="meta">{% if g.delta_tm_c is not none %}{{ '%+.1f' % g.delta_tm_c }} °C vs perfect{% endif %}</span>{% else %}–{% endif %}</td>
     <td class="num">{{ g.n_sites }}{% if g.n_records != g.n_sites %}<br><span class="meta">{{ g.n_records }} records</span>{% endif %}</td>
-    <td>{% for name, n in g.organisms[:5] %}{{ name }}{% if g.organisms | length > 1 %} ({{ n }}){% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if g.organisms | length > 5 %}<br><span class="meta">and {{ g.organisms | length - 5 }} more</span>{% endif %}
+    <td class="org">{% for name, n in g.organisms[:5] %}{{ name }}{% if g.organisms | length > 1 %} ({{ n }}){% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if g.organisms | length > 5 %}<br><span class="meta">and {{ g.organisms | length - 5 }} more</span>{% endif %}
       <br><span class="meta">e.g. {{ g.example_site.accession | ncbi }} {{ g.example_site.subject_start }}–{{ g.example_site.subject_end }} ({{ g.example_site.orientation }})</span></td></tr>
   {% endfor %}
   </tbody>
@@ -521,32 +551,24 @@ td.aln-cell { min-width: 22rem; }
 </table></div>
 {% endif %}
 {% if r.history.new_sites or r.history.resolved_sites or r.history.changed_sites %}
+{% set sv = history_sites %}
 <h3>Off-target sites</h3>
-<p class="meta">Matched across runs by accession and position, not by the run-local site ID.</p>
+<p class="meta">Changes at warning or critical level, one row per change, tier and organism; sites are matched across runs by accession and position. Every change, one per site, is in the workbook (sheet "History").</p>
+{% if sv.groups %}
 <div class="scroll"><table>
-  <thead><tr><th>Change</th><th>Tier</th><th>Oligo</th><th>Organism / record</th><th>Position</th><th>Level</th><th>Mismatches</th></tr></thead>
+  <thead><tr><th>Change</th><th>Tier</th><th>Organism</th><th>Sites</th><th>Level</th><th>Oligos</th><th>Example</th></tr></thead>
   <tbody>
-  {% for s in r.history.new_sites %}
-  <tr><td><span class="chip s-WARN">new</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
-    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
-    <td>{{ chip(s.level_after) }}</td><td class="num">{{ s.n_mismatch_after }}</td></tr>
-  {% endfor %}
-  {% for s in r.history.resolved_sites %}
-  <tr><td><span class="chip s-PASS">resolved</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
-    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
-    <td>{{ chip(s.level_before) }}</td><td class="num">{{ s.n_mismatch_before }}</td></tr>
-  {% endfor %}
-  {% for s in r.history.changed_sites %}
-  <tr><td><span class="chip s-INFO">changed</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
-    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
-    <td>{{ chip(s.level_before) }} → {{ chip(s.level_after) }}</td>
-    <td class="num">{{ s.n_mismatch_before }} → {{ s.n_mismatch_after }}</td></tr>
+  {% for g in sv.groups %}{% set e = g.example %}
+  <tr><td><span class="chip {{ {'new': 's-WARN', 'resolved': 's-PASS', 'changed': 's-INFO'}[g.kind] }}">{{ 'no longer found' if g.kind == 'resolved' else g.kind }}</span></td><td>{{ g.tier }}</td><td>{{ g.organism }}</td>
+    <td class="num">{{ g.n_sites }}<br><span class="meta">{{ g.records | length }} record{{ '' if g.records | length == 1 else 's' }}</span></td>
+    <td>{% for lvl, n in g.levels.most_common() %}{{ chip(lvl) }} {{ n }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+    <td>{% for role, n in g.roles.most_common() %}{{ role }} {{ n }}{{ ', ' if not loop.last }}{% endfor %}</td>
+    <td>{{ e.accession | ncbi }} <span class="meta">{{ e.subject_start }}–{{ e.subject_end }} ({{ e.orientation }}), {{ e.role }}, {% if g.kind == 'changed' %}{{ e.level_before }} → {{ e.level_after }}, {{ e.n_mismatch_before }} → {{ e.n_mismatch_after }} mismatches{% elif g.kind == 'resolved' %}{{ e.n_mismatch_before }} mismatches{% else %}{{ e.n_mismatch_after }} mismatches{% endif %}</span></td></tr>
   {% endfor %}
   </tbody>
 </table></div>
+{% else %}<p>No change at warning or critical level.</p>{% endif %}
+{% if sv.minor %}<p class="meta">At minor level only: {% for kind in ['new', 'resolved', 'changed'] if sv.minor[kind] %}{{ sv.minor[kind] }} {{ 'no longer found' if kind == 'resolved' else kind }}{{ ', ' if not loop.last }}{% endfor %}. The report keeps only the closest minor sites per oligo, so these come and go between runs; they are in the workbook.</p>{% endif %}
 {% endif %}
 {% if r.history.new_amplicons or r.history.resolved_amplicons %}
 <h3>Predicted off-target products</h3>
@@ -611,6 +633,80 @@ td.aln-cell { min-width: 22rem; }
   <ul>{% for s in pending %}<li>{{ s.title }}: {{ s.note | ncbi }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
+
+<h2>Oligo quality control</h2>
+{% set qc_states = (qc.checks | map(attribute='status.value') | list) + (qc.structures | map(attribute='status.value') | list) %}
+<p>{{ qc_states | select('equalto', 'FAIL') | list | length }} FAIL, {{ qc_states | select('equalto', 'WARN') | list | length }} WARN among {{ qc.checks | length }} checks and {{ qc.structures | length }} hairpin and dimer calculations; the findings are listed under the verdict. These checks depend only on the oligo sequences, so they stay the same from run to run and matter mainly when designing the PCR.</p>
+<details class="qc"><summary>Show the oligo checks, hairpins and dimers, and the amplicon</summary>
+{% if qc.tm_unreliable_reasons %}
+<div class="notice"><p><strong>Tm reliability.</strong> The probe carries {{ qc.tm_unreliable_reasons | join(', ') }}.
+  Nearest-neighbour Tm and dimer estimates do not model these modifications; use vendor-specific values.</p></div>
+{% endif %}
+{% for c in charts %}
+<figure>
+  {{ c.html }}
+  <figcaption>{{ c.caption }}</figcaption>
+</figure>
+{% endfor %}
+<div class="scroll"><table>
+  <thead><tr><th>Check</th><th>Value</th><th>Result</th><th>Rule applied</th></tr></thead>
+  <tbody>
+  {% for title, items in groups %}
+    <tr class="group"><th colspan="4">{{ title }}</th></tr>
+    {% for c in items %}
+    <tr>
+      <td>{{ c.name }}{% if c.message %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
+      <td class="num">{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td>
+      <td>{{ chip(c.status.value) }}</td>
+      <td class="note">{{ c.rule }}</td>
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if qc.amplicon_note %}<p class="meta">{{ qc.amplicon_note }}</p>{% endif %}
+
+<h3>Hairpins and dimers</h3>
+<p>Calculated at the annealing temperature of {{ r.config.reaction.annealing_temp_C }} °C
+  (Na⁺ {{ r.config.reaction.na_mM }} mM, Mg²⁺ {{ r.config.reaction.mg_mM }} mM, dNTP {{ r.config.reaction.dntp_mM }} mM).
+  A structure is flagged when its melting temperature reaches
+  {{ r.config.thresholds.structures.warn_tm_c }} °C (WARN) or the
+  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (FAIL).
+  “3′ end” rows test whether the 3′ end of the first oligo can anneal to the second and be extended.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Structure</th><th>Tm (°C)</th><th>ΔG (kcal/mol)</th><th>Result</th></tr></thead>
+  <tbody>
+  {% for s in qc.structures %}
+  <tr>
+    <td>{{ s.label }}{% if s.n_total > s.n_evaluated %}<br><span class="meta">{{ s.n_evaluated }} of {{ s.n_total }} variant combinations evaluated</span>{% endif %}
+      {% if s.variant %}<br><span class="meta">worst case: {{ s.variant }}</span>{% endif %}</td>
+    <td class="num">{{ s.tm_c | tm }}</td>
+    <td class="num">{{ s.dg_kcal | dg }}</td>
+    <td>{{ chip(s.status.value) }}</td>
+  </tr>
+  {% if s.ascii_lines %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">Tm “none” means no structure was found; “&lt; 0” means the only structure is far too weak to matter.
+  Thermodynamic values are estimates from primer3 nearest-neighbour parameters.</p>
+
+{% if qc.amplicon %}
+<h3>Amplicon</h3>
+{% set a = qc.amplicon %}
+<div class="scroll"><table><tbody>
+  {% if assay.reference_amplicons | length > 1 %}
+  <tr><th scope="row">Reference amplicons</th><td>{% for ref in assay.reference_amplicons %}{{ ref.name }} ({{ ref.sequence | length }} nt){% if not loop.last %}, {% endif %}{% endfor %}<br><span class="meta">Each oligo is placed in the reference it fits best (see the checks above); the rows below describe {{ assay.reference_amplicons[0].name }}.</span></td></tr>
+  {% else %}
+  <tr><th scope="row">Reference amplicon</th><td>{{ a.input_length_nt }} nt</td></tr>
+  {% endif %}
+  {% if a.product_length_nt %}<tr><th scope="row">Primer-defined product</th><td>{{ a.product_length_nt }} bp, {{ '%.1f' % a.product_gc_percent }}% GC</td></tr>{% endif %}
+  {% for site in [a.forward_site, a.reverse_site, a.probe_site] if site %}
+  <tr><th scope="row">{{ site.oligo | capitalize if site.oligo in ('forward', 'reverse', 'probe') else site.oligo }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
+  {% endfor %}
+</tbody></table></div>
+{% endif %}
+</details>
 
 <h2>Methods</h2>
 <div class="scroll"><table><tbody>

@@ -22,7 +22,7 @@ from __future__ import annotations
 import itertools
 import logging
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -61,6 +61,9 @@ class VariantRow(BaseModel):
     midline: str
     oligo_name: str = Field(default="", description="the oligo (of the role's alternatives) seen")
     note: str = Field(default="", description="e.g. a homopolymer run-length variant")
+    grade: str | None = Field(default=None, description="graded mismatch class")
+    grade_rule: str = Field(default="", description="the rule that set the class, e.g. R1")
+    grade_note: str = ""
     count: int
     percent: float
     level: Level
@@ -102,6 +105,9 @@ class FragmentVariantRow(BaseModel):
     level: Level
     example_accession: str
     example_organism: str | None = None
+    organisms: list[tuple[str, int]] = Field(
+        default_factory=list, description="organism names of the records, most frequent first"
+    )
 
 
 class VariantSummary(BaseModel):
@@ -143,6 +149,9 @@ def _variant_row(
         midline=s.midline,
         oligo_name=_DEGENERATE.sub("", s.query),
         note=s.note,
+        grade=s.grade,
+        grade_rule=s.grade_rule or "",
+        grade_note=(f"{s.grade_rule}: {s.grade_note}" if s.grade_rule else s.grade_note),
         count=count,
         percent=100.0 * count / total if total else 0.0,
         level=s.level,
@@ -223,7 +232,8 @@ def assess_target_sites(
             found = assess_candidates(
                 cands, site_rules, fetcher, scoring, rules.window_padding_nt, ids
             )
-            sites += [s.model_copy(update={"id": f"T{s.id[1:]}"}) for s in found]
+            # graded as in the exhaustive analysis, so the fragment table can classify the rows
+            sites += [assay.graded(s).model_copy(update={"id": f"T{s.id[1:]}"}) for s in found]
 
     best: dict[tuple[str, str], SiteResult] = {}
     for s in sites:
@@ -299,6 +309,7 @@ def build_variant_summary(
                 level=level,
                 example_accession=fwd.accession,
                 example_organism=fwd.organism,
+                organisms=Counter(m[0].organism or "unknown" for m in members).most_common(),
             )
         )
     fragments.sort(key=lambda f: (-f.count, f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln))

@@ -168,12 +168,15 @@ def test_no_relevant_off_target_hit_passes_for_the_searched_tiers_only(tmp_path)
     assert "planned for" not in res.scope
 
 
-def test_a_lone_critical_primer_site_fails_and_counts_as_primer_only(tmp_path):
+def test_a_lone_critical_primer_site_warns_and_counts_as_primer_only(tmp_path):
+    """A critical primer site without a facing partner forms no product: WARN, not FAIL
+    (primer_site_critical_no_product; user decision 2026-09-25, advisor review)."""
     w = offtarget_genome(f=[10])
     w.hit(NEAR, "forward", F, ACC, F_START, "+")
     res, _, _ = run(w, tmp_path)
     assert res.amplicons == [] and res.n_primer_only == 1
-    assert res.verdict_sites is Verdict.FAIL and res.verdict_amplicons is Verdict.PASS
+    assert res.verdict_sites is Verdict.WARN and res.verdict_amplicons is Verdict.PASS
+    assert any("forming no predicted product" in f.message for f in res.findings)
 
 
 def test_products_longer_than_the_limit_are_ignored_and_the_limit_is_inclusive(tmp_path):

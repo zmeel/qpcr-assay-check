@@ -107,17 +107,19 @@ def test_the_exclusivity_table_shows_hit_and_zero_hit_and_unresolved_rows(n1):
     assert "likely_detected" in html
 
 
-def test_the_taxonomy_breakdown_table_appears(n1):
+def test_off_target_sites_are_shown_per_species(n1):
+    """The per-taxid breakdown (175 rows live) became one row per tier and species; the full
+    breakdown with genus and family stays in the workbook."""
     html = render_report(_result(n1), load_config())
-    assert "Taxonomic breakdown of off-target sites" in html
-    assert "Chlamydiaceae" in html
+    assert "Off-target sites per species" in html
+    assert "Chlamydia trachomatis" in html and "Chlamydiaceae" not in html
 
 
 def test_no_exclusivity_or_breakdown_when_not_computed(n1):
     cfg = load_config()
     html = render_report(evaluate(n1, cfg, qc_only=True, now=NOW), cfg)
     assert "<h2>Exclusivity against the clinical organism list</h2>" not in html
-    assert "<h2>Taxonomic breakdown of off-target sites</h2>" not in html
+    assert "<h2>Off-target sites per species</h2>" not in html
 
 
 def test_workbook_gets_exclusivity_and_taxonomy_sheets(n1, tmp_path):
@@ -209,7 +211,10 @@ def test_a_target_hit_list_with_room_to_spare_is_not_marked_biased(n1):
 
 def test_a_rare_variant_shows_as_below_0_1_percent_not_zero(n1):
     html = render_report(_variant_result(n1, list_full=False, n_rare=1), load_config())
-    assert "&lt;0.1% of 2001" in html and ">0.0% of 2001" not in html
+    i = html.index("<h3>Variants per oligo")
+    per_oligo = html[i : html.index("<h2>", i)]
+    assert "each seen in 1 record</strong>: 1 record (&lt;0.1%)" in per_oligo
+    assert "(0.0%)" not in per_oligo
 
 
 def test_only_primers_get_the_3prime_underline():
@@ -221,3 +226,17 @@ def test_only_primers_get_the_3prime_underline():
     assert 'class="tail"' not in _seq_html("ACGTACGTAC", 0)
     assert "tail" in _alignment_html(mk_site("forward"))
     assert "tail" not in _alignment_html(mk_site("probe"))
+
+
+def test_with_sampled_hits_the_fragment_table_states_its_own_coverage(n1):
+    """Advisor 2026-09-25: with blast_hits the fragment table holds fewer records than the
+    per-oligo tables, and says so."""
+    from .test_variants import mk_site
+
+    roles = ("forward", "probe", "reverse")
+    sites = [mk_site(role, acc=f"A{i}.1") for i in range(3) for role in roles]
+    sites += [mk_site("forward", acc=f"B{i}.1") for i in range(4)]
+    result = evaluate(n1, load_config(), now=NOW, target_sites=sites, qc_only=False,
+                      specificity=_specificity_with_exclusivity())  # fmt: skip
+    html = render_report(result, load_config())
+    assert "This table covers the 3 records" in html and "forward 7" in html

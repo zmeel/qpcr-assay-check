@@ -1,0 +1,114 @@
+# Example assay: Enterovirus (in-house realT RT-qPCR), two forward primers, degenerate reverse
+# primer and probe; must detect enteroviruses but NOT rhinoviruses or parechoviruses.
+#
+# PROVENANCE
+#   Sequences, names, dye and protocol supplied by the user (2026-09-25); in-house assay, not
+#   checked against a publication or kit insert. The probe quencher was not given and is left
+#   empty rather than guessed.
+#
+# WHAT WAS CHECKED (2026-09-25)
+#   * Against the reference fragment (74 nt): realT-Entero-F1 at 1-19 exactly; realT-Entero-F2
+#     differs from it at positions 5-6 (TG instead of CA), an alternative forward primer for
+#     other lineages; the reverse primer binds 54-74 (reverse complement; R = T there); the
+#     probe binds 21-37 on the other strand (reverse complement; M = G there). Degenerate
+#     expansions: F1 1, F2 1, reverse 2, probe 2.
+#   * NCBI Taxonomy, live: genus Enterovirus is taxid 12059 and contains the rhinoviruses. The
+#     NAME "rhinovirus" resolves to 12059 itself (the former genus name is a synonym), so
+#     rhinoviruses must be given by taxonomy ID, never by name. Excluded from the target here:
+#       3428501 Enterovirus alpharhino, 3428503 Enterovirus betarhino,
+#       3428504 Enterovirus cerhino (the three ICTV rhinovirus species), and
+#       169066  Human rhinovirus sp. (under "unclassified Enterovirus").
+#     About 556 further rhinovirus records sit in 364 small unclassified taxa and stay in the
+#     target (live count 2026-09-25); the report says so. Parechovirus is genus 138954.
+#   * Human enteroviruses only (the user's choice, 2026-09-25, after the first run): also
+#     excluded are the animal species E-L, swine vesicular disease virus (12075, inside
+#     E. betacoxsackie) and the 27 direct children of "unclassified Enterovirus" (90010) whose
+#     NCBI name names an animal host (bovine, porcine, ovine, goat, yak, takin, marmot,
+#     squirrel, raccoon dog, rodent, simian, rhesus monkey, chimpanzee); selected by name, live.
+#     Left in the target because their host is not clear from the name: "Mammalian
+#     enterovirus" (metagenome records), "Enterovirus mbel", "WUHARV Enterovirus 1-3".
+#     Primate enteroviruses filed inside the human species A-D (if any) stay in the target.
+#     Not listed: Porcine enterovirus (2938350) and Simian picornavirus N125/N203 (184753,
+#     184754) have no Nucleotide records (ESearch "phrases not found"), so they change nothing.
+#     Live 2026-09-25 with these exclusions: 114,474 records, 13,066 of 6,500-8,500 bases.
+#     Near-complete records per species (6500:8500[SLEN], rhinoviruses excluded): A 6,004,
+#     B 2,289, C 2,871, D 2,036; E-L 468; unclassified 127; SVDV 240 (inside B).
+#   * Nucleotide records, live 2026-09-25: 149,117 in taxid 12059; 117,193 after the exclusions
+#     (the ESearch 'NOT' subtracts exactly); 13,796 of those are 6,500-8,500 bases long
+#     (near-complete genomes), the filter used below.
+#   * BLAST honours 'NOT' in ENTREZ_QUERY (live, this fragment against core_nt: 0 of 5,000
+#     hits in an excluded taxon).
+#
+# The rhinoviruses are NOT skipped: every oligo is searched against them as near neighbours
+# (off-target, must not detect), with parechovirus in the exclusivity tier. The non-human
+# enteroviruses are out of scope (2026-09-25, after the second run: the assay amplifies them,
+# which is expected for a pan-enterovirus 5' UTR assay and not a specificity failure for a
+# human diagnostic lab); their products are listed as information only.
+
+assay_name: Enterovirus (realT, in-house)
+forward:
+  - {name: realT-Entero-F1, sequence: TCTGCAGCGGAACCGACTA}
+  - {name: realT-Entero-F2, sequence: TCTGTGGCGGAACCGACTA}
+reverse: {name: realT-Entero-DHU-R, sequence: RATTGTCACCATAAGCAGCCA}
+probe:
+  - {name: Entero-P, sequence: AAACMCGGACACCCAAA, reporter: FAM, modifications: [MGB]}
+template_type: RNA
+target:
+  taxid: 12059                     # genus Enterovirus
+  taxa:                             # inside the genus, but not the intended target
+    # must not detect: searched as near neighbours, part of the specificity verdict
+    - {taxid: 3428501, role: must_not_detect, reason: "rhinovirus: Enterovirus alpharhino"}
+    - {taxid: 3428503, role: must_not_detect, reason: "rhinovirus: Enterovirus betarhino"}
+    - {taxid: 3428504, role: must_not_detect, reason: "rhinovirus: Enterovirus cerhino"}
+    - {taxid: 169066, role: must_not_detect, reason: "rhinovirus: Human rhinovirus sp."}
+    - {taxid: 3402189, role: must_not_detect, reason: "rhinovirus: Rhinovirus NAT001"}
+    # out of scope: not a human enterovirus; searched and listed as "also detects",
+    # information only (user's choice 2026-09-25, on the advisor's advice)
+    - {taxid: 3428507, role: out_of_scope, reason: "animal enterovirus species: Enterovirus eibovi (EV-E)"}
+    - {taxid: 3428508, role: out_of_scope, reason: "animal enterovirus species: Enterovirus fitauri (EV-F)"}
+    - {taxid: 3428509, role: out_of_scope, reason: "animal enterovirus species: Enterovirus geswini (EV-G)"}
+    - {taxid: 3428510, role: out_of_scope, reason: "animal enterovirus species: Enterovirus hesimi"}
+    - {taxid: 3428511, role: out_of_scope, reason: "animal enterovirus species: Enterovirus idromi"}
+    - {taxid: 3428512, role: out_of_scope, reason: "animal enterovirus species: Enterovirus jesimi"}
+    - {taxid: 3428513, role: out_of_scope, reason: "animal enterovirus species: Enterovirus krodeni"}
+    - {taxid: 3428514, role: out_of_scope, reason: "animal enterovirus species: Enterovirus lesimi"}
+    - {taxid: 12075, role: out_of_scope, reason: "pig pathogen derived from coxsackievirus B5: Swine vesicular disease virus"}
+    - {taxid: 3701373, role: out_of_scope, reason: "animal host by NCBI name: Caprine/ovine enterovirus"}
+    - {taxid: 3434961, role: out_of_scope, reason: "animal host by NCBI name: Chenqi Marmot Enterovirus"}
+    - {taxid: 3413229, role: out_of_scope, reason: "animal host by NCBI name: Bovine enterovirus F"}
+    - {taxid: 3413228, role: out_of_scope, reason: "animal host by NCBI name: Bovine enterovirus E"}
+    - {taxid: 3399459, role: out_of_scope, reason: "animal host by NCBI name: Rodent coxsackievirus"}
+    - {taxid: 2917294, role: out_of_scope, reason: "animal host by NCBI name: Squirrel enterovirus"}
+    - {taxid: 2915136, role: out_of_scope, reason: "animal host by NCBI name: Marmot enterovirus"}
+    - {taxid: 2901325, role: out_of_scope, reason: "animal host by NCBI name: Ovine enterovirus 2019-00927"}
+    - {taxid: 2829137, role: out_of_scope, reason: "animal host by NCBI name: Raccoon dog enterovirus"}
+    - {taxid: 2816942, role: out_of_scope, reason: "animal host by NCBI name: Bovine enterovirus JS20-1"}
+    - {taxid: 2816941, role: out_of_scope, reason: "animal host by NCBI name: Bovine enterovirus GX20-1"}
+    - {taxid: 2816940, role: out_of_scope, reason: "animal host by NCBI name: Bovine enterovirus HB19-1"}
+    - {taxid: 2220002, role: out_of_scope, reason: "animal host by NCBI name: Sichuan takin enterovirus"}
+    - {taxid: 2017721, role: out_of_scope, reason: "animal host by NCBI name: Porcine enterovirus a/BEL/15V010"}
+    - {taxid: 2017720, role: out_of_scope, reason: "animal host by NCBI name: Porcine enterovirus b/BEL/15V010"}
+    - {taxid: 1790067, role: out_of_scope, reason: "animal host by NCBI name: Goat enterovirus"}
+    - {taxid: 1790059, role: out_of_scope, reason: "animal host by NCBI name: Bovine-like enterovirus"}
+    - {taxid: 1604871, role: out_of_scope, reason: "animal host by NCBI name: Yak enterovirus"}
+    - {taxid: 1406975, role: out_of_scope, reason: "animal host by NCBI name: Goat enterovirus G1"}
+    - {taxid: 991803, role: out_of_scope, reason: "animal host by NCBI name: Chimpanzee enterovirus CPS-2011"}
+    - {taxid: 754527, role: out_of_scope, reason: "animal host by NCBI name: Enterovirus rhesus monkey/FFH-2008/China"}
+    - {taxid: 442860, role: out_of_scope, reason: "animal host by NCBI name: Simian enterovirus SV6"}
+    - {taxid: 442859, role: out_of_scope, reason: "animal host by NCBI name: Simian enterovirus SV46"}
+    - {taxid: 442857, role: out_of_scope, reason: "animal host by NCBI name: Simian enterovirus SV35"}
+    - {taxid: 442856, role: out_of_scope, reason: "animal host by NCBI name: Simian enterovirus SV26"}
+    - {taxid: 442854, role: out_of_scope, reason: "animal host by NCBI name: Simian enterovirus BA13"}
+    - {taxid: 106968, role: out_of_scope, reason: "animal host by NCBI name: Sheep enterovirus"}
+reference_amplicons:
+  - {name: EV-fragment, sequence: TCTGCAGCGGAACCGACTACTTTGGGTGTCCGTGTTTCCTTTTATTCTCATGTTGGCTGCTTATGGTGACAATT}
+exclusivity_organisms:
+  - Parechovirus
+oligo_source: In-house assay supplied by the user; source publication not stated.
+
+settings:                       # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60        # this assay's cycling protocol
+  variants:
+    source: blast_partitioned   # virus: every Nucleotide record
+    nucleotide_query: "6500:8500[SLEN]"   # near-complete genomes; remove for every record

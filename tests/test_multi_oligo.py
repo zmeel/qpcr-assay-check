@@ -145,8 +145,7 @@ def test_the_best_binding_alternative_counts_for_each_genome(tmp_path):
     probe_rows = next(o for o in result.variant_summary.oligos if o.role == "probe").rows
     assert sorted(r.oligo_name for r in probe_rows) == ["P1", "P2"]
     html = render_report(result, cfg)
-    assert "P1, P2: for each record the best-binding one is shown" in html
-    assert "<strong>P2</strong>:" in html and "Reaction mix" in html
+    assert "P1, P2: for each record the best-binding one)" in html and "Reaction mix" in html
     RunResult.model_validate_json(result.model_dump_json())  # a saved record loads again
     write_workbook(result, tmp_path / "r.xlsx")
     ws = load_workbook(tmp_path / "r.xlsx")["Oligo variants"]

@@ -98,6 +98,11 @@ def test_a_homopolymer_run_length_variant_is_aligned_as_a_bulge_and_labelled(tmp
     fwd = next(s for s in res.sites if s.role == "forward")
     assert fwd.note == "poly-A run 4→5 (homopolymer length variant)"
     assert (fwd.n_mismatch, fwd.n_gap) == (0, 1) and fwd.mismatches_last5 == 0
+    # R5b (advisor 2026-09-26): one base, run ending at -11, away from the last 3 nt: at risk
+    assert (fwd.grade, fwd.grade_rule) == ("at_risk", "R5b")
+    rl = res.coverage.copies.run_length
+    assert (rl.genomes, rl.on_best_copy, rl.mixed, rl.decided_by_rule) == (1, 1, 0, 1)
+    assert rl.variants == [("forward: poly-A run 4→5 (homopolymer length variant)", 1)]
 
 
 def test_a_second_reference_finds_a_lineage_the_first_cannot(tmp_path):
@@ -114,13 +119,10 @@ def test_a_second_reference_finds_a_lineage_the_first_cannot(tmp_path):
     assert res.coverage.not_found == 0 and res.coverage.found == 1  # rescanned once, found
 
 
-def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(tmp_path):
-    from openpyxl import load_workbook
-
+def run_report_result(tmp_path):
+    """A full RunResult from a small SYNTHETIC multi-copy run (used by report tests)."""
     from qpcr_assay_check.config import load_config
     from qpcr_assay_check.pipeline import evaluate
-    from qpcr_assay_check.report.html import render_report
-    from qpcr_assay_check.report.xlsx import write_workbook
 
     from .test_variants_exhaustive import _empty_specificity
 
@@ -131,18 +133,38 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     genomes = [
         FakeAssembly("GCA_000000110.1", "2026-02-01", copies(10, AMP.replace(F, longer_run))),
         FakeAssembly("GCA_000000111.1", "2026-03-01", copies(11, both_bad, AMP.replace(P, P2))),
+        FakeAssembly("GCA_000000099.1", "2025-05-01", {"CTG99.1": filler(3000, 99)}),  # no region
     ]
     res = run(tmp_path, genomes, probe=probes)
     assay = make_assay(reference_amplicon=AMP, target={"taxid": 813}, probe=probes)
     cfg = load_config()
-    result = evaluate(assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
-                      release_dates=res.release_dates, inclusivity=res.inclusivity,
-                      specificity=_empty_specificity())  # fmt: skip
+    return evaluate(assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+                    release_dates=res.release_dates, inclusivity=res.inclusivity,
+                    specificity=_empty_specificity())  # fmt: skip
+
+
+def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(tmp_path):
+    from openpyxl import load_workbook
+
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+    from qpcr_assay_check.report.xlsx import write_workbook
+
+    result, cfg = run_report_result(tmp_path), load_config()
     html = render_report(result, cfg)
     assert "Copies, coverage per oligo, and escapes" in html and "none of them" in html
     assert "poly-A run 4→5 (homopolymer length variant)" in html
     assert "Probe channels" in html and "any channel" in html
     assert "not counted (strict)" in html and "if homopolymer bulges are tolerated" in html
+    # graded classes: the columns and the explanation, although the first year (2017) is empty
+    # (live 2026-09-25 they were hidden, as the template looked at the first year only)
+    assert "<th>Detectable</th>" in html and "<h3>Mismatch classes</h3>" in html
+    assert "Homopolymer length variants" in html and "copies disagree" in html
+    # layout (user 2026-09-25): wider page; one-line alignments in the whole-fragment table
+    assert "max-width: 96rem" in html and '<pre class="aln compact">' in html
+    # alternatives numbered after the sequence, so the site lines stay aligned (user 2026-09-25)
+    assert '<span class="seq" title="P1">' in html and "Probe: (1) P1, (2) P2." in html
+    assert '<span class="meta">(2)</span></pre>' in html
     write_workbook(result, tmp_path / "r.xlsx")
     ws = load_workbook(tmp_path / "r.xlsx")["Copies and coverage"]
     assert any(c.value == "Escapes (no detectable copy)" for c in ws["A"])
@@ -165,7 +187,8 @@ def test_homopolymer_bulges_are_strict_by_default_and_both_counts_are_reported(t
 def test_a_bulge_with_a_mismatch_is_never_detectable():
     from qpcr_assay_check.variants.exhaustive import detectable
 
-    site = type("S", (), {"n_gap": 1, "n_mismatch": 1, "mismatches_last5": 0, "note": "poly-A"})
+    site = type("S", (), {"n_gap": 1, "n_mismatch": 1, "mismatches_last5": 0, "note": "poly-A",
+                          "grade": "indeterminate"})  # fmt: skip
     assert not detectable(site, True) and not detectable(site, False)  # type: ignore[arg-type]
 
 
@@ -198,3 +221,82 @@ def test_a_genome_with_more_copies_than_kept_is_not_rescanned_every_run():
     many = StoredAssembly(**base, n_loci=MAX_LOCI_KEPT + 5, loci=loci * MAX_LOCI_KEPT)
     assert old.needs_rescan and old.copies_capped
     assert not many.needs_rescan and not many.copies_capped
+
+
+def test_one_mismatch_in_an_mgb_probe_makes_a_genome_undetermined_not_an_escape(tmp_path):
+    """User decision 2026-09-25 (the enterovirus MGB probe: 196 genomes had counted as escapes)."""
+    probes = [{"name": "P", "sequence": P, "reporter": "FAM", "modifications": ["MGB"]}]
+    one = AMP.replace(P, mutate(P, [8]))  # one mismatch in the probe site, away from its ends
+    res = run(tmp_path, [FakeAssembly("GCA_000000120.1", "2026-02-01", copies(20, one))],
+              probe=probes)  # fmt: skip
+    c = res.coverage.copies
+    assert (c.escapes, c.undetermined, c.with_detectable_copy) == (0, 1, 0)
+    assert c.role_undetermined["probe"] == 1 and c.role_none["probe"] == 0
+    (w,) = [w for o in res.inclusivity.oligos if o.role == "probe" for w in o.windows
+            if w.sample_size]  # fmt: skip
+    assert w.n_undetermined == 1
+
+
+def test_copies_that_disagree_in_run_length_are_counted(tmp_path):
+    """Advisor 2026-09-26: run length is a known sequencing/assembly error; a genome whose other
+    copy reads the oligo's run length is counted as 'copies disagree'. SYNTHETIC genome."""
+    longer_run = AMP.replace(F, F.replace("AAAA", "AAAAA", 1))
+    other_bad = AMP.replace(RC_R, mutate(RC_R, [1, 2]))  # normal run, reverse site damaged
+    res = run(tmp_path, [FakeAssembly("GCA_000000112.1", "2026-02-01",
+                                      copies(12, longer_run, other_bad))])  # fmt: skip
+    rl = res.coverage.copies.run_length
+    assert (rl.genomes, rl.mixed) == (1, 1)
+    assert sum(n for n, _t in rl.by_level.values()) == 1
+
+
+def test_lab_evidence_replaces_the_in_silico_class(tmp_path):
+    """Advisor 2026-09-26, built on the user's request: a wet-lab result for an oligo variant,
+    recorded in the assay file, decides for every genome with that exact variant. SYNTHETIC."""
+    from qpcr_assay_check.oligo.grade import site_string
+
+    longer_run = AMP.replace(F, F.replace("AAAA", "AAAAA", 1))
+    genomes = [FakeAssembly("GCA_000000113.1", "2026-02-01", copies(13, longer_run))]
+    res = run(tmp_path, genomes)
+    fwd = next(s for s in res.sites if s.role == "forward")
+    assert fwd.grade == "at_risk" and res.coverage.copies.escapes == 1
+    variant = site_string(fwd.q_aln, fwd.s_aln)
+    assert variant.count("A") == 1 and set(variant) <= {".", "A"}  # as the report shows it
+    lab = [{"oligo": "forward", "variant": variant, "outcome": "detected",
+            "note": "synthetic template A5, Ct +0.4 (test)"}]  # fmt: skip
+    res = run(tmp_path, genomes, evidence=lab)
+    fwd = next(s for s in res.sites if s.role == "forward")
+    assert (fwd.grade, fwd.grade_rule) == ("tolerated", "LAB") and "in silico: at risk" in (
+        fwd.grade_note
+    )
+    assert res.coverage.copies.escapes == 0 and res.coverage.copies.with_detectable_copy == 1
+    lab[0]["outcome"] = "not_detected"
+    res = run(tmp_path, genomes, evidence=lab)
+    assert next(s for s in res.sites if s.role == "forward").grade == "likely_failure"
+
+
+def test_lab_evidence_must_name_an_oligo_of_the_assay():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="no oligo named 'F9'"):
+        make_assay(evidence=[{"oligo": "F9", "variant": "....A....", "outcome": "detected",
+                              "note": "x"}])  # fmt: skip
+
+
+def test_the_report_lists_lab_evidence_and_flags_an_entry_that_matches_nothing(tmp_path):
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.models import LabEvidence
+    from qpcr_assay_check.oligo.grade import site_string
+    from qpcr_assay_check.report.html import render_report
+
+    result = run_report_result(tmp_path)
+    fwd = next(r for o in result.variant_summary.oligos if o.role == "forward" for r in o.rows
+               if r.note)  # the poly-A 4->5 variant, 1 record  # fmt: skip
+    ev = [LabEvidence(oligo="forward", variant=site_string(fwd.q_aln, fwd.s_aln),
+                      outcome="detected", note="lab report 2026-01 (test)"),
+          LabEvidence(oligo="forward", variant="....T...............", outcome="not_detected",
+                      note="typo test")]  # fmt: skip
+    result = result.model_copy(update={"assay": result.assay.model_copy(update={"evidence": ev})})
+    html = render_report(result, load_config())
+    assert "Laboratory evidence" in html and "applied to 1 record in this run" in html
+    assert "matched no site in this run" in html

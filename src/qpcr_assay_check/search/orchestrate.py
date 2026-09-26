@@ -37,6 +37,7 @@ class SearchRecord(BaseModel):
     entrez_query: str | None
     key: str
     rid: str | None
+    submitted_at: str | None = None  # when the RID was issued (RIDs expire at NCBI after ~36 h)
     state: str
     blast_version: str | None
     database: str | None
@@ -141,6 +142,7 @@ def run_search(
                 entrez_query=ps.entrez_query,
                 key=ps.key,
                 rid=job.rid,
+                submitted_at=job.submitted_at,
                 state=job.state,
                 blast_version=parsed.version,
                 database=parsed.database,

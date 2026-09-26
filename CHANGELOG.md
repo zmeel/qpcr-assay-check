@@ -6,6 +6,212 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-26
+
+Graded mismatch classes and a report built around the whole fragment. Every primer and probe site
+gets a class (perfect, tolerated, at risk, likely failure, indeterminate) from Stadhouders 2010 and
+Lefever 2013, with the primer-pair rule, MGB-probe rules, a graded homopolymer rule (R5b) and
+laboratory evidence per variant; genomes are judged on their best whole-fragment copy. The report
+leads with the whole-fragment table ("Needs attention"), compact variants per oligo, a
+specificity summary per tier, taxa inside the target with roles (must not detect, out of scope),
+a panel escape check, and is about 250 kB instead of 5 MB (no JavaScript). Checked live on the
+N. gonorrhoeae and enterovirus assays.
+
+### Added
+- **Laboratory evidence per oligo variant** (advisor's advice, user request 2026-09-26): an
+  `evidence:` list in the assay file (oligo, the variant as the report writes it, detected |
+  not_detected, the lab's reference) replaces the in silico class for that exact variant (rule
+  LAB: tolerated or likely failure) everywhere: variant tables, genomes, escapes, inclusivity,
+  panel. The report lists each entry with the records it applied to and flags entries that
+  match nothing; also in the workbook (sheet "Inputs").
+- **Homopolymer length differences in primer sites are graded (rule R5b)** (user decision on the
+  advisor's advice, 2026-09-26): one base with the run outside the last 3 nt = at risk; two or
+  more bases, or a run reaching the last 3 nt = likely failure; no PCR study measured such
+  bulges, so the class is ours and the note says so (docs/MISMATCH_CLASSES.md). Before, such a
+  site was indeterminate (R5).
+- **How far to trust run-length variants**: the report and workbook count the genomes with a
+  run-length variant, those judged on such a copy, those whose detection depends on the bulge
+  setting, those whose copies disagree, and the share per assembly level, with the most frequent
+  variants (run length is a known sequencing and assembly error).
+- **Inclusivity: whole-fragment table per year** (user, 2026-09-25; exhaustive analysis): each
+  genome's outcome from its three best-copy sites together (detectable / at risk / likely
+  failure / undetermined, primer-pair rule included), with a total over the years shown, before
+  the per-oligo tables; also in the workbook (sheet "Inclusivity", oligo "whole fragment"). The
+  genome outcome is shared with the whole-fragment variant table
+  (`oligo.grade.combination_outcome`). The inclusivity verdict still uses the per-oligo
+  percentages.
+- **Hung BLAST searches are resubmitted** (`ncbi/runner.py`, `ncbi.resubmit_after_minutes`,
+  default 90; `run`/`search --resubmit`): a resumed search NCBI has kept WAITING that long is
+  submitted anew, at most once per run, instead of resuming the same RID forever (live: the
+  enterovirus target search stayed WAITING for over 70 minutes across two restarts).
+- **Panel-level escape detection** (`panel.py`, `report/panel.py`, `qpcr-assay-check panel`;
+  FEATURE_IDEAS #1): a panel file lists two or more assay files for the same target; every
+  genome all of them processed is judged per assay from the stored regions (best-binding copy,
+  as in the assay reports) and classified as detected by every target, by some, by no target,
+  or undetermined, per release year. HTML, workbook and JSON outputs; no NCBI requests.
+- **Taxa inside the target that the assay must not detect** (`target.exclude_taxids`; models,
+  search plan, inclusivity, partitioned variant analysis, report, workbook): left out of the
+  target search, inclusivity populations and the Nucleotide listing with Entrez `NOT` (checked
+  live for ESearch and BLAST), and searched as near neighbours so every oligo is checked
+  against them. The region store is keyed by the exclusions. Not supported with the Datasets
+  source. Worked example: `docs/examples/enterovirus_realt.yaml` (user-supplied in-house
+  enterovirus assay; rhinoviruses excluded by taxonomy ID, since the name "rhinovirus"
+  resolves to the genus *Enterovirus*).
+
+### Changed
+- Variants per oligo: each variant is a dotted line against the oligo in the column header, as in
+  the whole-fragment table (user, 2026-09-26), with the changes written below it and the full
+  alignment folded; the separate "Oligo" column is replaced by (1), (2) after the line.
+- **History: off-target site changes condensed** (live Neisseria run: 1,450 single rows, mostly
+  minor human sites, made the report 800 kB): one row per change, tier and organism for changes
+  at warning or critical level, with the number of sites and records, levels, oligos and the most
+  severe example; changes that stay at minor level are counted in one line (the report keeps only
+  the closest minor sites per oligo, so they come and go). Every change stays in the workbook.
+- **README rewritten** (user request, layout advised by the advisor subagent 2026-09-25): what the
+  tool does in five points, the required statements, a worked example of the "Needs attention"
+  table from the live enterovirus run (Markdown table plus a screenshot,
+  `docs/images/needs_attention_enterovirus.png`), install, quick start, the report sections, the
+  quality-system use and the limitations that change the interpretation. The former README's
+  reference material moved, unchanged, to `docs/USER_GUIDE.md`; its development history is in
+  this changelog and `docs/PROGRESS.md`.
+- **Specificity section answers "is my assay still specific?" first** (user question, advisor
+  2026-09-25): per searched tier one line: predicted products or none; for near neighbours
+  which primer carries the discrimination and which oligos bind by design; the closest site of
+  the discriminating primer; and whether any relevant alignment was left unassessed (and if so,
+  whether that can concern the discriminating primer). "Rationale" is now "All findings".
+  Searches: one row per tier with "Complete" (no full hit list, nothing cut), the target row
+  shows its excluded taxa and "not used for specificity" instead of an INCOMPLETE chip, RIDs
+  carry their date; hits and alignments per oligo are folded.
+- **Critical probe sites are INFO by default** (`specificity.severity.probe_site_critical`, was
+  WARN): a probe gives signal only inside a product, which the product findings judge; the
+  message says so.
+- RIDs are kept with cached BLAST results, so a run served from the cache still shows them.
+- New limitation: products from one primer binding both strands are not predicted.
+- Variants per oligo: variants at risk, likely to fail or indeterminate that occur in a single
+  record are one row per class (with their main types) instead of a row each; in the live
+  enterovirus run 30-52 rows per oligo were mostly such single records. Every variant stays in
+  the workbook. A homopolymer note shows when hovering the site in the whole-fragment table.
+- **Oligo quality control moved to the end** (user, 2026-09-25): just before Methods, with a
+  one-line count (FAIL, WARN) and the checks, hairpins and dimers and the amplicon folded; they
+  depend only on the oligo sequences and matter mainly when designing the PCR. Their findings
+  still appear under the verdict.
+- **Variants section reordered and shortened** (user proposal, advisor layout 2026-09-25): the
+  whole-fragment table comes first as the main view; "Variants per oligo" follows as the
+  reference for frequencies and history: per oligo one line "perfect in N of M records", then
+  only the variants that are not perfect, worst class first (at risk, likely failure and
+  indeterminate always; tolerated the 5 most frequent, the rest one row), each as its changes
+  from the 3' end (e.g. "-3 C-A") with the full alignment and class note folded under it.
+  In the whole-fragment table each site that is not perfect shows how often that site variant
+  occurs among all records of the oligo; with sampled hits (`blast_hits`) a line states the
+  records the fragment table covers against the per-oligo counts. The 0.1% lumping of the
+  per-oligo tables is replaced by the tolerated top 5.
+- **Report about 5 MB smaller** (user: report size): the one chart (oligo Tm) is inline SVG
+  instead of an interactive Plotly chart, whose inlined JavaScript bundle was 4.8 MB of the
+  5.1 MB report. The report contains no script; `plotly` is no longer a dependency.
+- **Whole-fragment "Needs attention"** (live enterovirus run): the listed 30 combinations are the
+  5 most frequent of each outcome, then the most frequent of the rest, shown worst outcome
+  first; before, 30 single-genome failures pushed an at-risk combination in 283 genomes
+  (Poliovirus 2) into a grouped row. The rest is one row per outcome with its main types.
+- Whole-fragment header: alternative oligos are numbered after the sequence ("... (1)"), and
+  each site line ends with that number, so the dots line up under the bases; the names are in
+  the explanation above the table.
+- **MGB probe with 2 or more mismatches is `likely_failure`** (was `at_risk`, which ranked
+  milder than the single-mismatch "undetermined"; user proposal, advisor agreed 2026-09-25).
+  Position-free; unmodified probes unchanged. Every probe class is labelled expert judgement
+  with no quantitative source.
+- Whole-fragment table: site lines in the same font size as the oligo in the column header, so
+  they line up and read more easily; header oligos no longer wrap; the Types column is capped.
+- **Whole-fragment table restructured** (user request; advisor layout, 2026-09-25): a summary
+  line (records detectable / at risk / likely failure / undetermined); part A "Needs attention"
+  lists every combination that is not detectable, worst outcome first (grouped by outcome and
+  type only beyond 30 rows); part B "Detectable" shows the 10 most frequent and one summary row.
+  Per combination: the genome outcome (worst site class, or the primer-pair rule), the class of
+  each site, the one-line sites, records, the organism types and the release dates. The
+  workbook sheet gains the outcome, the classes and the types.
+- **Report layout** (user request 2026-09-25): page width 96rem (was 64rem); the whole-fragment
+  table shows each site on one line against the oligo in the column header (dots for matches,
+  highlighted letters for mismatches), so all columns fit; alignment cells no longer force a
+  minimum width, and the organism column of the closest off-target sites is wider.
+- **Undetermined genomes** (user decision 2026-09-25): a single mismatch in an MGB probe, or an
+  ambiguity code in the genome near a 3' end, has no published basis either way; such a genome
+  is now "undetermined" (its own row in the report) instead of an escape, and such sites are left
+  out of the inclusivity percentage. Unexplained gaps still count as not detected.
+- **Shorter, readable report** (user request 2026-09-25; layout advice from the advisor
+  subagent): predicted off-target products and off-target sites are one row per search tier and
+  species (identical products counted once, most concerning first, out-of-scope rows in a
+  collapsed "also detects" block, an explicit statement when the must-not-detect taxa have no
+  product); the per-taxid taxonomic breakdown moved to the workbook; closest off-target
+  variants cut to 10; variants and fragment combinations below 0.1 % that are perfect or
+  tolerated are one summary row (rare variants at risk, likely to fail or indeterminate are
+  always listed); the Searches table wraps its taxa list (5 shown, the rest folded). Every row
+  stays in the workbook (now also with the mismatch class) and hits.tsv.
+- **Graded mismatch classes replace the "0-1 mismatch, clean 3' end" rule** on the target
+  (`oligo/grade.py`, variant analysis, inclusivity, report, workbook; docs/MISMATCH_CLASSES.md;
+  user decision 2026-09-25): perfect / tolerated / at risk / likely failure / indeterminate, from
+  Stadhouders et al. 2010 (Table 1, Taq on DNA) and Lefever et al. 2013, both checked in full by
+  the advisor subagent. Detectable = perfect or tolerated; the primer-pair rule (3 + >=2 or 4 + >=1
+  mismatches) fails a copy. No lab-specific mix setting (user decision): the report prints the
+  mix caveat instead. Class counts per year and a class on every variant row. Records made
+  before keep their old inclusivity figure.
+- **Roles for taxa inside the target** (`target.taxa`: `{taxid, role, reason}`, role
+  `must_not_detect` | `out_of_scope`; after the advisor's review, user decision 2026-09-25):
+  must-not-detect taxa are near neighbours as before; out-of-scope taxa get their own search tier
+  whose findings are information only ("also detects"), so an assay that amplifies animal
+  enteroviruses no longer fails for it. `exclude_taxids` remains the short form of
+  must-not-detect. The report lists every taxon with its role and reason.
+- **A critical primer site that forms no predicted product is WARN, not FAIL**
+  (`specificity.severity.primer_site_critical_no_product`, default WARN; user decision
+  2026-09-25): off-target priming without a partner cannot give a product; products still FAIL.
+  This also applies to the exclusivity table.
+
+### Fixed
+- Specificity summary: when both primers have a perfect site in a tier (live enterovirus run: a
+  rhinovirus fragment with a perfect forward site) no primer was named as discriminating and no
+  closest site was shown. The closest forward and reverse sites are now always shown, and this
+  case says so explicitly ("both primers have a perfect site in this tier, but never facing each
+  other on one record").
+- An oligo end without a partner base in the genome counts as a mismatch at that position, not
+  as a gap, so e.g. a 5'-terminal overhang plus poly-A 7->8 is at risk (R5b) like the other 7->8
+  sites instead of indeterminate. Runs of inserted or deleted bases are written once in the
+  variant tables ("2-base insertion between -11 and -10", "-12 to -11 deleted (2 bases)").
+- Assemblies whose download fails on repeated runs (2 attempts) count as "could not be
+  downloaded": left out, listed, tried again each run, and no longer keep the variant analysis
+  "incomplete" with "run again to continue" (live Neisseria runs: the same 39 failed every run).
+  Failures are kept next to the region store (`*.failures.json`).
+- A site with a gap was "indeterminate" whatever its mismatches (live Neisseria run: a probe
+  variant with 7 mismatches and a gap). The mismatches are now graded first; when they alone make
+  the site at risk or likely failure, that class stands ("plus a gap").
+- The whole-fragment table crashed the report (`AttributeError: 'VariantRow' object has no
+  attribute 'grade_rule'`) when a combination held an indeterminate site (live enterovirus run,
+  2026-09-25); variant rows now carry the rule, and the test uses real rows.
+- Second review (mismatch classes, report grouping): grading a worst-case site (window fetch
+  failed, unaligned ends '.') crashed the run with a KeyError; its unaligned ends are now
+  mismatches of unknown type. An ambiguity code near a 3' end no longer hides real mismatches:
+  the site is graded with the code as a match and as a mismatch, and is undetermined (R6) only
+  when the code decides between detectable and not. A year in which every record is
+  undetermined gets no percentage (was 0 %, a false WARN or FAIL). The panel counts undetermined
+  genomes as undetermined, not as escapes, and accepts assays whose target taxa differ only in
+  the reason text. Target sites of the sampled variant analysis (`blast_hits`) are graded, and
+  ungraded fragment combinations are "not classified", never shown as detectable. Out-of-scope
+  window fetch failures are information only, and an out-of-scope search alone no longer counts
+  as an assessed off-target tier. Grouped product and site rows that can fail the verdict are
+  always shown (only the rest is cut after 15 rows); the "no product" line names the tiers
+  actually searched. docs/MISMATCH_CLASSES.md now matches the code (R6, the R3 four-adjacent
+  exception, class changes in the history not built yet).
+- `specificity.max_amplicons` now applies per tier: in the live enterovirus run 500
+  out-of-scope products (animal enteroviruses) filled the shared cap, made the products section
+  INCOMPLETE, and could have crowded out products in judged tiers. A cut out-of-scope list is
+  information only.
+- Panel: a genome with no target region found anywhere, and (with Nucleotide records) a record
+  without a region, no longer counts as "detected by no target"; that needs a real escape.
+- Panel: assays with different record filters (nucleotide_query, current/atypical filters) or
+  with exclusions on the Datasets source are refused up front; rows show the newest accession
+  version any store holds; one shared E-utilities client.
+- `target.exclude_taxids` must lie inside the target taxon (checked against NCBI Taxonomy,
+  cached): an ancestor would have emptied the target search.
+- A BLAST search that will be resubmitted (the 90-minute rule or `--resubmit`) now counts as
+  sending, so the user is asked first unless `--yes` is given.
+
 ## [1.3.0] - 2026-09-25
 
 Several oligos per role with names, assay-specific settings, and multi-copy targets judged by

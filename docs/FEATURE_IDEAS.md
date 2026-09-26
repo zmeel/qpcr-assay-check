@@ -6,7 +6,8 @@ after v1.1.1. **None of these is planned or started**: each needs the user's go-
 rest on NCBI behaviour or published data that must be checked before building on it; nothing
 here is a verified fact about NCBI or about PCR chemistry yet.
 
-Recommended order: 8 is done (v1.3.0); next 1 and 4, then 2 and 3 after their checks.
+Recommended order: 8 is done (v1.3.0), 1 is done (unreleased); next 4, then 2 and 3 after
+their checks.
 
 | # | Idea | Value | New NCBI traffic | Verify first |
 |---|---|---|---|---|
@@ -19,7 +20,7 @@ Recommended order: 8 is done (v1.3.0); next 1 and 4, then 2 and 3 after their ch
 | 7 | Degenerate-base suggestion | Medium | None | No |
 | 8 | Several oligos per role, named oligos, multi-copy targets | High | None | No |
 
-## 1. Panel-level escape detection (multi-target assays)
+## 1. Panel-level escape detection (multi-target assays) (done, `qpcr-assay-check panel`)
 
 Many assays detect one organism with two targets, e.g. *C. trachomatis* on the cryptic plasmid
 plus a chromosomal gene. The clinical risk is a strain that escapes **every** target at once;
@@ -118,6 +119,63 @@ Worked example: [examples/neisseria_gonorrhoeae_two_probes.yaml](examples/neisse
   each oligo searched under its own name; off-target products from every forward/reverse pair.
 - **Plan:** step 1 = assay format, names, QC and specificity; step 2 = best oligo per genome over
   all copies, coverage per oligo and channel, escape lists in the variant analysis.
+
+## Advisor review (2026-09-25): proposals, not started
+
+From the advisor subagent (senior molecular biologist, big-data analysis) after the NG and
+enterovirus runs. Items marked *verify first* need the cited papers' full tables or NCBI field
+checks before any rule is built; no thresholds of our own invention.
+
+| # | Idea | Why | Verify first |
+|---|---|---|---|
+| 9 | Graded, role-specific mismatch classes (perfect / tolerated likely / at risk / likely failure / indeterminate); MGB probes stricter; primer-pair combinations; IUPAC codes in the genome shown as uncertain | The binary rule is too strict for primers and too lenient for MGB probes | Yes: Stadhouders 2010, Lefever 2013, Kwok 1990 full tables |
+| 10 | Collapse identical amplicon-region haplotypes; study provenance (BioProject) per escape cluster; report per type/lineage | Single studies dominate raw counts (e.g. 262 Poliovirus 2 records of one series) | Yes: Datasets/ESummary fields |
+| 11 | Stratify by assembly level and sequencing technology; check homopolymer variants in complete/long-read genomes | Homopolymer length is a sequencing-error hotspot | Yes: field availability |
+| 12 | Copy-aware reporting: detectable copies per genome | Near the LoD fewer detectable copies matter | No |
+| 13 | Panel: interpretation rule (either target positive vs both); 'region not found' informative in complete genomes only; one homopolymer rule per panel | Clinical meaning of "detected by some targets" depends on the lab's algorithm | No |
+
+Idea 6 (variant templates for wet-lab checks) was ranked high by the advisor as the link to
+experimental validation.
+
+**#9, source checked (2026-09-25, full text supplied by the user, read by the advisor):**
+Stadhouders R, Pas SD, Anber J, Voermans J, Mes THM, Schutten M. J Mol Diagn 2010;12(1):109-117,
+doi:10.2353/jmoldx.2010.090035. Single template mismatches at primer positions 1, 2, 3 and 5
+from the 3' end (not 4, not beyond 5), named primer-template; two TaqMan assays; three setups
+(Taq on DNA; Taq + MMLV one-step RT-PCR; rTth one-step RT-PCR); delta Ct at one input, n = 4.
+Its Table 1 groups mismatch classes (A-A/A-G/G-A/G-G/C-C; T-T/T-C/C-T; C-A/A-C/G-T/T-G) by
+position (terminal / penultimate / 3-5) and setup into "acceptable" (< 2 Ct) or "avoid", and the
+setups differ strongly (e.g. reverse-primer mismatches mattered little with Taq + MMLV but much
+with rTth). Multiple mismatches in the last 3 nt: no amplification with Taq-based setups.
+Usable for: a class x position x setup lookup for the last 5 nt, with the setup as a lab setting
+(worst case when unknown). Not covered: position 4 (extrapolated by the authors), beyond 5,
+probe/MGB mismatches, indels/bulges, spread or two-primer mismatches, degenerate primers, modern
+mixes, efficiency/LoD. Those need Lefever 2013 (positions > 5, counts), Kutyavin 2000 (MGB);
+no source yet for bulges. The PDF is not stored in the repository (copyright).
+
+Lefever S, Pattyn F, Hellemans J, Vandesompele J. Clin Chem 2013;59(10):1470-1480,
+doi:10.1373/clinchem.2013.203653 (full text supplied by the user, read by the advisor): 20-nt
+forward primers, all single mismatch types in the last 5 nt, five intercalating-dye master
+mixes, DNA only (no RT step, no probes, no indels, no degenerate primers). Single mismatches:
+largest at the 3' terminus (dCq 5-7 depending on the mix), still measurable at the 5th base,
+"almost negligible" from position 8 on (one mix, supplementary data). Two mismatches in one
+primer already cost much (median around 7.7 dCq, read from a figure); 4 in one primer, or 3 + >=2
+or 4 + 1 across the pair, blocked amplification "almost completely"; with several mismatches the
+effect grows at low input. Combined with Stadhouders this gives: last-5 classes by type,
+position and setup (Stadhouders), positions 6-8 moderate and >= 9 negligible (Lefever), counts
+per primer and per pair (Lefever), a reverse-primer modifier for one-step RT-PCR (Stadhouders
+only). Where they disagree (terminal C-T/T-C), take the worse. Report classes, not predicted Cq.
+Still not covered: probe/MGB mismatches, bulges, degenerate primers.
+
+Built (unreleased): [MISMATCH_CLASSES.md](MISMATCH_CLASSES.md), without a mix setting.
+
+## Report layout (advisor, 2026-09-25): not built yet
+
+- A first page for sign-off: assay identity, verdict per section in one sentence, key numbers
+  (records assessed, detectable per class, escapes, must-not-detect products or an explicit
+  none), top 5 escape clusters, at most 5 changes since the last run, the required statements.
+- Oligo QC and structures: only WARN/FAIL rows, with a count of the checks that passed.
+- Methods, settings and limitations in collapsed sections; never a WARN/FAIL inside one.
+- A `--full` option that renders every table, for the lab that wants the long form.
 
 ## Related tools (context, 2026-09-23)
 

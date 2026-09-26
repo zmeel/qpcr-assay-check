@@ -20,6 +20,17 @@ class WindowStats(BaseModel):
     n_one_mismatch: int = Field(description="exactly 1 mismatch, 0 gaps")
     n_two_plus_mismatch: int = Field(description="2+ mismatches, or any gap")
     n_three_prime_mismatch: int = Field(description="a mismatch in the last 5 nt of the oligo")
+    n_detectable: int | None = Field(
+        default=None,
+        description="graded mismatch class perfect or tolerated (docs/MISMATCH_CLASSES.md); "
+        "None in records made before the classes",
+    )
+    n_by_grade: dict[str, int] = Field(default_factory=dict, description="records per class")
+    n_undetermined: int = Field(
+        default=0,
+        description="a mismatch in an MGB probe or an ambiguity code in the genome (rules R9, R6): "
+        "no published basis, left out of the detectable percentage",
+    )
     per_position_mismatches: list[int] = Field(
         description="mismatch count at each 1-based oligo position, across this window's sample"
     )
@@ -37,6 +48,20 @@ class InclusivityOligoResult(BaseModel):
     )
 
 
+class FragmentYear(BaseModel):
+    """Per year: the genome outcome from the three best-copy sites together (forward, probe,
+    reverse), as in the whole-fragment table; exhaustive analysis only."""
+
+    year: int
+    population_size: int | None = None
+    with_region: int = Field(description="records with all three sites assessed")
+    detectable: int = 0
+    at_risk: int = 0
+    likely_failure: int = 0
+    undetermined: int = 0
+    by_pair_rule: int = Field(default=0, description="likely failure decided by R8 alone")
+
+
 class InclusivityResult(BaseModel):
     """Everything the inclusivity assessment found."""
 
@@ -47,6 +72,9 @@ class InclusivityResult(BaseModel):
     )
     target_taxid: int | None = None
     oligos: list[InclusivityOligoResult] = Field(default_factory=list)
+    fragment_years: list[FragmentYear] = Field(
+        default_factory=list, description="whole-fragment outcome per year (exhaustive only)"
+    )
     sample_scheme: str = ""
     verdict: Verdict
     rationale: list[str] = Field(default_factory=list)

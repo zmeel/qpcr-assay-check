@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -11,6 +12,7 @@ from openpyxl.utils import get_column_letter
 from ..history.models import HistoryResult
 from ..results import RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
+from .grouping import fragment_outcome
 from .ncbi_links import accession_url, taxon_url
 
 _FILL = {
@@ -53,6 +55,21 @@ def _sheet(
                 cell.hyperlink = url
                 cell.font = Font(color="0563C1", underline="single")
     ws.freeze_panes = "A2"
+
+
+def _run_length_rows(rl: Any) -> list[list[object]]:
+    """Homopolymer length variants and how far to trust them (advisor subagent, 2026-09-26)."""
+    if rl is None:
+        return []
+    return [
+        ["Run-length variant in a copy", "", rl.genomes, "", ""],
+        ["  ...on the copy judged", "", rl.on_best_copy, "", ""],
+        ["  ...copies disagree", "", rl.mixed, "", ""],
+        ["  ...detection depends on the bulge setting", "", rl.decided_by_rule, "", ""],
+        *[[f"  ...assembly level {level}", "variant / assessed", n, tot, ""]
+          for level, (n, tot) in rl.by_level.items()],
+        *[["  ...variant", v, n, "", ""] for v, n in rl.variants],
+    ]  # fmt: skip
 
 
 def _history_rows(hist: HistoryResult) -> list[list[object]]:
@@ -153,9 +170,21 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ],
             ["template type", a.template_type.value],
             ["target taxid", a.target.taxid or ""],
+            [
+                "target excluding taxids (must not detect)",
+                ", ".join(map(str, a.target.must_not_detect_taxids)),
+            ],
+            [
+                "target excluding taxids (out of scope)",
+                ", ".join(map(str, a.target.out_of_scope_taxids)),
+            ],
             ["target accession", a.target.accession or ""],
             ["target gene", a.target.gene or ""],
             ["oligo source", a.oligo_source or ""],
+            *[
+                [f"lab evidence: {e.oligo} {e.variant}", f"{e.outcome} ({e.note})"]
+                for e in a.evidence
+            ],
         ],
         None,
     )
@@ -294,27 +323,33 @@ def write_workbook(result: RunResult, path: Path) -> None:
             wb,
             "Oligo variants",
             ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Mismatches",
-             "Gaps", "Matching 3' nt", "Example accession", "Example organism",
-             "First release", "Last release"],
+             "Gaps", "Matching 3' nt", "Class", "Class rule", "Example accession",
+             "Example organism", "First release", "Last release"],
             [
                 [o.role if row.oligo_name in ("", o.role) else f"{o.role} {row.oligo_name}",
                  row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
-                 row.clean_3prime_nt, row.example_accession, row.example_organism or "",
+                 row.clean_3prime_nt, row.grade or "", row.grade_note,
+                 row.example_accession, row.example_organism or "",
                  row.first_seen or "", row.last_seen or ""]
                 for o in vs.oligos
                 for row in o.rows
             ],
             None,
         )  # fmt: skip
+        bulges = bool(result.config.get("variants", {}).get("homopolymer_bulges_detectable"))
         _sheet(
             wb,
             "Fragment variants",
-            ["Forward", "Probe", "Reverse", "Count", "Fraction (%)", "Mismatches (F/P/R)",
-             "Example accession", "Example organism", "First release", "Last release"],
+            ["Outcome", "Pair rule", "Forward", "Probe", "Reverse", "Classes (F/P/R)", "Count",
+             "Fraction (%)", "Mismatches (F/P/R)", "Types", "Example accession",
+             "Example organism", "First release", "Last release"],
             [
-                [f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln, f.count, round(f.percent, 2),
+                [*fragment_outcome(f, bulges), f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln,
+                 "/".join(s.grade or "" for s in (f.forward, f.probe, f.reverse)),
+                 f.count, round(f.percent, 2),
                  f"{f.forward.n_mismatch + f.forward.n_gap}/{f.probe.n_mismatch + f.probe.n_gap}/"
                  f"{f.reverse.n_mismatch + f.reverse.n_gap}",
+                 "; ".join(f"{n} {c}" for n, c in f.organisms),
                  f.example_accession, f.example_organism or "",
                  f.forward.first_seen or "", f.forward.last_seen or ""]
                 for f in vs.fragments
@@ -370,7 +405,8 @@ def write_workbook(result: RunResult, path: Path) -> None:
                      *[["Channel", ch.reporter + ": " + ", ".join(ch.probes), ch.covered, "", ""]
                        for ch in cc.channels],
                      ["Any channel", cc.probe_channels, cc.any_channel, "", ""],
-                     ["All channels", "", cc.all_channels, "", ""]],
+                     ["All channels", "", cc.all_channels, "", ""],
+                     *_run_length_rows(cc.run_length)],
                     None,
                 )  # fmt: skip
     incl = result.inclusivity
@@ -379,13 +415,23 @@ def write_workbook(result: RunResult, path: Path) -> None:
             wb,
             "Inclusivity",
             ["Oligo", "Year", "Population", "Sample size", "Perfect", "1 mismatch",
-             "2+ mismatch/gap", "3' mismatch", "Fetch failed"],
+             "2+ mismatch/gap", "3' mismatch", "Fetch failed", "Detectable (class)",
+             "At risk", "Likely failure", "Indeterminate"],
             [
                 [o.role, w.year, w.population_size if w.population_size is not None else "",
                  w.sample_size, w.n_perfect, w.n_one_mismatch, w.n_two_plus_mismatch,
-                 w.n_three_prime_mismatch, w.n_fetch_failed]
+                 w.n_three_prime_mismatch, w.n_fetch_failed,
+                 "" if w.n_detectable is None else w.n_detectable,
+                 w.n_by_grade.get("at_risk", ""), w.n_by_grade.get("likely_failure", ""),
+                 w.n_by_grade.get("indeterminate", "")]
                 for o in incl.oligos
                 for w in o.windows
+            ]
+            + [
+                ["whole fragment", f.year,
+                 f.population_size if f.population_size is not None else "", f.with_region,
+                 "", "", "", "", "", f.detectable, f.at_risk, f.likely_failure, f.undetermined]
+                for f in incl.fragment_years
             ],
             None,
         )  # fmt: skip

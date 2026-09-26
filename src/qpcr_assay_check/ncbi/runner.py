@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from collections.abc import Callable
@@ -56,26 +57,51 @@ class BlastRunner:
         age = self._now() - datetime.fromisoformat(job.submitted_at)
         return age.total_seconds() < self.s.rid_lifetime_hours * 3600 * 0.95
 
+    def _waited(self, job: Job) -> float:
+        """Minutes since the job's (latest) submission."""
+        if not job.submitted_at:
+            return 0.0
+        return (self._now() - datetime.fromisoformat(job.submitted_at)).total_seconds() / 60
+
     def needs_submission(self, job: Job) -> bool:
-        """True if running this job would send something to NCBI."""
-        return self.cached(job) is None and not (
-            job.state in ("submitted", "ready") and self._rid_alive(job)
-        )
+        """True if running this job would send something to NCBI (so the user is asked first):
+        a new search, an expired one, or one waiting so long that it is resubmitted."""
+        if self.cached(job) is not None:
+            return False
+        if not (job.state in ("submitted", "ready") and self._rid_alive(job)):
+            return True
+        return job.state == "submitted" and self._waited(job) >= self.s.resubmit_after_minutes
 
     def run(self, job: Job, query_fasta: str, put_params: dict[str, str]) -> str:
         """Return the raw result text for ``job``, submitting/polling/fetching as needed."""
         hit = self.cached(job)
         if hit is not None:
             log.info("Job %s [%s]: served from cache", job.label, job.key[:8])
+            if not job.rid:  # the job record is gone (e.g. a new results folder): keep the RID
+                meta = self.cache.get("blast_rid", job.key, ttl_days=None)
+                if meta:
+                    info = json.loads(meta)
+                    job.rid, job.submitted_at = info.get("rid"), info.get("submitted_at")
             if job.state != "fetched":
                 job.state, job.finished_at = "fetched", self._now().isoformat()
                 self.store.upsert(job)
             return hit
 
+        # a search NCBI keeps WAITING for very long can hang: resubmitting helps (live, user
+        # 2026-09-25: one RID stayed WAITING for over 70 min across restarts). A search is
+        # resubmitted at most once per run, so a slow but healthy one is not resent in a loop.
+        fresh = True
         if not (job.state in ("submitted", "ready") and self._rid_alive(job)):
+            self._submit(job, put_params)
+        elif job.state == "submitted" and self._waited(job) >= self.s.resubmit_after_minutes:
+            log.warning(
+                "Job %s: RID %s has waited %.0f min since submission; submitting it anew",
+                job.label, job.rid, self._waited(job),
+            )  # fmt: skip
             self._submit(job, put_params)
         else:
             log.info("Job %s: resuming RID %s", job.label, job.rid)
+            fresh = False
 
         deadline = self._now().timestamp() + self.s.max_wait_minutes * 60
         first = True
@@ -85,11 +111,7 @@ class BlastRunner:
                 self._sleep(min(max(job.rtoe_s or 0, 0), self.s.poll_interval_s))
                 first = False
             status, _hits = self.api.status(job.rid)
-            waited = (
-                (self._now() - datetime.fromisoformat(job.submitted_at)).total_seconds() / 60
-                if job.submitted_at
-                else 0.0
-            )
+            waited = self._waited(job)
             log.info(
                 "Job %s: RID %s is %s (%.0f min since submission)",
                 job.label,
@@ -108,6 +130,14 @@ class BlastRunner:
                 self._submit(job, put_params)
                 first = True
                 continue
+            if not fresh and waited >= self.s.resubmit_after_minutes:
+                log.warning(
+                    "Job %s: RID %s still %s after %.0f min; submitting it anew",
+                    job.label, job.rid, status, waited,
+                )  # fmt: skip
+                self._submit(job, put_params)
+                fresh, first = True, True
+                continue
             if self._now().timestamp() >= deadline:
                 self.store.upsert(job)
                 raise SearchTimeout(
@@ -120,6 +150,10 @@ class BlastRunner:
         self.store.upsert(job)
         raw = self.api.fetch(job.rid, self.result_format)
         self.cache.put("blast", job.key, raw)
+        # provenance for later runs served from the cache (RIDs expire at NCBI after ~36 h)
+        self.cache.put(
+            "blast_rid", job.key, json.dumps({"rid": job.rid, "submitted_at": job.submitted_at})
+        )
         job.state, job.finished_at, job.error = "fetched", self._now().isoformat(), None
         self.store.upsert(job)
         return raw

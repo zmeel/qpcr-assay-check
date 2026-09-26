@@ -12,7 +12,7 @@ from ..models import Assay
 from ..ncbi.parser import ParsedSearch
 from ..oligo import thermo
 from ..search.orchestrate import SearchOutcome
-from ..search.planner import SearchPlan
+from ..search.planner import OUT_OF_SCOPE_TIER, SearchPlan
 from .duplex import estimate_duplex
 from .fetch import WindowFetcher
 from .findings import build_findings, verdict_of
@@ -41,6 +41,9 @@ LIMITATIONS = [
     "extension; priming is judged from the mismatch and 3'-end columns.",
     "Products are predicted from the primary record of each BLAST hit group; identical sequences "
     "merged into one hit are not expanded, so a product on a merged record can be missed.",
+    "Products are predicted from a forward and a reverse primer facing each other. A product from "
+    "one primer binding both strands (forward-forward or reverse-reverse) is not predicted; for a "
+    "primer that binds an off-target organism perfectly this is unlikely but not excluded.",
     "Only the tiers named in the scope statement were searched; a passing result says nothing "
     "about organisms outside them. Primer-BLAST remains a useful manual cross-check.",
 ]
@@ -56,6 +59,7 @@ def assess_specificity(
 ) -> SpecificityResult:
     """Assess the off-target tiers of a completed search."""
     rules = cfg.specificity
+    assessed = [*rules.off_target_tiers, OUT_OF_SCOPE_TIER]  # out of scope: reported, not judged
     scoring = realign.Scoring(
         rules.alignment.match,
         rules.alignment.mismatch,
@@ -72,7 +76,7 @@ def assess_specificity(
     off_tiers_seen: list[str] = []
 
     for ps in plan.searches:
-        if ps.tier not in rules.off_target_tiers or ps.key not in parsed:
+        if ps.tier not in assessed or ps.key not in parsed:
             continue
         if ps.tier not in off_tiers_seen:
             off_tiers_seen.append(ps.tier)
@@ -109,12 +113,15 @@ def assess_specificity(
 
     # ---- fetch windows for the candidates that could still matter, then re-align
     log.info("Re-aligning %d partial hits (windows are cached)", len(pending))
+    failed_by_tier: dict[str, int] = defaultdict(int)
     for n, c in enumerate(pending, start=1):
         site_rules = rules.probe_site if c.role == "probe" else rules.primer_site
         window = None
         if c.accession != "unknown":
             lo, hi = window_for(c, rules.window_padding_nt, c.hit.length)
+            before = fetcher.n_failed
             window = fetcher.get(c.accession, lo, hi)
+            failed_by_tier[c.tier] += fetcher.n_failed - before
         if window is None:
             sites.append(site_from_bound(c, site_rules, f"S{next(ids)}"))
         else:
@@ -153,7 +160,7 @@ def assess_specificity(
     saturated = [
         (r.tier, sat.label, sat.note)
         for r in outcome.searches
-        if r.tier in rules.off_target_tiers
+        if r.tier in assessed
         for sat in r.saturation
         if sat.saturated
     ]
@@ -174,7 +181,8 @@ def assess_specificity(
         target_searched=any(r.tier == "target" for r in outcome.searches),
         oligo_roles={o.name: o.role for o in assay.oligo_list},
         n_primer_only=n_primer_only,
-        n_fetch_failed=fetcher.n_failed,
+        n_fetch_failed=sum(n for t, n in failed_by_tier.items() if t != OUT_OF_SCOPE_TIER),
+        n_fetch_failed_out_of_scope=failed_by_tier.get(OUT_OF_SCOPE_TIER, 0),
         amplicons_truncated=amp_truncated,
         rules=rules,
     )

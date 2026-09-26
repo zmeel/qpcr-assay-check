@@ -16,11 +16,17 @@ target:
   taxid:                                   # NCBI Taxonomy ID of the intended target
   accession:                               # optional reference record, e.g. NC_045512.2
   gene:                                    # optional, for the report
+  taxa: []                                 # optional: taxa inside the target that are not the
+                                           # target: {taxid: .., role: must_not_detect | out_of_scope, reason: ..}
 reference_amplicons:                       # optional; the product the primers amplify (sense)
   - {name: reference, sequence: ""}
 exclusivity_organisms: []                  # organism names the assay must NOT detect
 oligo_source: ""                           # publication, kit insert or in-house
 notes: ""
+evidence: []                               # optional wet-lab results per oligo variant, e.g.
+#  - {oligo: P, variant: "........T........", outcome: detected, note: "RNA template, LoD series, report QC-2026-014"}
+#    variant: the site exactly as the report's variant tables write it ('.' = match);
+#    outcome: detected | not_detected; replaces the in silico class for that exact variant
 
 settings:                                  # only what differs from the defaults, for this assay
   reaction:
@@ -123,9 +129,10 @@ settings:                                  # only what differs from the defaults
 #     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
 #   probe_binds_if: critical       # site level a probe needs for 'likely detected'
 #   severity:                      # FAIL | WARN | INFO per finding
-#     primer_site_critical: FAIL
+#     primer_site_critical: FAIL           # in a predicted product
+#     primer_site_critical_no_product: WARN
 #     primer_site_warning: WARN
-#     probe_site_critical: WARN
+#     probe_site_critical: INFO            # a probe signals only inside a product
 #     amplicon_likely_detected: FAIL
 #     amplicon_not_detected: WARN
 #   eukaryote_taxids: [9606]       # where genomic-DNA hits matter to RNA assays
