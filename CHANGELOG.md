@@ -137,6 +137,11 @@ All notable changes to this project are documented here. The format follows
   This also applies to the exclusivity table.
 
 ### Fixed (from a code review of the unreleased changes)
+- Specificity summary: when both primers have a perfect site in a tier (live enterovirus run: a
+  rhinovirus fragment with a perfect forward site) no primer was named as discriminating and no
+  closest site was shown. The closest forward and reverse sites are now always shown, and this
+  case says so explicitly ("both primers have a perfect site in this tier, but never facing each
+  other on one record").
 - An oligo end without a partner base in the genome counts as a mismatch at that position, not
   as a gap, so e.g. a 5'-terminal overhang plus poly-A 7->8 is at risk (R5b) like the other 7->8
   sites instead of indeterminate. Runs of inserted or deleted bases are written once in the

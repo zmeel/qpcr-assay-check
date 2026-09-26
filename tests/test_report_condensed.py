@@ -260,3 +260,25 @@ def test_runs_of_inserted_or_deleted_bases_are_written_once():
     assert site_changes(two_in) == "2-base insertion between -11 and -10"
     two_del = NS(q_aln="CCCTTCAACATCAGTGAAA", s_aln="CCCTTCA--ATCAGTGAAA")
     assert site_changes(two_del) == "-12 to -11 deleted (2 bases)"
+
+
+def test_spec_overview_flags_perfect_sites_of_both_primers_without_a_product(tmp_path):
+    """Live enterovirus run (2026-09-26): a rhinovirus fragment with a perfect forward site made
+    every role 'by design', so the summary named no discriminating primer and no closest site."""
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+
+    from .test_exclusivity import site
+    from .test_multi_copy import run_report_result
+
+    result = run_report_result(tmp_path)
+    spec = result.specificity.model_copy(update={
+        "sites": [site(1, r, "critical", tier="near_neighbours", site_id=f"S{i}")
+                  for i, r in enumerate(("forward", "reverse", "probe"))],
+        "amplicons": [],
+        "searches": [{"tier": "near_neighbours", "taxids": [1], "rid": None, "n_hits": {},
+                      "saturation": [], "restriction": None}],
+    })  # fmt: skip
+    html = render_report(result.model_copy(update={"specificity": spec}), load_config())
+    assert "Both primers have a perfect site in this tier" in html
+    assert "Closest forward site:" in html and "Closest reverse site:" in html
