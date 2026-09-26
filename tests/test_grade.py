@@ -147,3 +147,16 @@ def test_homopolymer_length_differences_are_graded_r5b():
     assert both.cls in (g.AT_RISK, g.FAILURE) and "mismatch" in both.note
     # a gap that is not in a run stays indeterminate (R5)
     assert g.grade_primer("CGGTTTGAC-CGGTTAAAAAAAGAT", "CGGTTTGACTCGGTTAAAAAAAGAT").rule == "R5"
+
+
+def test_a_gap_never_hides_mismatches_that_already_fail():
+    """User 2026-09-26 (Neisseria probe variant with 7 mismatches and a gap): 'indeterminate'
+    was milder than the mismatches alone; a gap can only make a site worse."""
+    probe = "CCCTTCAACATCAGTGAAA"
+    many = "GCCTTCA--ATCTGTAAAC"  # SYNTHETIC: several mismatches plus a 2-base gap
+    assert g.grade_probe(probe, many, mgb=True).cls == g.FAILURE
+    assert "plus a gap" in g.grade_probe(probe, many, mgb=True).note
+    assert g.grade_probe(probe, many, mgb=False).cls == g.AT_RISK
+    assert g.grade_primer(PRIMER[:-1] + "-", mutated(1, 2, 3)[:-1] + "A").cls == g.FAILURE
+    # a gap alone (no mismatches) stays indeterminate
+    assert g.grade_probe(probe, "CCCTTCA-CATCAGTGAAA", mgb=True).rule == "R5"

@@ -112,8 +112,11 @@ efficiently than Taq as possible factors; the lab's mix runs its RT at 50 C for 
 the reverse primer was the more sensitive one. Not encoded (no mix setting, section 3): it is part
 of the caveat the report prints.
 
-**R5. Gaps (bulges)**: `indeterminate`. Neither paper tested insertions or deletions. Probe sites
-keep this for every gap.
+**R5. Gaps (bulges)**: `indeterminate`. Neither paper tested insertions or deletions. A gap can
+only make a site worse, so when the site's mismatches alone already give `at_risk` or
+`likely_failure`, that class stands, noted "plus a gap" (user, 2026-09-26: a probe variant with 7
+mismatches and a gap was reported indeterminate). Applies to probes and to primer gaps that are
+not a homopolymer length difference (R5b).
 
 **R5b. Homopolymer length differences in a primer site** (built 2026-09-26, advisor subagent; the
 class is ours): a single gap block that only changes the length of a run of at least 3 identical

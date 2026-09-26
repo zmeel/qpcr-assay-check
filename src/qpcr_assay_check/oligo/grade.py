@@ -133,6 +133,16 @@ def _with_ambiguity(grade: Callable[[list[_Mismatch]], Grade], mm: list[_Mismatc
                  "whether the site is detectable")  # fmt: skip
 
 
+def _with_gap(by_mismatches: Grade, note: str) -> Grade:
+    """R5 with mismatches: a gap can only make a site worse, so a class that is already not
+    detectable from the mismatches alone stands (user, 2026-09-26: 7 mismatches and a gap were
+    'indeterminate'); otherwise the gap leaves the site indeterminate."""
+    if by_mismatches.cls in (AT_RISK, FAILURE):
+        return Grade(by_mismatches.cls, by_mismatches.rule,
+                     f"{by_mismatches.note}; plus a gap")  # fmt: skip
+    return Grade(INDETERMINATE, "R5", note)
+
+
 def _grade_primer_mm(mm: list[_Mismatch]) -> Grade:
     if not mm:
         return Grade(PERFECT, "", "")
@@ -204,8 +214,8 @@ def grade_primer(q_aln: str, s_aln: str) -> Grade:
     if gap:
         bulge = _homopolymer_bulge(q_aln, s_aln)
         if bulge is None:
-            return Grade(INDETERMINATE, "R5", "gap or bulge: neither source tested insertions "
-                         "or deletions")  # fmt: skip
+            return _with_gap(_with_ambiguity(_grade_primer_mm, mm, amb), "gap or bulge: neither "
+                             "source tested insertions or deletions")  # fmt: skip
         # R5b (advisor subagent, 2026-09-26; class ours): no PCR study measured a homopolymer
         # length difference in a primer site; bulges inside a run are comparatively stable
         # (Zhu & Wartell 1999) and primers are seen to slip across such runs (Elbrecht 2018)
@@ -228,8 +238,6 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
     quantitative source (advisor subagent, 2026-09-25). MGB probes: 1 mismatch undetermined, 2 or
     more likely failure. Other probes: 1 mismatch outside the last 5 nt tolerated, else at risk."""
     mm, amb, gap = _mismatches(q_aln, s_aln)
-    if gap:
-        return Grade(INDETERMINATE, "R5", "gap or bulge in the probe site")
 
     def by_mismatches(mm: list[_Mismatch]) -> Grade:
         if not mm:
@@ -250,6 +258,8 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
         return Grade(AT_RISK, "R9", "probe mismatches beyond one internal mismatch; expert "
                      "judgement, no quantitative source")  # fmt: skip
 
+    if gap:
+        return _with_gap(_with_ambiguity(by_mismatches, mm, amb), "gap or bulge in the probe site")
     return _with_ambiguity(by_mismatches, mm, amb)
 
 

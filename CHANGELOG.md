@@ -131,6 +131,9 @@ All notable changes to this project are documented here. The format follows
   This also applies to the exclusivity table.
 
 ### Fixed (from a code review of the unreleased changes)
+- A site with a gap was "indeterminate" whatever its mismatches (live Neisseria run: a probe
+  variant with 7 mismatches and a gap). The mismatches are now graded first; when they alone make
+  the site at risk or likely failure, that class stands ("plus a gap").
 - The whole-fragment table crashed the report (`AttributeError: 'VariantRow' object has no
   attribute 'grade_rule'`) when a combination held an indeterminate site (live enterovirus run,
   2026-09-25); variant rows now carry the rule, and the test uses real rows.
