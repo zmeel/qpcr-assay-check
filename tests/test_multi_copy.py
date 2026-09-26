@@ -98,6 +98,11 @@ def test_a_homopolymer_run_length_variant_is_aligned_as_a_bulge_and_labelled(tmp
     fwd = next(s for s in res.sites if s.role == "forward")
     assert fwd.note == "poly-A run 4→5 (homopolymer length variant)"
     assert (fwd.n_mismatch, fwd.n_gap) == (0, 1) and fwd.mismatches_last5 == 0
+    # R5b (advisor 2026-09-26): one base, run ending at -11, away from the last 3 nt: at risk
+    assert (fwd.grade, fwd.grade_rule) == ("at_risk", "R5b")
+    rl = res.coverage.copies.run_length
+    assert (rl.genomes, rl.on_best_copy, rl.mixed, rl.decided_by_rule) == (1, 1, 0, 1)
+    assert rl.variants == [("forward: poly-A run 4→5 (homopolymer length variant)", 1)]
 
 
 def test_a_second_reference_finds_a_lineage_the_first_cannot(tmp_path):
@@ -154,7 +159,7 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     # graded classes: the columns and the explanation, although the first year (2017) is empty
     # (live 2026-09-25 they were hidden, as the template looked at the first year only)
     assert "<th>Detectable</th>" in html and "<h3>Mismatch classes</h3>" in html
-    assert 'class="chip s-INCOMPLETE"' in html  # the homopolymer bulge: indeterminate
+    assert "Homopolymer length variants" in html and "copies disagree" in html
     # layout (user 2026-09-25): wider page; one-line alignments in the whole-fragment table
     assert "max-width: 96rem" in html and '<pre class="aln compact">' in html
     # alternatives numbered after the sequence, so the site lines stay aligned (user 2026-09-25)
@@ -230,3 +235,15 @@ def test_one_mismatch_in_an_mgb_probe_makes_a_genome_undetermined_not_an_escape(
     (w,) = [w for o in res.inclusivity.oligos if o.role == "probe" for w in o.windows
             if w.sample_size]  # fmt: skip
     assert w.n_undetermined == 1
+
+
+def test_copies_that_disagree_in_run_length_are_counted(tmp_path):
+    """Advisor 2026-09-26: run length is a known sequencing/assembly error; a genome whose other
+    copy reads the oligo's run length is counted as 'copies disagree'. SYNTHETIC genome."""
+    longer_run = AMP.replace(F, F.replace("AAAA", "AAAAA", 1))
+    other_bad = AMP.replace(RC_R, mutate(RC_R, [1, 2]))  # normal run, reverse site damaged
+    res = run(tmp_path, [FakeAssembly("GCA_000000112.1", "2026-02-01",
+                                      copies(12, longer_run, other_bad))])  # fmt: skip
+    rl = res.coverage.copies.run_length
+    assert (rl.genomes, rl.mixed) == (1, 1)
+    assert sum(n for n, _t in rl.by_level.values()) == 1

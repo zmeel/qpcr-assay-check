@@ -29,6 +29,35 @@ class ChannelCoverageRow(BaseModel):
     covered: int
 
 
+class RunLengthBreakdown(BaseModel):
+    """How far to trust the homopolymer length variants (advisor subagent, 2026-09-26): run
+    length is a known sequencing and assembly error mode, so the variants are broken down by
+    whether a genome's copies agree and by assembly level."""
+
+    genomes: int = Field(
+        default=0, description="genomes with a run-length variant in at least one copy of a site"
+    )
+    on_best_copy: int = Field(
+        default=0, description="of those, genomes judged on a copy that carries the variant"
+    )
+    mixed: int = Field(
+        default=0,
+        description="of those, genomes whose copies disagree: other copies read the oligo's run "
+        "length at that site (read or assembly error in some copies, or real copy variation)",
+    )
+    decided_by_rule: int = Field(
+        default=0,
+        description="genomes whose detection depends on the homopolymer-bulge setting",
+    )
+    by_level: dict[str, list[int]] = Field(
+        default_factory=dict,
+        description="assembly level -> [genomes with a variant, genomes assessed]",
+    )
+    variants: list[tuple[str, int]] = Field(
+        default_factory=list, description="the most frequent variants (role: label, genomes)"
+    )
+
+
 class CopyCoverage(BaseModel):
     """Every stored copy of the region, every alternative oligo: what the assay can detect.
 
@@ -83,6 +112,7 @@ class CopyCoverage(BaseModel):
     with_detectable_copy_bulges: int = Field(
         default=0, description="genomes with a detectable copy when bulges count"
     )
+    run_length: RunLengthBreakdown | None = None
 
 
 class ExhaustiveCoverage(BaseModel):

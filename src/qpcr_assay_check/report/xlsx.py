@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -54,6 +55,21 @@ def _sheet(
                 cell.hyperlink = url
                 cell.font = Font(color="0563C1", underline="single")
     ws.freeze_panes = "A2"
+
+
+def _run_length_rows(rl: Any) -> list[list[object]]:
+    """Homopolymer length variants and how far to trust them (advisor subagent, 2026-09-26)."""
+    if rl is None:
+        return []
+    return [
+        ["Run-length variant in a copy", "", rl.genomes, "", ""],
+        ["  ...on the copy judged", "", rl.on_best_copy, "", ""],
+        ["  ...copies disagree", "", rl.mixed, "", ""],
+        ["  ...detection depends on the bulge setting", "", rl.decided_by_rule, "", ""],
+        *[[f"  ...assembly level {level}", "variant / assessed", n, tot, ""]
+          for level, (n, tot) in rl.by_level.items()],
+        *[["  ...variant", v, n, "", ""] for v, n in rl.variants],
+    ]  # fmt: skip
 
 
 def _history_rows(hist: HistoryResult) -> list[list[object]]:
@@ -385,7 +401,8 @@ def write_workbook(result: RunResult, path: Path) -> None:
                      *[["Channel", ch.reporter + ": " + ", ".join(ch.probes), ch.covered, "", ""]
                        for ch in cc.channels],
                      ["Any channel", cc.probe_channels, cc.any_channel, "", ""],
-                     ["All channels", "", cc.all_channels, "", ""]],
+                     ["All channels", "", cc.all_channels, "", ""],
+                     *_run_length_rows(cc.run_length)],
                     None,
                 )  # fmt: skip
     incl = result.inclusivity

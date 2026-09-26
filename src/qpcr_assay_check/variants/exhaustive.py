@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import json
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from ..align import realign
 from ..config import Config, SiteRules
@@ -42,6 +43,7 @@ from .models import (
     CopyCoverage,
     ExhaustiveCoverage,
     OligoCoverageRow,
+    RunLengthBreakdown,
     YearCoverage,
 )
 from .store import RegionStore, StoredAssembly, StoredLocus, store_path
@@ -292,6 +294,10 @@ class GenomeCall:
     oligo_good: dict[str, bool]  # oligo name -> detectable on the best copy
     role_good: dict[str, bool]
     role_state: dict[str, str] = field(default_factory=dict)  # ok | undetermined | fail
+    assembly_level: str = ""
+    run_variants: list[str] = field(default_factory=list)  # "role: label" in any copy
+    run_on_best: bool = False  # the best copy carries a run-length variant
+    run_mixed: bool = False  # copies disagree: some read the oligo's run length at that site
 
     @property
     def undetermined(self) -> bool:
@@ -311,7 +317,9 @@ def detectable(s: SiteResult, bulges: bool = False) -> bool:
     if s.grade is not None:
         if s.grade in grade.DETECTABLE:
             return True
-        return bulges and bool(s.note) and s.n_mismatch == 0 and s.grade == grade.INDETERMINATE
+        # a labelled run-length variant (primer: class R5b at risk or likely failure; probe:
+        # indeterminate) counts as detectable only under the lenient setting
+        return bulges and bool(s.note) and s.n_mismatch == 0
     if s.n_gap == 0:
         return s.n_mismatch <= 1 and s.mismatches_last5 == 0
     return bulges and bool(s.note) and s.n_mismatch == 0
@@ -414,9 +422,29 @@ def assess(
                     oligo_good={name: detectable(x, bulges) for name, x in all_sites.items()},
                     role_good=roles_ok(chosen, bulges),
                     role_state=roles_state(chosen, bulges),
+                    assembly_level=it.assembly_level,
+                    **_run_length_fields([c for c, _a in copies], chosen),
                 )
             )
     return sites, contig_break, masked_site
+
+
+def _run_length_fields(copies: list[dict[str, SiteResult]],
+                       best: dict[str, SiteResult]) -> dict[str, Any]:  # fmt: skip
+    """Run-length variants (labelled homopolymer bulges) across a genome's copies."""
+    labels: list[str] = []
+    mixed = False
+    for role in ROLES:
+        variant = [c[role] for c in copies if c[role].note]
+        if not variant:
+            continue
+        labels += sorted({f"{role}: {c.note}" for c in variant})
+        mixed = mixed or any(not c[role].note and c[role].n_gap == 0 for c in copies)
+    return {
+        "run_variants": labels,
+        "run_on_best": any(s.note for s in best.values()),
+        "run_mixed": mixed,
+    }
 
 
 def roles_state(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str, str]:
@@ -520,6 +548,26 @@ def _role_site(
     return max(per_channel, key=key)
 
 
+def _run_length_breakdown(calls: list[GenomeCall], bulges: bool) -> RunLengthBreakdown | None:
+    with_variant = [c for c in calls if c.run_variants]
+    if not with_variant:
+        return None
+    levels: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for c in calls:
+        level = c.assembly_level or "unknown"
+        levels[level][1] += 1
+        levels[level][0] += bool(c.run_variants)
+    variants: Counter = Counter(v for c in with_variant for v in set(c.run_variants))
+    return RunLengthBreakdown(
+        genomes=len(with_variant),
+        on_best_copy=sum(c.run_on_best for c in with_variant),
+        mixed=sum(c.run_mixed for c in with_variant),
+        decided_by_rule=sum((c.n_detectable > 0) != (c.n_detectable_other_rule > 0) for c in calls),
+        by_level=dict(sorted(levels.items(), key=lambda x: -x[1][1])),
+        variants=variants.most_common(5),
+    )
+
+
 def copy_coverage(
     calls: list[GenomeCall], assay: Assay, rule: str, bulges: bool = False
 ) -> CopyCoverage:
@@ -540,6 +588,7 @@ def copy_coverage(
         with_detectable_copy_strict=other if bulges else configured,
         with_detectable_copy_bulges=configured if bulges else other,
     )
+    out.run_length = _run_length_breakdown(calls, bulges)
     escapes = [c.accession for c in calls if not all(c.role_good.values()) and not c.undetermined]
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
     undet = [c.accession for c in calls if c.undetermined]

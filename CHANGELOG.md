@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Homopolymer length differences in primer sites are graded (rule R5b)** (user decision on the
+  advisor's advice, 2026-09-26): one base with the run outside the last 3 nt = at risk; two or
+  more bases, or a run reaching the last 3 nt = likely failure; no PCR study measured such
+  bulges, so the class is ours and the note says so (docs/MISMATCH_CLASSES.md). Before, such a
+  site was indeterminate (R5).
+- **How far to trust run-length variants**: the report and workbook count the genomes with a
+  run-length variant, those judged on such a copy, those whose detection depends on the bulge
+  setting, those whose copies disagree, and the share per assembly level, with the most frequent
+  variants (run length is a known sequencing and assembly error).
 - **Inclusivity: whole-fragment table per year** (user, 2026-09-25; exhaustive analysis): each
   genome's outcome from its three best-copy sites together (detectable / at risk / likely
   failure / undetermined, primer-pair rule included), with a total over the years shown, before

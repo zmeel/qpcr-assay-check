@@ -58,7 +58,8 @@ verified NCBI facts) at the start of every session. Newest entry first.
   perfect 76 bp product (record to be checked by the user). History site list condensed.
   Advisor on bulges: no PCR study measured homopolymer bulges; proposes a graded class (1-nt
   bulge outside the last 3 nt = at_risk, larger = likely_failure) and an assembly-artefact
-  breakdown; not built, for the user's decision.
+  breakdown; both built on the user's go-ahead (R5b; RunLengthBreakdown). Study (BioProject)
+  breakdown not built: the store has no BioProject field.
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

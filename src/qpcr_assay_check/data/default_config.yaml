@@ -188,8 +188,9 @@ variants:
                                    #   all = only if every channel does
   homopolymer_bulges_detectable: false  # a site differing only by the length of a single-base
                                    #   run (e.g. poly-A 7->8), without any mismatch: false =
-                                   #   not detectable (strict); true = detectable. The report
-                                   #   shows the count under both rules either way
+                                   #   its class decides (primers: rule R5b, at risk or likely
+                                   #   failure); true = detectable. The report shows the count
+                                   #   under both rules either way
 
 report:
   include_charts: true                       # oligo Tm chart (inline SVG, a few kB)

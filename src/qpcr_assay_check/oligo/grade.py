@@ -162,12 +162,64 @@ def _grade_primer_mm(mm: list[_Mismatch]) -> Grade:
     return Grade(FAILURE, "R3", f"{len(mm)} mismatches ({LEFEVER}: blocked almost completely)")
 
 
+@dataclass(frozen=True)
+class _Bulge:
+    size: int  # bases inserted in or missing from the genome's run
+    run_end_from_3: int  # position (from the 3' end) of the run's 3'-most base in the oligo
+
+
+def _homopolymer_bulge(q_aln: str, s_aln: str, min_run: int = 3) -> _Bulge | None:
+    """The gap, if it is one block that only changes the length of a single-base run of at least
+    ``min_run`` bases in the oligo (the position of such a gap within the run is arbitrary)."""
+    q, s = q_aln.upper(), s_aln.upper()
+    cols = [i for i, (a, b) in enumerate(zip(q, s, strict=True)) if a == "-" or b == "-"]
+    if not cols or cols[-1] - cols[0] + 1 != len(cols):
+        return None
+    in_q = q[cols[0]] == "-"
+    if any((q[i] == "-") != in_q for i in cols):
+        return None  # gaps on both sides: not a simple bulge
+    gapped = {(s if in_q else q)[i] for i in cols}
+    if len(gapped) != 1 or not gapped <= set("ACGT"):
+        return None
+    base = gapped.pop()
+    oligo = q.replace("-", "")
+    before = sum(c != "-" for c in q[: cols[0]])  # oligo bases 5' of the gap
+    # the run of `base` in the oligo that the gap touches
+    lo = hi = before
+    if not in_q:
+        hi = before + len(cols)
+    while lo > 0 and oligo[lo - 1] == base:
+        lo -= 1
+    while hi < len(oligo) and oligo[hi] == base:
+        hi += 1
+    run = hi - lo
+    if run < min_run or (not in_q and run <= len(cols)):
+        return None
+    return _Bulge(len(cols), len(oligo) - (hi - 1))
+
+
 def grade_primer(q_aln: str, s_aln: str) -> Grade:
     """The class of one primer site (rules R1-R3, R5, R6)."""
     mm, amb, gap = _mismatches(q_aln, s_aln)
     if gap:
-        return Grade(INDETERMINATE, "R5", "gap or bulge: neither source tested insertions or "
-                     "deletions")  # fmt: skip
+        bulge = _homopolymer_bulge(q_aln, s_aln)
+        if bulge is None:
+            return Grade(INDETERMINATE, "R5", "gap or bulge: neither source tested insertions "
+                         "or deletions")  # fmt: skip
+        # R5b (advisor subagent, 2026-09-26; class ours): no PCR study measured a homopolymer
+        # length difference in a primer site; bulges inside a run are comparatively stable
+        # (Zhu & Wartell 1999) and primers are seen to slip across such runs (Elbrecht 2018)
+        near_3 = bulge.run_end_from_3 <= 3
+        cls = AT_RISK if bulge.size == 1 and not near_3 else FAILURE
+        what = f"{bulge.size}-base homopolymer length difference" + (
+            ", run reaching the last 3 nt" if near_3 else f", run ending at -{bulge.run_end_from_3}"
+        )
+        if mm:
+            other = _with_ambiguity(_grade_primer_mm, mm, amb)
+            cls = worst(cls, other.cls)
+            what += f", plus {len(mm)} mismatch(es)"
+        return Grade(cls, "R5b", f"{what}: no PCR study measured this (class ours; a wet-lab "
+                     "check decides)")  # fmt: skip
     return _with_ambiguity(_grade_primer_mm, mm, amb)
 
 
@@ -234,6 +286,8 @@ def combination_outcome(forward: Any, probe: Any, reverse: Any,
     pair = pair_fails(forward.n_mismatch, reverse.n_mismatch)
 
     def state(s: Any) -> str:
+        if bulges and s.note and s.n_mismatch == 0:  # run-length variant, lenient setting
+            return "detectable"
         if s.grade in DETECTABLE:
             return "detectable"
         if s.grade == INDETERMINATE:

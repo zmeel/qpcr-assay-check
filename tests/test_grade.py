@@ -126,3 +126,24 @@ def test_an_ambiguity_code_never_hides_a_real_failure():
     assert g.grade_primer(PRIMER, site_with({6: "Y"})).cls == g.PERFECT  # -6 is C
     # a code that cannot pair with the primer base is a plain mismatch
     assert g.grade_primer(PRIMER, site_with({1: "Y"})).rule == "R1"  # -1 is A
+
+
+def test_homopolymer_length_differences_are_graded_r5b():
+    """Advisor 2026-09-26 (N. gonorrhoeae reverse primer, poly-A 7): no PCR study measured a
+    homopolymer bulge; one base, run away from the last 3 nt = at risk, else likely failure.
+    SYNTHETIC alignments modelled on that primer."""
+    r = "CGGTTTGACCGGTTAAAAAAAGAT"
+    one_more = g.grade_primer("CGGTTTGACCGGTT-AAAAAAAGAT", "CGGTTTGACCGGTTAAAAAAAAGAT")
+    one_less = g.grade_primer(r, "CGGTTTGACCGGTT-AAAAAAGAT")
+    two_more = g.grade_primer("CGGTTTGACCGGTT--AAAAAAAGAT", "CGGTTTGACCGGTTAAAAAAAAAGAT")
+    assert (one_more.cls, one_more.rule) == (g.AT_RISK, "R5b") and one_less.cls == g.AT_RISK
+    assert "run ending at -4" in one_more.note
+    assert two_more.cls == g.FAILURE
+    # a run that reaches the last 3 nt
+    near = g.grade_primer("ACGTACGTACGTACG-TTTT", "ACGTACGTACGTACGTTTTT")
+    assert near.cls == g.FAILURE and "last 3 nt" in near.note
+    # plus a mismatch: the worse of the two
+    both = g.grade_primer("CGGTTTGACCGGTT-AAAAAAAGAT", "CGGTTTGACCGTTTAAAAAAAAGAT")
+    assert both.cls in (g.AT_RISK, g.FAILURE) and "mismatch" in both.note
+    # a gap that is not in a run stays indeterminate (R5)
+    assert g.grade_primer("CGGTTTGAC-CGGTTAAAAAAAGAT", "CGGTTTGACTCGGTTAAAAAAAGAT").rule == "R5"

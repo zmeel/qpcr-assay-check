@@ -112,9 +112,21 @@ efficiently than Taq as possible factors; the lab's mix runs its RT at 50 C for 
 the reverse primer was the more sensitive one. Not encoded (no mix setting, section 3): it is part
 of the caveat the report prints.
 
-**R5. Gaps (bulges, homopolymer run-length variants)**: `indeterminate`. Neither paper tested
-insertions or deletions. The `homopolymer_bulges_detectable` setting stays for the headline count
-until a source exists.
+**R5. Gaps (bulges)**: `indeterminate`. Neither paper tested insertions or deletions. Probe sites
+keep this for every gap.
+
+**R5b. Homopolymer length differences in a primer site** (built 2026-09-26, advisor subagent; the
+class is ours): a single gap block that only changes the length of a run of at least 3 identical
+bases in the primer. One base, with the run ending outside the last 3 nt: `at_risk`; two or more
+bases, or a run reaching the last 3 nt: `likely_failure`; with further mismatches, the worse of
+this and their class. No PCR study measured such bulges (advisor's search). What exists: single
+bulges inside a run are comparatively stable (Zhu & Wartell, Biochemistry 1999;38:15986; Tanaka
+et al., Biochemistry 2004;43:7143, nearest-neighbour parameters for single bulges) and primers
+are seen to slip across homopolymers (Elbrecht et al., Sci Rep 2018;8:10999); the advisor read
+the abstracts. Other gaps stay R5. `homopolymer_bulges_detectable: true` still counts a labelled
+run-length variant without mismatch as detectable; the report shows the count under both
+settings and a breakdown of how far to trust the variants (copies that disagree, assembly level),
+since run length is a known sequencing and assembly error.
 
 **R6. Ambiguity codes in the genome sequence** (R, Y, ... in a consensus). Built: a code that can
 pair with the oligo base counts as a match when it lies beyond the last 5 nt. In the last 5 nt the
@@ -180,8 +192,9 @@ subagent, 2026-09-25; user decision the same day):
 - **EV-D68, enterovirus reverse primer, C-A at -3**: G3 at positions 3-5, Taq on DNA: Table 1
   "acceptable" -> `tolerated`. (The rTth column would say "avoid in REV"; covered by the caveat.)
   -3 C-A was not itself tested (only at -1 and -5); wet-lab check with an RNA template advised.
-- **N. gonorrhoeae reverse primer, poly-A 7 -> 8/9**: a gap -> `indeterminate` (R5), shown
-  separately from escapes, with the count under both homopolymer rules as now.
+- **N. gonorrhoeae reverse primer, poly-A 7 -> 8/9**: the run ends at -4, so poly-A 8 (one base)
+  is `at_risk` and poly-A 9 (two bases) `likely_failure` (R5b), with the count under both
+  homopolymer settings. Live 2026-09-25: 68.9% detectable strict, 85.7% with bulges tolerated.
 - **Enterovirus forward primer F2 on Poliovirus 2 UGA_22 records (3 mismatches, 3' end intact)**:
   R3 -> `at_risk` if none in the last 5 nt (our encoding; Lefever's 3-mismatch median is about 15
   dCq, so this may understate). The positions of the 3 mismatches within F2 still have to be
@@ -189,7 +202,7 @@ subagent, 2026-09-25; user decision the same day):
 
 ## 9. Built, and still open
 
-Built: `oligo/grade.py` (R1-R3, R5, R6, R8, R9), grades on every target site of the variant
+Built: `oligo/grade.py` (R1-R3, R5, R5b, R6, R8, R9), grades on every target site of the variant
 analysis (both sources) and of the sampled inclusivity, detectability and the primer-pair rule in the genome
 judgement, class counts per year (report and workbook) with the verdict on perfect + tolerated,
 the class on every variant row, tests per rule.
