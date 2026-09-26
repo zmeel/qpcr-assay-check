@@ -89,6 +89,8 @@ td.aln-cell { white-space: nowrap; }
 td.org { min-width: 16rem; }
 svg.chart { width: 100%; max-width: 44rem; height: auto; display: block; }
 details.qc > summary { cursor: pointer; font-family: var(--sans); color: var(--muted); margin: .4rem 0 1rem; }
+details.changes { margin: 0; } details.changes > summary { cursor: pointer; list-style: none; font-size: .85rem; }
+details.changes > summary::-webkit-details-marker { display: none; }
 pre.aln.compact { font-size: .92rem; letter-spacing: .04em; } /* as .seq: lines up with the header */
 table.frag th .seq { white-space: nowrap; word-break: normal; }
 table.frag td.types { min-width: 9rem; max-width: 15rem; }
@@ -353,7 +355,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.{% if r.variant_summary.target_list_full %} With a full hit list, each oligo's hits are a separate selection of records, so most records appear in only one or two of the three lists.{% endif %}</p>{% endif %}
 <h3>Variants per oligo</h3>
 {% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
-<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Each variant is one line against the oligo in the column header, as in the whole-fragment table (a dot is a matching base, a letter a mismatch, the primer 3′ end underlined); below it the changes, as position from the 3′ end and oligo base–template base (Stadhouders' convention, as in the class notes). "full alignment" opens the three-line alignment and the class note. Every variant is in the workbook (sheet "Oligo variants").</p>
+<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Each variant is one line against the oligo in the column header, as in the whole-fragment table (a dot is a matching base, a letter a mismatch, the primer 3′ end underlined); below it the changes, as position from the 3′ end and oligo base–template base (Stadhouders' convention, as in the class notes). click the changes to open the three-line alignment and the class note. Every variant is in the workbook (sheet "Oligo variants").</p>
 {% for v in oligo_views %}{% set o = r.variant_summary.oligos[loop.index0] %}
 {% if o.rows %}
 {% set alts = assay.by_role(o.role) %}
@@ -365,8 +367,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   <tbody>
   {% for row in v.rows %}
   <tr><td><span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ (row.grade or 'not classified') | replace('_', ' ') }}</span>{% if row.grade_rule %}<br><span class="meta">{{ row.grade_rule }}</span>{% endif %}</td>
-    <td class="aln-cell">{{ row | aln_compact(0 if o.role == 'probe' else 5, oligo_no(o.role, row.oligo_name) | trim) }}<span class="meta">{{ row | changes }}{% if row.note %}; {{ row.note }}{% endif %}</span>
-      <details><summary class="meta">full alignment</summary>{{ row | aln_html(0 if o.role == 'probe' else 5) }}{% if row.grade_note %}<p class="meta">{{ row.grade_note }}</p>{% endif %}</details></td>
+    <td class="aln-cell">{{ row | aln_compact(0 if o.role == 'probe' else 5, oligo_no(o.role, row.oligo_name) | trim) }}<details class="changes"><summary class="meta" title="show the full alignment">{{ row | changes }}{% if row.note %}; {{ row.note }}{% endif %}</summary>{{ row | aln_html(0 if o.role == 'probe' else 5) }}{% if row.grade_note %}<p class="meta">{{ row.grade_note }}</p>{% endif %}</details></td>
     <td class="num">{{ row.count }}<br><span class="meta">{{ pct(row.percent) }}</span></td>
     <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
