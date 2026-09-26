@@ -274,7 +274,7 @@ Undetermined genomes are left out of the denominator and counted next to it; at 
 not detected (the report also gives the figure including at risk). Below `warn_below_percent`
 WARN, below `fail_below_percent` FAIL; fewer than `min_genomes_for_verdict` (100) genomes in the
 window INCOMPLETE; a single year with at least `min_genomes_per_year` (30) genomes below the FAIL
-limit gives at least WARN ("drop in <year>"). The per-oligo and per-year tables are diagnostics.
+limit gives at least WARN when the pooled figure passes ("release year <year> on its own"). The per-oligo and per-year tables are diagnostics.
 With the sampled source (`blast_hits`) the worst oligo and year still decide, as described below.
 
 A full `run` also gives a year-by-year trend of how well the oligos still match the intended

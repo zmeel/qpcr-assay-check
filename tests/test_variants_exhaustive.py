@@ -506,6 +506,9 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
     assert html.index("<h3>Whole fragment (forward + probe + reverse combined)</h3>", i) < (
         html.index("<h3>Forward</h3>", i)
     )
+    # the window row uses the verdict's base (undetermined left out), so the numbers agree
+    assert "Verdict window " in html and "verdict window</span>" in html
+    assert "the same base as the verdict" in html
 
 
 def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():
@@ -536,4 +539,4 @@ def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():
     # one large year drops below the FAIL limit while the window passes: WARN
     drop = [year(y, 400) for y in range(2023, 2026)] + [year(2026, 20, fail=30)]
     verdict, lines = fragment_verdict(drop, rules)
-    assert verdict is Verdict.WARN and any("Drop in 2026" in x for x in lines)
+    assert verdict is Verdict.WARN and any("Release year 2026 on its own" in x for x in lines)

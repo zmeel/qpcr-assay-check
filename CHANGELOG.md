@@ -15,6 +15,13 @@ All notable changes to this project are documented here. The format follows
   FAIL limit gives at least WARN. Before, the worst oligo and year decided, so a year with 5
   records or one oligo's shortfall (ignoring the pair rule and lab evidence) set the verdict.
   The sampled source (`blast_hits`) keeps the old rule.
+- Per-year whole-fragment table: percentages on the verdict's base (undetermined left out,
+  shown as a count), the verdict-window years marked and a "Verdict window" row that gives the
+  verdict's figure; per-year lines only when they change the verdict (user's Neisseria run:
+  table 77.8% against 79.1% in the verdict for the same year).
+- Mismatch-class text in the report brought up to date (R5b homopolymer bulges, MGB probe
+  rules, gaps); oligo QC counts worded the same in the section table and the QC section; a probe
+  Tm below the primers is "below", not "-7.0 °C above".
 
 ## [1.4.0] - 2026-09-26
 

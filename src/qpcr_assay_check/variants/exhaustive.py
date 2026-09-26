@@ -737,14 +737,18 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
     lines[0] += f" Verdict {verdict.value}" + (
         f" (below {rules.warn_below_percent:g}%)." if verdict is not Verdict.PASS else "."
     )
+    if verdict is Verdict.FAIL:  # a single low year cannot make the verdict worse
+        return verdict, lines
     for y in years:
         n_y = y.with_region - y.undetermined
         if n_y >= rules.min_genomes_per_year:
             p_y = 100.0 * y.detectable / n_y
             if p_y < rules.fail_below_percent:
-                lines.append(f"Drop in {y.year}: {p_y:.1f}% detectable of {n_y} genomes.")
-                if verdict is Verdict.PASS:
-                    verdict = Verdict.WARN
+                lines.append(
+                    f"Release year {y.year} on its own: {p_y:.1f}% detectable of {n_y} genomes, "
+                    f"below the FAIL limit ({rules.fail_below_percent:g}%); at least WARN."
+                )
+                verdict = Verdict.WARN
     return verdict, lines
 
 
