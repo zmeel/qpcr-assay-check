@@ -25,6 +25,9 @@ All notable changes to this project are documented here. The format follows
   percentages.
 
 ### Changed
+- Variants per oligo: each variant is a dotted line against the oligo in the column header, as in
+  the whole-fragment table (user, 2026-09-26), with the changes written below it and the full
+  alignment folded; the separate "Oligo" column is replaced by (1), (2) after the line.
 - **History: off-target site changes condensed** (live Neisseria run: 1,450 single rows, mostly
   minor human sites, made the report 800 kB): one row per change, tier and organism for changes
   at warning or critical level, with the number of sites and records, levels, oligos and the most

@@ -311,12 +311,12 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if r.variant_summary.target_list_full %}<div class="notice"><p><strong>Biased toward perfect matches.</strong> {{ list_full_note }}</p></div>{% endif %}
 
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
+{% macro oligo_no(role, name) %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{% for o in olis %}{% if o.name == name %}({{ loop.index }}){% endif %}{% endfor %}{% endif %}{% endmacro %}
+{% macro role_head(title, role) %}{% set olis = assay.by_role(role) %}<th>{{ title }}{% for o in olis %}<br><span class="meta"><span class="seq" title="{{ o.name }}">{{ o.sequence }}</span>{% if olis | length > 1 %} ({{ loop.index }}){% endif %}</span>{% endfor %}</th>{% endmacro %}
 {% if fragments %}
 {% set fv = fragments %}
 {% macro outcome_chip(o) %}<span class="chip {{ {'detectable': 's-PASS', 'at risk': 's-WARN', 'likely failure': 's-FAIL', 'undetermined': 's-INCOMPLETE'}.get(o, 's-INFO') }}">{{ o or 'not classified' }}</span>{% endmacro %}
-{% macro oligo_no(role, name) %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{% for o in olis %}{% if o.name == name %}({{ loop.index }}){% endif %}{% endfor %}{% endif %}{% endmacro %}
 {% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% set freq = site_pct.get((role, v.q_aln, v.s_aln)) %}{% if freq is not none and v.grade != 'perfect' %} <span class="meta" title="this {{ role }} site variant, whatever the other sites are">{{ pct(freq) }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s){% if v.note %}; {{ v.note }}{% endif %}">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
-{% macro role_head(title, role) %}{% set olis = assay.by_role(role) %}<th>{{ title }}{% for o in olis %}<br><span class="meta"><span class="seq" title="{{ o.name }}">{{ o.sequence }}</span>{% if olis | length > 1 %} ({{ loop.index }}){% endif %}</span>{% endfor %}</th>{% endmacro %}
 {% macro types(orgs, total) %}{% for name, n in orgs[:3] %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}{% if orgs | length > 3 %}; +{{ orgs | length - 3 }}{% endif %}{% endmacro %}
 {% macro frag_rows(rows) %}{% for f, outcome, by_pair in rows %}
   <tr><td>{{ outcome_chip(outcome) }}{% if by_pair %}<br><span class="meta">primer-pair rule (Lefever 2013)</span>{% endif %}</td>
@@ -352,7 +352,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.{% if r.variant_summary.target_list_full %} With a full hit list, each oligo's hits are a separate selection of records, so most records appear in only one or two of the three lists.{% endif %}</p>{% endif %}
 <h3>Variants per oligo</h3>
 {% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
-<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Changes are written as position from the 3′ end and the mismatch as oligo base–template base (Stadhouders' convention, as in the class notes); open a change for the full alignment. Every variant is in the workbook (sheet "Oligo variants").</p>
+<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Each variant is one line against the oligo in the column header, as in the whole-fragment table (a dot is a matching base, a letter a mismatch, the primer 3′ end underlined); below it the changes, as position from the 3′ end and oligo base–template base (Stadhouders' convention, as in the class notes). "full alignment" opens the three-line alignment and the class note. Every variant is in the workbook (sheet "Oligo variants").</p>
 {% for v in oligo_views %}{% set o = r.variant_summary.oligos[loop.index0] %}
 {% if o.rows %}
 {% set alts = assay.by_role(o.role) %}
@@ -360,20 +360,20 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p>Perfect in <strong>{{ v.n_perfect }}</strong> of {{ v.total }} records ({{ pct(100.0 * v.n_perfect / v.total) if v.total else '0%' }}){% if not (v.rows or v.singles or v.lumped) %}; no other variant{% endif %}.</p>
 {% if v.rows or v.singles or v.lumped %}
 <div class="scroll"><table>
-  <thead><tr><th>Class</th>{% if alts | length > 1 %}<th>Oligo</th>{% endif %}<th>Changes</th><th>Records</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
+  <thead><tr><th>Class</th>{{ role_head('Variant', o.role) }}<th>Records</th><th>Example</th>{% if cov %}<th>First / last release</th>{% endif %}</tr></thead>
   <tbody>
   {% for row in v.rows %}
   <tr><td><span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ (row.grade or 'not classified') | replace('_', ' ') }}</span>{% if row.grade_rule %}<br><span class="meta">{{ row.grade_rule }}</span>{% endif %}</td>
-    {% if alts | length > 1 %}<td>{{ row.oligo_name }}</td>{% endif %}
-    <td class="aln-cell"><details><summary><span class="seq">{{ row | changes }}</span>{% if row.note %} <span class="meta">{{ row.note }}</span>{% endif %}</summary>{{ row | aln_html(0 if o.role == 'probe' else 5) }}{% if row.grade_note %}<p class="meta">{{ row.grade_note }}</p>{% endif %}</details></td>
+    <td class="aln-cell">{{ row | aln_compact(0 if o.role == 'probe' else 5, oligo_no(o.role, row.oligo_name) | trim) }}<span class="meta">{{ row | changes }}{% if row.note %}; {{ row.note }}{% endif %}</span>
+      <details><summary class="meta">full alignment</summary>{{ row | aln_html(0 if o.role == 'probe' else 5) }}{% if row.grade_note %}<p class="meta">{{ row.grade_note }}</p>{% endif %}</details></td>
     <td class="num">{{ row.count }}<br><span class="meta">{{ pct(row.percent) }}</span></td>
     <td>{{ row.example_accession | ncbi }}{% if row.example_organism %}<br><span class="meta">{{ row.example_organism }}</span>{% endif %}</td>{% if cov %}<td>{{ row.first_seen or '' }}<br><span class="meta">{{ row.last_seen or '' }}</span></td>{% endif %}</tr>
   {% endfor %}
   {% for grade, n, orgs in v.singles %}
-  <tr class="group"><td><span class="chip {{ grade_css(grade) }}">{{ (grade or 'not classified') | replace('_', ' ') }}</span></td><td colspan="{{ (5 if cov else 4) - (0 if alts | length > 1 else 1) }}"><strong>{{ n }} other {{ (grade or 'unclassified') | replace('_', ' ') }} variant{{ '' if n == 1 else 's' }}, each seen in 1 record</strong>: {{ n }} record{{ '' if n == 1 else 's' }} ({{ pct(100.0 * n / v.total) }}); types {% for name, k in orgs %}{{ name }} {{ k }}{{ '; ' if not loop.last }}{% endfor %}. Listed individually in the workbook (sheet "Oligo variants").</td></tr>
+  <tr class="group"><td><span class="chip {{ grade_css(grade) }}">{{ (grade or 'not classified') | replace('_', ' ') }}</span></td><td colspan="{{ 4 if cov else 3 }}"><strong>{{ n }} other {{ (grade or 'unclassified') | replace('_', ' ') }} variant{{ '' if n == 1 else 's' }}, each seen in 1 record</strong>: {{ n }} record{{ '' if n == 1 else 's' }} ({{ pct(100.0 * n / v.total) }}); types {% for name, k in orgs %}{{ name }} {{ k }}{{ '; ' if not loop.last }}{% endfor %}. Listed individually in the workbook (sheet "Oligo variants").</td></tr>
   {% endfor %}
   {% if v.lumped %}
-  <tr class="group"><td colspan="{{ (6 if cov else 5) - (0 if alts | length > 1 else 1) }}"><strong>{{ v.lumped }} other tolerated variant{{ '' if v.lumped == 1 else 's' }}</strong>: {{ v.lumped_records }} record{{ '' if v.lumped_records == 1 else 's' }} ({{ pct(100.0 * v.lumped_records / v.total) }}). All variants are in the workbook (sheet "Oligo variants").</td></tr>
+  <tr class="group"><td colspan="{{ 5 if cov else 4 }}"><strong>{{ v.lumped }} other tolerated variant{{ '' if v.lumped == 1 else 's' }}</strong>: {{ v.lumped_records }} record{{ '' if v.lumped_records == 1 else 's' }} ({{ pct(100.0 * v.lumped_records / v.total) }}). All variants are in the workbook (sheet "Oligo variants").</td></tr>
   {% endif %}
   </tbody>
 </table></div>
