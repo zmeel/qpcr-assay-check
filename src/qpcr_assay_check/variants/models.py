@@ -9,6 +9,9 @@ class YearCoverage(BaseModel):
     year: int
     listed: int = Field(description="assemblies NCBI Datasets lists for this release year")
     assessed: int = Field(description="of those, assessed so far (this run and earlier runs)")
+    unavailable: int = Field(
+        default=0, description="of those, not downloadable after repeated attempts"
+    )
 
 
 class OligoCoverageRow(BaseModel):
@@ -127,6 +130,12 @@ class ExhaustiveCoverage(BaseModel):
     assessed_total: int
     processed_this_run: int
     download_failed_this_run: int
+    unavailable: int = Field(
+        default=0,
+        description="assemblies whose download failed on repeated runs; left out, tried again "
+        "each run, and not counted as work still to do",
+    )
+    unavailable_examples: list[str] = Field(default_factory=list)
     budget_per_run: int
     found: int
     not_found: int
@@ -181,4 +190,4 @@ class ExhaustiveCoverage(BaseModel):
 
     @property
     def complete(self) -> bool:
-        return self.assessed_total >= self.listed_total
+        return self.assessed_total + self.unavailable >= self.listed_total

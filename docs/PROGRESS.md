@@ -60,6 +60,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   bulge outside the last 3 nt = at_risk, larger = likely_failure) and an assembly-artefact
   breakdown; both built on the user's go-ahead (R5b; RunLengthBreakdown). Study (BioProject)
   breakdown not built: the store has no BioProject field.
+- Neisseria run on d866fce: 224 kB report; run-length variants in 31,411 genomes, copies
+  disagree in 83%, complete genomes carry them more often (77.8%) than contigs (60.8%): points
+  to real copy variation (long-read homopolymer errors not excluded). Fixed after it: a gap no
+  longer hides failing mismatches (probe variant with 7 mismatches + gap); repeatedly failing
+  downloads no longer block completion.
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

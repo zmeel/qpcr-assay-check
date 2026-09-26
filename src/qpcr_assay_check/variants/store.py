@@ -118,6 +118,9 @@ def store_path(
     return Path(cache_dir) / "variants" / f"{taxon}-{key}{suffix}.jsonl"
 
 
+UNAVAILABLE_AFTER = 2  # failed download attempts before an assembly counts as unavailable
+
+
 class RegionStore:
     """Loads existing lines on open; :meth:`add` appends and flushes one line per assembly."""
 
@@ -126,6 +129,18 @@ class RegionStore:
         self.items: dict[str, StoredAssembly] = {}
         self.aliases: set[str] = set()  # ESearch UIDs already looked up in this run
         self.n_refs = 1  # reference amplicons of the assay; set by the caller
+        # failed downloads per accession, kept next to the store (user, 2026-09-26: the same 39
+        # assemblies failed on every run and kept the analysis 'incomplete')
+        self.failures_path = self.path.with_name(self.path.name + ".failures.json")
+        self.failures: dict[str, int] = {}
+        if self.failures_path.exists():
+            try:
+                self.failures = {
+                    str(k): int(v)
+                    for k, v in json.loads(self.failures_path.read_text("utf-8")).items()
+                }
+            except (ValueError, AttributeError):
+                log.warning("Ignoring unreadable %s", self.failures_path)
         if self.path.exists():
             for n, line in enumerate(self.path.read_text(encoding="utf-8").splitlines(), 1):
                 if not line.strip():
@@ -139,6 +154,16 @@ class RegionStore:
 
     def __contains__(self, accession: str) -> bool:
         return accession in self.items
+
+    def record_failure(self, accession: str) -> None:
+        """Count a failed download (the assembly is tried again on the next run)."""
+        self.failures[accession] = self.failures.get(accession, 0) + 1
+        self.failures_path.parent.mkdir(parents=True, exist_ok=True)
+        self.failures_path.write_text(json.dumps(self.failures, indent=0), encoding="utf-8")
+
+    def unavailable(self, accession: str) -> bool:
+        """Not stored, and its download failed on at least ``UNAVAILABLE_AFTER`` runs."""
+        return not self.done(accession) and self.failures.get(accession, 0) >= UNAVAILABLE_AFTER
 
     def done(self, accession: str) -> bool:
         """Stored and complete: nothing left to download for this assembly."""

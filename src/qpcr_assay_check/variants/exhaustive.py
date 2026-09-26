@@ -195,8 +195,8 @@ def collect(
         n_year = client.count(taxon, first=f"{year}-01-01", last=f"{year}-12-31", **flt)
         if n_year:
             listed += n_year
+            pending: list[AssemblyRecord] = []
             if processed < budget:
-                pending: list[AssemblyRecord] = []
                 for rec in client.year(taxon, year, **flt):
                     if store.done(rec.accession):
                         continue
@@ -216,7 +216,9 @@ def collect(
                 processed, failed = processed + p, failed + f
                 failed_accessions += accs
             assessed = sum(1 for it in store.items.values() if it.year == year)
-            years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year)))
+            unavailable = sum(1 for r in pending if store.unavailable(r.accession))
+            years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year),
+                                      unavailable=unavailable))  # fmt: skip
         year -= 1
     log.info(
         "Variant analysis: %d assemblies listed, %d processed this run (%d failed downloads)",
@@ -249,6 +251,7 @@ def _process(
             if fasta is None:
                 failed += 1
                 failed_accessions.append(rec.accession)
+                store.record_failure(rec.accession)
                 continue
             records_ = parse_fasta_records(fasta)
             contigs = {name: seq for name, (_d, seq) in records_.items()}
@@ -727,7 +730,12 @@ def exhaustive_inclusivity(
             else f"record{'' if y.listed == 1 else 's'}"
         )
         + " listed, "
-        f"{y.assessed} assessed so far; the rest follow on later runs."
+        f"{y.assessed} assessed so far"
+        + (
+            f", {y.unavailable} could not be downloaded after repeated attempts"
+            if y.unavailable else ""
+        )
+        + ("; the rest follow on later runs." if y.assessed + y.unavailable < y.listed else ".")
         for y in sorted(years, key=lambda y: y.year)
         if y.year in shown and y.assessed < y.listed
     ]
@@ -919,6 +927,8 @@ def run_exhaustive(
         assessed_total=len(items),
         processed_this_run=processed,
         download_failed_this_run=failed,
+        unavailable=sum(y.unavailable for y in years),
+        unavailable_examples=sorted(a for a in store.failures if store.unavailable(a))[:20],
         budget_per_run=(
             v.max_assemblies_per_run if source == "datasets" else v.blast_max_records_per_run
         ),

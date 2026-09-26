@@ -131,6 +131,10 @@ All notable changes to this project are documented here. The format follows
   This also applies to the exclusivity table.
 
 ### Fixed (from a code review of the unreleased changes)
+- Assemblies whose download fails on repeated runs (2 attempts) count as "could not be
+  downloaded": left out, listed, tried again each run, and no longer keep the variant analysis
+  "incomplete" with "run again to continue" (live Neisseria runs: the same 39 failed every run).
+  Failures are kept next to the region store (`*.failures.json`).
 - A site with a gap was "indeterminate" whatever its mismatches (live Neisseria run: a probe
   variant with 7 mismatches and a gap). The mismatches are now graded first; when they alone make
   the site at risk or likely failure, that class stands ("plus a gap").

@@ -152,6 +152,30 @@ def test_a_failed_download_is_retried_on_the_next_run(tmp_path):
     assert run(tmp_path, cfg, client, assay).coverage.complete
 
 
+def test_an_assembly_that_keeps_failing_is_left_out_without_blocking_completion(tmp_path):
+    """Live Neisseria runs (user, 2026-09-26): the same 39 downloads failed on every run, so the
+    analysis stayed 'incomplete' with 'run again to continue' forever."""
+    fake = FakeDatasets(assemblies(), missing_from_download={"GCF_000000001.1"})
+    cfg, fake, client, assay = setup(tmp_path, fake=fake)
+    first = run(tmp_path, cfg, client, assay).coverage
+    assert (first.unavailable, first.complete) == (0, False)  # one failure: try again
+    second = run(tmp_path, cfg, client, assay).coverage
+    assert second.download_failed_this_run == 1  # still tried
+    assert (second.unavailable, second.complete) == (1, True)
+    assert second.unavailable_examples == ["GCF_000000001.1"]
+    res = run(tmp_path, cfg, client, assay)
+    result = evaluate(assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+                      release_dates=res.release_dates, inclusivity=res.inclusivity,
+                      specificity=_empty_specificity())  # fmt: skip
+    text = " ".join(result.findings) if hasattr(result, "findings") else result.model_dump_json()
+    assert "could not be downloaded after repeated attempts" in text
+    assert "Run again to continue" not in text
+    assert "could not be downloaded after repeated attempts" in render_report(result, cfg)
+    fake.missing_from_download.clear()  # available again: stored, no longer unavailable
+    third = run(tmp_path, cfg, client, assay).coverage
+    assert (third.unavailable, third.assessed_total, third.complete) == (0, 5, True)
+
+
 def test_the_region_store_survives_a_restart(tmp_path):
     cfg, fake, client, assay = setup(tmp_path)
     run(tmp_path, cfg, client, assay)
