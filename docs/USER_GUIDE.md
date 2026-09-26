@@ -409,6 +409,24 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
 - Worked example (user-supplied sequences):
   [`docs/examples/neisseria_gonorrhoeae_two_probes.yaml`](docs/examples/neisseria_gonorrhoeae_two_probes.yaml).
 
+### Laboratory evidence per oligo variant
+
+Where the tool has no published basis (a single mismatch in an MGB probe, a homopolymer length
+difference in a primer site), a wet-lab test decides. Record the result in the assay file and
+every genome with exactly that site variant takes it:
+
+```yaml
+evidence:
+  - oligo: Entero-P
+    variant: "........T........"   # copied from the report's "Variants per oligo" table
+    outcome: detected               # detected | not_detected
+    note: "RNA template, dilution series to the LoD, Ct +0.6; lab report QC-2026-014"
+```
+
+`detected` counts as tolerated, `not_detected` as likely failure (rule LAB); the in silico class
+stays in the note. The report lists every entry with the number of records it was applied to,
+and flags an entry that matched no site (usually a typo in the name or the variant).
+
 ### Taxa inside the target that are not the intended target
 
 Some assays target a taxon but not all of it. An enterovirus assay for a human diagnostic lab must

@@ -7,6 +7,12 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Laboratory evidence per oligo variant** (advisor's advice, user request 2026-09-26): an
+  `evidence:` list in the assay file (oligo, the variant as the report writes it, detected |
+  not_detected, the lab's reference) replaces the in silico class for that exact variant (rule
+  LAB: tolerated or likely failure) everywhere: variant tables, genomes, escapes, inclusivity,
+  panel. The report lists each entry with the records it applied to and flags entries that
+  match nothing; also in the workbook (sheet "Inputs").
 - **Homopolymer length differences in primer sites are graded (rule R5b)** (user decision on the
   advisor's advice, 2026-09-26): one base with the run outside the last 3 nt = at risk; two or
   more bases, or a run reaching the last 3 nt = likely failure; no PCR study measured such

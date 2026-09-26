@@ -167,6 +167,9 @@ taxa inside the target that the assay must not detect, and every setting: see
   version, the settings and the SHA-256 hash of the inputs.
 - Run the same assay into the same output folder each year: the report compares itself with the
   previous run.
+- Record your own wet-lab results per oligo variant in the assay file (`evidence:`): genomes
+  with that exact variant then take the laboratory's outcome instead of the in silico class
+  ([user guide](docs/USER_GUIDE.md#laboratory-evidence-per-oligo-variant)).
 - Exit codes follow the verdict (0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input), so a
   run can be scripted.
 - All thresholds are defaults drawn from common practice or the cited studies: review them for

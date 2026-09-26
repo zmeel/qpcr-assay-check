@@ -247,3 +247,56 @@ def test_copies_that_disagree_in_run_length_are_counted(tmp_path):
     rl = res.coverage.copies.run_length
     assert (rl.genomes, rl.mixed) == (1, 1)
     assert sum(n for n, _t in rl.by_level.values()) == 1
+
+
+def test_lab_evidence_replaces_the_in_silico_class(tmp_path):
+    """Advisor 2026-09-26, built on the user's request: a wet-lab result for an oligo variant,
+    recorded in the assay file, decides for every genome with that exact variant. SYNTHETIC."""
+    from qpcr_assay_check.oligo.grade import site_string
+
+    longer_run = AMP.replace(F, F.replace("AAAA", "AAAAA", 1))
+    genomes = [FakeAssembly("GCA_000000113.1", "2026-02-01", copies(13, longer_run))]
+    res = run(tmp_path, genomes)
+    fwd = next(s for s in res.sites if s.role == "forward")
+    assert fwd.grade == "at_risk" and res.coverage.copies.escapes == 1
+    variant = site_string(fwd.q_aln, fwd.s_aln)
+    assert variant.count("A") == 1 and set(variant) <= {".", "A"}  # as the report shows it
+    lab = [{"oligo": "forward", "variant": variant, "outcome": "detected",
+            "note": "synthetic template A5, Ct +0.4 (test)"}]  # fmt: skip
+    res = run(tmp_path, genomes, evidence=lab)
+    fwd = next(s for s in res.sites if s.role == "forward")
+    assert (fwd.grade, fwd.grade_rule) == ("tolerated", "LAB") and "in silico: at risk" in (
+        fwd.grade_note
+    )
+    assert res.coverage.copies.escapes == 0 and res.coverage.copies.with_detectable_copy == 1
+    lab[0]["outcome"] = "not_detected"
+    res = run(tmp_path, genomes, evidence=lab)
+    assert next(s for s in res.sites if s.role == "forward").grade == "likely_failure"
+
+
+def test_lab_evidence_must_name_an_oligo_of_the_assay():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="no oligo named 'F9'"):
+        make_assay(evidence=[{"oligo": "F9", "variant": "....A....", "outcome": "detected",
+                              "note": "x"}])  # fmt: skip
+
+
+def test_the_report_lists_lab_evidence_and_flags_an_entry_that_matches_nothing(tmp_path):
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.models import LabEvidence
+    from qpcr_assay_check.oligo.grade import site_string
+    from qpcr_assay_check.report.html import render_report
+
+    result = run_report_result(tmp_path)
+    fwd = next(r for o in result.variant_summary.oligos if o.role == "forward" for r in o.rows
+               if r.note)  # the poly-A 4->5 variant, 1 record  # fmt: skip
+    ev = [LabEvidence(oligo="forward", variant=site_string(fwd.q_aln, fwd.s_aln),
+                      outcome="detected", note="lab report 2026-01 (test)"),
+          LabEvidence(oligo="forward", variant="....T...............", outcome="not_detected",
+                      note="typo test")]  # fmt: skip
+    result = result.model_copy(update={"assay": result.assay.model_copy(update={"evidence": ev})})
+    html = render_report(result, load_config())
+    assert "Laboratory evidence" in html and "applied to 1 record in this run" in html
+    assert "matched no site in this run" in html

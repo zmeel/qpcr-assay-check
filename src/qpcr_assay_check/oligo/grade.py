@@ -336,3 +336,32 @@ def combination_outcome(forward: Any, probe: Any, reverse: Any,
     return min(states, key=OUTCOMES.index), pair and not any(
         x == "likely failure" for x in states[:3]
     )
+
+
+# ------------------------------------------------------------------ lab evidence
+def site_string(q_aln: str, s_aln: str) -> str:
+    """The site as the report writes it against the oligo: '.' for a matching base (an
+    ambiguity code that can pair counts as matching), the genome's base for a mismatch, '-' for
+    a gap; the key of a lab-evidence entry."""
+    out = []
+    for qc, sc in zip(q_aln.upper(), s_aln.upper(), strict=True):
+        if qc == "-" or sc == "-":
+            out.append(sc if sc != "-" else "-")
+        elif sc == "." or iupac.compatible(qc, sc):
+            out.append(".")
+        else:
+            out.append(sc)
+    return "".join(out)
+
+
+def lab_fields(lab: Any, in_silico: dict[str, str]) -> dict[str, str]:
+    """A laboratory result replaces the in silico class (rule LAB): detected = tolerated,
+    not detected = likely failure; the in silico class stays in the note."""
+    cls = TOLERATED if lab.outcome == "detected" else FAILURE
+    was = in_silico["grade"].replace("_", " ")
+    outcome = "detected" if lab.outcome == "detected" else "not detected"
+    return {
+        "grade": cls,
+        "grade_rule": "LAB",
+        "grade_note": f"laboratory result: {outcome} ({lab.note}); in silico: {was}",
+    }

@@ -134,6 +134,14 @@ run-length variant without mismatch as detectable; the report shows the count un
 settings and a breakdown of how far to trust the variants (copies that disagree, assembly level),
 since run length is a known sequencing and assembly error.
 
+**LAB. Laboratory evidence** (built 2026-09-26 on the advisor's advice; user request): an
+`evidence:` entry in the assay file (oligo name, the site exactly as the report writes it,
+outcome detected | not_detected, and the laboratory's reference) replaces the in silico class for
+every site of that oligo with exactly that variant: detected = `tolerated`, not detected =
+`likely_failure`; the in silico class stays in the note. Meant for the undetermined single MGB
+probe mismatches (R9) and homopolymer bulges (R5b), where no published data exist. An entry that
+matches no site is flagged in the report.
+
 **R6. Ambiguity codes in the genome sequence** (R, Y, ... in a consensus). Built: a code that can
 pair with the oligo base counts as a match when it lies beyond the last 5 nt. In the last 5 nt the
 site is graded twice, with the code as a match and as a mismatch: when both give a detectable

@@ -160,6 +160,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
       {% if mnd %}<br><em>Must not detect</em> ({{ mnd | length }}; searched as near neighbours, part of the specificity verdict): {% for x in mnd %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}
       {% if oos %}<br><em>Out of scope</em> ({{ oos | length }}; searched and listed as "also detects", information only, not part of the verdict): {% for x in oos %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}{% endif %}</td></tr>
     {% if assay.oligo_source %}<tr><th scope="row">Oligo source</th><td>{{ assay.oligo_source }}</td></tr>{% endif %}
+    {% if evidence_rows %}<tr><th scope="row">Laboratory evidence</th><td>{% for e, n in evidence_rows %}{{ e.oligo }} <span class="seq">{{ e.variant }}</span>: <strong>{{ e.outcome | replace('_', ' ') }}</strong> <span class="meta">({{ e.note }}); {% if n %}applied to {{ n }} record{{ '' if n == 1 else 's' }} in this run{% else %}<strong>matched no site in this run</strong>: check the oligo name and the variant string{% endif %}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}<br><span class="meta">A laboratory result replaces the in silico class for sites with exactly this variant (rule LAB: detected = tolerated, not detected = likely failure).</span></td></tr>{% endif %}
     {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes | ncbi }}</td></tr>{% endif %}
   </tbody>
 </table></div>

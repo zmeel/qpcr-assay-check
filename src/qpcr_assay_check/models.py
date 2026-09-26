@@ -212,6 +212,32 @@ class Oligo(BaseModel):
         return list(found)
 
 
+class LabEvidence(BaseModel):
+    """A wet-lab result for one oligo variant (advisor subagent, 2026-09-26): genomes with this
+    exact site variant take the laboratory's outcome instead of the in silico class."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    oligo: str = Field(description="the oligo's name, as in forward/reverse/probe")
+    variant: str = Field(
+        min_length=5,
+        description="the site as the report's variant tables write it against the oligo: '.' "
+        "for a matching base, the genome's base for a mismatch, '-' for a gap",
+    )
+    outcome: Literal["detected", "not_detected"]
+    note: str = Field(min_length=1, description="what was tested, and the lab's reference")
+
+    @field_validator("variant")
+    @classmethod
+    def _variant(cls, v: str) -> str:
+        v = v.upper()
+        if not re.fullmatch(r"[.ACGTRYSWKMBDHVN-]+", v):
+            raise ValueError(
+                "variant: use '.', '-' and base letters, exactly as the report writes the site"
+            )
+        return v
+
+
 class ReferenceAmplicon(BaseModel):
     """A reference amplicon (sense strand); several when lineages differ too much for one."""
 
@@ -327,6 +353,10 @@ class Assay(BaseModel):
     )
     oligo_source: str | None = Field(default=None, description="Where the oligos come from")
     notes: str | None = None
+    evidence: list[LabEvidence] = Field(
+        default_factory=list,
+        description="wet-lab results per oligo variant; they replace the in silico class",
+    )
     settings: dict[str, Any] = Field(
         default_factory=dict,
         description="This assay's own settings, in config.yaml's structure, applied over the "
@@ -387,6 +417,11 @@ class Assay(BaseModel):
             if o.name in seen:
                 raise ValueError(f"oligo name '{o.name}' is used twice; names must be unique")
             seen.add(o.name)
+        for e in self.evidence:
+            if e.oligo not in seen:
+                raise ValueError(
+                    f"evidence: no oligo named '{e.oligo}' (oligos: {', '.join(sorted(seen))})"
+                )
         for p in self.probe:
             p.reporter = p.reporter or self.probe_reporter
             p.quencher = p.quencher or self.probe_quencher
@@ -443,12 +478,25 @@ class Assay(BaseModel):
 
     def graded(self, site: Any) -> Any:
         """A target-tier SiteResult with its graded mismatch class (docs/MISMATCH_CLASSES.md)."""
-        from .oligo.grade import grade_fields, is_mgb
+        from .oligo.grade import grade_fields, is_mgb, lab_fields
 
         name = _DEGENERATE_SUFFIX.sub("", site.query)
         o = next((x for x in self.oligo_list if x.name == name), None)
         mgb = o is not None and is_mgb(o.modifications)
-        return site.model_copy(update=grade_fields(site.q_aln, site.s_aln, site.role, mgb=mgb))
+        fields = grade_fields(site.q_aln, site.s_aln, site.role, mgb=mgb)
+        lab = self.evidence_for(name, site.q_aln, site.s_aln)
+        if lab is not None:
+            fields = lab_fields(lab, fields)
+        return site.model_copy(update=fields)
+
+    def evidence_for(self, oligo: str, q_aln: str, s_aln: str) -> LabEvidence | None:
+        """The lab result recorded for this oligo and site variant, if any."""
+        if not self.evidence:
+            return None
+        from .oligo.grade import site_string
+
+        key = site_string(q_aln, s_aln)
+        return next((e for e in self.evidence if e.oligo == oligo and e.variant == key), None)
 
     def role_of(self, label: str) -> str:
         """Role of an oligo name or query label (``NG-P1`` or a degenerate ``NG-P1_v2``)."""

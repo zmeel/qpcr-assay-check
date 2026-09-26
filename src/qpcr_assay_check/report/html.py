@@ -10,6 +10,7 @@ from markupsafe import Markup, escape
 
 from ..config import Config
 from ..oligo.grade import CAVEAT as GRADE_CAVEAT
+from ..oligo.grade import site_string
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from . import plots
@@ -230,6 +231,11 @@ def render_report(result: RunResult, cfg: Config) -> str:
         else None
     )
     rows_of_searches = _search_rows(spec) if spec is not None else []
+    evidence_rows = [
+        (e, sum(r.count for o in (vs.oligos if vs else []) for r in o.rows
+                if r.oligo_name == e.oligo and site_string(r.q_aln, r.s_aln) == e.variant))
+        for e in result.assay.evidence
+    ]  # fmt: skip
     template = _environment().get_template("report.html.j2")
     return template.render(
         r=result,
@@ -245,6 +251,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
         else [],
         site_pct=site_frequency(vs.oligos) if vs else {},
         tolerated_shown=TOLERATED_VARIANTS_SHOWN,
+        evidence_rows=evidence_rows,
         history_sites=site_change_view(
             result.history.new_sites, result.history.resolved_sites, result.history.changed_sites
         )

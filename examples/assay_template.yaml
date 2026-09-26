@@ -23,6 +23,10 @@ reference_amplicons:                       # optional; the product the primers a
 exclusivity_organisms: []                  # organism names the assay must NOT detect
 oligo_source: ""                           # publication, kit insert or in-house
 notes: ""
+evidence: []                               # optional wet-lab results per oligo variant, e.g.
+#  - {oligo: P, variant: "........T........", outcome: detected, note: "RNA template, LoD series, report QC-2026-014"}
+#    variant: the site exactly as the report's variant tables write it ('.' = match);
+#    outcome: detected | not_detected; replaces the in silico class for that exact variant
 
 settings:                                  # only what differs from the defaults, for this assay
   reaction:

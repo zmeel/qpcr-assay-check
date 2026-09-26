@@ -67,7 +67,8 @@ verified NCBI facts) at the start of every session. Newest entry first.
   downloads no longer block completion.
 - Advisor on MGB probe mismatch position: only Kutyavin 2000 (abstract) verifiable, strongest
   discrimination in the MGB (3') region; no data by position; keep "undetermined", optionally show
-  the zone, and add a lab-evidence override in the assay file (not built; user to decide).
+  the zone, and add a lab-evidence override in the assay file (built on the user's request: `evidence:`,
+  rule LAB; zone display not built).
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
