@@ -181,8 +181,10 @@ def write_workbook(result: RunResult, path: Path) -> None:
             ["target accession", a.target.accession or ""],
             ["target gene", a.target.gene or ""],
             ["oligo source", a.oligo_source or ""],
-            *[[f"lab evidence: {e.oligo} {e.variant}", f"{e.outcome} ({e.note})"]
-              for e in a.evidence],
+            *[
+                [f"lab evidence: {e.oligo} {e.variant}", f"{e.outcome} ({e.note})"]
+                for e in a.evidence
+            ],
         ],
         None,
     )

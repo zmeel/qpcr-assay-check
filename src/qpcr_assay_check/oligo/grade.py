@@ -135,8 +135,9 @@ def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], list[_Mismatch
     return out, amb, gap
 
 
-def _with_ambiguity(grade: Callable[[list[_Mismatch]], Grade], mm: list[_Mismatch],
-                    amb: list[_Mismatch]) -> Grade:
+def _with_ambiguity(
+    grade: Callable[[list[_Mismatch]], Grade], mm: list[_Mismatch], amb: list[_Mismatch]
+) -> Grade:
     """R6: grade with the ambiguity codes in the last 5 nt read as matches and as mismatches.
     Only when that decides between detectable and not is the site indeterminate; a class that
     holds either way is kept, so an ambiguity code never hides a real failure."""

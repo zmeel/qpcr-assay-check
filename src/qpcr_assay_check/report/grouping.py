@@ -168,7 +168,12 @@ class FragmentView:
 
 
 def fragment_view(
-    fragments: list[Any], total: int, bulges: bool = False, *, top: int = 10, cap: int = 30,
+    fragments: list[Any],
+    total: int,
+    bulges: bool = False,
+    *,
+    top: int = 10,
+    cap: int = 30,
     per_outcome: int = 5,
 ) -> FragmentView:
     """Part A (needs attention: every combination that is not detectable) and Part B
@@ -386,9 +391,15 @@ def spec_overview(spec: Any, assay: Any, search_rows: list[dict[str, Any]]) -> l
             title = "Must not detect"
         out.append(
             TierOverview(
-                tier=tier, title=title, n_taxa=len(row["taxids"]), products=len(amps),
-                detected=len(detected), closest=closest, by_design=by_design,
-                discriminating=discriminating, incomplete=incomplete,
+                tier=tier,
+                title=title,
+                n_taxa=len(row["taxids"]),
+                products=len(amps),
+                detected=len(detected),
+                closest=closest,
+                by_design=by_design,
+                discriminating=discriminating,
+                incomplete=incomplete,
                 discriminating_complete=not any(
                     assay.role_of(q) in discriminating for q in incomplete
                 ),

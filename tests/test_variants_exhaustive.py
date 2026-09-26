@@ -491,8 +491,7 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
     res = run(tmp_path, cfg, client, assay)
     years = res.inclusivity.fragment_years
     assert years and all(
-        f.detectable + f.at_risk + f.likely_failure + f.undetermined == f.with_region
-        for f in years
+        f.detectable + f.at_risk + f.likely_failure + f.undetermined == f.with_region for f in years
     )
     cc = res.coverage.copies
     assert sum(f.detectable for f in years) == cc.with_detectable_copy

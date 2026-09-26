@@ -733,7 +733,8 @@ def exhaustive_inclusivity(
         f"{y.assessed} assessed so far"
         + (
             f", {y.unavailable} could not be downloaded after repeated attempts"
-            if y.unavailable else ""
+            if y.unavailable
+            else ""
         )
         + ("; the rest follow on later runs." if y.assessed + y.unavailable < y.listed else ".")
         for y in sorted(years, key=lambda y: y.year)
