@@ -16,6 +16,11 @@ All notable changes to this project are documented here. The format follows
   percentages.
 
 ### Changed
+- **History: off-target site changes condensed** (live Neisseria run: 1,450 single rows, mostly
+  minor human sites, made the report 800 kB): one row per change, tier and organism for changes
+  at warning or critical level, with the number of sites and records, levels, oligos and the most
+  severe example; changes that stay at minor level are counted in one line (the report keeps only
+  the closest minor sites per oligo, so they come and go). Every change stays in the workbook.
 - **README rewritten** (user request, layout advised by the advisor subagent 2026-09-25): what the
   tool does in five points, the required statements, a worked example of the "Needs attention"
   table from the live enterovirus run (Markdown table plus a screenshot,

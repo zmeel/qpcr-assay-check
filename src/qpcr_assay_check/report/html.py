@@ -19,6 +19,7 @@ from .grouping import (
     group_sites,
     oligo_view,
     shown_rows,
+    site_change_view,
     site_changes,
     site_frequency,
     spec_overview,
@@ -244,6 +245,11 @@ def render_report(result: RunResult, cfg: Config) -> str:
         else [],
         site_pct=site_frequency(vs.oligos) if vs else {},
         tolerated_shown=TOLERATED_VARIANTS_SHOWN,
+        history_sites=site_change_view(
+            result.history.new_sites, result.history.resolved_sites, result.history.changed_sites
+        )
+        if result.history
+        else None,
         list_full_note=LIST_FULL_NOTE,
         qc=result.oligo_qc,
         assay=result.assay,

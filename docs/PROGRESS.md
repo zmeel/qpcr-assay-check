@@ -53,6 +53,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   year-over-year discrimination margin, single-primer products.
 - README rewritten (advisor layout, ~220 lines) with the enterovirus "Needs attention" example
   (user asked for it); old reference text moved to docs/USER_GUIDE.md.
+- Neisseria live run (54c144b): 68.9% detectable strict vs 85.7% with homopolymer bulges
+  tolerated (reverse NG-R poly-A run); exclusivity FAIL: N. meningitidis CP171264.1 with a
+  perfect 76 bp product (record to be checked by the user). History site list condensed.
+  Advisor on bulges: no PCR study measured homopolymer bulges; proposes a graded class (1-nt
+  bulge outside the last 3 nt = at_risk, larger = likely_failure) and an assembly-artefact
+  breakdown; not built, for the user's decision.
 - Agreed next step: pause and recap before any new feature.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target

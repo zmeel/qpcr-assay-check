@@ -371,3 +371,60 @@ def spec_overview(spec: Any, assay: Any, search_rows: list[dict[str, Any]]) -> l
             )  # fmt: skip
         )
     return out
+
+
+# ---------------------------------------------------------------- history: off-target site changes
+_LEVEL_RANK = {"critical": 0, "warning": 1, "minor": 2, None: 3}
+
+
+@dataclass
+class SiteChangeGroup:
+    kind: str  # new | resolved | changed
+    tier: str
+    organism: str
+    n_sites: int = 0
+    records: set[str] = field(default_factory=set)
+    roles: Counter = field(default_factory=Counter)
+    levels: Counter = field(default_factory=Counter)  # the level that matters: after, or before
+    example: Any = None
+
+
+@dataclass
+class SiteChangeView:
+    groups: list[SiteChangeGroup]
+    minor: Counter  # kind -> changes at minor level only
+
+
+def site_change_view(new: list[Any], resolved: list[Any], changed: list[Any]) -> SiteChangeView:
+    """Changes in off-target sites since the previous run, one row per change, tier and
+    organism (user, 2026-09-25: 1,450 single rows made the report 800 kB). Changes that stay at
+    minor level are only counted: the report keeps the closest minor sites per oligo, so those
+    come and go between runs. Every change stays in the workbook (sheet "History")."""
+    groups: dict[tuple[str, str, str], SiteChangeGroup] = {}
+    minor: Counter = Counter()
+    for kind, items in (("new", new), ("resolved", resolved), ("changed", changed)):
+        for s in items:
+            levels = {s.level_before, s.level_after} - {None}
+            if levels <= {"minor"}:
+                minor[kind] += 1
+                continue
+            level = s.level_before if kind == "resolved" else s.level_after
+            org = s.organism or "unknown organism"
+            g = groups.setdefault((kind, s.tier, org), SiteChangeGroup(kind, s.tier, org))
+            g.n_sites += 1
+            g.records.add(s.accession)
+            g.roles[s.role] += 1
+            g.levels[level] += 1
+            if g.example is None or _LEVEL_RANK.get(level, 3) < _LEVEL_RANK.get(
+                g.example.level_before if kind == "resolved" else g.example.level_after, 3
+            ):
+                g.example = s
+    order = {"new": 0, "changed": 1, "resolved": 2}
+    return SiteChangeView(
+        groups=sorted(
+            groups.values(),
+            key=lambda g: (order[g.kind], TIER_ORDER.get(g.tier, 5), -g.levels["critical"],
+                           -g.n_sites, g.organism),
+        ),
+        minor=minor,
+    )  # fmt: skip

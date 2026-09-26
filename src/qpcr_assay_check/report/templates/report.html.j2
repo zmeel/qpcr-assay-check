@@ -547,32 +547,24 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </table></div>
 {% endif %}
 {% if r.history.new_sites or r.history.resolved_sites or r.history.changed_sites %}
+{% set sv = history_sites %}
 <h3>Off-target sites</h3>
-<p class="meta">Matched across runs by accession and position, not by the run-local site ID.</p>
+<p class="meta">Changes at warning or critical level, one row per change, tier and organism; sites are matched across runs by accession and position. Every change, one per site, is in the workbook (sheet "History").</p>
+{% if sv.groups %}
 <div class="scroll"><table>
-  <thead><tr><th>Change</th><th>Tier</th><th>Oligo</th><th>Organism / record</th><th>Position</th><th>Level</th><th>Mismatches</th></tr></thead>
+  <thead><tr><th>Change</th><th>Tier</th><th>Organism</th><th>Sites</th><th>Level</th><th>Oligos</th><th>Example</th></tr></thead>
   <tbody>
-  {% for s in r.history.new_sites %}
-  <tr><td><span class="chip s-WARN">new</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
-    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
-    <td>{{ chip(s.level_after) }}</td><td class="num">{{ s.n_mismatch_after }}</td></tr>
-  {% endfor %}
-  {% for s in r.history.resolved_sites %}
-  <tr><td><span class="chip s-PASS">resolved</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
-    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
-    <td>{{ chip(s.level_before) }}</td><td class="num">{{ s.n_mismatch_before }}</td></tr>
-  {% endfor %}
-  {% for s in r.history.changed_sites %}
-  <tr><td><span class="chip s-INFO">changed</span></td><td>{{ s.tier }}</td><td>{{ s.role }}</td>
-    <td>{{ s.organism or 'unknown' }}<br><span class="meta">{{ s.accession | ncbi }}</span></td>
-    <td class="num">{{ s.subject_start }}–{{ s.subject_end }} ({{ s.orientation }})</td>
-    <td>{{ chip(s.level_before) }} → {{ chip(s.level_after) }}</td>
-    <td class="num">{{ s.n_mismatch_before }} → {{ s.n_mismatch_after }}</td></tr>
+  {% for g in sv.groups %}{% set e = g.example %}
+  <tr><td><span class="chip {{ {'new': 's-WARN', 'resolved': 's-PASS', 'changed': 's-INFO'}[g.kind] }}">{{ 'no longer found' if g.kind == 'resolved' else g.kind }}</span></td><td>{{ g.tier }}</td><td>{{ g.organism }}</td>
+    <td class="num">{{ g.n_sites }}<br><span class="meta">{{ g.records | length }} record{{ '' if g.records | length == 1 else 's' }}</span></td>
+    <td>{% for lvl, n in g.levels.most_common() %}{{ chip(lvl) }} {{ n }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+    <td>{% for role, n in g.roles.most_common() %}{{ role }} {{ n }}{{ ', ' if not loop.last }}{% endfor %}</td>
+    <td>{{ e.accession | ncbi }} <span class="meta">{{ e.subject_start }}–{{ e.subject_end }} ({{ e.orientation }}), {{ e.role }}, {% if g.kind == 'changed' %}{{ e.level_before }} → {{ e.level_after }}, {{ e.n_mismatch_before }} → {{ e.n_mismatch_after }} mismatches{% elif g.kind == 'resolved' %}{{ e.n_mismatch_before }} mismatches{% else %}{{ e.n_mismatch_after }} mismatches{% endif %}</span></td></tr>
   {% endfor %}
   </tbody>
 </table></div>
+{% else %}<p>No change at warning or critical level.</p>{% endif %}
+{% if sv.minor %}<p class="meta">At minor level only: {% for kind in ['new', 'resolved', 'changed'] if sv.minor[kind] %}{{ sv.minor[kind] }} {{ 'no longer found' if kind == 'resolved' else kind }}{{ ', ' if not loop.last }}{% endfor %}. The report keeps only the closest minor sites per oligo, so these come and go between runs; they are in the workbook.</p>{% endif %}
 {% endif %}
 {% if r.history.new_amplicons or r.history.resolved_amplicons %}
 <h3>Predicted off-target products</h3>

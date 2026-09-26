@@ -224,3 +224,28 @@ def test_spec_overview_names_the_discriminating_primer_and_its_completeness():
     assert (t.title, t.products, t.discriminating) == ("Must not detect", 0, ["forward"])
     assert set(t.by_design) == {"reverse", "probe"} and t.closest["forward"] is fwd
     assert t.incomplete == ["P", "R"] and t.discriminating_complete
+
+
+def test_history_site_changes_are_grouped_and_minor_ones_only_counted():
+    """Live Neisseria run (user, 2026-09-25): 1,450 single rows of mostly minor human sites made
+    the report 800 kB."""
+    from qpcr_assay_check.report.grouping import site_change_view
+
+    def ch(kind, level, acc, org="Homo sapiens", tier="background", role="forward"):
+        before = level if kind != "new" else None
+        after = level if kind != "resolved" else None
+        return NS(kind=kind, tier=tier, role=role, accession=acc, orientation="+",
+                  subject_start=1, subject_end=17, organism=org, level_before=before,
+                  level_after=after, n_mismatch_before=1, n_mismatch_after=1)  # fmt: skip
+
+    new = [ch("new", "minor", f"M{i}") for i in range(1400)]
+    new += [ch("new", "critical", "C1"), ch("new", "warning", "W1"), ch("new", "warning", "W2")]
+    new += [ch("new", "critical", "N1", org="Neisseria meningitidis", tier="exclusivity")]
+    resolved = [ch("resolved", "minor", "R1"), ch("resolved", "warning", "R2")]
+    v = site_change_view(new, resolved, [])
+    assert v.minor == {"new": 1400, "resolved": 1}
+    rows = [(g.kind, g.tier, g.organism, g.n_sites) for g in v.groups]
+    assert rows == [("new", "exclusivity", "Neisseria meningitidis", 1),
+                    ("new", "background", "Homo sapiens", 3),
+                    ("resolved", "background", "Homo sapiens", 1)]  # fmt: skip
+    assert v.groups[1].example.accession == "C1"  # the critical one is the example
