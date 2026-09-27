@@ -742,9 +742,10 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
                 if p_y < rules.fail_below_percent:
                     lines.append(
                         f"Release year {y.year} on its own: {p_y:.1f}% detectable of {n_y} "
-                        f"genomes, below the FAIL limit ({rules.fail_below_percent:g}%)."
+                        f"genomes, below the limit of {rules.fail_below_percent:g}% "
+                        "(fail_below_percent)."
                     )
-                    verdict, why = Verdict.WARN, " (a single release year below the FAIL limit)"
+                    verdict, why = Verdict.WARN, " (a single release year below the limit)"
     # written last, so the sentence always names the status the section ends with
     lines[0] += f" Status: {STATUS_LABEL[verdict]}{why}."
     return verdict, lines

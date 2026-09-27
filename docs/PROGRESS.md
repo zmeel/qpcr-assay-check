@@ -87,6 +87,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   reviewer's decision box. SPEC.md amended. Not yet seen on a live run. Code review of PR #22 /
   e6bc6db found two bugs in `fragment_verdict` (rationale says PASS before a year raises WARN;
   years outside the window can raise WARN): fixed afterwards on the user's request, with tests.
+- Live Neisseria run with the summary: rows correct (79.0% of 49,614, below the 80% FAIL limit;
+  oligo design and the N. meningitidis product exceed limits). Then: QC rules worded
+  preferred/limit, grey "No flags". Code review of the summary: rows could miss a section's
+  status (untiered specificity findings, organism list not searched) and unfinished coverage
+  did not hold up the status; fixed with a fallback row per section and tests
+  (tests/test_summary.py). Idea parked: per-assay "acknowledged" note for known design issues.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 

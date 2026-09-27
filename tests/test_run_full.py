@@ -76,7 +76,7 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
     env.install(world_with(f=[10], r=[5], p=[8]))
     r = invoke(env, "--yes")
     assert r.exit_code == 20, r.output
-    assert "Verdict: FAIL" in r.output and "predicted off-target product" in r.output
+    assert "Review status: Exceeds limit" in r.output and "predicted off-target product" in r.output
     d = run_dir(env)
     data = json.loads((d / "results.json").read_text())
     spec = data["specificity"]

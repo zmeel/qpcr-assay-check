@@ -23,6 +23,12 @@ _FILL = {
     "FAIL": "F4CFCF",
     "INFO": "E6EAEE",
     "INCOMPLETE": "D9DFE8",
+    # review status labels (report summary, 2026-09-27); "No flags" neutral, as in the report
+    "No flags": "E6EAEE",
+    "Review": "FBE7C0",
+    "Exceeds limit": "F4CFCF",
+    "Incomplete": "D9DFE8",
+    "Not assessed": "D9DFE8",
 }
 
 
@@ -115,6 +121,14 @@ def _history_rows(hist: HistoryResult) -> list[list[object]]:
         )
         rows.append(["inclusivity", c.role, f"year {c.year}", before, after])
     return rows
+
+
+def _section_status(result: RunResult, section: Any) -> str:
+    """A section's status as the report names it (baseline / not comparable for history)."""
+    h = result.history
+    if section.key == "history" and h is not None and (not h.has_previous or h.inputs_changed):
+        return "Baseline" if not h.has_previous else "Not comparable"
+    return STATUS_LABEL[section.verdict] if section.verdict else "Not assessed"
 
 
 def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> None:
@@ -448,11 +462,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
         wb,
         "Sections",
         ["Section", "State", "Status", "Note"],
-        [
-            [s.title, s.state, STATUS_LABEL[s.verdict] if s.verdict else "Not assessed", s.note]
-            for s in result.sections
-        ],
-        None,
+        [[s.title, s.state, _section_status(result, s), s.note] for s in result.sections],
+        2,
     )
     if cfg is not None:
         from .html import _search_rows  # the report's own grouping of the searches
@@ -469,7 +480,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                 [r.check, r.scope, r.result, r.compared, r.label, r.reason]
                 for r in summary_rows(result, cfg, overview)
             ],
-            None,
+            4,
         )  # fmt: skip
     _sheet(wb, "Findings", ["Finding"], [[line] for line in result.overall.rationale], None)
     wb.save(path)

@@ -26,6 +26,14 @@ All notable changes to this project are documented here. The format follows
   neutral grey, not in "passed" green.
 
 ### Fixed
+- Summary table (code review): every required section's status is shown by a row, so the table
+  can no longer read "No flags" while the status line does not (a specificity finding that
+  belongs to no search tier, an organism list that was not searched). Target detection is
+  Incomplete while not every listed genome has been assessed (per-run budget), unless already
+  below the FAIL limit. With a changed assay or configuration the comparison stays out of the
+  findings, and the workbook shows it as "Not comparable" (a first run as "Baseline"). Status
+  cells in the workbook are coloured. Remaining PASS/WARN/FAIL wording removed from the terminal
+  output, the QC section note, the structure findings and the user guide.
 - Whole-fragment inclusivity status (code review): the summary sentence was finished before a
   single low year could raise the status, so it could say PASS above a WARN; it now names the
   final status. Years outside the window could raise the status; only window years count now.

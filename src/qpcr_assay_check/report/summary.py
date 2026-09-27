@@ -157,9 +157,8 @@ def _tier_rows(
             scope = f"{e.n_resolved} of {_plural(e.n_organisms, 'organism name')} resolved"
             if e.verdict is not Verdict.PASS:
                 levels.append(e.verdict)
-        if t.incomplete:
+        if t.incomplete:  # the saturation finding itself sets the level (tier marker)
             scope += f"; hit list incomplete for {', '.join(t.incomplete)}"
-            levels.append(Verdict.INCOMPLETE if not t.discriminating_complete else Verdict.PASS)
         reason = ""
         if amps:
             a = amps[0]
@@ -226,8 +225,10 @@ def _inclusivity_row(result: RunResult, cfg: Config, cmp: _Compare) -> SummaryRo
     if not inc.exhaustive or w is None or w.percent is None:
         res = inc.rationale[0] if inc.rationale else section.note
         return _row(
-            "Target detection (sampled)",
-            "per oligo and year",
+            "Target detection (inclusivity)" if inc.exhaustive else "Target detection (sampled)",
+            "whole fragment, no genome with the region yet"
+            if inc.exhaustive
+            else "per oligo and year",
             res,
             cmp.section("inclusivity"),
             inc.verdict,
@@ -357,4 +358,53 @@ def summary_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Su
         hist = _history_row(result)
         if hist is not None:
             rows.append(hist)
+    rows += _unshown_rows(result, rows)
     return rows
+
+
+# which summary rows (by anchor) show each section's status
+_SECTION_ROWS = {
+    "oligo_qc": "oligo-qc",
+    "specificity": "specificity",
+    "amplicon_prediction": "specificity",
+    "exclusivity": "specificity",
+    "inclusivity": "inclusivity",
+    "history": "history",
+}
+
+
+def _unshown_rows(result: RunResult, rows: list[SummaryRow]) -> list[SummaryRow]:
+    """A row for every required section whose status no row shows yet, so the table can never
+    read "No flags" while the status line does not (code review, 2026-09-27): e.g. a
+    specificity finding that belongs to no search tier (a sequence window that could not be
+    fetched, no perfect hit on the intended target) or an organism list that was not searched."""
+    out: list[SummaryRow] = []
+    required = set(result.overall.required_sections)
+    for section in result.sections:
+        if section.key not in required:
+            continue
+        level = section.verdict or Verdict.INCOMPLETE
+        anchor = _SECTION_ROWS.get(section.key, "")
+        shown = [
+            Verdict(r.css)
+            for r in rows  # not the rows added here: each section gets its own reason
+            if r.anchor == anchor and r.css in Verdict.__members__
+        ]
+        if _RANK[level] <= _RANK[_worst(shown)]:
+            continue
+        reason = section.note
+        spec = result.specificity
+        if section.key in ("specificity", "amplicon_prediction") and spec is not None:
+            untiered = [
+                f.message
+                for f in spec.findings
+                if _SEVERITY.get(f.severity) is level and "Tier '" not in f.message
+            ]
+            reason = untiered[0] if untiered else reason
+        title = "Off-target search" if anchor == "specificity" else section.title
+        if section.key == "exclusivity":
+            title = section.title
+        if any(r.check == title and r.result == reason for r in out):
+            continue  # sites and products share their untiered finding
+        out.append(_row(title, "–", reason, "–", section.verdict, "", anchor))
+    return out

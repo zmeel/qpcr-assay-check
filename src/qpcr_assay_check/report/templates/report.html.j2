@@ -403,7 +403,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   <code>data/clinical_organisms.yaml</code> or your own <code>organisms.list_file</code>); it does not claim to be complete for any particular assay. To use a panel tailored to this assay instead, give it its own <code>exclusivity_organisms</code> list in <code>assay.yaml</code> (used automatically under the default <code>organisms.source: assay</code>).</p></div>
 {% endif %}
 {% if not r.exclusivity.tier_searched %}
-<p>The exclusivity tier was not searched in this run (no organism name resolved to a taxonomy ID, or the tier was excluded from this run), so this section is INCOMPLETE.</p>
+<p>The exclusivity tier was not searched in this run (no organism name resolved to a taxonomy ID, or the tier was excluded from this run), so this section is Incomplete: evidence is missing.</p>
 {% else %}
 <div class="scroll"><table>
   <thead><tr><th>Organism</th><th>Resolution</th><th>Taxonomy ID</th><th>Sites</th><th>Best site</th><th>Predicted product</th></tr></thead>
@@ -436,7 +436,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <h2 id="inclusivity">Inclusivity across the intended target ({{ ('all Nucleotide records' if nuc else 'all genome assemblies') if r.inclusivity.exhaustive else 'sampled' }})</h2>
 <p>{{ chip(r.inclusivity.verdict.value) }} inclusivity</p>
 {% if not r.inclusivity.tier_searched %}
-<p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
+<p>The target tier was not searched in this run, so this section is Incomplete: evidence is missing.</p>
 {% else %}
 <div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
 {% if r.inclusivity.fragment_years %}

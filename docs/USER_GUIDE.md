@@ -82,8 +82,8 @@ qpcr-assay-check validate my-assay/assay.yaml
 # oligo QC only, no network use (the status covers QC alone; exit code 10 = review)
 qpcr-assay-check run my-assay/assay.yaml --qc-only -o results
 
-# a full run: sends the oligos to NCBI, asks first (still INCOMPLETE overall until
-# yearly history exists, v1.0.0)
+# a full run: sends the oligos to NCBI, asks first (the first run is the baseline year
+# for the comparison with next year's run)
 qpcr-assay-check run my-assay/assay.yaml -o results
 
 # show exactly what a full run would send, without sending anything or needing credentials
@@ -132,8 +132,8 @@ Behaviour worth knowing:
   (7), so next year's run never receives this year's answer. Fetched sequence windows are cached
   without expiry, keyed on accession and coordinates, because a published record's sequence does
   not change.
-- Exit codes for `run`: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input, 70 NCBI problem
-  (resumable).
+- Exit codes for `run` follow the review status: 0 no flags, 10 review, 20 exceeds limit, 30
+  incomplete, 64 invalid input, 70 NCBI problem (resumable).
 
 For just the raw BLAST hits without assessment (e.g. to inspect what a search alone returns), the
 lower-level `search` command still exists and writes `results/<assay>/search-<hash>/hits.tsv` and
@@ -266,7 +266,7 @@ finding.
 
 ### Inclusivity across the intended target (v0.4.0)
 
-**Verdict with the exhaustive analysis (since 1.4.x):** the whole-fragment genome outcome (the
+**Status with the exhaustive analysis (since 1.4.x):** the whole-fragment genome outcome (the
 three best-copy sites together: detectable = all perfect or tolerated, primer-pair rule,
 homopolymer setting and laboratory evidence included), pooled over the last
 `inclusivity.verdict_window_years` (default 3) complete release years plus the current year.
@@ -276,7 +276,8 @@ WARN, below `fail_below_percent` FAIL; fewer than `min_genomes_for_verdict` (100
 window INCOMPLETE. When the pooled figure has no flags, a single year inside the window with at
 least `min_genomes_per_year` (30) genomes below the FAIL limit gives Review (WARN; "release year
 <year> on its own"); years outside the window never decide. The per-oligo and per-year tables are
-diagnostics.
+diagnostics. While not every genome listed by NCBI has been assessed yet (the per-run budget),
+the status is Incomplete, unless the figure is already below the FAIL limit.
 With the sampled source (`blast_hits`) the worst oligo and year still decide, as described below.
 
 A full `run` also gives a year-by-year trend of how well the oligos still match the intended
@@ -715,10 +716,10 @@ pruning logic changes, rather than treating this one result as permanent proof.
   target-tier BLAST search's own hit list (capped) returned for that year, so a well-sequenced
   target can under- or over-represent some years depending on BLAST's own ranking. Reported
   honestly: `population_size` (an independent ESearch count) is always shown next to `sample_size`.
-- **A first run for any assay always ends `INCOMPLETE` overall**, even when every other section
-  passes: the new "history" section has no previous run to compare against yet, and missing
-  evidence is never a PASS. From the second run onward for that same assay (same output directory,
-  same assay name) it becomes a real comparison.
+- **A first run for an assay is the baseline year**: there is no previous run to compare against,
+  and the comparison does not hold up the review status (since 2026-09-27; before, a first run
+  always ended INCOMPLETE). From the second run onward for that same assay (same output
+  directory, same assay name) it becomes a real comparison.
 - **The previous run is found by assay slug, not by assay content**: renaming an assay (which
   changes its filesystem-safe slug) starts its history over with nothing to compare against, even
   if the oligos themselves did not change. Off-target sites and predicted products are matched

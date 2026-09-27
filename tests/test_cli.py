@@ -38,7 +38,7 @@ def test_run_qc_only_writes_record_and_exit_code_reflects_verdict(tmp_path):
         app, ["run", str(EXAMPLE), "--qc-only", "-o", str(tmp_path), "--config", str(CONFIG_55)]
     )
     assert r.exit_code == 10, r.output  # WARN: primer Tm difference
-    assert "Verdict: WARN" in r.output
+    assert "Review status: Review" in r.output
     (result_json,) = tmp_path.rglob("results.json")
     data = json.loads(result_json.read_text())
     assert data["config"]["reaction"]["annealing_temp_C"] == 55.0

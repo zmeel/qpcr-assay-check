@@ -16,7 +16,7 @@ from .config import Config, default_config_text, format_validation_error, load_c
 from .errors import InputError, QpcrAssayCheckError
 from .models import Assay
 from .pipeline import evaluate, write_outputs
-from .verdict import EXIT_CODES, EXIT_INPUT_ERROR, EXIT_NCBI_ERROR, Verdict
+from .verdict import EXIT_CODES, EXIT_INPUT_ERROR, EXIT_NCBI_ERROR, STATUS_LABEL, Verdict
 
 app = typer.Typer(
     name="qpcr-assay-check",
@@ -123,7 +123,8 @@ def run(
         "results"
     ),
     qc_only: Annotated[
-        bool, typer.Option("--qc-only", help="Only oligo QC; the verdict then covers QC alone.")
+        bool,
+        typer.Option("--qc-only", help="Only oligo QC; the review status then covers QC alone."),
     ] = False,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Show what would be sent to NCBI; send nothing.")
@@ -205,7 +206,7 @@ def run(
         _fail(str(exc))
         return
 
-    typer.echo(f"Verdict: {result.overall.verdict.value}")
+    typer.echo(f"Review status: {STATUS_LABEL[result.overall.verdict]}")
     for line in result.overall.rationale:
         typer.echo(f"  - {line}")
     typer.echo(f"Record written to {run_dir}")
