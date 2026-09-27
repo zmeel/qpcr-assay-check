@@ -93,6 +93,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   status (untiered specificity findings, organism list not searched) and unfinished coverage
   did not hold up the status; fixed with a fallback row per section and tests
   (tests/test_summary.py). Idea parked: per-assay "acknowledged" note for known design issues.
+- Next assay (user, 2026-09-27): Legionella genus + L. pneumophila, one primer pair, two probes.
+  Draft docs/examples/legionella_genus_pneumophila.yaml with placeholder sequences (not
+  runnable). Verified live at NCBI Taxonomy: target must be Legionellaceae 444, because NCBI files
+  L. dumoffii and L. gormanii under Fluoribacter (461). Exclusivity: Coxiella burnetii,
+  Rickettsiella, Aquicella. Open: sequences, reporters, target gene, reference fragment, and a
+  second file for the pneumophila channel (target 446).
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 
