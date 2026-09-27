@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-27
+
 ### Changed
 - **Summary instead of an overall verdict** (user decision 2026-09-27, advisor subagent): the tool
   re-checks an assay in use and does not pass or fail it. The report opens with "Summary of this
