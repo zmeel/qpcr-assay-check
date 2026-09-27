@@ -704,8 +704,9 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
     current one, undetermined genomes left out of the denominator, at risk counted as not
-    detected; too few genomes in the window is INCOMPLETE; a single year with at least
-    ``min_genomes_per_year`` genomes below ``fail_below_percent`` gives at least WARN. The
+    detected; too few genomes in the window is INCOMPLETE; when the pooled figure passes, a
+    single window year with at least ``min_genomes_per_year`` genomes below
+    ``fail_below_percent`` gives WARN (years outside the window never decide). The
     per-oligo figures are diagnostics only."""
     w = fragment_window(years, rules.verdict_window_years)
     if w is None:
@@ -746,17 +747,6 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
                     verdict, why = Verdict.WARN, " (a single release year below the FAIL limit)"
     # written last, so the sentence always names the status the section ends with
     lines[0] += f" Status: {STATUS_LABEL[verdict]}{why}."
-    return verdict, lines
-    for y in years:
-        n_y = y.with_region - y.undetermined
-        if n_y >= rules.min_genomes_per_year:
-            p_y = 100.0 * y.detectable / n_y
-            if p_y < rules.fail_below_percent:
-                lines.append(
-                    f"Release year {y.year} on its own: {p_y:.1f}% detectable of {n_y} genomes, "
-                    f"below the FAIL limit ({rules.fail_below_percent:g}%); at least WARN."
-                )
-                verdict = Verdict.WARN
     return verdict, lines
 
 

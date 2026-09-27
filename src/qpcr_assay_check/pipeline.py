@@ -343,7 +343,7 @@ def evaluate(
     if history is not None and history.verdict is not Verdict.PASS:
         findings += [f"History: {line}" for line in history.rationale]
     if not findings and verdict is Verdict.PASS:
-        findings = ["No oligo QC check raised a WARN or FAIL."]
+        findings = ["No oligo QC check was outside the preferred range or the limit."]
     overall = OverallResult(
         review_status=REVIEW_STATUS[verdict],
         verdict=verdict,

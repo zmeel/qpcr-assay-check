@@ -51,7 +51,7 @@ class Band(_Strict):
         """Human-readable rule."""
         u = f" {unit}" if unit else ""
         p, f = self.pass_range, self.fail_range
-        return f"PASS {_fmt(p[0])}–{_fmt(p[1])}{u}; FAIL outside {_fmt(f[0])}–{_fmt(f[1])}{u}"
+        return f"preferred {_fmt(p[0])}–{_fmt(p[1])}{u}; limit {_fmt(f[0])}–{_fmt(f[1])}{u}"
 
 
 class RunLimit(_Strict):
@@ -77,7 +77,10 @@ class RunLimit(_Strict):
     def describe(self, unit: str = "") -> str:
         """Human-readable rule."""
         u = f" {unit}" if unit else ""
-        return f"WARN at {self.warn_at}{u} or more; FAIL at {self.fail_at}{u} or more"
+        return (
+            f"outside preferred at {self.warn_at}{u} or more; "
+            f"outside the limit at {self.fail_at}{u} or more"
+        )
 
 
 class UpperLimit(_Strict):
@@ -103,7 +106,10 @@ class UpperLimit(_Strict):
     def describe(self, unit: str = "") -> str:
         """Human-readable rule."""
         u = f" {unit}" if unit else ""
-        return f"WARN above {_fmt(self.warn_above)}{u}; FAIL above {_fmt(self.fail_above)}{u}"
+        return (
+            f"outside preferred above {_fmt(self.warn_above)}{u}; "
+            f"outside the limit above {_fmt(self.fail_above)}{u}"
+        )
 
 
 class CountRange(_Strict):
@@ -125,7 +131,7 @@ class CountRange(_Strict):
     def describe(self, unit: str = "") -> str:
         """Human-readable rule."""
         u = f" {unit}" if unit else ""
-        return f"PASS {self.min}–{self.max}{u}; otherwise WARN"
+        return f"preferred {self.min}–{self.max}{u}; otherwise outside preferred"
 
 
 class ReactionConditions(_Strict):

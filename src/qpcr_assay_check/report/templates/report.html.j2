@@ -41,6 +41,7 @@ table.review-box td.write-line { height: 2.2rem; }
 h2.first { border-top: 0; margin-top: 1.5rem; }
 .chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 3px; white-space: nowrap; }
 .s-PASS, .s-evaluated-PASS { background: var(--pass-bg); color: var(--pass); }
+.chip.status-PASS { background: var(--info-bg); color: var(--info); } /* "No flags": neutral, not "passed" */
 .s-WARN { background: var(--warn-bg); color: var(--warn); }
 .s-FAIL { background: var(--fail-bg); color: var(--fail); }
 .s-INFO, .s-none { background: var(--info-bg); color: var(--info); }
@@ -94,7 +95,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </head>
 <body>
 <main>
-{% macro chip(status) %}<span class="chip s-{{ status }}">{{ {'PASS': 'No flags', 'WARN': 'Review', 'FAIL': 'Exceeds limit', 'INCOMPLETE': 'Incomplete', 'INFO': 'Info'}.get(status, status) }}</span>{% endmacro %}
+{% macro chip(status) %}<span class="chip s-{{ status }} status-{{ status }}">{{ {'PASS': 'No flags', 'WARN': 'Review', 'FAIL': 'Exceeds limit', 'INCOMPLETE': 'Incomplete', 'INFO': 'Info'}.get(status, status) }}</span>{% endmacro %}
 {% macro qc_chip(status) %}<span class="chip s-{{ status }}">{{ {'PASS': 'within', 'WARN': 'outside preferred', 'FAIL': 'outside limit', 'INFO': 'info'}.get(status, status) }}</span>{% endmacro %}
 {% macro match(row, primer) %}{% if row.grade %}<span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ row.grade | replace('_', ' ') }}</span><br>{% endif %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
 {% macro grade_css(g) %}{{ {'perfect': 's-PASS', 'tolerated': 's-PASS', 'at_risk': 's-WARN', 'likely_failure': 's-FAIL', 'indeterminate': 's-INCOMPLETE'}.get(g, 's-INFO') }}{% endmacro %}
@@ -113,7 +114,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p>What was checked, what was found and what changed since the previous run. The status marks where a limit you configured was crossed or evidence is missing; it is not a pass or fail of the assay. The laboratory decides what to do (reviewer's decision below).</p>
 {% set flagged = summary | selectattr('css', 'in', ['WARN', 'FAIL']) | list %}
 {% set missing = summary | selectattr('css', 'equalto', 'INCOMPLETE') | list %}
-<p class="status-line"><span class="chip s-{{ r.overall.verdict.value }}">{{ status_label }}</span>
+<p class="status-line"><span class="chip s-{{ r.overall.verdict.value }} status-{{ r.overall.verdict.value }}">{{ status_label }}</span>
   {{ flagged | length }} of {{ summary | length }} checks flagged for review{% if missing %}, {{ missing | length }} with evidence incomplete or not assessed{% endif %}.</p>
 <div class="scroll"><table class="summary">
   <thead><tr><th>What was checked</th><th>Scope</th><th>Result</th><th>Compared with the previous run</th><th>Status</th></tr></thead>
@@ -123,7 +124,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
     <td class="note">{{ row.scope }}</td>
     <td>{{ row.result | ncbi }}</td>
     <td class="note">{{ row.compared }}</td>
-    <td><span class="chip s-{{ row.css }}">{{ row.label }}</span>{% if row.reason %}<br><span class="meta">{{ row.reason | ncbi }}</span>{% endif %}</td></tr>
+    <td><span class="chip s-{{ row.css }} status-{{ row.css }}">{{ row.label }}</span>{% if row.reason %}<br><span class="meta">{{ row.reason | ncbi }}</span>{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
@@ -681,8 +682,8 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p>Calculated at the annealing temperature of {{ r.config.reaction.annealing_temp_C }} °C
   (Na⁺ {{ r.config.reaction.na_mM }} mM, Mg²⁺ {{ r.config.reaction.mg_mM }} mM, dNTP {{ r.config.reaction.dntp_mM }} mM).
   A structure is flagged when its melting temperature reaches
-  {{ r.config.thresholds.structures.warn_tm_c }} °C (WARN) or the
-  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (FAIL).
+  {{ r.config.thresholds.structures.warn_tm_c }} °C (outside preferred) or the
+  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (outside the limit).
   “3′ end” rows test whether the 3′ end of the first oligo can anneal to the second and be extended.</p>
 <div class="scroll"><table>
   <thead><tr><th>Structure</th><th>Tm (°C)</th><th>ΔG (kcal/mol)</th><th>Result</th></tr></thead>

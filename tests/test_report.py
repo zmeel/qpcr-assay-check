@@ -37,7 +37,10 @@ def test_report_is_a_timestamped_version_stamped_record(n1):
 def test_full_run_report_says_incomplete_is_not_a_pass(n1):
     html = render(n1, qc_only=False)
     # no verdict word: a summary table with a status per check (user, 2026-09-27)
-    assert '<span class="chip s-INCOMPLETE">Incomplete</span>' in html
+    assert '<span class="chip s-INCOMPLETE status-INCOMPLETE">Incomplete</span>' in html
+    # QC rules in the report's own words, and "No flags" drawn neutral, not as "passed"
+    assert "preferred 18–30 nt; limit 15–40 nt" in html and "PASS 18" not in html
+    assert ".chip.status-PASS { background: var(--info-bg)" in html
     assert "it is not a pass or fail of the assay" in html
     assert "never counts as no flags" in html and "Not assessed" in html
     assert "Not evaluated" in html  # the findings behind the summary

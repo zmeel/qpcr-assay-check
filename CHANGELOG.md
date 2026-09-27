@@ -21,6 +21,9 @@ All notable changes to this project are documented here. The format follows
 - A first run is the baseline year and a run whose assay or configuration changed is "not
   comparable": neither holds up the review status any more (before: a first run was INCOMPLETE).
 - Workbook: sheets "Checks" (the summary table) and "Findings"; "Review status" in "Summary".
+- Oligo QC rules in the same words: "preferred 18–30 nt; limit 15–40 nt", "outside preferred at 5
+  nt or more; outside the limit at 7 nt or more" (was PASS/WARN/FAIL). "No flags" is drawn in
+  neutral grey, not in "passed" green.
 
 ### Fixed
 - Whole-fragment inclusivity status (code review): the summary sentence was finished before a
