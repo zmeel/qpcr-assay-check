@@ -3,6 +3,47 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-27 — Summary instead of a verdict; v1.5.0 released; Legionella draft
+
+- Overall verdict replaced by "Summary of this year's check" (user: "the tool is not a test that
+  fails or passes"; advisor consulted first). User decisions: a review status (No flags /
+  Review / Exceeds limit / Incomplete) in the report, workbook and results.json
+  (`overall.review_status`; internal PASS/WARN/FAIL/INCOMPLETE codes kept so older records
+  still compare); exit codes unchanged, documented as flag levels; first run = baseline; a
+  changed assay or config = "not comparable" (neither holds up the status); QC labels within /
+  outside preferred / outside limit, rules worded "preferred 18–30 nt; limit 15–40 nt"; grey
+  "No flags"; a reviewer's decision box. SPEC.md amended. Code in `report/summary.py`.
+- Two code reviews, all findings fixed with tests: `fragment_verdict` said PASS above a WARN and
+  let years outside the window raise the status; summary rows could miss a section's status
+  (fallback row per required section, `tests/test_summary.py`); target detection now
+  Incomplete while not every listed genome is assessed (unless already below the FAIL limit).
+- Live Neisseria run with the summary: rows and numbers correct (79.0% of 49,614 genomes
+  2023–2026, below the 80% FAIL limit; oligo design (NG-R poly-A 7) and the N. meningitidis
+  product on CP171264.1 exceed limits). The old text wrongly named the 95% review limit for a
+  FAIL; now fixed.
+- Legionella genus + L. pneumophila (next assay, user): draft
+  `docs/examples/legionella_genus_pneumophila.yaml`, placeholder sequences, not runnable.
+  Verified live at NCBI Taxonomy: target Legionellaceae 444 (NCBI files L. dumoffii 463 and
+  L. gormanii 464 under Fluoribacter 461); exclusivity Coxiella burnetii (777), Rickettsiella
+  (59195), Aquicella (254245). The tool has one target per file: a second file (pneumophila
+  probe only, target 446) would check the pneumophila channel.
+- Releases: PR #22 was merged at 639dd89 before the summary work, which went into PR #23;
+  the version bump into PR #24. v1.5.0 tagged by the user on 3813754 (verified on the remote).
+- One unexplained test run with 3 failures in tests/test_variants_exhaustive.py (after a
+  `ruff format`); not reproduced in 10+ runs by me or the reviewer, CI green.
+- Open: Legionella sequences, reporters, reference fragment, annealing temperature, source, and
+  the second file; CP171264.1 record check (user); MGB zone display; per-assay "acknowledged"
+  note for known design issues; simplification.
+
+## 2026-09-26 — v1.4.0 released; inclusivity on the whole fragment
+
+- v1.4.0 released: PR #20 merged (5b56c3f), tag v1.4.0 set by the user on the merge commit. CI
+  runs `ruff format --check` too: run it before every commit.
+- Inclusivity status on the whole fragment over the last 3 complete years plus the current one
+  (advisor; user decision; PR #21). Live runs on it (Neisseria 79.0% of 49,614; enterovirus
+  90.7% of 4,503, 99.4% including at risk, mostly the at-risk poliovirus 2 F2 variant) led to
+  the per-year table fixes (same base as the status, window row) in PR #22.
+
 ## 2026-09-25 (later) — Second code review of the unreleased changes
 
 - The reviewer subagent reviewed `69b53ab..8e30922`: 11 findings, all verified against the code.
@@ -69,39 +110,6 @@ verified NCBI facts) at the start of every session. Newest entry first.
   discrimination in the MGB (3') region; no data by position; keep "undetermined", optionally show
   the zone, and add a lab-evidence override in the assay file (built on the user's request: `evidence:`,
   rule LAB; zone display not built).
-- v1.4.0 released (2026-09-26): PR #20 merged (5b56c3f), tag v1.4.0 set by the user on the
-  merge commit. CI runs `ruff format --check` too: run it before every commit.
-- After v1.4.0: inclusivity verdict now on the whole fragment over the last 3 years + current
-  (advisor; user decision). Open: CP171264.1 (N. meningitidis with a perfect product, record to
-  check), MGB zone display, simplification.
-- Live runs on the verdict code (Neisseria FAIL 79.0% of 49,614, window 2023-2026; enterovirus
-  WARN 90.7% of 4,503, 99.4% including at risk, mostly the at-risk poliovirus 2 F2 variant).
-  Fixed from them: year-table percentages on the verdict's base with a window row, per-year
-  lines only when they change the verdict, stale mismatch-class text, QC count wording,
-  "-7.0 °C above".
-- 2026-09-27: overall verdict replaced by a summary table (user: "the tool is not a test that
-  fails or passes"; advisor consulted first). User decisions: rename to a review status in the
-  report, workbook and results.json (`review_status`; internal `verdict` codes kept for old
-  records), keep exit codes as flag levels, first run = baseline, QC labels within / outside
-  preferred / outside limit, comparison "not comparable" when the assay or config changed, plus a
-  reviewer's decision box. SPEC.md amended. Not yet seen on a live run. Code review of PR #22 /
-  e6bc6db found two bugs in `fragment_verdict` (rationale says PASS before a year raises WARN;
-  years outside the window can raise WARN): fixed afterwards on the user's request, with tests.
-- Live Neisseria run with the summary: rows correct (79.0% of 49,614, below the 80% FAIL limit;
-  oligo design and the N. meningitidis product exceed limits). Then: QC rules worded
-  preferred/limit, grey "No flags". Code review of the summary: rows could miss a section's
-  status (untiered specificity findings, organism list not searched) and unfinished coverage
-  did not hold up the status; fixed with a fallback row per section and tests
-  (tests/test_summary.py). Idea parked: per-assay "acknowledged" note for known design issues.
-- Next assay (user, 2026-09-27): Legionella genus + L. pneumophila, one primer pair, two probes.
-  Draft docs/examples/legionella_genus_pneumophila.yaml with placeholder sequences (not
-  runnable). Verified live at NCBI Taxonomy: target must be Legionellaceae 444, because NCBI files
-  L. dumoffii and L. gormanii under Fluoribacter (461). Exclusivity: Coxiella burnetii,
-  Rickettsiella, Aquicella. Open: sequences, reporters, target gene, reference fragment, and a
-  second file for the pneumophila channel (target 446).
-- v1.5.0 prepared (2026-09-27): version bumped, CHANGELOG dated; PR #23 (PR #22 had been merged
-  at 639dd89 before the summary work, so that work went into a new PR). The user tags v1.5.0 on
-  the NAS after the merge.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 
