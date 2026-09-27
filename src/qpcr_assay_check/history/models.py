@@ -121,3 +121,7 @@ class HistoryResult(BaseModel):
     variants_note: str = ""
     verdict: Verdict
     rationale: list[str] = Field(default_factory=list)
+    window_percent_before: float | None = Field(
+        default=None,
+        description="whole-fragment detectable % over the verdict window in the previous run",
+    )

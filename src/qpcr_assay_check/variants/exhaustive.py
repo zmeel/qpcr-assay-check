@@ -29,7 +29,12 @@ from ..align import realign
 from ..config import Config, SiteRules
 from ..errors import InputError
 from ..inclusivity.aggregate import _stats
-from ..inclusivity.models import FragmentYear, InclusivityOligoResult, InclusivityResult
+from ..inclusivity.models import (
+    FragmentYear,
+    InclusivityOligoResult,
+    InclusivityResult,
+    fragment_window,
+)
 from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
 from ..oligo import grade, iupac
@@ -702,18 +707,12 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
     detected; too few genomes in the window is INCOMPLETE; a single year with at least
     ``min_genomes_per_year`` genomes below ``fail_below_percent`` gives at least WARN. The
     per-oligo figures are diagnostics only."""
-    with_data = [y for y in years if y.with_region]
-    if not with_data:
+    w = fragment_window(years, rules.verdict_window_years)
+    if w is None:
         return Verdict.INCOMPLETE, ["No genome with the target region in the years shown."]
-    last = max(y.year for y in with_data)
-    window = [y for y in years if last - rules.verdict_window_years <= y.year <= last]
-    n_region = sum(y.with_region for y in window)
-    undet = sum(y.undetermined for y in window)
-    n = n_region - undet
-    det = sum(y.detectable for y in window)
-    risk = sum(y.at_risk for y in window)
-    fail = sum(y.likely_failure for y in window)
-    span = f"{min(y.year for y in window)}-{last}"
+    n, undet = w.n, w.undetermined
+    det, risk, fail = w.detectable, w.at_risk, w.likely_failure
+    span = f"{w.first}-{w.last}"
     if n < rules.min_genomes_for_verdict:
         return Verdict.INCOMPLETE, [
             f"Too few recent genomes to judge: {n} with the target region released {span} "

@@ -79,6 +79,14 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Fixed from them: year-table percentages on the verdict's base with a window row, per-year
   lines only when they change the verdict, stale mismatch-class text, QC count wording,
   "-7.0 °C above".
+- 2026-09-27: overall verdict replaced by a summary table (user: "the tool is not a test that
+  fails or passes"; advisor consulted first). User decisions: rename to a review status in the
+  report, workbook and results.json (`review_status`; internal `verdict` codes kept for old
+  records), keep exit codes as flag levels, first run = baseline, QC labels within / outside
+  preferred / outside limit, comparison "not comparable" when the assay or config changed, plus a
+  reviewer's decision box. SPEC.md amended. Not yet seen on a live run. Code review of PR #22 /
+  e6bc6db found two bugs in `fragment_verdict` (rationale says PASS before a year raises WARN;
+  years outside the window can raise WARN): not fixed yet, the user chose to do the summary first.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 

@@ -7,6 +7,20 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Summary instead of an overall verdict** (user decision 2026-09-27, advisor subagent): the tool
+  re-checks an assay in use and does not pass or fail it. The report opens with "Summary of this
+  year's check": a table per thing checked (oligo design, each off-target tier, target detection
+  over the summary window, coverage of the target, comparison with the previous run) with scope,
+  result in numbers, comparison with the previous run and a status (no flags, review, exceeds
+  limit, incomplete / not assessed), the findings behind it folded, and a reviewer's decision box.
+  The verdict word, its bullet list and the "Sections evaluated" table are gone.
+- Status names everywhere in the report and workbook: no flags / review / exceeds limit /
+  incomplete; oligo QC checks are within / outside the preferred range / outside the limit.
+  `results.json` keeps the internal codes (`verdict`) for comparison with earlier records and adds
+  `overall.review_status`; exit codes unchanged (0/10/20/30), documented as flag levels.
+- A first run is the baseline year and a run whose assay or configuration changed is "not
+  comparable": neither holds up the review status any more (before: a first run was INCOMPLETE).
+- Workbook: sheets "Checks" (the summary table) and "Findings"; "Review status" in "Summary".
 - **Inclusivity verdict on the whole fragment** (exhaustive analysis; advisor's advice, user
   decision 2026-09-26): the genome outcome of the three sites together, pooled over the last
   `verdict_window_years` (3) complete release years plus the current year, undetermined left out

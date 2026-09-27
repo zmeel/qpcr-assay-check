@@ -26,7 +26,7 @@ from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
 from .taxonomy.plan import OrganismListResolution
 from .taxonomy.rollup import TaxonCount
 from .variants.models import ExhaustiveCoverage
-from .verdict import Verdict, combine, exit_code, verdict_from_status
+from .verdict import REVIEW_STATUS, Verdict, combine, exit_code, verdict_from_status
 
 log = logging.getLogger(__name__)
 
@@ -252,6 +252,7 @@ def evaluate(
             amplicons=specificity.amplicons if specificity else [],
             inclusivity=inclusivity,
             variant_summary=variant_summary,
+            window_years=cfg.inclusivity.verdict_window_years,
         )
         if history.has_previous:
             note = f"Compared to the run on {history.previous_generated_at}: {history.rationale[0]}"
@@ -270,6 +271,10 @@ def evaluate(
         )
 
     required = ["oligo_qc"] if qc_only else [s.key for s in sections]
+    if history is not None and (not history.has_previous or history.inputs_changed):
+        # a first run is the baseline year and a changed assay or configuration makes the
+        # comparison not like for like: neither holds up the review status (user, 2026-09-27)
+        required.remove("history")
     by_key: dict[str, Verdict | None] = {s.key: s.verdict for s in sections}
     verdict = combine(by_key, required)
     not_evaluated = [s.title for s in sections if s.key in required and s.verdict is None]
@@ -340,6 +345,7 @@ def evaluate(
     if not findings and verdict is Verdict.PASS:
         findings = ["No oligo QC check raised a WARN or FAIL."]
     overall = OverallResult(
+        review_status=REVIEW_STATUS[verdict],
         verdict=verdict,
         exit_code=exit_code(verdict),
         rationale=_rationale(findings, not_evaluated),
@@ -392,7 +398,7 @@ def write_outputs(result: RunResult, base_dir: Path, cfg: Config) -> Path:
         raise RuntimeError(f"could not create a unique run directory under {parent}")
     (run_dir / "results.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
     (run_dir / "report.html").write_text(render_report(result, cfg), encoding="utf-8")
-    write_workbook(result, run_dir / "results.xlsx")
+    write_workbook(result, run_dir / "results.xlsx", cfg)
     if result.specificity is not None:
         write_hits_tsv(result, run_dir / "hits.tsv")
     log.info("Wrote evaluation record to %s", run_dir)

@@ -120,9 +120,11 @@ def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_ver
     # inclusivity is implemented (v0.4.0) and the target tier was searched, but this fake never
     # registers a submission date for the target hit, so there is no dated evidence: INCOMPLETE.
     assert states["inclusivity"] == "evaluated" and data["inclusivity"]["verdict"] == "INCOMPLETE"
-    # history is implemented (v1.0.0); this is the first run for this assay, so there is nothing
-    # to compare against yet: also evaluated (not skipped), also honestly INCOMPLETE.
-    assert states["history"] == "evaluated" and data["history"]["verdict"] == "INCOMPLETE"
+    # history is implemented (v1.0.0); this is the first run for this assay: the baseline year,
+    # evaluated (not skipped) and not holding up the review status (user, 2026-09-27).
+    assert states["history"] == "evaluated" and data["history"]["verdict"] == "PASS"
+    assert "history" not in data["overall"]["required_sections"]
+    assert data["overall"]["review_status"] == "incomplete_evidence"
     assert data["history"]["has_previous"] is False
     # every section was genuinely evaluated (even if some concluded INCOMPLETE), so nothing is
     # truly "not yet evaluated" in this run -- that heading must not appear.
@@ -397,6 +399,14 @@ def test_history_diff_across_two_runs(env, tmp_path, monkeypatch):
     assert run1_id in html
     wb = load_workbook(run2_path.parent / "results.xlsx")
     assert "History" in wb.sheetnames
+    # the summary table (user, 2026-09-27): per check what changed since the previous run
+    checks = {row[0].value: row for row in wb["Checks"].iter_rows(min_row=2)}
+    background = checks["Off-target: Background"]
+    assert background[4].value == "Exceeds limit" and "new product" in background[3].value
+    assert checks["Compared with the previous run"][4].value == "Review"
+    assert "No flags → Exceeds limit" in " ".join(data2["history"]["rationale"])
+    first_html = first_path.parent.joinpath("report.html").read_text()
+    assert "baseline (first run)" in first_html and ">Baseline</span>" in first_html
 
 
 def test_a_full_run_fills_the_variant_summary_from_the_target_tier(env):

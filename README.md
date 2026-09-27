@@ -104,13 +104,15 @@ anything; `run --qc-only` uses no network at all.
 
 ## What the report contains
 
-- **Verdict** (PASS, WARN, FAIL or INCOMPLETE) with every finding behind it. Missing evidence is
-  never a pass, so the very first run of an assay ends INCOMPLETE: there is no previous run yet.
+- **Summary of this year's check**: a table with each thing checked, its result in numbers, the
+  comparison with the previous run and a status (no flags, review, exceeds limit, incomplete),
+  then a box for the reviewer's decision. The tool does not pass or fail the assay; missing
+  evidence is never shown as "no flags".
 - **Variant summary**: coverage per oligo and the escapes (genomes without a detectable copy),
   the whole-fragment table (above), then the variants per oligo, each with how often it occurs.
 - **Mismatch classes**: per site, with the rule and source; see
   [docs/MISMATCH_CLASSES.md](docs/MISMATCH_CLASSES.md).
-- **Inclusivity**: the verdict uses the whole fragment over the last 3 years plus the current one;
+- **Inclusivity**: the status uses the whole fragment over the last 3 years plus the current one;
   per year the whole fragment and each oligo, against the number of records NCBI
   lists for that year.
 - **Specificity**: per search tier whether any off-target product is predicted, which primer
@@ -155,7 +157,7 @@ settings:
     nucleotide_query: "6500:8500[SLEN]"    # near-complete genomes only
 ```
 
-`must_not_detect` taxa are part of the specificity verdict; `out_of_scope` taxa are searched and
+`must_not_detect` taxa are part of the specificity status; `out_of_scope` taxa are searched and
 listed for information only. Several oligos per role (alternatives in the same mix), degenerate bases, reference amplicons,
 taxa inside the target that the assay must not detect, and every setting: see
 [the commented template](examples/assay_template.yaml) and the
@@ -171,7 +173,8 @@ taxa inside the target that the assay must not detect, and every setting: see
 - Record your own wet-lab results per oligo variant in the assay file (`evidence:`): genomes
   with that exact variant then take the laboratory's outcome instead of the in silico class
   ([user guide](docs/USER_GUIDE.md#laboratory-evidence-per-oligo-variant)).
-- Exit codes follow the verdict (0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input), so a
+- Exit codes follow the review status (0 no flags, 10 review, 20 limit exceeded, 30 incomplete,
+  64 invalid input), so a
   run can be scripted.
 - All thresholds are defaults drawn from common practice or the cited studies: review them for
   your laboratory ([docs/USER_GUIDE.md](docs/USER_GUIDE.md#configuration)).

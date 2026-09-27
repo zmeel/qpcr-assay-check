@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 
 from qpcr_assay_check.config import load_config
 from qpcr_assay_check.errors import InputError
+from qpcr_assay_check.inclusivity.models import fragment_window
 from qpcr_assay_check.ncbi.http import NcbiHttp
 from qpcr_assay_check.ncbi.settings import Credentials
 from qpcr_assay_check.oligo import iupac
@@ -20,6 +21,7 @@ from qpcr_assay_check.variants.datasets import DatasetsClient
 from qpcr_assay_check.variants.exhaustive import reference_amplicon, run_exhaustive
 from qpcr_assay_check.variants.locate import find_loci, find_masked, find_masked_by_context
 from qpcr_assay_check.variants.store import RegionStore
+from qpcr_assay_check.verdict import STATUS_LABEL
 
 from .conftest import CDC_N1_F as F
 from .conftest import CDC_N1_P as P
@@ -502,13 +504,23 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    i = html.index("<h2>Inclusivity across")
+    i = html.index('<h2 id="inclusivity">Inclusivity across')
     assert html.index("<h3>Whole fragment (forward + probe + reverse combined)</h3>", i) < (
         html.index("<h3>Forward</h3>", i)
     )
     # the window row uses the verdict's base (undetermined left out), so the numbers agree
-    assert "Verdict window " in html and "verdict window</span>" in html
-    assert "the same base as the verdict" in html
+    assert "Summary window " in html and "summary window</span>" in html
+    assert "the same base as the summary" in html
+    # the summary row gives the same figure as the inclusivity rationale
+    from qpcr_assay_check.report.summary import summary_rows
+
+    (row,) = [x for x in summary_rows(result, cfg, []) if x.check.startswith("Target detection")]
+    w = fragment_window(result.inclusivity.fragment_years, cfg.inclusivity.verdict_window_years)
+    assert row.result.startswith(f"{w.percent:.1f}% detectable")
+    assert f"{w.n:,} genomes released {w.first}–{w.last}" in row.scope
+    # 3 genomes only: too few to judge, and the row says why
+    assert row.label == STATUS_LABEL[result.inclusivity.verdict] == "Incomplete"
+    assert row.reason.startswith("Too few recent genomes")
 
 
 def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():

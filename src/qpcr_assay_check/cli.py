@@ -163,8 +163,9 @@ def run(
     Without --qc-only this runs the tiered remote BLAST searches (the oligo sequences are sent to
     NCBI; you are asked first), re-aligns the hits over the full oligo length, predicts products
     and judges specificity. Interrupted runs resume when you run the same command again.
-    Command-line options override values in the assay file. The exit code reflects the
-    verdict: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input, 70 NCBI problem.
+    Command-line options override values in the assay file. The exit code gives the review
+    status (flags raised, not a pass or fail of the assay): 0 no flags, 10 review, 20 a limit
+    exceeded, 30 evidence incomplete, 64 invalid input, 70 NCBI problem.
     """
     _setup_logging(verbose)
     overrides: dict[str, Any] = {

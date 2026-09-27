@@ -36,11 +36,12 @@ PIPELINE
 
 YEARLY EVALUATION
 - Persist run history (JSON or SQLite) per assay: inputs hash, run date, tool versions, database name, BLAST parameters, RIDs, results.
-- Diff report against the previous run: verdict changes, inclusivity trend, new mismatch variants, new off-target hits or amplicons.
-- Exit codes that reflect the overall verdict.
+- Diff report against the previous run: status changes, inclusivity trend, new mismatch variants, new off-target hits or amplicons. A first run is the baseline year; a run whose assay or configuration changed is marked not comparable (neither holds up the status).
+- Exit codes that reflect the overall review status.
+- Amended 2026-09-27 (user decision): the tool re-checks an assay in use and does not pass or fail it. The single overall verdict is demoted to a review status (no flags / review / exceeds limit / incomplete; internally PASS/WARN/FAIL/INCOMPLETE, kept in results.json for comparison with earlier records).
 
 OUTPUT
-- Self-contained HTML report (Jinja2; originally Plotly, since 2026-09-25 an inline SVG chart; no external CDN): overall verdict with rationale; inputs and parameters; oligo QC table; dimers/hairpins; specificity summary; top off-target alignments (mismatches highlighted, 3' end emphasised); predicted off-target amplicons; exclusivity table; taxonomic breakdown chart; inclusivity with mismatch heatmap and time trend; changes since last run; methods (tool versions, database, BLAST parameters, RIDs, run date, sampling scheme); limitations; recommendations (only where evidence supports them).
+- Self-contained HTML report (Jinja2; originally Plotly, since 2026-09-25 an inline SVG chart; no external CDN): a summary table of what was checked (scope, result, comparison with the previous run, status) with the findings behind it and a reviewer's decision box; inputs and parameters; oligo QC table; dimers/hairpins; specificity summary; top off-target alignments (mismatches highlighted, 3' end emphasised); predicted off-target amplicons; exclusivity table; taxonomic breakdown chart; inclusivity with mismatch heatmap and time trend; changes since last run; methods (tool versions, database, BLAST parameters, RIDs, run date, sampling scheme); limitations; recommendations (only where evidence supports them).
 - results.json, hits.tsv, and an Excel workbook.
 - Transparent, configurable verdict logic (YAML). Example defaults: an off-target primer hit is critical if <=3 mismatches with none in the last 3-5 nt of the 3' end; an off-target amplicon is critical if both primers and the probe bind; inclusivity below a configurable threshold is WARN/FAIL.
 - The report must state that in silico analysis does not replace experimental validation, and that the lab is responsible for verifying this software within its own quality system. Timestamp and version-stamp every report so it can be filed as an evaluation record.
