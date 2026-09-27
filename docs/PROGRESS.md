@@ -99,6 +99,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   L. dumoffii and L. gormanii under Fluoribacter (461). Exclusivity: Coxiella burnetii,
   Rickettsiella, Aquicella. Open: sequences, reporters, target gene, reference fragment, and a
   second file for the pneumophila channel (target 446).
+- v1.5.0 prepared (2026-09-27): version bumped, CHANGELOG dated; PR #23 (PR #22 had been merged
+  at 639dd89 before the summary work, so that work went into a new PR). The user tags v1.5.0 on
+  the NAS after the merge.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 
