@@ -147,7 +147,7 @@ settings:                                  # only what differs from the defaults
 #   fail_below_percent: 80
 #   verdict_window_years: 3        # exhaustive: whole-fragment verdict over the last 3 years + now
 #   min_genomes_for_verdict: 100   # fewer in the window: INCOMPLETE
-#   min_genomes_per_year: 30       # a single year this large below the FAIL limit: at least WARN
+#   min_genomes_per_year: 30       # one window year this large below the FAIL limit: review
 # variants:                        # the exhaustive variant analysis
 #   source: datasets               # datasets | blast_partitioned | blast_hits (biased sample)
 #   current_assemblies_only: true

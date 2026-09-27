@@ -13,6 +13,7 @@ from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..oligo.grade import site_string
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
+from ..verdict import STATUS_LABEL
 from . import plots
 from .grouping import (
     fragment_view,
@@ -27,6 +28,7 @@ from .grouping import (
     species_of,
 )
 from .ncbi_links import linkify, taxon_link
+from .summary import summary_rows
 
 TOLERATED_VARIANTS_SHOWN = 5  # per oligo; the other tolerated variants: one row (all in workbook)
 GROUP_ROWS_SHOWN = 15  # further rows per grouped table (rows that can fail: always shown)
@@ -39,16 +41,6 @@ _GROUPS = [
     ("pair", "Primer pair"),
     ("amplicon", "Amplicon"),
 ]
-
-VERDICT_MEANING = {
-    "PASS": "Every evaluated check passed and every required analysis was run.",
-    "WARN": "No check failed, but at least one raised a warning. Review the findings.",
-    "FAIL": "At least one check failed. See the findings below.",
-    "INCOMPLETE": (
-        "Required analyses were not evaluated, so this result is not a pass. "
-        "Evidence that is missing never counts as a PASS."
-    ),
-}
 
 
 def _seq_html(seq: str, tail: int = 5) -> Markup:
@@ -205,7 +197,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
                     "html": Markup(html),  # noqa: S704 - SVG from numbers, names escaped
                     "caption": (
                         "Bars show nearest-neighbour Tm (range bars for degenerate oligos). "
-                        "The shaded band is the primer PASS range; the dashed line is the "
+                        "The shaded band is the preferred primer Tm range; the dashed line is the "
                         "annealing temperature."
                     ),
                 }
@@ -275,5 +267,8 @@ def render_report(result: RunResult, cfg: Config) -> str:
             if result.assay.settings
             else ""
         ),
-        verdict_meaning=VERDICT_MEANING[result.overall.verdict.value],
+        status_label=STATUS_LABEL[result.overall.verdict],
+        summary=summary_rows(
+            result, cfg, spec_overview(spec, result.assay, rows_of_searches) if spec else []
+        ),
     )

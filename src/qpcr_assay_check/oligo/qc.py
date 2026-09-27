@@ -232,7 +232,7 @@ def _probe_checks(
             grade=diff_grader,
             unit="°C",
             rule=t.tm_minus_mean_primer_c.describe("°C")
-            + ("; capped at WARN because the probe is modified" if unreliable else ""),
+            + ("; at most outside preferred, because the probe is modified" if unreliable else ""),
             hint=lambda v: (
                 f"Probe Tm is {abs(v):.1f} °C {'above' if v >= 0 else 'below'} the mean primer "
                 "Tm, outside the preferred range."
@@ -274,7 +274,7 @@ def _probe_checks(
                 values=excess,
                 grade=lambda v: Status.WARN if v > 0 else Status.PASS,
                 unit="nt",
-                rule="WARN if the probe has more G than C",
+                rule="outside preferred if the probe has more G than C",
                 fmt="{:.0f}",
                 hint=lambda v: (
                     f"The probe has {v:.0f} more G than C, which can quench the reporter."
@@ -314,7 +314,9 @@ def _five_prime_g_check(o: Oligo, variants: list[str], cfg: Config) -> CheckResu
         "subject": o.name,
         "name": f"{label(o)} 5' base",
         "display": "/".join(sorted({v[0] for v in variants})),
-        "rule": "WARN if the 5' base is G and the reporter is FAM-type (or unspecified)",
+        "rule": (
+            "outside preferred if the 5' base is G and the reporter is FAM-type (or unspecified)"
+        ),
     }
     if not has_g:
         return CheckResult(status=Status.PASS, **base)

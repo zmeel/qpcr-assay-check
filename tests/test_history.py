@@ -96,14 +96,15 @@ def _minimal_run(
     )
 
 
-def test_no_previous_run_is_incomplete_not_a_silent_pass():
+def test_a_first_run_is_the_baseline_and_raises_no_flag():
+    """User, 2026-09-27: a first run is the baseline year; it does not hold up the status."""
     h = compute_history(
         None, inputs_hash="h", section_verdicts={}, section_titles={}, sites=[], amplicons=[],
         inclusivity=None,
     )  # fmt: skip
     assert h.has_previous is False
-    assert h.verdict is Verdict.INCOMPLETE
-    assert "First run" in h.rationale[0]
+    assert h.verdict is Verdict.PASS
+    assert "First run" in h.rationale[0] and "baseline" in h.rationale[0]
 
 
 def test_identical_evidence_gives_pass_and_no_diff_entries():

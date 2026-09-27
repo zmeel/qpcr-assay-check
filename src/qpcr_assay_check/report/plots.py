@@ -28,8 +28,8 @@ def _ticks(lo: float, hi: float) -> list[float]:
 
 
 def tm_chart(result: RunResult, cfg: Config) -> str | None:
-    """Bar chart of oligo Tm (range bars if degenerate) against the primer PASS band and the
-    annealing temperature."""
+    """Bar chart of oligo Tm (range bars if degenerate) against the preferred primer Tm range
+    and the annealing temperature."""
     oligos = result.oligo_qc.oligos
     if not oligos:
         return None
@@ -46,12 +46,12 @@ def tm_chart(result: RunResult, cfg: Config) -> str | None:
     parts = [
         f'<svg class="chart" viewBox="0 0 {_W} {_H}" role="img" '
         f'aria-label="Oligo melting temperatures" font-family="{_FONT}" font-size="12">',
-        # primer PASS band and its label
+        # primer preferred Tm range and its label
         f'<rect x="{_L}" y="{y(band[1]):.1f}" width="{plot_w}" '
         f'height="{y(band[0]) - y(band[1]):.1f}" fill="var(--pass-bg, #DDF0E7)"/>',
         f'<text x="{_L + 4}" y="{y(band[1]) + 13:.1f}" fill="var(--pass, #1F7A5A)" '
         f'stroke="var(--paper, #F4F6F8)" stroke-width="4" paint-order="stroke">'
-        f"primer Tm, PASS band</text>",
+        f"primer Tm, preferred range</text>",
     ]
     for t in _ticks(bottom, top):  # grid and axis labels
         parts.append(

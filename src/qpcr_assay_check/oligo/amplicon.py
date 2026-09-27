@@ -57,7 +57,10 @@ def _site_check(
     """
     name = f"{_label(o)} site in reference amplicon"
     where = f" in {ref}" if ref and n_refs > 1 else ""
-    rule = f"PASS exact match; WARN up to {max_mm} mismatch(es); FAIL if not found"
+    rule = (
+        f"within: exact match; outside preferred: up to {max_mm} mismatch(es); "
+        "outside the limit: not found"
+    )
     if site is None:
         return CheckResult(
             id=f"{o.name}.site",
@@ -165,7 +168,10 @@ def analyse(assay: Assay, cfg: Config) -> tuple[AmpliconSummary, list[CheckResul
                         f"placed in {ref.name} are not checked. The primers may still bind with "
                         "a gap or bulge; the variant analysis aligns them in full."
                     ),
-                    rule="WARN if a reference amplicon has no forward or no reverse primer site",
+                    rule=(
+                        "outside preferred if a reference amplicon has no forward or no reverse "
+                        "primer site"
+                    ),
                 )
             )
         if fwd is not None and rev is not None:

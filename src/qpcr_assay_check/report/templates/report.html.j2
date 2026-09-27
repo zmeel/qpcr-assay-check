@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="qpcr-assay-check {{ r.tool.version }}">
-<title>{{ assay.assay_name }} – assay evaluation record ({{ r.overall.verdict.value }})</title>
+<title>{{ assay.assay_name }} – assay evaluation record ({{ status_label }})</title>
 <style>
 :root {
   --ink: #17222D; --muted: #55636F; --paper: #F4F6F8; --panel: #FFFFFF; --rule: #D3DBE2;
@@ -29,22 +29,19 @@ p { margin: .6rem 0; max-width: 46rem; }
 .meta { color: var(--muted); font-size: .85rem; }
 .meta code { font-family: var(--mono); font-size: .8rem; word-break: break-all; }
 
-.verdict { display: grid; grid-template-columns: auto 1fr; gap: 0 2rem; margin: 1.75rem 0 0;
-  background: var(--panel); border: 1px solid var(--rule); border-left-width: 10px; padding: 1.4rem 1.6rem; }
-.verdict.v-PASS { border-left-color: var(--pass); }
-.verdict.v-WARN { border-left-color: var(--warn); }
-.verdict.v-FAIL { border-left-color: var(--fail); }
-.verdict.v-INCOMPLETE { border-left-color: var(--incomplete); }
-.verdict .word { font-family: var(--sans); font-size: 2.6rem; font-weight: 700; line-height: 1; letter-spacing: -.01em; }
-.v-PASS .word { color: var(--pass); } .v-WARN .word { color: var(--warn); }
-.v-FAIL .word { color: var(--fail); } .v-INCOMPLETE .word { color: var(--incomplete); }
-.verdict .label { font-family: var(--sans); font-size: .8rem; color: var(--muted); margin-bottom: .25rem; }
-.verdict ul { margin: .3rem 0 0; padding-left: 1.1rem; }
-.verdict li { margin: .2rem 0; }
-@media (max-width: 40rem) { .verdict { grid-template-columns: 1fr; gap: 1rem 0; } }
 
+table.summary th[scope=row] { min-width: 12rem; font-weight: 600; background: none; }
+table.summary th[scope=row] a { color: inherit; }
+.status-line { font-family: var(--sans); font-size: 1rem; }
+.status-line .chip { font-size: .9rem; margin-right: .4rem; }
+table.review-box { max-width: 52rem; }
+table.review-box th { width: 12rem; }
+table.review-box td.write { height: 5rem; }
+table.review-box td.write-line { height: 2.2rem; }
+h2.first { border-top: 0; margin-top: 1.5rem; }
 .chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 3px; white-space: nowrap; }
 .s-PASS, .s-evaluated-PASS { background: var(--pass-bg); color: var(--pass); }
+.chip.status-PASS { background: var(--info-bg); color: var(--info); } /* "No flags": neutral, not "passed" */
 .s-WARN { background: var(--warn-bg); color: var(--warn); }
 .s-FAIL { background: var(--fail-bg); color: var(--fail); }
 .s-INFO, .s-none { background: var(--info-bg); color: var(--info); }
@@ -74,7 +71,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 
 @media print {
   html { background: #fff; } main { max-width: none; padding: 0; }
-  .verdict, table, pre, figure, .notice { break-inside: avoid; }
+  table, pre, figure, .notice { break-inside: avoid; }
   h2 { break-after: avoid; } details:not([open]) > *:not(summary) { display: block; }
 }
 .s-critical, .s-likely_detected { background: var(--fail-bg); color: var(--fail); }
@@ -98,7 +95,8 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </head>
 <body>
 <main>
-{% macro chip(status) %}<span class="chip s-{{ status }}">{{ status }}</span>{% endmacro %}
+{% macro chip(status) %}<span class="chip s-{{ status }} status-{{ status }}">{{ {'PASS': 'No flags', 'WARN': 'Review', 'FAIL': 'Exceeds limit', 'INCOMPLETE': 'Incomplete', 'INFO': 'Info'}.get(status, status) }}</span>{% endmacro %}
+{% macro qc_chip(status) %}<span class="chip s-{{ status }}">{{ {'PASS': 'within', 'WARN': 'outside preferred', 'FAIL': 'outside limit', 'INFO': 'info'}.get(status, status) }}</span>{% endmacro %}
 {% macro match(row, primer) %}{% if row.grade %}<span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ row.grade | replace('_', ' ') }}</span><br>{% endif %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
 {% macro grade_css(g) %}{{ {'perfect': 's-PASS', 'tolerated': 's-PASS', 'at_risk': 's-WARN', 'likely_failure': 's-FAIL', 'indeterminate': 's-INCOMPLETE'}.get(g, 's-INFO') }}{% endmacro %}
 {% macro pct(value) %}{% if 0 < value < 0.05 %}&lt;0.1%{% else %}{{ '%.1f' % value }}%{% endif %}{% endmacro %}
@@ -112,34 +110,42 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   </p>
 </header>
 
-<section class="verdict v-{{ r.overall.verdict.value }}" aria-labelledby="verdict-h">
-  <div>
-    <div class="label" id="verdict-h">Overall verdict{% if r.mode == 'qc-only' %} (oligo QC only){% endif %}</div>
-    <div class="word">{{ r.overall.verdict.value }}</div>
-  </div>
-  <div>
-    <p>{{ verdict_meaning }}</p>
-    {% if r.overall.rationale %}
-    <ul>
-      {% for line in r.overall.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}
-    </ul>
-    {% endif %}
-  </div>
-</section>
-
-<h2>Sections evaluated</h2>
-<div class="scroll"><table>
-  <thead><tr><th>Section</th><th>Result</th><th>Detail</th></tr></thead>
+<h2 id="summary" class="first">Summary of this year's check</h2>
+<p>What was checked, what was found and what changed since the previous run. The status marks where a limit you configured was crossed or evidence is missing; it is not a pass or fail of the assay. The laboratory decides what to do (reviewer's decision below).</p>
+{% set flagged = summary | selectattr('css', 'in', ['WARN', 'FAIL']) | list %}
+{% set missing = summary | selectattr('css', 'equalto', 'INCOMPLETE') | list %}
+<p class="status-line"><span class="chip s-{{ r.overall.verdict.value }} status-{{ r.overall.verdict.value }}">{{ status_label }}</span>
+  {{ flagged | length }} of {{ summary | length }} checks flagged for review{% if missing %}, {{ missing | length }} with evidence incomplete or not assessed{% endif %}.</p>
+<div class="scroll"><table class="summary">
+  <thead><tr><th>What was checked</th><th>Scope</th><th>Result</th><th>Compared with the previous run</th><th>Status</th></tr></thead>
   <tbody>
-  {% for s in r.sections %}
-  <tr>
-    <td>{{ s.title }}</td>
-    <td>{% if s.verdict %}{{ chip(s.verdict.value) }}{% else %}<span class="chip s-none">Not evaluated</span>{% endif %}</td>
-    <td class="note">{{ s.note | ncbi }}</td>
-  </tr>
+  {% for row in summary %}
+  <tr><th scope="row">{% if row.anchor %}<a href="#{{ row.anchor }}">{{ row.check }}</a>{% else %}{{ row.check }}{% endif %}</th>
+    <td class="note">{{ row.scope }}</td>
+    <td>{{ row.result | ncbi }}</td>
+    <td class="note">{{ row.compared }}</td>
+    <td><span class="chip s-{{ row.css }} status-{{ row.css }}">{{ row.label }}</span>{% if row.reason %}<br><span class="meta">{{ row.reason | ncbi }}</span>{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
+<p class="meta">Status: <em>No flags</em>, no limit crossed; <em>Review</em>, a review (WARN) limit you configured was crossed; <em>Exceeds limit</em>, a FAIL limit was crossed; <em>Incomplete</em> or <em>Not assessed</em>, evidence is missing, which never counts as no flags. The limits are in the configuration (Methods). Every row is explained in its section below.</p>
+{% if r.overall.rationale %}
+<details class="findings"><summary>All findings behind this summary ({{ r.overall.rationale | length }})</summary>
+<ul>{% for line in r.overall.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+
+<h3>Reviewer's decision</h3>
+<div class="scroll"><table class="review-box">
+  <tbody>
+  <tr><th scope="row">Decision</th><td>&#9744; No action &nbsp;&nbsp; &#9744; Monitor next year &nbsp;&nbsp; &#9744; Wet-lab check &nbsp;&nbsp; &#9744; Redesign</td></tr>
+  <tr><th scope="row">Reason and actions</th><td class="write"></td></tr>
+  <tr><th scope="row">Name</th><td class="write-line"></td></tr>
+  <tr><th scope="row">Date and signature</th><td class="write-line"></td></tr>
+  </tbody>
+</table></div>
+<p class="meta">For the laboratory's own record: filled in by the reviewer, on paper or in the quality system. The tool never fills it in.</p>
+
 <p class="meta">{% if r.network_used %}This run sent the oligo sequences to NCBI (see Methods).{% else %}No sequence was searched against any database in this run, and no data was sent to NCBI.{% endif %}</p>
 
 <h2>Assay as evaluated</h2>
@@ -159,8 +165,8 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
       {% if assay.target.gene %}; gene {{ assay.target.gene }}{% endif %}
       {% if assay.target.taxa %}<br><strong>Excluding</strong> these taxa and their descendants from the target (left out of the target search, inclusivity and the variant analysis; records of such organisms filed under another taxon, e.g. an unclassified one, stay in the target):
       {% set mnd = assay.target.taxa | selectattr('role', 'equalto', 'must_not_detect') | list %}{% set oos = assay.target.taxa | selectattr('role', 'equalto', 'out_of_scope') | list %}
-      {% if mnd %}<br><em>Must not detect</em> ({{ mnd | length }}; searched as near neighbours, part of the specificity verdict): {% for x in mnd %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}
-      {% if oos %}<br><em>Out of scope</em> ({{ oos | length }}; searched and listed as "also detects", information only, not part of the verdict): {% for x in oos %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}{% endif %}</td></tr>
+      {% if mnd %}<br><em>Must not detect</em> ({{ mnd | length }}; searched as near neighbours, part of the specificity status): {% for x in mnd %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}
+      {% if oos %}<br><em>Out of scope</em> ({{ oos | length }}; searched and listed as "also detects", information only, not part of the status): {% for x in oos %}{{ x.taxid | taxon }}{% if x.reason %} ({{ x.reason }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% endif %}{% endif %}</td></tr>
     {% if assay.oligo_source %}<tr><th scope="row">Oligo source</th><td>{{ assay.oligo_source }}</td></tr>{% endif %}
     {% if evidence_rows %}<tr><th scope="row">Laboratory evidence</th><td>{% for e, n in evidence_rows %}{{ e.oligo }} <span class="seq">{{ e.variant }}</span>: <strong>{{ e.outcome | replace('_', ' ') }}</strong> <span class="meta">({{ e.note }}); {% if n %}applied to {{ n }} record{{ '' if n == 1 else 's' }} in this run{% else %}<strong>matched no site in this run</strong>: check the oligo name and the variant string{% endif %}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}<br><span class="meta">A laboratory result replaces the in silico class for sites with exactly this variant (rule LAB: detected = tolerated, not detected = likely failure).</span></td></tr>{% endif %}
     {% if assay.notes %}<tr><th scope="row">Notes</th><td>{{ assay.notes | ncbi }}</td></tr>{% endif %}
@@ -174,7 +180,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% endif %}
 
 {% if spec %}
-<h2>Specificity</h2>
+<h2 id="specificity">Specificity</h2>
 <p>{{ chip(spec.verdict_sites.value) }} off-target primer and probe sites &nbsp; {{ chip(spec.verdict_amplicons.value) }} predicted off-target products</p>
 {% macro site_line(x) %}{% if x.query != x.role %}{{ x.query }} {% endif %}on {{ x.accession | ncbi }} ({{ x.organism or 'unknown organism' }}): {{ x.n_mismatch }} mismatch{{ 'es' if x.n_mismatch != 1 }}{% if x.n_gap %}, {{ x.n_gap }} gap{{ 's' if x.n_gap != 1 }}{% endif %}{% if x.role != 'probe' %}, {{ x.clean_3prime_nt }} clean 3′ nt{% endif %}{% endmacro %}
 <div class="notice">
@@ -242,7 +248,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% else %}<p>No product was predicted in the judged tiers ({{ spec.counts | map(attribute='tier') | reject('equalto', 'out_of_scope') | unique | join(', ') or 'none searched' }}).</p>{% endif %}
 {% if assay.target.must_not_detect_taxids and not (judged | selectattr('tier', 'equalto', 'near_neighbours') | list) %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}
 {% if oos %}<details><summary><strong>Also detects (out of scope, information only):</strong> {{ oos | sum(attribute='n_products') }} product(s) in {{ oos | length }} species</summary>
-<p class="meta">Taxa the assay is allowed to detect but that are not its intended target (<code>target.taxa</code> with role out_of_scope); not part of the specificity verdict.</p>
+<p class="meta">Taxa the assay is allowed to detect but that are not its intended target (<code>target.taxa</code> with role out_of_scope); not part of the specificity status.</p>
 {{ product_table(oos) }}</details>{% endif %}
 {% else %}
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
@@ -250,7 +256,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% endif %}
 
 {% if r.variant_summary and ((r.variant_summary.oligos | selectattr('rows') | list) or r.variant_summary.coverage) %}
-<h2>Variant summary (assay's own target)</h2>
+<h2 id="variants">Variant summary (assay's own target)</h2>
 {% set cov = r.variant_summary.coverage %}
 {% if cov %}
 {% if cov.source == 'blast_partitioned' %}<div class="notice"><p><strong>Scope: every NCBI Nucleotide record{% if not cov.complete %} assessed so far{% endif %}.</strong> Built from the Nucleotide records of the target (taxonomy ID {{ cov.taxon }}{% if cov.filters.excluded_taxids %}, excluding {{ cov.filters.excluded_taxids }}{% endif %}){% if cov.filters.nucleotide_query %}, narrowed by <code>{{ cov.filters.nucleotide_query }}</code>{% endif %}, newest publication year first. The {{ cov.amplicon_length }} bp reference amplicon ({{ cov.amplicon_source }}) was BLASTed against lists of at most {{ r.config.variants.blast_records_per_search }} of these records at a time, so no search could fill its hit list; hits outside each list were ignored, and partial hits were completed from the record itself. These are counts over all assessed records, not a sample. A record without the region is usually a different gene or a partial sequence, not a missing target.</p></div>
@@ -397,7 +403,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   <code>data/clinical_organisms.yaml</code> or your own <code>organisms.list_file</code>); it does not claim to be complete for any particular assay. To use a panel tailored to this assay instead, give it its own <code>exclusivity_organisms</code> list in <code>assay.yaml</code> (used automatically under the default <code>organisms.source: assay</code>).</p></div>
 {% endif %}
 {% if not r.exclusivity.tier_searched %}
-<p>The exclusivity tier was not searched in this run (no organism name resolved to a taxonomy ID, or the tier was excluded from this run), so this section is INCOMPLETE.</p>
+<p>The exclusivity tier was not searched in this run (no organism name resolved to a taxonomy ID, or the tier was excluded from this run), so this section is Incomplete: evidence is missing.</p>
 {% else %}
 <div class="scroll"><table>
   <thead><tr><th>Organism</th><th>Resolution</th><th>Taxonomy ID</th><th>Sites</th><th>Best site</th><th>Predicted product</th></tr></thead>
@@ -427,15 +433,15 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 
 {% if r.inclusivity %}
 {% set nuc = r.inclusivity.exhaustive and r.inclusivity.sample_scheme.startswith('Every NCBI Nucleotide record') %}
-<h2>Inclusivity across the intended target ({{ ('all Nucleotide records' if nuc else 'all genome assemblies') if r.inclusivity.exhaustive else 'sampled' }})</h2>
+<h2 id="inclusivity">Inclusivity across the intended target ({{ ('all Nucleotide records' if nuc else 'all genome assemblies') if r.inclusivity.exhaustive else 'sampled' }})</h2>
 <p>{{ chip(r.inclusivity.verdict.value) }} inclusivity</p>
 {% if not r.inclusivity.tier_searched %}
-<p>The target tier was not searched in this run, so this section is INCOMPLETE.</p>
+<p>The target tier was not searched in this run, so this section is Incomplete: evidence is missing.</p>
 {% else %}
 <div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
 {% if r.inclusivity.fragment_years %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
-<p class="meta">The inclusivity verdict uses this outcome, pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete release years and the current one (see Rationale below); a single year with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives at least WARN, smaller years are marked "few records" and only shown. Per year, each genome's outcome from its three sites together, as in the whole-fragment table: detectable when all three are perfect or tolerated, otherwise the worst site, and likely failure by the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Percentages are of the records with all three sites minus the undetermined ones, the same base as the verdict; undetermined records are counted but not in a percentage. Years in the verdict window are marked. The tables per oligo below show each site on its own; they explain the verdict but do not decide it.</p>
+<p class="meta">The summary and the inclusivity status use this outcome, pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete release years and the current one (see Rationale below); when the pooled figure has no flags, a single year in that window with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives Review; smaller years are marked "few records" and only shown. Per year, each genome's outcome from its three sites together, as in the whole-fragment table: detectable when all three are perfect or tolerated, otherwise the worst site, and likely failure by the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Percentages are of the records with all three sites minus the undetermined ones, the same base as the summary; undetermined records are counted but not in a percentage. Years in the summary window are marked. The tables per oligo below show each site on its own; they explain the status but do not decide it.</p>
 <div class="scroll"><table>
   <thead><tr><th>Year</th><th>{{ 'Records' if nuc else 'Assemblies' }}</th><th>With region</th><th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Undetermined</th></tr></thead>
   <tbody>
@@ -445,11 +451,11 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   {% set first_window = last_year - (r.config.inclusivity.verdict_window_years | default(3)) %}
   {% macro frag_cells(det, risk, fail, undet, region, pair=0) %}{% set base = region - undet %}{% for n in [det, risk, fail] %}<td class="num">{{ n }}{% if base > 0 %} <span class="meta">({{ pct(100.0 * n / base) }})</span>{% endif %}{% if loop.index == 3 and pair %}<br><span class="meta">{{ pair }} by the pair rule</span>{% endif %}</td>{% endfor %}<td class="num">{{ undet }}</td>{% endmacro %}
   {% for f in fy %}
-  <tr><td class="num">{{ f.year }}{% if f.year >= first_window %}<br><span class="meta">verdict window</span>{% endif %}{% if f.with_region - f.undetermined < min_year %}<br><span class="meta">few records</span>{% endif %}</td><td class="num">{{ f.population_size if f.population_size is not none else '–' }}</td><td class="num">{{ f.with_region }}</td>
+  <tr><td class="num">{{ f.year }}{% if f.year >= first_window %}<br><span class="meta">summary window</span>{% endif %}{% if f.with_region - f.undetermined < min_year %}<br><span class="meta">few records</span>{% endif %}</td><td class="num">{{ f.population_size if f.population_size is not none else '–' }}</td><td class="num">{{ f.with_region }}</td>
     {{ frag_cells(f.detectable, f.at_risk, f.likely_failure, f.undetermined, f.with_region, f.by_pair_rule) }}</tr>
   {% endfor %}
   {% set win = fy | selectattr('year', 'ge', first_window) | list %}
-  <tr class="group"><th scope="row">Verdict window {{ first_window }}&ndash;{{ last_year }}</th><td></td><td class="num">{{ win | sum(attribute='with_region') }}</td>{{ frag_cells(win | sum(attribute='detectable'), win | sum(attribute='at_risk'), win | sum(attribute='likely_failure'), win | sum(attribute='undetermined'), win | sum(attribute='with_region')) }}</tr>
+  <tr class="group"><th scope="row">Summary window {{ first_window }}&ndash;{{ last_year }}</th><td></td><td class="num">{{ win | sum(attribute='with_region') }}</td>{{ frag_cells(win | sum(attribute='detectable'), win | sum(attribute='at_risk'), win | sum(attribute='likely_failure'), win | sum(attribute='undetermined'), win | sum(attribute='with_region')) }}</tr>
   <tr class="group"><th scope="row">All years shown</th><td></td><td class="num">{{ fy | sum(attribute='with_region') }}</td>{{ frag_cells(fy | sum(attribute='detectable'), fy | sum(attribute='at_risk'), fy | sum(attribute='likely_failure'), fy | sum(attribute='undetermined'), fy | sum(attribute='with_region')) }}</tr>
   </tbody>
 </table></div>
@@ -468,7 +474,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </table></div>
 {% if loop.last and r.inclusivity.oligos | map(attribute='windows') | map('rejectattr', 'n_detectable', 'none') | map('list') | select | list %}
 <h3>Mismatch classes</h3>
-<p class="meta">Each oligo site on the target gets a class (docs/MISMATCH_CLASSES.md): <em>perfect</em>; <em>tolerated</em> (expected to cost little); <em>at risk</em> (a measurable delay is expected, worse near the limit of detection); <em>likely failure</em> (blocked or strongly delayed in the published data); <em>indeterminate</em> (no published basis: gaps together with mismatches that alone would not decide, ambiguity codes in the genome, a single mismatch in an MGB probe). <em>Detectable</em> = perfect or tolerated; the verdict thresholds apply to it. A single mismatch in an MGB probe and an ambiguity code in the genome near a 3′ end are <em>undetermined</em>: left out of the percentage (neither detected nor escaped). Gaps count as not detected. A primer site that differs only in the length of a single-base run (homopolymer bulge) is at risk for one base with the run outside the last 3 nt, otherwise likely failure (rule R5b; no PCR study measured such bulges; setting variants.homopolymer_bulges_detectable). Primers: single mismatches in the last 5 nt by type and position after Stadhouders et al., J Mol Diagn 2010 (Table 1, Taq polymerase on DNA); farther positions and the number of mismatches per primer and per primer pair after Lefever et al., Clin Chem 2013. Probes: no published rule was used; a probe without MGB tolerates 1 mismatch outside the last 5 nt; an MGB probe with 1 mismatch is undetermined and with 2 or more a likely failure. {{ grade_caveat }}</p>
+<p class="meta">Each oligo site on the target gets a class (docs/MISMATCH_CLASSES.md): <em>perfect</em>; <em>tolerated</em> (expected to cost little); <em>at risk</em> (a measurable delay is expected, worse near the limit of detection); <em>likely failure</em> (blocked or strongly delayed in the published data); <em>indeterminate</em> (no published basis: gaps together with mismatches that alone would not decide, ambiguity codes in the genome, a single mismatch in an MGB probe). <em>Detectable</em> = perfect or tolerated; the inclusivity limits apply to it. A single mismatch in an MGB probe and an ambiguity code in the genome near a 3′ end are <em>undetermined</em>: left out of the percentage (neither detected nor escaped). Gaps count as not detected. A primer site that differs only in the length of a single-base run (homopolymer bulge) is at risk for one base with the run outside the last 3 nt, otherwise likely failure (rule R5b; no PCR study measured such bulges; setting variants.homopolymer_bulges_detectable). Primers: single mismatches in the last 5 nt by type and position after Stadhouders et al., J Mol Diagn 2010 (Table 1, Taq polymerase on DNA); farther positions and the number of mismatches per primer and per primer pair after Lefever et al., Clin Chem 2013. Probes: no published rule was used; a probe without MGB tolerates 1 mismatch outside the last 5 nt; an MGB probe with 1 mismatch is undetermined and with 2 or more a likely failure. {{ grade_caveat }}</p>
 {% endif %}
 {% if o.n_no_date %}<p class="meta">{{ o.n_no_date }} sampled hit(s) had no determinable submission year and were excluded from the yearly buckets.</p>{% endif %}
 {% endfor %}
@@ -534,17 +540,17 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% endif %}
 
 {% if r.history %}
-<h2>Changes since the previous run</h2>
+<h2 id="history">Changes since the previous run</h2>
 {% if not r.history.has_previous %}
-<p><span class="chip s-INCOMPLETE">INCOMPLETE</span> This is the first recorded run for this assay: there is nothing yet to compare it against.</p>
+<p><span class="chip s-INFO">Baseline</span> This is the first recorded run for this assay: there is nothing yet to compare it against. It is the baseline for next year's comparison.</p>
 {% else %}
-<p>{{ chip(r.history.verdict.value) }} compared to the run on {{ r.history.previous_generated_at }}
+<p>{% if r.history.inputs_changed %}<span class="chip s-INFO">Not comparable</span>{% else %}{{ chip(r.history.verdict.value) }}{% endif %} compared to the run on {{ r.history.previous_generated_at }}
   (<code>{{ r.history.previous_run_id }}</code>)</p>
 {% if r.history.inputs_changed %}<div class="notice"><p>The assay definition or configuration changed since that run: some of the differences below may reflect that rather than new NCBI data.</p></div>{% endif %}
 <ul>{% for line in r.history.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}</ul>
 {% set changed_sections = r.history.section_changes | selectattr('changed') | list %}
 {% if changed_sections %}
-<h3>Section verdicts</h3>
+<h3>Section status</h3>
 <div class="scroll"><table>
   <thead><tr><th>Section</th><th>Before</th><th>After</th></tr></thead>
   <tbody>
@@ -635,14 +641,14 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if pending %}
 <h2>Not yet evaluated</h2>
 <div class="notice">
-  <p>The following parts of the evaluation were not performed in this record, so the overall verdict cannot be a pass:</p>
+  <p>The following parts of the evaluation were not performed in this record, so the review status cannot be "no flags":</p>
   <ul>{% for s in pending %}<li>{{ s.title }}: {{ s.note | ncbi }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
 
-<h2>Oligo quality control</h2>
+<h2 id="oligo-qc">Oligo quality control</h2>
 {% set qc_states = (qc.checks | map(attribute='status.value') | list) + (qc.structures | map(attribute='status.value') | list) %}
-<p>{{ qc_states | select('equalto', 'FAIL') | list | length }} FAIL, {{ qc_states | select('equalto', 'WARN') | list | length }} WARN among {{ qc.checks | length }} checks and {{ qc.structures | length }} hairpin and dimer calculations; the findings are listed under the verdict. These checks depend only on the oligo sequences, so they stay the same from run to run and matter mainly when designing the PCR.</p>
+<p>{{ qc_states | select('equalto', 'FAIL') | list | length }} outside the limit and {{ qc_states | select('equalto', 'WARN') | list | length }} outside the preferred range, among {{ qc.checks | length }} checks and {{ qc.structures | length }} hairpin and dimer calculations; each is listed in the tables below. These checks depend only on the oligo sequences, so they stay the same from run to run and matter mainly when designing the PCR.</p>
 <details class="qc"><summary>Show the oligo checks, hairpins and dimers, and the amplicon</summary>
 {% if qc.tm_unreliable_reasons %}
 <div class="notice"><p><strong>Tm reliability.</strong> The probe carries {{ qc.tm_unreliable_reasons | join(', ') }}.
@@ -663,7 +669,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
     <tr>
       <td>{{ c.name }}{% if c.message %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
       <td class="num">{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td>
-      <td>{{ chip(c.status.value) }}</td>
+      <td>{{ qc_chip(c.status.value) }}</td>
       <td class="note">{{ c.rule }}</td>
     </tr>
     {% endfor %}
@@ -676,8 +682,8 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p>Calculated at the annealing temperature of {{ r.config.reaction.annealing_temp_C }} °C
   (Na⁺ {{ r.config.reaction.na_mM }} mM, Mg²⁺ {{ r.config.reaction.mg_mM }} mM, dNTP {{ r.config.reaction.dntp_mM }} mM).
   A structure is flagged when its melting temperature reaches
-  {{ r.config.thresholds.structures.warn_tm_c }} °C (WARN) or the
-  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (FAIL).
+  {{ r.config.thresholds.structures.warn_tm_c }} °C (outside preferred) or the
+  {% if r.config.thresholds.structures.fail_tm_c is none %}annealing temperature{% else %}{{ r.config.thresholds.structures.fail_tm_c }} °C{% endif %} (outside the limit).
   “3′ end” rows test whether the 3′ end of the first oligo can anneal to the second and be extended.</p>
 <div class="scroll"><table>
   <thead><tr><th>Structure</th><th>Tm (°C)</th><th>ΔG (kcal/mol)</th><th>Result</th></tr></thead>
@@ -688,7 +694,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
       {% if s.variant %}<br><span class="meta">worst case: {{ s.variant }}</span>{% endif %}</td>
     <td class="num">{{ s.tm_c | tm }}</td>
     <td class="num">{{ s.dg_kcal | dg }}</td>
-    <td>{{ chip(s.status.value) }}</td>
+    <td>{{ qc_chip(s.status.value) }}</td>
   </tr>
   {% if s.ascii_lines %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
   {% endfor %}

@@ -122,8 +122,14 @@ class SectionResult(BaseModel):
 
 
 class OverallResult(BaseModel):
-    """The overall verdict, with the evidence behind it."""
+    """The review status of the whole evaluation, with the evidence behind it. Not a pass or
+    fail of the assay: it says whether any section raised a flag (``verdict`` keeps the internal
+    code for comparison with earlier records)."""
 
+    review_status: str = Field(
+        default="",
+        description="no_flags | review | exceeds_limit | incomplete_evidence (from verdict)",
+    )
     verdict: Verdict
     exit_code: int
     rationale: list[str]

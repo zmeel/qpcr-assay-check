@@ -161,7 +161,8 @@ inclusivity:
   verdict_window_years: 3          # exhaustive: the last N complete release years + this year
   min_genomes_for_verdict: 100     # fewer genomes with the region in the window: INCOMPLETE
   min_genomes_per_year: 30         # a single year with at least this many genomes below
-                                    # fail_below_percent gives at least WARN ("drop in <year>");
+                                    # fail_below_percent inside the window gives WARN when the
+                                    # pooled figure passes ("release year <year> on its own");
                                     # smaller years are marked "few records" and only shown
 
 variants:

@@ -26,7 +26,7 @@ from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
 from .taxonomy.plan import OrganismListResolution
 from .taxonomy.rollup import TaxonCount
 from .variants.models import ExhaustiveCoverage
-from .verdict import Verdict, combine, exit_code, verdict_from_status
+from .verdict import REVIEW_STATUS, Verdict, combine, exit_code, verdict_from_status
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +92,8 @@ def evaluate(
         if c.status in (Status.FAIL, Status.WARN) and c.message
     ]
     findings += [
-        f"{s.label}: structure with Tm {s.tm_c:.1f} °C at {s.temp_c:g} °C ({s.status.value})."
+        f"{s.label}: structure with Tm {s.tm_c:.1f} °C at {s.temp_c:g} °C "
+        f"({'outside the limit' if s.status is Status.FAIL else 'outside the preferred range'})."
         for s in qc.structures
         if s.status in (Status.FAIL, Status.WARN) and s.tm_c is not None
     ]
@@ -104,12 +105,12 @@ def evaluate(
             state="evaluated",
             verdict=verdict_from_status(qc.status),
             note=(
-                f"{sum(c.status is Status.FAIL for c in qc.checks)} FAIL, "
-                f"{sum(c.status is Status.WARN for c in qc.checks)} WARN among "
-                f"{len(qc.checks)} checks, "
-                f"{sum(s.status is Status.FAIL for s in qc.structures)} FAIL and "
-                f"{sum(s.status is Status.WARN for s in qc.structures)} WARN among "
-                f"{len(qc.structures)} hairpin and dimer calculations."
+                f"{sum(c.status is Status.FAIL for c in qc.checks)} outside the limit and "
+                f"{sum(c.status is Status.WARN for c in qc.checks)} outside the preferred range "
+                f"among {len(qc.checks)} checks; "
+                f"{sum(s.status is Status.FAIL for s in qc.structures)} outside the limit and "
+                f"{sum(s.status is Status.WARN for s in qc.structures)} outside the preferred "
+                f"range among {len(qc.structures)} hairpin and dimer calculations."
             ),
         )
     ]
@@ -206,6 +207,29 @@ def evaluate(
                     note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
                 )
             )
+    if (
+        inclusivity is not None
+        and inclusivity.exhaustive
+        and variant_coverage is not None
+        and not variant_coverage.complete
+        and inclusivity.verdict in (Verdict.PASS, Verdict.WARN)
+    ):
+        # not every genome assessed yet: missing evidence is never "no flags" (code review,
+        # 2026-09-27); a figure already below the FAIL limit stays FAIL
+        c = variant_coverage
+        left = c.listed_total - c.assessed_total - c.unavailable
+        what = "records" if c.source == "blast_partitioned" else "assemblies"
+        inclusivity = inclusivity.model_copy(
+            update={
+                "verdict": Verdict.INCOMPLETE,
+                "rationale": [
+                    *inclusivity.rationale,
+                    f"{left} of {c.listed_total} listed {what} "
+                    "not assessed yet (run again to continue): the status stays Incomplete "
+                    "until they are.",
+                ],
+            }
+        )
     if inclusivity is not None:
         note = (
             inclusivity.sample_scheme
@@ -252,6 +276,7 @@ def evaluate(
             amplicons=specificity.amplicons if specificity else [],
             inclusivity=inclusivity,
             variant_summary=variant_summary,
+            window_years=cfg.inclusivity.verdict_window_years,
         )
         if history.has_previous:
             note = f"Compared to the run on {history.previous_generated_at}: {history.rationale[0]}"
@@ -270,6 +295,10 @@ def evaluate(
         )
 
     required = ["oligo_qc"] if qc_only else [s.key for s in sections]
+    if history is not None and (not history.has_previous or history.inputs_changed):
+        # a first run is the baseline year and a changed assay or configuration makes the
+        # comparison not like for like: neither holds up the review status (user, 2026-09-27)
+        required.remove("history")
     by_key: dict[str, Verdict | None] = {s.key: s.verdict for s in sections}
     verdict = combine(by_key, required)
     not_evaluated = [s.title for s in sections if s.key in required and s.verdict is None]
@@ -335,11 +364,16 @@ def evaluate(
         )
     if inclusivity is not None and inclusivity.verdict is not Verdict.PASS:
         findings += [f"Inclusivity: {line}" for line in inclusivity.rationale]
-    if history is not None and history.verdict is not Verdict.PASS:
+    if (
+        history is not None
+        and history.verdict is not Verdict.PASS
+        and not history.inputs_changed  # not comparable: listed in its section, not a finding
+    ):
         findings += [f"History: {line}" for line in history.rationale]
     if not findings and verdict is Verdict.PASS:
-        findings = ["No oligo QC check raised a WARN or FAIL."]
+        findings = ["No oligo QC check was outside the preferred range or the limit."]
     overall = OverallResult(
+        review_status=REVIEW_STATUS[verdict],
         verdict=verdict,
         exit_code=exit_code(verdict),
         rationale=_rationale(findings, not_evaluated),
@@ -392,7 +426,7 @@ def write_outputs(result: RunResult, base_dir: Path, cfg: Config) -> Path:
         raise RuntimeError(f"could not create a unique run directory under {parent}")
     (run_dir / "results.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
     (run_dir / "report.html").write_text(render_report(result, cfg), encoding="utf-8")
-    write_workbook(result, run_dir / "results.xlsx")
+    write_workbook(result, run_dir / "results.xlsx", cfg)
     if result.specificity is not None:
         write_hits_tsv(result, run_dir / "hits.tsv")
     log.info("Wrote evaluation record to %s", run_dir)

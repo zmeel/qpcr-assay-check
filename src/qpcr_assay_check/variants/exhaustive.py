@@ -29,14 +29,19 @@ from ..align import realign
 from ..config import Config, SiteRules
 from ..errors import InputError
 from ..inclusivity.aggregate import _stats
-from ..inclusivity.models import FragmentYear, InclusivityOligoResult, InclusivityResult
+from ..inclusivity.models import (
+    FragmentYear,
+    InclusivityOligoResult,
+    InclusivityResult,
+    fragment_window,
+)
 from ..models import Assay, Oligo
 from ..ncbi.http import NcbiError
 from ..oligo import grade, iupac
 from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
-from ..verdict import Verdict
+from ..verdict import STATUS_LABEL, Verdict
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .locate import CONTEXT_NT, scan_region
 from .models import (
@@ -699,21 +704,16 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
     current one, undetermined genomes left out of the denominator, at risk counted as not
-    detected; too few genomes in the window is INCOMPLETE; a single year with at least
-    ``min_genomes_per_year`` genomes below ``fail_below_percent`` gives at least WARN. The
+    detected; too few genomes in the window is INCOMPLETE; when the pooled figure passes, a
+    single window year with at least ``min_genomes_per_year`` genomes below
+    ``fail_below_percent`` gives WARN (years outside the window never decide). The
     per-oligo figures are diagnostics only."""
-    with_data = [y for y in years if y.with_region]
-    if not with_data:
+    w = fragment_window(years, rules.verdict_window_years)
+    if w is None:
         return Verdict.INCOMPLETE, ["No genome with the target region in the years shown."]
-    last = max(y.year for y in with_data)
-    window = [y for y in years if last - rules.verdict_window_years <= y.year <= last]
-    n_region = sum(y.with_region for y in window)
-    undet = sum(y.undetermined for y in window)
-    n = n_region - undet
-    det = sum(y.detectable for y in window)
-    risk = sum(y.at_risk for y in window)
-    fail = sum(y.likely_failure for y in window)
-    span = f"{min(y.year for y in window)}-{last}"
+    n, undet = w.n, w.undetermined
+    det, risk, fail = w.detectable, w.at_risk, w.likely_failure
+    span = f"{w.first}-{w.last}"
     if n < rules.min_genomes_for_verdict:
         return Verdict.INCOMPLETE, [
             f"Too few recent genomes to judge: {n} with the target region released {span} "
@@ -726,29 +726,28 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
         f"tolerated), {100.0 * (det + risk) / n:.1f}% including at risk, "
         f"{100.0 * fail / n:.1f}% likely failure, of {n} genomes with the target region "
         f"(undetermined, not counted: {undet}). The per-oligo and per-year figures are "
-        "diagnostics; the verdict uses the whole fragment over this window."
+        "diagnostics; the status uses the whole fragment over this window."
     ]
     if pct < rules.fail_below_percent:
-        verdict = Verdict.FAIL
+        verdict, why = Verdict.FAIL, f" (below {rules.fail_below_percent:g}%)"
     elif pct < rules.warn_below_percent:
-        verdict = Verdict.WARN
+        verdict, why = Verdict.WARN, f" (below {rules.warn_below_percent:g}%)"
     else:
-        verdict = Verdict.PASS
-    lines[0] += f" Verdict {verdict.value}" + (
-        f" (below {rules.warn_below_percent:g}%)." if verdict is not Verdict.PASS else "."
-    )
-    if verdict is Verdict.FAIL:  # a single low year cannot make the verdict worse
-        return verdict, lines
-    for y in years:
-        n_y = y.with_region - y.undetermined
-        if n_y >= rules.min_genomes_per_year:
-            p_y = 100.0 * y.detectable / n_y
-            if p_y < rules.fail_below_percent:
-                lines.append(
-                    f"Release year {y.year} on its own: {p_y:.1f}% detectable of {n_y} genomes, "
-                    f"below the FAIL limit ({rules.fail_below_percent:g}%); at least WARN."
-                )
-                verdict = Verdict.WARN
+        verdict, why = Verdict.PASS, ""
+    if verdict is Verdict.PASS:  # only a year inside the window, and only when it changes things
+        for y in w.years:
+            n_y = y.with_region - y.undetermined
+            if n_y >= rules.min_genomes_per_year:
+                p_y = 100.0 * y.detectable / n_y
+                if p_y < rules.fail_below_percent:
+                    lines.append(
+                        f"Release year {y.year} on its own: {p_y:.1f}% detectable of {n_y} "
+                        f"genomes, below the limit of {rules.fail_below_percent:g}% "
+                        "(fail_below_percent)."
+                    )
+                    verdict, why = Verdict.WARN, " (a single release year below the limit)"
+    # written last, so the sentence always names the status the section ends with
+    lines[0] += f" Status: {STATUS_LABEL[verdict]}{why}."
     return verdict, lines
 
 

@@ -1,0 +1,63 @@
+# Example assay: Legionella genus + L. pneumophila, one primer pair (one fragment) and two probes:
+# a genus probe (every Legionella species that causes human disease) and an L. pneumophila probe.
+#
+# STATUS: DRAFT, NOT RUNNABLE YET
+#   The primer, probe and reference-fragment sequences are placeholders ("TODO..."), so
+#   'qpcr-assay-check validate' rejects this file on purpose. Fill them in from the laboratory's
+#   own documents; nothing here was invented.
+#
+# PROVENANCE
+#   Assay described by the user (2026-09-27): one primer pair, a genus probe and an
+#   L. pneumophila probe. Sequences, reporters, target gene and source publication or kit not yet
+#   supplied.
+#
+# WHAT WAS CHECKED (2026-09-27, NCBI Taxonomy via E-utilities, live)
+#   * Legionellaceae = taxid 444; genus Legionella = 445; L. pneumophila = 446; order
+#     Legionellales = 118969; its only other family is Coxiellaceae = 118968.
+#   * NCBI Taxonomy files some human-pathogenic Legionella species under separate genera of the
+#     family: L. dumoffii (463) and L. gormanii (464) sit under Fluoribacter (461); a third genus,
+#     Tatlockia (465), is also in the family. L. micdadei (451), L. bozemanae (447),
+#     L. longbeachae (450) and L. anisa (28082) sit under Legionella (445). So the target is the
+#     FAMILY (444), not the genus (445): with 445, L. dumoffii and L. gormanii would be left out of
+#     inclusivity and would not be searched at all.
+#   * Closest relatives outside the family (exclusivity): the Coxiellaceae genera with cultured
+#     members and sequence data at NCBI: Coxiella (C. burnetii, taxid 777), Rickettsiella (59195;
+#     NCBI resolves "Diplorickettsia" to it) and Aquicella (254245). The Coxiellaceae genera named
+#     "Candidatus ..." (Aquirickettsiella, Ovatibacter, Pokemonas, ...) are left out: they are
+#     endosymbionts of arthropods and amoebae with little sequence data and no clinical relevance.
+#
+# TWO PROBES, TWO TARGETS
+#   The tool has one intended target per assay file. Here that target is the family (the genus
+#   probe's target). Probes with different reporters are different channels; with the default
+#   variants.probe_channels: any, a genome counts as detected when either channel detects it. So
+#   this file answers "does the genus channel still detect every Legionella?". It does not judge
+#   whether the L. pneumophila probe still detects every L. pneumophila, and whether it stays
+#   silent on the other species. That needs a second file with the same primers, only the
+#   pneumophila probe, target taxid 446, and the other Legionella species as exclusivity
+#   organisms (a product there is expected; the question is whether the probe would detect it).
+
+assay_name: Legionella genus + L. pneumophila
+forward: {name: LEG-F, sequence: TODO-forward-primer}          # placeholder: fill in
+reverse: {name: LEG-R, sequence: TODO-reverse-primer}          # placeholder: fill in
+probe:
+  # reporters must differ for two channels (e.g. the laboratory's own dyes); fill in
+  - {name: LEG-P-genus, sequence: TODO-genus-probe, reporter: null, modifications: []}
+  - {name: LEG-P-pneumophila, sequence: TODO-pneumophila-probe, reporter: null, modifications: []}
+template_type: DNA
+target:
+  taxid: 444                     # Legionellaceae (includes Fluoribacter and Tatlockia, see above)
+reference_amplicons:             # the fragment between and including both primers; fill in
+  - {name: LEG-fragment, sequence: TODO-reference-fragment}
+exclusivity_organisms:           # closest relatives outside the family (order Legionellales)
+  - Coxiella burnetii
+  - Rickettsiella
+  - Aquicella
+oligo_source: ""                 # publication, kit insert or in-house: fill in
+
+settings:                        # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60         # check against this assay's cycling protocol
+  search:
+    background_taxids: [9606]    # human background search
+  variants:
+    source: datasets             # bacteria: every genome assembly

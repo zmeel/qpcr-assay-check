@@ -9,10 +9,12 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from ..config import Config
 from ..history.models import HistoryResult
 from ..results import RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
-from .grouping import fragment_outcome
+from ..verdict import STATUS_LABEL
+from .grouping import fragment_outcome, spec_overview
 from .ncbi_links import accession_url, taxon_url
 
 _FILL = {
@@ -21,6 +23,12 @@ _FILL = {
     "FAIL": "F4CFCF",
     "INFO": "E6EAEE",
     "INCOMPLETE": "D9DFE8",
+    # review status labels (report summary, 2026-09-27); "No flags" neutral, as in the report
+    "No flags": "E6EAEE",
+    "Review": "FBE7C0",
+    "Exceeds limit": "F4CFCF",
+    "Incomplete": "D9DFE8",
+    "Not assessed": "D9DFE8",
 }
 
 
@@ -80,8 +88,8 @@ def _history_rows(hist: HistoryResult) -> list[list[object]]:
     ]
     for sc in hist.section_changes:
         if sc.changed:
-            before = sc.verdict_before.value if sc.verdict_before else ""
-            after = sc.verdict_after.value if sc.verdict_after else ""
+            before = STATUS_LABEL[sc.verdict_before] if sc.verdict_before else "not assessed"
+            after = STATUS_LABEL[sc.verdict_after] if sc.verdict_after else "not assessed"
             rows.append(["section", sc.title, "", before, after])
     for s in hist.new_sites:
         where = f"{s.role} {s.accession}:{s.subject_start}-{s.subject_end}"
@@ -115,8 +123,17 @@ def _history_rows(hist: HistoryResult) -> list[list[object]]:
     return rows
 
 
-def write_workbook(result: RunResult, path: Path) -> None:
-    """Write summary, inputs, QC checks, structures, and section states."""
+def _section_status(result: RunResult, section: Any) -> str:
+    """A section's status as the report names it (baseline / not comparable for history)."""
+    h = result.history
+    if section.key == "history" and h is not None and (not h.has_previous or h.inputs_changed):
+        return "Baseline" if not h.has_previous else "Not comparable"
+    return STATUS_LABEL[section.verdict] if section.verdict else "Not assessed"
+
+
+def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> None:
+    """Write summary, inputs, QC checks, structures, and section states; with ``cfg``, also the
+    "What was checked" table of the report (sheet "Checks")."""
     wb = Workbook()
     wb.remove(wb.active)
     a = result.assay
@@ -126,7 +143,7 @@ def write_workbook(result: RunResult, path: Path) -> None:
         ["Item", "Value"],
         [
             ["Assay", a.assay_name],
-            ["Overall verdict", result.overall.verdict.value],
+            ["Review status", STATUS_LABEL[result.overall.verdict]],
             ["Mode", result.mode],
             ["Run ID", result.run_id],
             ["Generated (UTC)", result.generated_at],
@@ -444,8 +461,26 @@ def write_workbook(result: RunResult, path: Path) -> None:
     _sheet(
         wb,
         "Sections",
-        ["Section", "State", "Verdict", "Note"],
-        [[s.title, s.state, s.verdict.value if s.verdict else "", s.note] for s in result.sections],
-        None,
+        ["Section", "State", "Status", "Note"],
+        [[s.title, s.state, _section_status(result, s), s.note] for s in result.sections],
+        2,
     )
+    if cfg is not None:
+        from .html import _search_rows  # the report's own grouping of the searches
+        from .summary import summary_rows
+
+        spec = result.specificity
+        overview = spec_overview(spec, a, _search_rows(spec)) if spec is not None else []
+        _sheet(
+            wb,
+            "Checks",
+            ["What was checked", "Scope", "Result", "Compared with the previous run", "Status",
+             "Why"],
+            [
+                [r.check, r.scope, r.result, r.compared, r.label, r.reason]
+                for r in summary_rows(result, cfg, overview)
+            ],
+            4,
+        )  # fmt: skip
+    _sheet(wb, "Findings", ["Finding"], [[line] for line in result.overall.rationale], None)
     wb.save(path)

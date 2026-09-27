@@ -7,6 +7,36 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Summary instead of an overall verdict** (user decision 2026-09-27, advisor subagent): the tool
+  re-checks an assay in use and does not pass or fail it. The report opens with "Summary of this
+  year's check": a table per thing checked (oligo design, each off-target tier, target detection
+  over the summary window, coverage of the target, comparison with the previous run) with scope,
+  result in numbers, comparison with the previous run and a status (no flags, review, exceeds
+  limit, incomplete / not assessed), the findings behind it folded, and a reviewer's decision box.
+  The verdict word, its bullet list and the "Sections evaluated" table are gone.
+- Status names everywhere in the report and workbook: no flags / review / exceeds limit /
+  incomplete; oligo QC checks are within / outside the preferred range / outside the limit.
+  `results.json` keeps the internal codes (`verdict`) for comparison with earlier records and adds
+  `overall.review_status`; exit codes unchanged (0/10/20/30), documented as flag levels.
+- A first run is the baseline year and a run whose assay or configuration changed is "not
+  comparable": neither holds up the review status any more (before: a first run was INCOMPLETE).
+- Workbook: sheets "Checks" (the summary table) and "Findings"; "Review status" in "Summary".
+- Oligo QC rules in the same words: "preferred 18–30 nt; limit 15–40 nt", "outside preferred at 5
+  nt or more; outside the limit at 7 nt or more" (was PASS/WARN/FAIL). "No flags" is drawn in
+  neutral grey, not in "passed" green.
+
+### Fixed
+- Summary table (code review): every required section's status is shown by a row, so the table
+  can no longer read "No flags" while the status line does not (a specificity finding that
+  belongs to no search tier, an organism list that was not searched). Target detection is
+  Incomplete while not every listed genome has been assessed (per-run budget), unless already
+  below the FAIL limit. With a changed assay or configuration the comparison stays out of the
+  findings, and the workbook shows it as "Not comparable" (a first run as "Baseline"). Status
+  cells in the workbook are coloured. Remaining PASS/WARN/FAIL wording removed from the terminal
+  output, the QC section note, the structure findings and the user guide.
+- Whole-fragment inclusivity status (code review): the summary sentence was finished before a
+  single low year could raise the status, so it could say PASS above a WARN; it now names the
+  final status. Years outside the window could raise the status; only window years count now.
 - **Inclusivity verdict on the whole fragment** (exhaustive analysis; advisor's advice, user
   decision 2026-09-26): the genome outcome of the three sites together, pooled over the last
   `verdict_window_years` (3) complete release years plus the current year, undetermined left out

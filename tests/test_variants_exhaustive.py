@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 
 from qpcr_assay_check.config import load_config
 from qpcr_assay_check.errors import InputError
+from qpcr_assay_check.inclusivity.models import fragment_window
 from qpcr_assay_check.ncbi.http import NcbiHttp
 from qpcr_assay_check.ncbi.settings import Credentials
 from qpcr_assay_check.oligo import iupac
@@ -20,6 +21,7 @@ from qpcr_assay_check.variants.datasets import DatasetsClient
 from qpcr_assay_check.variants.exhaustive import reference_amplicon, run_exhaustive
 from qpcr_assay_check.variants.locate import find_loci, find_masked, find_masked_by_context
 from qpcr_assay_check.variants.store import RegionStore
+from qpcr_assay_check.verdict import STATUS_LABEL, Verdict
 
 from .conftest import CDC_N1_F as F
 from .conftest import CDC_N1_P as P
@@ -502,13 +504,23 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    i = html.index("<h2>Inclusivity across")
+    i = html.index('<h2 id="inclusivity">Inclusivity across')
     assert html.index("<h3>Whole fragment (forward + probe + reverse combined)</h3>", i) < (
         html.index("<h3>Forward</h3>", i)
     )
     # the window row uses the verdict's base (undetermined left out), so the numbers agree
-    assert "Verdict window " in html and "verdict window</span>" in html
-    assert "the same base as the verdict" in html
+    assert "Summary window " in html and "summary window</span>" in html
+    assert "the same base as the summary" in html
+    # the summary row gives the same figure as the inclusivity rationale
+    from qpcr_assay_check.report.summary import summary_rows
+
+    (row,) = [x for x in summary_rows(result, cfg, []) if x.check.startswith("Target detection")]
+    w = fragment_window(result.inclusivity.fragment_years, cfg.inclusivity.verdict_window_years)
+    assert row.result.startswith(f"{w.percent:.1f}% detectable")
+    assert f"{w.n:,} genomes released {w.first}–{w.last}" in row.scope
+    # 3 genomes only: too few to judge, and the row says why
+    assert row.label == STATUS_LABEL[result.inclusivity.verdict] == "Incomplete"
+    assert row.reason.startswith("Too few recent genomes")
 
 
 def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():
@@ -517,7 +529,6 @@ def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():
     year below the FAIL limit gives at least WARN; small years do not decide."""
     from qpcr_assay_check.inclusivity.models import FragmentYear
     from qpcr_assay_check.variants.exhaustive import fragment_verdict
-    from qpcr_assay_check.verdict import Verdict
 
     rules = load_config().inclusivity
 
@@ -540,3 +551,31 @@ def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():
     drop = [year(y, 400) for y in range(2023, 2026)] + [year(2026, 20, fail=30)]
     verdict, lines = fragment_verdict(drop, rules)
     assert verdict is Verdict.WARN and any("Release year 2026 on its own" in x for x in lines)
+    # the summary sentence names the status the section ends with (review 2026-09-27)
+    assert "Status: Review (a single release year" in lines[0] and "No flags" not in lines[0]
+    # a low year outside the window does not count (review 2026-09-27)
+    old_low = [year(2016, 50, fail=150)] + [year(y, 300) for y in range(2023, 2027)]
+    verdict, lines = fragment_verdict(old_low, rules)
+    assert verdict is Verdict.PASS and len(lines) == 1 and "Status: No flags." in lines[0]
+    # a pooled FAIL stays FAIL, without per-year lines
+    low = [year(y, 50, fail=50) for y in range(2023, 2027)]
+    verdict, lines = fragment_verdict(low, rules)
+    assert verdict is Verdict.FAIL and len(lines) == 1 and "Status: Exceeds limit" in lines[0]
+
+
+def test_unfinished_coverage_keeps_inclusivity_incomplete(tmp_path):
+    """Code review 2026-09-27: while genomes are still waiting for the next run (per-run budget),
+    target detection is Incomplete, never "no flags" (a figure below the FAIL limit stays FAIL)."""
+    cfg, fake, client, assay = setup(tmp_path, budget=2)
+    cfg.inclusivity.min_genomes_for_verdict = 1
+    cfg.inclusivity.fail_below_percent = 0.0
+    cfg.inclusivity.warn_below_percent = 0.0
+    res = run(tmp_path, cfg, client, assay)
+    assert not res.coverage.complete and res.inclusivity.verdict is Verdict.PASS
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    assert result.inclusivity.verdict is Verdict.INCOMPLETE
+    assert "not assessed yet" in result.inclusivity.rationale[-1]

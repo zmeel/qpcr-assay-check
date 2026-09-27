@@ -1,7 +1,14 @@
-"""Overall verdict and process exit codes.
+"""Review status (flag level) and process exit codes.
 
-The rule that matters most: **evidence that is missing never counts as a PASS.** A required
-analysis that was not run yields INCOMPLETE, not PASS. Precedence: FAIL > INCOMPLETE > WARN > PASS.
+The tool re-checks an assay that is in use; it does not pass or fail the assay (user decision
+2026-09-27, advisor subagent). Each section gets a flag level, shown in the report and workbook as
+a review status: no flags, review (a warning limit you configured was crossed), exceeds limit (a
+FAIL limit was crossed), or incomplete. The laboratory decides what to do.
+
+The rule that matters most: **evidence that is missing never counts as "no flags".** A required
+analysis that was not run yields INCOMPLETE. Precedence: FAIL > INCOMPLETE > WARN > PASS. The
+internal codes (PASS/WARN/FAIL/INCOMPLETE) stay in ``results.json`` so that earlier records can
+still be compared.
 """
 
 from __future__ import annotations
@@ -13,7 +20,7 @@ from .models import Status
 
 
 class Verdict(StrEnum):
-    """Verdict of a section or of the whole evaluation."""
+    """Flag level of a section or of the whole evaluation (see the module docstring)."""
 
     PASS = "PASS"
     WARN = "WARN"
@@ -28,6 +35,20 @@ EXIT_CODES: dict[Verdict, int] = {
     Verdict.INCOMPLETE: 30,
 }
 EXIT_INPUT_ERROR = 64
+
+# How a flag level is named for people (report, workbook) and in results.json's review_status.
+STATUS_LABEL: dict[Verdict, str] = {
+    Verdict.PASS: "No flags",
+    Verdict.WARN: "Review",
+    Verdict.FAIL: "Exceeds limit",
+    Verdict.INCOMPLETE: "Incomplete",
+}
+REVIEW_STATUS: dict[Verdict, str] = {
+    Verdict.PASS: "no_flags",
+    Verdict.WARN: "review",
+    Verdict.FAIL: "exceeds_limit",
+    Verdict.INCOMPLETE: "incomplete_evidence",
+}
 EXIT_NCBI_ERROR = 70  # reserved for the NCBI client (v0.2.0): the run can be resumed
 
 _FROM_STATUS = {

@@ -36,9 +36,15 @@ def test_report_is_a_timestamped_version_stamped_record(n1):
 
 def test_full_run_report_says_incomplete_is_not_a_pass(n1):
     html = render(n1, qc_only=False)
-    assert 'class="word">INCOMPLETE<' in html
-    assert "not a pass" in html
-    assert "Not evaluated" in html
+    # no verdict word: a summary table with a status per check (user, 2026-09-27)
+    assert '<span class="chip s-INCOMPLETE status-INCOMPLETE">Incomplete</span>' in html
+    # QC rules in the report's own words, and "No flags" drawn neutral, not as "passed"
+    assert "preferred 18–30 nt; limit 15–40 nt" in html and "PASS 18" not in html
+    assert ".chip.status-PASS { background: var(--info-bg)" in html
+    assert "it is not a pass or fail of the assay" in html
+    assert "never counts as no flags" in html and "Not assessed" in html
+    assert "Not evaluated" in html  # the findings behind the summary
+    assert "Reviewer's decision" in html and "Overall verdict" not in html
 
 
 def test_user_supplied_text_is_html_escaped():
@@ -72,9 +78,11 @@ def test_report_with_charts_is_self_contained(n1):
     assert len(html.encode()) < 500_000
     parser = _RefCollector()
     parser.feed(html)
-    # only plain links to NCBI record pages, which load nothing until clicked
+    # only plain links to NCBI record pages, which load nothing until clicked, and to sections
     assert all(
-        tag == "a" and key == "href" and value.startswith("https://www.ncbi.nlm.nih.gov/")
+        tag == "a"
+        and key == "href"
+        and (value.startswith("https://www.ncbi.nlm.nih.gov/") or value.startswith("#"))
         for tag, key, value in parser.refs
     ), parser.refs
     assert "<link " not in html
@@ -94,12 +102,16 @@ def test_workbook_has_expected_sheets(n1, tmp_path):
     cfg = load_config()
     result = evaluate(n1, cfg, qc_only=True, now=NOW)
     path = tmp_path / "r.xlsx"
-    write_workbook(result, path)
+    write_workbook(result, path, cfg)
     wb = load_workbook(path)
-    assert wb.sheetnames == ["Summary", "Inputs", "Oligo QC", "Structures", "Sections"]
+    assert wb.sheetnames == [
+        "Summary", "Inputs", "Oligo QC", "Structures", "Sections", "Checks", "Findings"
+    ]  # fmt: skip
+    checks = [row[0].value for row in wb["Checks"].iter_rows(min_row=2)]
+    assert checks == ["Oligo design (Tm, GC, runs, hairpins, dimers)"]  # --qc-only
     summary = {row[0].value: row[1].value for row in wb["Summary"].iter_rows(min_row=2)}
     assert summary["Assay"] == "CDC N1"
-    assert summary["Overall verdict"] == "WARN"
+    assert summary["Review status"] == "Review"
     assert wb["Oligo QC"].max_row == len(result.oligo_qc.checks) + 1
 
 
@@ -107,7 +119,7 @@ def test_oligo_quality_control_is_collapsed_just_before_methods(n1):
     """User 2026-09-25: the oligo checks do not change between runs and matter mainly when
     designing the PCR, so they sit folded near the end."""
     html = render(n1)
-    qc = html.index("<h2>Oligo quality control</h2>")
+    qc = html.index('<h2 id="oligo-qc">Oligo quality control</h2>')
     assert qc < html.index("<h2>Methods</h2>") and html.index("<h2>Assay as evaluated</h2>") < qc
     assert '<details class="qc">' in html[qc:] and "<h3>Hairpins and dimers</h3>" in html
     assert "<h2>Hairpins and dimers</h2>" not in html

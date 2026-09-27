@@ -12,11 +12,11 @@ after" (which would need this section's own verdict to exist first).
 from __future__ import annotations
 
 from ..inclusivity.aggregate import detectable_percent
-from ..inclusivity.models import InclusivityResult, WindowStats
+from ..inclusivity.models import InclusivityResult, WindowStats, fragment_window
 from ..results import RunResult
 from ..specificity.models import AmpliconResult, SiteResult
 from ..specificity.variants import VariantRow, VariantSummary
-from ..verdict import Verdict
+from ..verdict import STATUS_LABEL, Verdict
 from .models import (
     AmpliconChange,
     HistoryResult,
@@ -176,6 +176,14 @@ def _variant_changes(
     return out, True, ""
 
 
+def _window_percent(inclusivity: InclusivityResult | None, window_years: int) -> float | None:
+    """Detectable % of the whole fragment over the verdict window, as the previous run had it."""
+    if inclusivity is None or not inclusivity.fragment_years:
+        return None
+    w = fragment_window(inclusivity.fragment_years, window_years)
+    return w.percent if w is not None else None
+
+
 def _rationale(
     h: HistoryResult, section_changes: list[SectionChange], previous_generated_at: str
 ) -> list[str]:
@@ -187,9 +195,9 @@ def _rationale(
         )
     for sc in section_changes:
         if sc.changed:
-            before = sc.verdict_before.value if sc.verdict_before else "not evaluated"
-            after = sc.verdict_after.value if sc.verdict_after else "not evaluated"
-            lines.append(f"{sc.title}: {before} -> {after}.")
+            before = STATUS_LABEL[sc.verdict_before] if sc.verdict_before else "not assessed"
+            after = STATUS_LABEL[sc.verdict_after] if sc.verdict_after else "not assessed"
+            lines.append(f"{sc.title}: {before} → {after}.")
     if h.new_sites:
         lines.append(f"{len(h.new_sites)} new off-target site(s) since the previous run.")
     if h.resolved_sites:
@@ -245,13 +253,18 @@ def compute_history(
     amplicons: list[AmpliconResult],
     inclusivity: InclusivityResult | None,
     variant_summary: VariantSummary | None = None,
+    window_years: int = 3,
 ) -> HistoryResult:
-    """Diff this run's already-computed sections/evidence against the previous run, if any."""
+    """Diff this run's already-computed sections/evidence against the previous run, if any.
+
+    A first run is the baseline year: nothing to compare, and no flag (user, 2026-09-27)."""
     if previous is None:
         return HistoryResult(
             has_previous=False,
-            verdict=Verdict.INCOMPLETE,
-            rationale=["First run for this assay: no previous run was found to compare against."],
+            verdict=Verdict.PASS,
+            rationale=[
+                "First run for this assay: this run is the baseline for next year's comparison."
+            ],
         )
 
     prev_section_verdicts = {s.key: s.verdict for s in previous.sections}
@@ -334,6 +347,7 @@ def compute_history(
         variants_note=variants_note,
         verdict=Verdict.WARN if regressed else Verdict.PASS,
         rationale=[],
+        window_percent_before=_window_percent(previous.inclusivity, window_years),
     )
     h.rationale = _rationale(h, section_changes, previous.generated_at)
     return h

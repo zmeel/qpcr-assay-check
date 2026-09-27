@@ -79,11 +79,11 @@ qpcr-assay-check init my-assay --example
 # check the input files without running anything
 qpcr-assay-check validate my-assay/assay.yaml
 
-# oligo QC only, no network use (verdict covers QC alone; exit code 10 = WARN)
+# oligo QC only, no network use (the status covers QC alone; exit code 10 = review)
 qpcr-assay-check run my-assay/assay.yaml --qc-only -o results
 
-# a full run: sends the oligos to NCBI, asks first (still INCOMPLETE overall until
-# yearly history exists, v1.0.0)
+# a full run: sends the oligos to NCBI, asks first (the first run is the baseline year
+# for the comparison with next year's run)
 qpcr-assay-check run my-assay/assay.yaml -o results
 
 # show exactly what a full run would send, without sending anything or needing credentials
@@ -132,8 +132,8 @@ Behaviour worth knowing:
   (7), so next year's run never receives this year's answer. Fetched sequence windows are cached
   without expiry, keyed on accession and coordinates, because a published record's sequence does
   not change.
-- Exit codes for `run`: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input, 70 NCBI problem
-  (resumable).
+- Exit codes for `run` follow the review status: 0 no flags, 10 review, 20 exceeds limit, 30
+  incomplete, 64 invalid input, 70 NCBI problem (resumable).
 
 For just the raw BLAST hits without assessment (e.g. to inspect what a search alone returns), the
 lower-level `search` command still exists and writes `results/<assay>/search-<hash>/hits.tsv` and
@@ -266,15 +266,18 @@ finding.
 
 ### Inclusivity across the intended target (v0.4.0)
 
-**Verdict with the exhaustive analysis (since 1.4.x):** the whole-fragment genome outcome (the
+**Status with the exhaustive analysis (since 1.4.x):** the whole-fragment genome outcome (the
 three best-copy sites together: detectable = all perfect or tolerated, primer-pair rule,
 homopolymer setting and laboratory evidence included), pooled over the last
 `inclusivity.verdict_window_years` (default 3) complete release years plus the current year.
 Undetermined genomes are left out of the denominator and counted next to it; at risk counts as
 not detected (the report also gives the figure including at risk). Below `warn_below_percent`
 WARN, below `fail_below_percent` FAIL; fewer than `min_genomes_for_verdict` (100) genomes in the
-window INCOMPLETE; a single year with at least `min_genomes_per_year` (30) genomes below the FAIL
-limit gives at least WARN when the pooled figure passes ("release year <year> on its own"). The per-oligo and per-year tables are diagnostics.
+window INCOMPLETE. When the pooled figure has no flags, a single year inside the window with at
+least `min_genomes_per_year` (30) genomes below the FAIL limit gives Review (WARN; "release year
+<year> on its own"); years outside the window never decide. The per-oligo and per-year tables are
+diagnostics. While not every genome listed by NCBI has been assessed yet (the per-run budget),
+the status is Incomplete, unless the figure is already below the FAIL limit.
 With the sampled source (`blast_hits`) the worst oligo and year still decide, as described below.
 
 A full `run` also gives a year-by-year trend of how well the oligos still match the intended
@@ -300,14 +303,15 @@ Every full `run` looks for the most recently generated `results.json` under the 
 directory and assay name (`<outdir>/<assay-slug>/*/results.json`, sorted by the record's own
 `generated_at`) and diffs the current evaluation against it: no separate index or database, just
 the same per-run directories every version has already written. The report gets a "Changes since
-the previous run" section: which section verdicts changed, which off-target sites or predicted
+the previous run" section: which section statuses changed, which off-target sites or predicted
 products are new or have disappeared, and how the inclusivity trend moved — matched across runs by
 accession and position (not by the run-local site ID, which is only ever stable within one run).
 
-The first run for a new assay has nothing to compare against, so this section is honestly
-`INCOMPLETE` rather than silently skipped — the same "missing evidence is never a PASS" rule
-applied everywhere else in this tool. From the second run onward it is a real `PASS` (nothing
-concerning changed) or `WARN` (a section got worse, a new critical/warning site or predicted
+The first run for a new assay has nothing to compare against: it is the baseline year, shown
+as such, and it does not hold up the review status (user decision, 2026-09-27). When the assay
+definition or configuration changed since the previous run the comparison is shown but marked
+"not comparable", and it does not change the review status either. Otherwise the comparison
+has no flags (nothing concerning changed) or `Review` (WARN) (a section got worse, a new critical/warning site or predicted
 product appeared, or inclusivity regressed for some oligo/year) — never `FAIL` by itself, since a
 regression that is bad enough to fail the run already fails the specific section it belongs to
 (specificity, exclusivity, inclusivity); "history" only flags that something changed and is worth a
@@ -547,17 +551,26 @@ that came from the assay file, and a change to them counts as an assay change in
 (run budgets such as `max_assemblies_per_run` excepted). So one file per assay:
 `qpcr-assay-check run my_assay.yaml --yes`.
 
-## Verdicts and exit codes
+## Review status and exit codes
 
-| Verdict | Exit code | Meaning |
-|---|---|---|
-| PASS | 0 | Every evaluated check passed **and** every required analysis was run |
-| WARN | 10 | No failure, at least one warning |
-| FAIL | 20 | At least one check failed |
-| INCOMPLETE | 30 | A required analysis was not evaluated; not a pass |
-| (invalid input) | 64 | The assay or configuration file is invalid |
+The tool re-checks an assay that is already in use; it does not pass or fail the assay. The report
+opens with a summary table: per thing checked its scope, the result in numbers, the comparison
+with the previous run and a status, followed by a box for the reviewer's decision (no action,
+monitor, wet-lab check, redesign; filled in by the laboratory, never by the tool).
 
-Precedence: FAIL > INCOMPLETE > WARN > PASS. Missing evidence never counts as a PASS.
+| Status | Code in results.json | Exit code | Meaning |
+|---|---|---|---|
+| No flags | PASS (`review_status` no_flags) | 0 | No limit crossed **and** every required analysis was run |
+| Review | WARN (review) | 10 | A review (WARN) limit you configured was crossed |
+| Exceeds limit | FAIL (exceeds_limit) | 20 | A FAIL limit you configured was crossed |
+| Incomplete | INCOMPLETE (incomplete_evidence) | 30 | A required analysis was not evaluated |
+| (invalid input) | | 64 | The assay or configuration file is invalid |
+
+Precedence: exceeds limit > incomplete > review > no flags. Missing evidence never counts as "no
+flags". `results.json` keeps the internal codes (`verdict`, PASS/WARN/FAIL/INCOMPLETE) so that
+records written by earlier versions can still be compared, plus the readable `review_status`.
+In the oligo QC tables a check is *within*, *outside the preferred range* (WARN) or *outside the
+limit* (FAIL).
 
 ## NCBI access
 
@@ -703,10 +716,10 @@ pruning logic changes, rather than treating this one result as permanent proof.
   target-tier BLAST search's own hit list (capped) returned for that year, so a well-sequenced
   target can under- or over-represent some years depending on BLAST's own ranking. Reported
   honestly: `population_size` (an independent ESearch count) is always shown next to `sample_size`.
-- **A first run for any assay always ends `INCOMPLETE` overall**, even when every other section
-  passes: the new "history" section has no previous run to compare against yet, and missing
-  evidence is never a PASS. From the second run onward for that same assay (same output directory,
-  same assay name) it becomes a real comparison.
+- **A first run for an assay is the baseline year**: there is no previous run to compare against,
+  and the comparison does not hold up the review status (since 2026-09-27; before, a first run
+  always ended INCOMPLETE). From the second run onward for that same assay (same output
+  directory, same assay name) it becomes a real comparison.
 - **The previous run is found by assay slug, not by assay content**: renaming an assay (which
   changes its filesystem-safe slug) starts its history over with nothing to compare against, even
   if the oligos themselves did not change. Off-target sites and predicted products are matched

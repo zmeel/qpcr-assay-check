@@ -16,7 +16,7 @@ from .config import Config, default_config_text, format_validation_error, load_c
 from .errors import InputError, QpcrAssayCheckError
 from .models import Assay
 from .pipeline import evaluate, write_outputs
-from .verdict import EXIT_CODES, EXIT_INPUT_ERROR, EXIT_NCBI_ERROR, Verdict
+from .verdict import EXIT_CODES, EXIT_INPUT_ERROR, EXIT_NCBI_ERROR, STATUS_LABEL, Verdict
 
 app = typer.Typer(
     name="qpcr-assay-check",
@@ -123,7 +123,8 @@ def run(
         "results"
     ),
     qc_only: Annotated[
-        bool, typer.Option("--qc-only", help="Only oligo QC; the verdict then covers QC alone.")
+        bool,
+        typer.Option("--qc-only", help="Only oligo QC; the review status then covers QC alone."),
     ] = False,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Show what would be sent to NCBI; send nothing.")
@@ -163,8 +164,9 @@ def run(
     Without --qc-only this runs the tiered remote BLAST searches (the oligo sequences are sent to
     NCBI; you are asked first), re-aligns the hits over the full oligo length, predicts products
     and judges specificity. Interrupted runs resume when you run the same command again.
-    Command-line options override values in the assay file. The exit code reflects the
-    verdict: 0 PASS, 10 WARN, 20 FAIL, 30 INCOMPLETE, 64 invalid input, 70 NCBI problem.
+    Command-line options override values in the assay file. The exit code gives the review
+    status (flags raised, not a pass or fail of the assay): 0 no flags, 10 review, 20 a limit
+    exceeded, 30 evidence incomplete, 64 invalid input, 70 NCBI problem.
     """
     _setup_logging(verbose)
     overrides: dict[str, Any] = {
@@ -204,7 +206,7 @@ def run(
         _fail(str(exc))
         return
 
-    typer.echo(f"Verdict: {result.overall.verdict.value}")
+    typer.echo(f"Review status: {STATUS_LABEL[result.overall.verdict]}")
     for line in result.overall.rationale:
         typer.echo(f"  - {line}")
     typer.echo(f"Record written to {run_dir}")

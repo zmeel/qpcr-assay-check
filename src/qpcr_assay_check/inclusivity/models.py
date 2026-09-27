@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from pydantic import BaseModel, Field
 
 from ..verdict import Verdict
@@ -60,6 +62,49 @@ class FragmentYear(BaseModel):
     likely_failure: int = 0
     undetermined: int = 0
     by_pair_rule: int = Field(default=0, description="likely failure decided by R8 alone")
+
+
+@dataclass(frozen=True)
+class FragmentWindow:
+    """The whole-fragment outcome pooled over the verdict window: the last ``window_years``
+    complete release years plus the most recent year with data."""
+
+    first: int
+    last: int
+    years: list[FragmentYear]
+    with_region: int
+    undetermined: int
+    detectable: int
+    at_risk: int
+    likely_failure: int
+
+    @property
+    def n(self) -> int:
+        """The base of the percentages: records with the region, undetermined left out."""
+        return self.with_region - self.undetermined
+
+    @property
+    def percent(self) -> float | None:
+        return 100.0 * self.detectable / self.n if self.n > 0 else None
+
+
+def fragment_window(years: list[FragmentYear], window_years: int) -> FragmentWindow | None:
+    """Pool the per-year whole-fragment outcome over the verdict window (None without data)."""
+    with_data = [y for y in years if y.with_region]
+    if not with_data:
+        return None
+    last = max(y.year for y in with_data)
+    window = [y for y in years if last - window_years <= y.year <= last]
+    return FragmentWindow(
+        first=min(y.year for y in window),
+        last=last,
+        years=window,
+        with_region=sum(y.with_region for y in window),
+        undetermined=sum(y.undetermined for y in window),
+        detectable=sum(y.detectable for y in window),
+        at_risk=sum(y.at_risk for y in window),
+        likely_failure=sum(y.likely_failure for y in window),
+    )
 
 
 class InclusivityResult(BaseModel):
