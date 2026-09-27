@@ -86,7 +86,7 @@ verified NCBI facts) at the start of every session. Newest entry first.
   preferred / outside limit, comparison "not comparable" when the assay or config changed, plus a
   reviewer's decision box. SPEC.md amended. Not yet seen on a live run. Code review of PR #22 /
   e6bc6db found two bugs in `fragment_verdict` (rationale says PASS before a year raises WARN;
-  years outside the window can raise WARN): not fixed yet, the user chose to do the summary first.
+  years outside the window can raise WARN): fixed afterwards on the user's request, with tests.
 
 ## 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
 

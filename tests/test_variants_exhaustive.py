@@ -552,3 +552,13 @@ def test_the_inclusivity_verdict_uses_the_whole_fragment_over_recent_years():
     drop = [year(y, 400) for y in range(2023, 2026)] + [year(2026, 20, fail=30)]
     verdict, lines = fragment_verdict(drop, rules)
     assert verdict is Verdict.WARN and any("Release year 2026 on its own" in x for x in lines)
+    # the summary sentence names the status the section ends with (review 2026-09-27)
+    assert "Status: Review (a single release year" in lines[0] and "No flags" not in lines[0]
+    # a low year outside the window does not count (review 2026-09-27)
+    old_low = [year(2016, 50, fail=150)] + [year(y, 300) for y in range(2023, 2027)]
+    verdict, lines = fragment_verdict(old_low, rules)
+    assert verdict is Verdict.PASS and len(lines) == 1 and "Status: No flags." in lines[0]
+    # a pooled FAIL stays FAIL, without per-year lines
+    low = [year(y, 50, fail=50) for y in range(2023, 2027)]
+    verdict, lines = fragment_verdict(low, rules)
+    assert verdict is Verdict.FAIL and len(lines) == 1 and "Status: Exceeds limit" in lines[0]

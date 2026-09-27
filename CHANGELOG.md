@@ -21,6 +21,11 @@ All notable changes to this project are documented here. The format follows
 - A first run is the baseline year and a run whose assay or configuration changed is "not
   comparable": neither holds up the review status any more (before: a first run was INCOMPLETE).
 - Workbook: sheets "Checks" (the summary table) and "Findings"; "Review status" in "Summary".
+
+### Fixed
+- Whole-fragment inclusivity status (code review): the summary sentence was finished before a
+  single low year could raise the status, so it could say PASS above a WARN; it now names the
+  final status. Years outside the window could raise the status; only window years count now.
 - **Inclusivity verdict on the whole fragment** (exhaustive analysis; advisor's advice, user
   decision 2026-09-26): the genome outcome of the three sites together, pooled over the last
   `verdict_window_years` (3) complete release years plus the current year, undetermined left out

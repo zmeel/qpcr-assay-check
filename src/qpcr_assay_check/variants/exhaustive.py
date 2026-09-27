@@ -41,7 +41,7 @@ from ..oligo import grade, iupac
 from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
-from ..verdict import Verdict
+from ..verdict import STATUS_LABEL, Verdict
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .locate import CONTEXT_NT, scan_region
 from .models import (
@@ -725,19 +725,28 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
         f"tolerated), {100.0 * (det + risk) / n:.1f}% including at risk, "
         f"{100.0 * fail / n:.1f}% likely failure, of {n} genomes with the target region "
         f"(undetermined, not counted: {undet}). The per-oligo and per-year figures are "
-        "diagnostics; the verdict uses the whole fragment over this window."
+        "diagnostics; the status uses the whole fragment over this window."
     ]
     if pct < rules.fail_below_percent:
-        verdict = Verdict.FAIL
+        verdict, why = Verdict.FAIL, f" (below {rules.fail_below_percent:g}%)"
     elif pct < rules.warn_below_percent:
-        verdict = Verdict.WARN
+        verdict, why = Verdict.WARN, f" (below {rules.warn_below_percent:g}%)"
     else:
-        verdict = Verdict.PASS
-    lines[0] += f" Verdict {verdict.value}" + (
-        f" (below {rules.warn_below_percent:g}%)." if verdict is not Verdict.PASS else "."
-    )
-    if verdict is Verdict.FAIL:  # a single low year cannot make the verdict worse
-        return verdict, lines
+        verdict, why = Verdict.PASS, ""
+    if verdict is Verdict.PASS:  # only a year inside the window, and only when it changes things
+        for y in w.years:
+            n_y = y.with_region - y.undetermined
+            if n_y >= rules.min_genomes_per_year:
+                p_y = 100.0 * y.detectable / n_y
+                if p_y < rules.fail_below_percent:
+                    lines.append(
+                        f"Release year {y.year} on its own: {p_y:.1f}% detectable of {n_y} "
+                        f"genomes, below the FAIL limit ({rules.fail_below_percent:g}%)."
+                    )
+                    verdict, why = Verdict.WARN, " (a single release year below the FAIL limit)"
+    # written last, so the sentence always names the status the section ends with
+    lines[0] += f" Status: {STATUS_LABEL[verdict]}{why}."
+    return verdict, lines
     for y in years:
         n_y = y.with_region - y.undetermined
         if n_y >= rules.min_genomes_per_year:

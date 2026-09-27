@@ -28,8 +28,8 @@ def _ticks(lo: float, hi: float) -> list[float]:
 
 
 def tm_chart(result: RunResult, cfg: Config) -> str | None:
-    """Bar chart of oligo Tm (range bars if degenerate) against the preferred primer Tm range and the
-    annealing temperature."""
+    """Bar chart of oligo Tm (range bars if degenerate) against the preferred primer Tm range
+    and the annealing temperature."""
     oligos = result.oligo_qc.oligos
     if not oligos:
         return None
