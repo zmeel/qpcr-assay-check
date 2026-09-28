@@ -358,7 +358,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb,
             "Fragment variants",
             ["Outcome", "Pair rule", "Forward", "Probe", "Reverse", "Classes (F/P/R)", "Count",
-             "Fraction (%)", "Mismatches (F/P/R)", "Types", "Example accession",
+             "Fraction (%)", "Mismatches (F/P/R)", "Types", "Assembly levels", "Example accession",
              "Example organism", "First release", "Last release"],
             [
                 [*fragment_outcome(f, bulges), f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln,
@@ -367,6 +367,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                  f"{f.forward.n_mismatch + f.forward.n_gap}/{f.probe.n_mismatch + f.probe.n_gap}/"
                  f"{f.reverse.n_mismatch + f.reverse.n_gap}",
                  "; ".join(f"{n} {c}" for n, c in f.organisms),
+                 "; ".join(f"{n} {c}" for n, c in f.levels),
                  f.example_accession, f.example_organism or "",
                  f.forward.first_seen or "", f.forward.last_seen or ""]
                 for f in vs.fragments
@@ -423,6 +424,10 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                        for ch in cc.channels],
                      ["Any channel", cc.probe_channels, cc.any_channel, "", ""],
                      ["All channels", "", cc.all_channels, "", ""],
+                     *[[f"Assembly level {lv.level}",
+                        "genomes / detectable / escapes / undetermined", lv.genomes,
+                        lv.detectable, f"{lv.escapes} escapes, {lv.undetermined} undetermined"]
+                       for lv in cc.by_level],
                      *_run_length_rows(cc.run_length)],
                     None,
                 )  # fmt: skip

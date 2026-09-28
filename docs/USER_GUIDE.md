@@ -276,7 +276,7 @@ WARN, below `fail_below_percent` FAIL; fewer than `min_genomes_for_verdict` (100
 window INCOMPLETE. When the pooled figure has no flags, a single year inside the window with at
 least `min_genomes_per_year` (30) genomes below the FAIL limit gives Review (WARN; "release year
 <year> on its own"); years outside the window never decide. The per-oligo and per-year tables are
-diagnostics. While not every genome listed by NCBI has been assessed yet (the per-run budget),
+diagnostics. The coverage section also gives detection per assembly level: for a multi-copy target, escapes that occur mainly in draft assemblies (Scaffold, Contig) and hardly in complete genomes point to repeat copies left unassembled rather than to the strain. While not every genome listed by NCBI has been assessed yet (the per-run budget),
 the status is Incomplete, unless the figure is already below the FAIL limit.
 With the sampled source (`blast_hits`) the worst oligo and year still decide, as described below.
 

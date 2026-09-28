@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Detection by assembly level** (advisor subagent, 2026-09-28): the coverage section gives
+  genomes, detectable (%), escapes and undetermined per assembly level (Complete Genome,
+  Chromosome, Scaffold, Contig), and every whole-fragment row the assembly levels of its genomes
+  (report and workbook). Reason: in the draft GCF_000156755.1 the opa genes of N. gonorrhoeae
+  sit in scaffold gaps (runs of N), so the tool judged the genome by the one divergent copy that
+  was assembled and counted it as an escape; the top "Needs attention" row (1,278 genomes) has
+  that combination. The breakdown shows whether such escapes occur in complete genomes too.
+
 ## [1.5.0] - 2026-09-27
 
 ### Changed

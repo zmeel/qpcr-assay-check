@@ -32,6 +32,24 @@ class ChannelCoverageRow(BaseModel):
     covered: int
 
 
+class LevelCoverage(BaseModel):
+    """Detection by assembly level (advisor subagent, 2026-09-28): a multi-copy target whose
+    copies are near-identical repeats can be left unassembled in draft genomes (e.g. the opa
+    genes of N. gonorrhoeae as N gaps), so escapes that occur only in drafts point to assembly."""
+
+    level: str
+    genomes: int = 0
+    detectable: int = 0
+    escapes: int = 0
+    undetermined: int = 0
+
+    @property
+    def percent(self) -> float | None:
+        """Detectable % of the genomes at this level, undetermined left out."""
+        base = self.genomes - self.undetermined
+        return 100.0 * self.detectable / base if base > 0 else None
+
+
 class RunLengthBreakdown(BaseModel):
     """How far to trust the homopolymer length variants (advisor subagent, 2026-09-26): run
     length is a known sequencing and assembly error mode, so the variants are broken down by
@@ -99,6 +117,9 @@ class CopyCoverage(BaseModel):
         default_factory=dict, description="per role: genomes whose best site is undetermined"
     )
     channels: list[ChannelCoverageRow] = Field(default_factory=list)
+    by_level: list[LevelCoverage] = Field(
+        default_factory=list, description="detection per assembly level, most genomes first"
+    )
     any_channel: int = 0
     all_channels: int = 0
     probe_channels: str = Field(

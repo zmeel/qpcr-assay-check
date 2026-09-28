@@ -108,6 +108,11 @@ class FragmentVariantRow(BaseModel):
     organisms: list[tuple[str, int]] = Field(
         default_factory=list, description="organism names of the records, most frequent first"
     )
+    levels: list[tuple[str, int]] = Field(
+        default_factory=list,
+        description="assembly levels of the genomes (exhaustive analysis of genome assemblies), "
+        "most frequent first",
+    )
 
 
 class VariantSummary(BaseModel):
@@ -248,6 +253,15 @@ def _closeness(s: SiteResult) -> tuple[int, int, int, int]:
     return measured, s.n_mismatch + s.n_gap, -s.clean_3prime_nt, int(s.id[1:])
 
 
+def _assembly_level(site: SiteResult) -> str:
+    """The assembly level the exhaustive analysis writes into a site's title:
+    "<contig> (<level>)"."""
+    title = site.title.rstrip()
+    if title.endswith(")") and "(" in title:
+        return title[title.rindex("(") + 1 : -1] or "unknown"
+    return "unknown"
+
+
 def build_variant_summary(
     target_sites: list[SiteResult],
     assay: Assay,
@@ -312,6 +326,8 @@ def build_variant_summary(
                 organisms=Counter(m[0].organism or "unknown" for m in members).most_common(),
             )
         )
+        if coverage is not None and coverage.source == "datasets":
+            fragments[-1].levels = Counter(_assembly_level(m[0]) for m in members).most_common()
     fragments.sort(key=lambda f: (-f.count, f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln))
 
     return VariantSummary(
