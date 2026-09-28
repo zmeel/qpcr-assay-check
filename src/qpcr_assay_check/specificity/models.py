@@ -60,6 +60,12 @@ class SiteResult(BaseModel):
     )
     grade_rule: str = ""
     grade_note: str = ""
+    channel_sites: list[SiteResult] = Field(
+        default_factory=list,
+        exclude=True,
+        description="probes in several reporter channels, exhaustive analysis: the best site of "
+        "each channel on the same copy, reporter order (not serialised)",
+    )
 
 
 class AmpliconResult(BaseModel):

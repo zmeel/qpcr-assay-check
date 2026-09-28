@@ -754,3 +754,154 @@ def test_the_unassembled_rule_agrees_across_every_view(tmp_path):
     states = member_states(items, calls)
     assert states["GCA_000000200"][0] is State.UNDETERMINED
     assert states["GCA_000000300"][0] is State.ESCAPE
+
+
+def test_every_reporter_channel_is_shown_on_the_fragment_rows(tmp_path):
+    """User 2026-09-28 (Legionella genus VIC + L. pneumophila FAM probe): the fragment rows
+    showed only the best-binding probe, so the other channel was invisible."""
+    cfg, fake, client, _assay = setup(tmp_path)
+    p2 = mutate(P, [3, 8, 13])  # a second channel whose probe differs from the amplicon
+    assay = make_assay(
+        reference_amplicon=AMP, target={"taxid": 813},
+        probe=[{"name": "P1", "sequence": P, "reporter": "FAM"},
+               {"name": "P2", "sequence": p2, "reporter": "HEX"}],
+    )  # fmt: skip
+    res = run(tmp_path, cfg, client, assay)
+    probes = [s for s in res.sites if s.role == "probe"]
+    assert probes and all(len(s.channel_sites) == 2 for s in probes)
+    assert "channel_sites" not in probes[0].model_dump()  # not serialised
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    for f in result.variant_summary.fragments:
+        assert [rep for rep, _v in f.channels] == ["FAM", "HEX"]
+        fam, hex_ = (v for _r, v in f.channels)
+        assert (fam.oligo_name, hex_.oligo_name) == ("P1", "P2") and hex_.n_mismatch == 3
+    html = render_report(result, cfg)
+    assert '<div class="channel"><span class="meta">HEX</span>' in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    ws = load_workbook(tmp_path / "r.xlsx")["Fragment variants"]
+    col = [c.value for c in ws[1]].index("Probe per channel")
+    assert "HEX P2:" in ws[2][col].value
+
+    # one channel only: nothing extra
+    single = run(tmp_path, cfg, client, make_assay(reference_amplicon=AMP, target={"taxid": 813}))
+    assert not any(s.channel_sites for s in single.sites)
+
+
+def _split_fixture(right=AMP[60:]):
+    """GCA_7: the fragment split over two contigs (as at an rRNA operon in a draft): the forward
+    primer and probe whole at the end of one, the reverse primer whole at the start of the other."""
+    split = FakeAssembly(
+        "GCA_000000007.1",
+        "2026-04-01",
+        {"L7.1": filler(3000, 71) + AMP[:80], "R7.1": right + filler(3000, 72)},
+    )
+    return FakeDatasets([*assemblies(), split])  # fmt: skip
+
+
+def test_a_fragment_split_over_contigs_is_judged_from_its_parts(tmp_path):
+    """User decision 2026-09-28 (option 1 of the contig-edge problem; advisor: its own class)."""
+    from qpcr_assay_check.report.grouping import fragment_view
+
+    cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    res = run(tmp_path, cfg, client, assay)
+    cc, split = res.coverage.copies, "GCA_000000007.1"
+    assert cc.from_parts_accessions == [split] and not cc.from_parts_counted
+    assert res.coverage.contig_break == 1  # GCA_5: its probe site is cut, so still cut
+    assert split not in cc.escape_examples and cc.with_detectable_copy == 2
+    assert sum(y.from_parts for y in res.inclusivity.fragment_years) == 1
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    fv = fragment_view(result.variant_summary.fragments, result.variant_summary.fragment_total)
+    assert fv.records["judged from parts"] == 1 and fv.records["detectable"] == 2
+    html = render_report(result, cfg)
+    assert "Judged from parts" in html and "1 judged from parts (undetermined)" in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    assert "From parts" in load_workbook(tmp_path / "r.xlsx").sheetnames
+
+
+def test_judging_from_parts_follows_its_setting_and_needs_detectable_sites(tmp_path):
+    from qpcr_assay_check.variants.exhaustive import stored_calls
+
+    cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    cfg.variants.judge_from_parts = "detectable"
+    res = run(tmp_path, cfg, client, assay)
+    assert res.coverage.copies.from_parts_counted and res.coverage.copies.with_detectable_copy == 3
+    cfg.variants.judge_from_parts = "off"
+    assert run(tmp_path, cfg, client, assay).coverage.contig_break == 2
+
+    # the reverse site on the cut copy fails (two mismatches in the 3' end): no judgement from parts
+    bad = AMP[60:].replace(
+        iupac.reverse_complement(R), iupac.reverse_complement(mutate(R, [20, 22]))
+    )
+    cfg2, _f, client2, assay2 = setup(tmp_path / "b", fake=_split_fixture(bad))
+    res2 = run(tmp_path / "b", cfg2, client2, assay2)
+    assert res2.coverage.copies.from_parts == 0 and res2.coverage.contig_break == 2
+    # the panel judges them the same way (undetermined by default)
+    from qpcr_assay_check.panel import State, member_states
+
+    cfg3 = load_config()
+    cfg3.variants.max_assemblies_per_run, cfg3.ncbi.datasets_batch_size = 20000, 2
+    items, calls, _p = stored_calls(assay, cfg3, tmp_path / "cache", _no_fetch, "datasets")
+    assert member_states(items, calls)["GCA_000000007"][0] is State.UNDETERMINED
+
+
+# ------------------------------------------------------------------ copy similarity threshold
+def _related_region(seed: int) -> str:
+    """Unrelated sequence around one 16-base stretch of the amplicon: a chance seed hit (as in
+    L. pneumophila GCF_000586155.1, where such a region was judged instead of the target)."""
+    return filler(300, seed) + AMP[40:56] + filler(300, seed + 1)
+
+
+def test_a_region_found_through_one_chance_seed_is_not_a_copy(tmp_path):
+    """Advisor 2026-09-28: identity to the reference amplicon >= 0.75 makes a copy."""
+    from qpcr_assay_check.variants.locate import amplicon_identity, find_loci
+
+    (lc,) = find_loci({"X": _related_region(81)}, AMP, seed_length=16, seed_step=4, flank=50)
+    assert lc.n_seeds == 1 and amplicon_identity(lc.region, AMP, lc.offset)[0] < 0.7
+    divergent = "".join(("A" if b != "A" else "C") if i % 5 == 2 else b for i, b in enumerate(AMP))
+    ident = amplicon_identity(filler(50, 1) + divergent + filler(50, 2), AMP, 50)[0]
+    assert 0.75 <= ident <= 0.85  # a real divergent copy (every 5th base changed) stays a copy
+
+    extra = [
+        FakeAssembly("GCA_000000008.1", "2026-05-01", {"U8.1": _related_region(81)}),
+        FakeAssembly("GCA_000000009.1", "2026-05-01",  # a real copy next to a related region
+                     {"A9.1": _related_region(91) + filler(500, 93) + AMP + filler(500, 94)}),
+    ]  # fmt: skip
+    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets([*assemblies(), *extra]))
+    res = run(tmp_path, cfg, client, assay)
+    cov = res.coverage
+    assert cov.related_only_examples == ["GCA_000000008.1"] and cov.related_ignored == 1
+    assert "GCA_000000008.1" not in cov.copies.escape_examples
+    assert cov.copies.with_detectable_copy == 3  # GCA_9 judged by its real copy
+    assert any("only resembled by related regions in 1" in x for x in res.inclusivity.rationale)
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    assert "Related regions, not the target" in render_report(result, cfg)
+
+    cfg.variants.min_copy_identity = 0.0  # off: the chance region is judged, as before
+    assert run(tmp_path, cfg, client, assay).coverage.related_only == 0
+
+
+def test_the_next_reference_is_tried_when_the_first_finds_only_a_related_region():
+    from qpcr_assay_check.variants.locate import scan_region
+
+    other = filler(120, 55)  # a second lineage's amplicon, present whole in this genome
+    contigs = {"C": _related_region(81) + filler(400, 56) + other + filler(400, 57)}
+    kw = {"seed_length": 16, "seed_step": 4, "flank": 50}
+    loci, _m, ref = scan_region(contigs, AMP, None, other_amplicons=[other], **kw)
+    assert ref == 0  # without the threshold the chance seed stops the search
+    loci, _m, ref = scan_region(contigs, AMP, None, other_amplicons=[other], min_identity=0.75,
+                                **kw)  # fmt: skip
+    assert ref == 1 and loci[0].n_seeds > 1
+    loci, _m, ref = scan_region({"C": _related_region(81)}, AMP, None, min_identity=0.75, **kw)
+    assert ref == 0 and loci  # nothing better: the related region is kept, to be listed

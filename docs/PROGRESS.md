@@ -3,6 +3,29 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-28 (later) — Legionella; probe channels; judged from parts; copy threshold advice
+
+- First Legionella run (Herpers et al. JCM 2003 41:4815-6, 23S-5S spacer, verified at PubMed):
+  complete genomes 78.7% detectable vs contigs 96.0% (species mix); likely failures in complete
+  genomes of L. longbeachae (49), L. anisa (121), L. dumoffii/quinlivanii (16), L. micdadei (7):
+  for the user to compare with the paper's validation panel. 6,064 of 11,911 assemblies had
+  every copy cut by a contig end.
+- GCF_000586155.1 (user): all true copies split over contig edges; the tool judged the genome by
+  an unrelated region (forward 7 mismatches). Built: every reporter channel on the fragment rows
+  (e8074d4) and "judged from parts" (setting variants.judge_from_parts, default undetermined as
+  the advisor advised). The locator stores a copy cut before the amplicon start with offset 0;
+  parts are placed again from exact k-mers.
+- Copy-similarity threshold built on the user's request (variants.min_copy_identity 0.75,
+  locate.amplicon_identity: banded alignment, cached; about 9 ms per new 260-nt region). Still
+  to verify: the identity of real enterovirus copies across genotypes (the partitioned source
+  uses the threshold too), and the effect on the stored Legionella and Neisseria loci.
+- Advisor on a copy-similarity threshold: identity of the region to the reference
+  amplicon >= 0.75 (measured: true Legionella copies 0.99-1.00, the unrelated region 0.57,
+  random 260-nt windows 0.56 +- 0.02; N. gonorrhoeae divergent opa copy 0.80; single-seed random
+  76 nt: 0.4% >= 0.75). n_seeds cannot separate them (both 1). Below the threshold: store and
+  list as "related region", never the best copy. Verify on the stored loci (and enterovirus)
+  before choosing the default.
+
 ## 2026-09-28 — Opa copies unassembled in draft genomes; detection per assembly level
 
 - The user checked GCF_000156755.1 (N. gonorrhoeae 1291, Broad 2009 draft, 175 contigs in 42

@@ -108,10 +108,21 @@ class FragmentVariantRow(BaseModel):
     organisms: list[tuple[str, int]] = Field(
         default_factory=list, description="organism names of the records, most frequent first"
     )
+    channels: list[tuple[str, VariantRow]] = Field(
+        default_factory=list,
+        description="probes in several reporter channels: (reporter, the best probe site of "
+        "that channel), reporter order; the probe column above is the channel that counts",
+    )
     unassembled: int = Field(
         default=0,
         description="genomes of this combination whose copies are possibly unassembled "
         "(multi-copy target, draft genome): undetermined, not escapes",
+    )
+    from_parts: int = Field(
+        default=0, description="genomes of this combination judged from parts (cut copies)"
+    )
+    from_parts_counted: bool = Field(
+        default=False, description="those genomes are counted as detected"
     )
     levels: list[tuple[str, int]] = Field(
         default_factory=list,
@@ -284,6 +295,7 @@ def build_variant_summary(
     target_sites = [s for s in target_sites if s.tier == "target"]
     copies = coverage.copies if coverage is not None else None
     unassembled = set(copies.unassembled_accessions) if copies is not None else set()
+    parts = set(copies.from_parts_accessions) if copies is not None else set()
     oligo_variants = [
         _oligo_variants(
             target_sites, role, " / ".join(o.sequence for o in assay.by_role(role)), dates
@@ -310,7 +322,10 @@ def build_variant_summary(
         if {fwd.source, rev.source, probe.source} - _MEASURED:
             excluded += 1
             continue
-        key = ((fwd.q_aln, fwd.s_aln), (probe.q_aln, probe.s_aln), (rev.q_aln, rev.s_aln))
+        key = (
+            (fwd.q_aln, fwd.s_aln), (probe.q_aln, probe.s_aln), (rev.q_aln, rev.s_aln),
+            tuple((c.query, c.q_aln, c.s_aln) for c in probe.channel_sites),
+        )  # fmt: skip
         fragment_groups[key].append((fwd, probe, rev))
 
     total_fragments = sum(len(v) for v in fragment_groups.values())
@@ -333,9 +348,16 @@ def build_variant_summary(
                 organisms=Counter(m[0].organism or "unknown" for m in members).most_common(),
             )
         )
+        reporter = {o.name: o.reporter or "unspecified" for o in assay.probe}
+        fragments[-1].channels = [
+            (reporter.get(c.query, "unspecified"), _variant_row(c, count, total_fragments, seen))
+            for c in probe.channel_sites
+        ]
         if coverage is not None and coverage.source == "datasets":
             fragments[-1].levels = Counter(_assembly_level(m[0]) for m in members).most_common()
             fragments[-1].unassembled = sum(1 for m in members if m[0].accession in unassembled)
+            fragments[-1].from_parts = sum(1 for m in members if m[0].accession in parts)
+            fragments[-1].from_parts_counted = bool(copies and copies.from_parts_counted)
     fragments.sort(key=lambda f: (-f.count, f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln))
 
     return VariantSummary(

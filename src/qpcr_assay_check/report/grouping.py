@@ -189,9 +189,12 @@ def fragment_view(
     records: Counter = Counter()
     for f, outcome, _pair in rows:
         moved = getattr(f, "unassembled", 0) if outcome != "detectable" else 0
-        records[outcome or "not classified"] += f.count - moved
+        parts = 0 if getattr(f, "from_parts_counted", True) else getattr(f, "from_parts", 0)
+        records[outcome or "not classified"] += f.count - moved - parts
         if moved:  # draft genomes whose copies are possibly unassembled: undetermined
             records["possibly unassembled"] += moved
+        if parts:  # judged from cut copies and not counted as detected
+            records["judged from parts"] += parts
     by_count = sorted([r for r in rows if r[1] != "detectable"], key=lambda r: -r[0].count)
     chosen: list[int] = []
     for outcome in _ORDER:

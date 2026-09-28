@@ -120,7 +120,11 @@ def test_the_newest_accession_version_is_shown():
     def item(acc):
         return NS(accession=acc, status="found", release_date="2026-01-01", organism="x")
 
-    call = lambda acc: NS(accession=acc, role_good={"forward": True})  # noqa: E731
+    from qpcr_assay_check.variants.exhaustive import GenomeCall
+
+    def call(acc):  # a real genome call (stand-ins missed new fields before)
+        return GenomeCall(acc, 1, 1, True, 1, {}, {"forward": True})
+
     per_member = [([item("X.1")], [call("X.1")], "a"), ([item("X.2")], [call("X.2")], "b")]
     cfg = load_config()
     res = combine(PanelFile(panel_name="p", assays=["a.yaml", "b.yaml"]), [assay_a(), assay_b()],

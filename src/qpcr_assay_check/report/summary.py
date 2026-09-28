@@ -245,6 +245,7 @@ def _inclusivity_row(result: RunResult, cfg: Config, cmp: _Compare) -> SummaryRo
         f"whole fragment, {w.n:,} {what} released {w.first}–{w.last} "
         f"({w.undetermined:,} undetermined, not counted"
         + (f", of which {w.unassembled:,} copies possibly unassembled" if w.unassembled else "")
+        + (f", {w.from_parts:,} judged from parts" if w.from_parts else "")
         + ")"
     )
     if inc.verdict is Verdict.FAIL:
@@ -288,6 +289,8 @@ def _coverage_row(result: RunResult, cmp: _Compare) -> SummaryRow | None:
         )
     if c.unavailable:
         parts.append(f"{c.unavailable:,} could not be downloaded")
+    if c.related_only:
+        parts.append(f"only related regions (not the target) in {c.related_only:,}")
     if c.complete:
         level, reason = Verdict.PASS, ""
     else:

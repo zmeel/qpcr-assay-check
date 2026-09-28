@@ -7,6 +7,37 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Copy similarity threshold** (advisor subagent, 2026-09-28; user decision): a region found
+  through the amplicon's exact seeds counts as a copy of the target only when it matches the
+  reference fragment over at least `variants.min_copy_identity` (0.75) of the part it covers
+  (banded alignment). A single chance seed pointed to an unrelated region in L. pneumophila
+  GCF_000586155.1 (identity 0.57), which was judged instead of the target. Weaker regions are
+  listed ("related regions, not the target"), never judged; a genome with nothing else is left
+  out of the tables. The locator tries the next reference amplicon when the first finds only
+  such regions. Measured: true Legionella copies 0.99-1.00, random sequence 0.56 +- 0.02, a
+  real divergent N. gonorrhoeae opa copy 0.80. Not yet checked on enterovirus genotypes.
+- **Judged from parts** (user decision 2026-09-28, option 1 of the contig-edge problem;
+  advisor: its own class): in draft assemblies repeats such as the rRNA operons that carry the
+  Legionella 23S-5S spacer break the assembly, so the fragment is split over two contigs while
+  each oligo site is whole on one (GCF_000586155.1: forward primer and L. pneumophila probe at
+  the end of contig051, the reverse primer at the edges of three other contigs). A genome whose
+  copies are all cut by a contig end, or whose best whole copy fails, but that carries a
+  detectable site of every role on the cut copies (each with 2+ exact seeds) is "judged from
+  parts". The sites may come from different copies, so by default it is its own class, left out
+  of the percentages like the undetermined genomes (setting
+  `variants.judge_from_parts: undetermined | detectable | off`). Shown in coverage, per level,
+  per year, on the fragment rows, in the panel and the workbook (sheet "From parts"). Cut copies
+  are placed again from the reference amplicon's exact k-mers, because the locator stores the
+  start of a copy cut before the amplicon's start as 0.
+
+### Changed
+- **Every reporter channel on the whole-fragment rows** (user, 2026-09-28, Legionella genus VIC
+  + L. pneumophila FAM probe): with probes in more than one reporter channel, each row shows the
+  best probe site of every channel on the same copy (report and workbook column "Probe per
+  channel"); rows are grouped by all channels. Before, only the best-binding probe was shown,
+  so the second channel was invisible.
+
+### Added
 - **Detection by assembly level** (advisor subagent, 2026-09-28): the coverage section gives
   genomes, detectable (%), escapes and undetermined per assembly level (Complete Genome,
   Chromosome, Scaffold, Contig), and every whole-fragment row the assembly levels of its genomes
