@@ -3,6 +3,56 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
+
+- Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number
+  (identity to one reference fragment) decides both "is this the target locus" and "how well do
+  the oligos bind"; probably also seeds grouped within 20 nt and oligo windows +-15 nt around one
+  median offset, which split or misplace copies of species whose spacer length differs by > 20 nt
+  (to measure); the outcome precedence is written five times. Plan: chain locator (co-linear
+  exact blocks, signed coordinates, no cap), store v2 with a schema header (mismatch = discard
+  and re-download, no rescans), all rules at assess time, one genome_outcome(); copy rule
+  "anchored bases M >= 32 OR identity >= 0.75" (to measure first). Build order 0-6; the
+  per-species reference fragment rejected for now. Seven questions to the user (context
+  accession, genus scope, store key, history "method changed", old stores, download schedule,
+  from-parts default): not yet answered.
+- Step 0 built on the user's request: scripts/measure_locator.py (no change to the tool).
+  Prototype chain locator vs the current one on real genomes picked from the region store
+  (related, single-seed, organism:..., sample) or named; per candidate M at seed steps 1/2/4,
+  signed start/end, length difference, cut/N evidence, identity along the chain, the current
+  loci matched (split?), and per oligo the mismatches at the chain vs the current placement; a
+  null with shuffled/reversed references; timing; an unverified probe of the Datasets
+  sequence-report endpoint. tests/test_measure_script.py (synthetic). ~17 s per 4 Mb genome.
+  Next: the user runs it on Legionella, Neisseria and enterovirus and pastes back
+  measure_report.json.
+
+## 2026-09-28 (end) — Threshold hides divergent Legionella species; next: overhaul with advisor
+
+- Legionella rerun on #30 code: the copy-identity threshold (0.75 vs the L. pneumophila reference
+  fragment) set aside real copies of other species as "related regions, not the target" (201
+  genomes, e.g. L. longbeachae GCF_000176095.1, L. dumoffii GCF_000236165.1). The L. longbeachae
+  (49) and L. dumoffii rows vanished from "Needs attention"; target detection read 95.6% "No
+  flags": too optimistic, do not rely on it. Measured live (genomes deleted afterwards): real
+  L. longbeachae copies identity 0.74 (9 exact seeds) and 0.63 (6), L. dumoffii 0.59-0.74
+  (6 seeds), chance regions 0.57 (1 seed). Minimal fix (not built): a copy when identity >= 0.75
+  OR >= 3 exact seeds.
+- USER DECISION for the next session: consult the advisor on a total overhaul of the code to
+  make the solutions built during development more robust. Deleting the cache and starting over
+  (re-downloading every genome) is always allowed if that is best for the tool. Ideas to put to
+  the advisor: find copies by homology (several chained seeds) instead of one exact seed; store
+  per copy its true offset, contig edge / adjacent N-run and contig lengths, and all copies with
+  their identity at scan time; build a reference fragment per species automatically for genus
+  assays (e.g. Legionella) from complete genomes; then revisit "possibly unassembled", "detectable
+  from parts", the identity threshold and the per-channel probes on that richer data.
+- Also to discuss (user): every fix of the past week that could be done better with all data
+  downloaded again, among them: region hidden by N (partly via N-tolerant seeds, wholly via the
+  reference context, v1.1.1); target on a plasmid judged from FASTA descriptions; copies capped
+  at 5 then 20 per genome and rescans (copies_capped, refs_checked, needs_rescan); cut by a contig
+  end (contig_break) and its clamped offsets; failed downloads counted unavailable after 2 tries;
+  best-binding copy per genome; homopolymer run-length variants and their per-level breakdown;
+  "possibly unassembled" (inferred from copy counts, no gap data stored); "detectable from parts";
+  the copy-identity threshold and the multi-reference fall-through; per-channel probe sites.
+
 ## 2026-09-28 (later) — Legionella; probe channels; judged from parts; copy threshold advice
 
 - First Legionella run (Herpers et al. JCM 2003 41:4815-6, 23S-5S spacer, verified at PubMed):
