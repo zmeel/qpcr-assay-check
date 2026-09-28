@@ -16,6 +16,9 @@ All notable changes to this project are documented here. The format follows
   out of the tables. The locator tries the next reference amplicon when the first finds only
   such regions. Measured: true Legionella copies 0.99-1.00, random sequence 0.56 +- 0.02, a
   real divergent N. gonorrhoeae opa copy 0.80. Not yet checked on enterovirus genotypes.
+  Each copy's identity is computed once and kept in the region store (the first run with this
+  version takes longer). A genome in an older store with several reference amplicons whose
+  only stored regions are related is scanned once more, with the next reference.
 - **Judged from parts** (user decision 2026-09-28, option 1 of the contig-edge problem;
   advisor: its own class): in draft assemblies repeats such as the rRNA operons that carry the
   Legionella 23S-5S spacer break the assembly, so the fragment is split over two contigs while
@@ -33,8 +36,9 @@ All notable changes to this project are documented here. The format follows
 ### Changed
 - **Every reporter channel on the whole-fragment rows** (user, 2026-09-28, Legionella genus VIC
   + L. pneumophila FAM probe): with probes in more than one reporter channel, each row shows the
-  best probe site of every channel on the same copy (report and workbook column "Probe per
-  channel"); rows are grouped by all channels. Before, only the best-binding probe was shown,
+  best probe site of every channel on the same copy (for a genome judged from parts: on its cut
+  copies, possibly different ones; report and workbook column "Probe per channel"); rows are
+  grouped by all channels. Before, only the best-binding probe was shown,
   so the second channel was invisible.
 
 ### Added

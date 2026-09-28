@@ -36,6 +36,11 @@ class StoredLocus(BaseModel):
     truncated: bool
     on_plasmid: bool | None = None
     ref: int = Field(default=0, description="index of the reference amplicon that found it")
+    identity: float | None = Field(
+        default=None,
+        description="identity to its reference amplicon over the part it covers "
+        "(locate.amplicon_identity); None: not computed yet",
+    )
 
 
 class StoredAssembly(BaseModel):
@@ -71,6 +76,14 @@ class StoredAssembly(BaseModel):
         description="'not found' only: how many reference amplicons were tried (None: only the "
         "first, stored before v1.3.0)",
     )
+    identity_scanned: bool | None = Field(
+        default=None,
+        description="scanned by a version that tries the next reference amplicon when the "
+        "first finds only related regions (v1.6); None: stored before",
+    )
+    rescan: bool = Field(
+        default=False, description="scan again once (e.g. only related regions were stored)"
+    )
     context_checked: bool | None = Field(
         default=None,
         description="'not found' only: whether the reference sequence around the amplicon was "
@@ -85,7 +98,7 @@ class StoredAssembly(BaseModel):
     @property
     def needs_rescan(self) -> bool:
         """Stored before a check this version makes: scan it again (once)."""
-        if self.plasmid_contigs is None or self.copies_capped:
+        if self.rescan or self.plasmid_contigs is None or self.copies_capped:
             return True
         if self.status != "not_found" or self.direct_checked is False:
             return False  # a record too long to fetch (False) is not retried every run
@@ -212,7 +225,12 @@ class RegionStore:
             direct_checked=direct_checked,
             context_checked=context_checked if not loci and not masked else None,
             refs_checked=refs_checked if not loci and not masked else None,
+            identity_scanned=True,
         )
+        return self.save(item)
+
+    def save(self, item: StoredAssembly) -> StoredAssembly:
+        """Append an assembly's line (the last line of an accession wins on load)."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as fh:
             fh.write(item.model_dump_json() + "\n")

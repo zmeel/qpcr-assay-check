@@ -257,7 +257,7 @@ def amplicon_identity(
     return matches / (last - first), last - first
 
 
-@lru_cache(maxsize=200_000)
+@lru_cache(maxsize=20_000)  # identities are also kept per stored locus
 def _banded_matches(q: str, s: str, d0: int, band: int) -> int:
     """Matching bases on the best banded alignment of all of ``q`` inside ``s`` (q[i] lies near
     s[d0 + i]); ties go to more matches. Cached: the same regions recur across genomes."""
@@ -328,9 +328,9 @@ def scan_region(
             return loci, [], i
         if loci and related is None:
             related = (loci, i)
-    if related is not None:
-        return related[0], [], related[1]
     masked = find_masked(contigs, amplicon, seed_step=seed_step, **kw)
-    if not masked and context is not None and any(ctx := context()):
+    if related is not None and not masked:
+        return related[0], [], related[1]  # nothing better: kept, to be listed as related
+    if not masked and related is None and context is not None and any(ctx := context()):
         masked = find_masked_by_context(contigs, amplicon, *ctx, **kw)
     return [], masked, 0

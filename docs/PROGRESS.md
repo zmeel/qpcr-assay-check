@@ -15,6 +15,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (e8074d4) and "judged from parts" (setting variants.judge_from_parts, default undetermined as
   the advisor advised). The locator stores a copy cut before the amplicon start with offset 0;
   parts are placed again from exact k-mers.
+- Code review of PR #29, all fixed with tests: judged-from-parts genomes still counted in the
+  per-oligo and channel coverage and per-oligo windows (now left out, percentages on the same
+  base); older multi-reference stores never rescanned related-only genomes (now flagged once,
+  StoredAssembly.rescan / identity_scanned); an N on a cut copy could make a genome "masked"
+  (N sites skipped); panel called related-only genomes "unknown" (now not found); identities
+  recomputed every run (now StoredLocus.identity, cache 20k); a real copy hidden by N lost to a
+  chance-seed region (masked checked first); wording.
 - Copy-similarity threshold built on the user's request (variants.min_copy_identity 0.75,
   locate.amplicon_identity: banded alignment, cached; about 9 ms per new 260-nt region). Still
   to verify: the identity of real enterovirus copies across genotypes (the partitioned source

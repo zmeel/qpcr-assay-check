@@ -905,3 +905,90 @@ def test_the_next_reference_is_tried_when_the_first_finds_only_a_related_region(
     assert ref == 1 and loci[0].n_seeds > 1
     loci, _m, ref = scan_region({"C": _related_region(81)}, AMP, None, min_identity=0.75, **kw)
     assert ref == 0 and loci  # nothing better: the related region is kept, to be listed
+
+
+def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
+    """Code review of PR #29 (2026-09-28)."""
+    import json
+
+    from qpcr_assay_check.panel import State, member_states
+    from qpcr_assay_check.variants.exhaustive import stored_calls
+    from qpcr_assay_check.variants.locate import scan_region
+
+    # 1. judged from parts (undetermined): out of the per-oligo and channel counts as well
+    cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    res = run(tmp_path, cfg, client, assay)
+    cc = res.coverage.copies
+    assert cc.from_parts == 1 and cc.with_detectable_copy == 2
+    # GCA_3 (forward variant) still covers probe and reverse; GCA_7 is left out (was 4)
+    assert {o.role: o.covered for o in cc.oligos} == {"forward": 2, "probe": 3, "reverse": 3}
+    assert cc.any_channel == cc.all_channels == 3
+    windows = [w for o in res.inclusivity.oligos for w in o.windows]
+    # 2026: GCA_3 only (probe and reverse detectable); GCA_7 (from parts) would add 3
+    assert sum(w.n_detectable for w in windows if w.year == 2026) == 2
+
+    # 5. identities are computed once and kept in the store
+    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
+    last = {}
+    for line in path.read_text().splitlines():
+        item = json.loads(line)
+        last[item["accession"]] = item
+    assert all(lc["identity"] is not None for it in last.values() for lc in it["loci"])
+
+    # 3. an N in a cut copy's site is skipped, never chosen (was: the genome became "masked")
+    nsplit = AMP[60:].replace(iupac.reverse_complement(R)[5], "N", 1)
+    cfg2, _f, client2, assay2 = setup(tmp_path / "n", fake=_split_fixture(nsplit))
+    res2 = run(tmp_path / "n", cfg2, client2, assay2)
+    assert "GCA_000000007.1" not in res2.coverage.masked_examples
+
+    # 4. the panel counts a genome with only related regions as not found
+    extra = FakeAssembly("GCA_000000008.1", "2026-05-01", {"U8.1": _related_region(81)})
+    cfg3, _f3, client3, assay3 = setup(tmp_path / "r", fake=FakeDatasets([*assemblies(), extra]))
+    run(tmp_path / "r", cfg3, client3, assay3)
+    items, calls, _p = stored_calls(assay3, cfg3, tmp_path / "r" / "cache", _no_fetch, "datasets")
+    assert member_states(items, calls)["GCA_000000008"][0] is State.NOT_FOUND
+
+    # 10. a region hidden by N wins over a chance-seed region elsewhere
+    masked_amp = "".join("N" if i % 12 == 6 else b for i, b in enumerate(AMP))  # no clean seed
+    contigs = {"C": _related_region(81) + filler(300, 5) + masked_amp + filler(300, 6)}
+    loci, masked, _ref = scan_region(contigs, AMP, None, seed_length=16, seed_step=4,
+                                     flank=50, min_identity=0.75)  # fmt: skip
+    assert masked and not loci
+
+
+def test_a_related_only_genome_in_an_older_multi_reference_store_is_scanned_again(tmp_path):
+    """Code review of PR #29: stored before the scan tried the next reference amplicon."""
+    from qpcr_assay_check.variants.store import RegionStore
+
+    other = filler(120, 55)
+    extra = FakeAssembly(
+        "GCA_000000008.1",
+        "2026-05-01",
+        {"U8.1": _related_region(81) + filler(400, 56) + other + filler(400, 57)},
+    )
+    cfg, fake, client, _a = setup(tmp_path, fake=FakeDatasets([*assemblies(), extra]))
+    assay = make_assay(reference_amplicon=AMP, target={"taxid": 813},
+                       reference_amplicons=[{"name": "A", "sequence": AMP},
+                                            {"name": "B", "sequence": other}])  # fmt: skip
+    res = run(tmp_path, cfg, client, assay)
+    assert "GCA_000000008.1" not in res.coverage.related_only_examples  # found through ref B
+    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
+    # rewrite it as an older version stored it: only the chance region, no identity_scanned
+    store = RegionStore(path)
+    old = store.items["GCA_000000008.1"]
+    region = _related_region(81)
+    from qpcr_assay_check.variants.locate import find_loci
+
+    (lc,) = find_loci({"U8.1": region}, AMP, seed_length=16, seed_step=4, flank=50)
+    store.save(old.model_copy(update={
+        "loci": [old.loci[0].model_copy(update={
+            "contig": lc.contig, "strand": lc.strand, "start": lc.start, "end": lc.end,
+            "region": lc.region, "offset": lc.offset, "n_seeds": lc.n_seeds,
+            "truncated": lc.truncated, "ref": 0, "identity": None})],
+        "n_loci": 1, "identity_scanned": None}))  # fmt: skip
+    res = run(tmp_path, cfg, client, assay)
+    assert "GCA_000000008.1" in res.coverage.related_only_examples
+    assert RegionStore(path).items["GCA_000000008.1"].rescan  # flagged once
+    res = run(tmp_path, cfg, client, assay)  # the next run scans it again
+    assert "GCA_000000008.1" not in res.coverage.related_only_examples
+    assert not RegionStore(path).items["GCA_000000008.1"].rescan
