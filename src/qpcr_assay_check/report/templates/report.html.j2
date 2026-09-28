@@ -290,6 +290,18 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   <br><span class="meta">Run length is a known sequencing and assembly error, so check how far to trust these: in {{ rl.mixed }} of the {{ rl.genomes }} genomes the copies disagree (other copies read the oligo's run length at that site), which is either real copy variation or an error in some copies. By assembly level (genomes with a variant / assessed): {% for level, (n, tot) in rl.by_level.items() %}{{ level }} {{ n }}/{{ tot }} ({{ pct(100.0 * n / tot) if tot else '–' }}){{ '; ' if not loop.last }}{% endfor %}. Far more variants in draft than in complete genomes points to assembly error. Most frequent: {% for v, n in rl.variants %}{{ v }} ({{ n }}){{ '; ' if not loop.last }}{% endfor %}.</span></td></tr>{% endif %}
 {% if cc.undetermined %}<tr><th scope="row">Undetermined</th><td>{{ cc.undetermined }} genome(s) without a detectable copy whose only problem has no published basis: a single mismatch in an MGB probe, or an ambiguity code in the genome near a 3′ end that decides whether the site is detectable. Counted neither as detected nor as an escape; a wet-lab check decides.{% if cc.undetermined_examples %}<br><span class="meta">e.g. {{ cc.undetermined_examples[:10] | join(', ') | ncbi }}</span>{% endif %}</td></tr>{% endif %}
 </tbody></table></div>
+{% if cc.by_level %}
+<h4>Detection by assembly level</h4>
+<div class="scroll"><table>
+  <thead><tr><th>Assembly level</th><th>Genomes</th><th>Detectable</th><th>Escapes</th><th>Undetermined</th></tr></thead>
+  <tbody>
+  {% for lv in cc.by_level %}
+  <tr><td>{{ lv.level }}</td><td class="num">{{ lv.genomes }}</td><td class="num">{{ lv.detectable }}{% if lv.percent is not none %} <span class="meta">({{ pct(lv.percent) }})</span>{% endif %}</td><td class="num">{{ lv.escapes }}</td><td class="num">{{ lv.undetermined }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">Percentages leave the undetermined genomes out. Complete genomes are a small subset that is not representative (reference strains, recent long-read sequencing), so they are no substitute for the overall figure. But draft assemblies (Scaffold, Contig) can leave near-identical repeat copies unassembled, as N gaps or cut at contig ends: for a multi-copy target, escapes that occur far more often in drafts than in complete genomes point to the assembly rather than to the strain. The "Needs attention" rows give the assembly levels of their genomes under the types.</p>
+{% endif %}
 <div class="scroll"><table>
   <thead><tr><th>Role</th><th>Oligo</th><th>Covers (best copy)</th><th>Only this oligo</th></tr></thead>
   <tbody>
@@ -331,14 +343,14 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   <tr><td>{{ outcome_chip(outcome) }}{% if by_pair %}<br><span class="meta">primer-pair rule (Lefever 2013)</span>{% endif %}</td>
     {{ site_cell(f.forward, 'forward') }}{{ site_cell(f.probe, 'probe', 0) }}{{ site_cell(f.reverse, 'reverse') }}
     <td class="num">{{ f.count }}<br><span class="meta">{{ pct(f.percent) }}</span></td>
-    <td class="types">{{ types(f.organisms, f.count) }}</td>
+    <td class="types">{{ types(f.organisms, f.count) }}{% if f.levels %}<br><span class="meta">{% for name, n in f.levels %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}</span>{% endif %}</td>
     {% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}
     <td>{{ f.example_accession | ncbi }}</td></tr>
 {% endfor %}{% endmacro %}
 {% set head %}<thead><tr><th>Outcome</th>{{ role_head('Forward', 'forward') }}{{ role_head('Probe', 'probe') }}{{ role_head('Reverse', 'reverse') }}<th>Records</th><th>Types</th>{% if cov %}<th>First / last release</th>{% endif %}<th>Example</th></tr></thead>{% endset %}
 {% if not cov %}<p class="meta">This table covers the {{ fv.total }} records in which all three sites were fully re-aligned; the per-oligo tables below count every fully re-aligned site of that oligo ({% for o in r.variant_summary.oligos %}{{ o.role }} {{ o.total_measured }}{{ ', ' if not loop.last }}{% endfor %} records).</p>{% endif %}
 <p><strong>{{ fv.total }} records with all three sites:</strong>{% for o in ['detectable', 'at risk', 'likely failure', 'undetermined'] + (['not classified'] if fv.records.get('not classified') else []) %} {{ o }} {{ pct(100.0 * fv.records.get(o, 0) / fv.total) }}{{ ',' if not loop.last }}{% endfor %}.</p>
-<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are (see Variants per oligo). Types are the organism names of the records. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
+<p class="meta">Only this table shows which site variants occur <em>together</em> on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Each site is one line against the oligo in the column header: a dot is a matching base, a letter a mismatch (highlighted), '-' a gap; the primer 3′ end (last 5 nt) is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are (see Variants per oligo). Types are the organism names of the records, and for genome assemblies their assembly levels (see "Detection by assembly level"). Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
 {% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}<h4>Needs attention ({{ n_att }} combination{{ '' if n_att == 1 else 's' }})</h4>
 {% if fv.attention %}
 <div class="scroll"><table class="frag">{{ head }}<tbody>

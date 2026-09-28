@@ -579,3 +579,45 @@ def test_unfinished_coverage_keeps_inclusivity_incomplete(tmp_path):
     )  # fmt: skip
     assert result.inclusivity.verdict is Verdict.INCOMPLETE
     assert "not assessed yet" in result.inclusivity.rationale[-1]
+
+
+def test_detection_is_shown_per_assembly_level(tmp_path):
+    """Advisor 2026-09-28: draft assemblies can leave repeat copies of a multi-copy target
+    unassembled (the opa genes of GCF_000156755.1 sit in N gaps), so the coverage and every
+    whole-fragment row give the assembly levels of their genomes."""
+    from dataclasses import replace
+
+    levels = ["Complete Genome", "Chromosome", "Contig", "Contig", "Scaffold"]
+    fake = FakeDatasets([replace(a, level=lv) for a, lv in zip(assemblies(), levels, strict=True)])
+    cfg, fake, client, assay = setup(tmp_path, fake=fake)
+    res = run(tmp_path, cfg, client, assay)
+    by_level = {lv.level: lv for lv in res.coverage.copies.by_level}
+    assert list(by_level) == ["Complete Genome", "Chromosome", "Contig"]  # complete first
+    assert (
+        by_level["Complete Genome"].detectable == 1 and by_level["Complete Genome"].percent == 100
+    )
+    contig = by_level["Contig"]  # GCA_3 (primer variant); GCA_4 has no region
+    assert contig.genomes == 1 and contig.detectable + contig.escapes + contig.undetermined == 1
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    rows = result.variant_summary.fragments
+    assert sorted(lv for f in rows for lv, _ in f.levels) == [
+        "Chromosome", "Complete Genome", "Contig"
+    ]  # fmt: skip
+    html = render_report(result, cfg)
+    assert "<h4>Detection by assembly level</h4>" in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    wb = load_workbook(tmp_path / "r.xlsx")
+    header = [c.value for c in wb["Fragment variants"][1]]
+    assert "Assembly levels" in header
+    # one level only (e.g. Nucleotide records): no breakdown
+    from qpcr_assay_check.variants.exhaustive import GenomeCall, _level_coverage
+
+    def call(acc, level):
+        return GenomeCall(acc, 1, 1, True, 1, {}, {"forward": True}, assembly_level=level)
+
+    assert _level_coverage([call("A", "Nucleotide record"), call("B", "Nucleotide record")]) == []
+    assert len(_level_coverage([call("A", "Contig"), call("B", "Scaffold")])) == 2

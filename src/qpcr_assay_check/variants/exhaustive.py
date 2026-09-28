@@ -48,6 +48,7 @@ from .models import (
     ChannelCoverageRow,
     CopyCoverage,
     ExhaustiveCoverage,
+    LevelCoverage,
     OligoCoverageRow,
     RunLengthBreakdown,
     YearCoverage,
@@ -577,6 +578,28 @@ def _run_length_breakdown(calls: list[GenomeCall], bulges: bool) -> RunLengthBre
     )
 
 
+_LEVEL_ORDER = {"Complete Genome": 0, "Chromosome": 1, "Scaffold": 2, "Contig": 3}
+
+
+def _level_coverage(calls: list[GenomeCall]) -> list[LevelCoverage]:
+    """Detectable genomes, escapes and undetermined per assembly level, complete genomes first
+    (only when the genomes come in more than one level; Nucleotide records have none)."""
+    levels: dict[str, LevelCoverage] = {}
+    for c in calls:
+        name = c.assembly_level or "unknown"
+        row = levels.setdefault(name, LevelCoverage(level=name))
+        row.genomes += 1
+        if c.n_detectable > 0:
+            row.detectable += 1
+        elif c.undetermined:
+            row.undetermined += 1
+        elif not all(c.role_good.values()):
+            row.escapes += 1
+    if len(levels) < 2:
+        return []
+    return sorted(levels.values(), key=lambda r: (_LEVEL_ORDER.get(r.level, 9), r.level))
+
+
 def copy_coverage(
     calls: list[GenomeCall], assay: Assay, rule: str, bulges: bool = False
 ) -> CopyCoverage:
@@ -602,6 +625,7 @@ def copy_coverage(
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
     undet = [c.accession for c in calls if c.undetermined]
     out.undetermined, out.undetermined_examples = len(undet), undet[:20]
+    out.by_level = _level_coverage(calls)
     for role in ROLES:
         members = assay.by_role(role)
         for o in members:
