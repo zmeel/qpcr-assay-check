@@ -224,9 +224,7 @@ def test_the_report_and_workbook_show_coverage_and_first_release_dates(tmp_path)
     assert "Scope: every genome assembly assessed so far." in html and "incomplete" in html
     assert "First / last release" in html
     write_workbook(result, tmp_path / "r.xlsx")
-    rows = list(
-        load_workbook(tmp_path / "r.xlsx")["Copies and coverage"].iter_rows(values_only=True)
-    )
+    rows = list(load_workbook(tmp_path / "r.xlsx")["Variant coverage"].iter_rows(values_only=True))
     assert ("Total", 5, 3) in rows
 
 
@@ -277,9 +275,7 @@ def test_a_plasmid_target_separates_missing_plasmids_from_a_missing_region(tmp_p
     assert "labelled as a plasmid but not the target region" in html and "GCF_103.1" in html
     assert "Inclusivity across the intended target (all genome assemblies)" in html
     write_workbook(result, tmp_path / "r.xlsx")
-    rows = list(
-        load_workbook(tmp_path / "r.xlsx")["Copies and coverage"].iter_rows(values_only=True)
-    )
+    rows = list(load_workbook(tmp_path / "r.xlsx")["Variant coverage"].iter_rows(values_only=True))
     assert any(
         str(r[0]).strip().startswith("...plasmid sequence present") and r[1] == 1 for r in rows
     )
