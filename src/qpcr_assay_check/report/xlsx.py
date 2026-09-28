@@ -358,7 +358,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb,
             "Fragment variants",
             ["Outcome", "Pair rule", "Forward", "Probe", "Reverse", "Classes (F/P/R)", "Count",
-             "Fraction (%)", "Mismatches (F/P/R)", "Types", "Assembly levels", "Example accession",
+             "Fraction (%)", "Mismatches (F/P/R)", "Types", "Assembly levels",
+             "Possibly unassembled", "Example accession",
              "Example organism", "First release", "Last release"],
             [
                 [*fragment_outcome(f, bulges), f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln,
@@ -367,7 +368,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                  f"{f.forward.n_mismatch + f.forward.n_gap}/{f.probe.n_mismatch + f.probe.n_gap}/"
                  f"{f.reverse.n_mismatch + f.reverse.n_gap}",
                  "; ".join(f"{n} {c}" for n, c in f.organisms),
-                 "; ".join(f"{n} {c}" for n, c in f.levels),
+                 "; ".join(f"{n} {c}" for n, c in f.levels), f.unassembled,
                  f.example_accession, f.example_organism or "",
                  f.forward.first_seen or "", f.forward.last_seen or ""]
                 for f in vs.fragments
@@ -415,6 +416,10 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                       "", ""],
                      ["Escapes (no detectable copy)", "", cc.escapes, "",
                       ", ".join(cc.escape_examples)],
+                     ["Copies possibly unassembled (undetermined)",
+                      f"median copies of complete genomes {cc.typical_copies:g}"
+                      if cc.typical_copies is not None else "rule not applied",
+                      cc.unassembled, "", "sheet Unassembled"],
                      *[[f"Covers ({o.role})", o.name + (f" {o.reporter}" if o.reporter else ""),
                         o.covered, o.only, ""] for o in cc.oligos],
                      *[[f"None of the {role} oligos", "", n, "",
@@ -431,6 +436,14 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                      *_run_length_rows(cc.run_length)],
                     None,
                 )  # fmt: skip
+    cov_all = result.variant_summary.coverage if result.variant_summary else None
+    if cov_all is not None and cov_all.copies and cov_all.copies.unassembled_accessions:
+        _sheet(
+            wb, "Unassembled", ["Accession", "Note"],
+            [[acc, "best copy fails; far fewer copies than complete genomes (draft): "
+              "undetermined, not an escape"] for acc in cov_all.copies.unassembled_accessions],
+            None,
+        )  # fmt: skip
     incl = result.inclusivity
     if incl is not None and incl.oligos:
         _sheet(

@@ -62,6 +62,10 @@ class FragmentYear(BaseModel):
     likely_failure: int = 0
     undetermined: int = 0
     by_pair_rule: int = Field(default=0, description="likely failure decided by R8 alone")
+    unassembled: int = Field(
+        default=0,
+        description="of the undetermined: draft genomes whose copies are possibly unassembled",
+    )
 
 
 @dataclass(frozen=True)
@@ -77,6 +81,7 @@ class FragmentWindow:
     detectable: int
     at_risk: int
     likely_failure: int
+    unassembled: int = 0  # of the undetermined: copies possibly unassembled
 
     @property
     def n(self) -> int:
@@ -104,6 +109,7 @@ def fragment_window(years: list[FragmentYear], window_years: int) -> FragmentWin
         detectable=sum(y.detectable for y in window),
         at_risk=sum(y.at_risk for y in window),
         likely_failure=sum(y.likely_failure for y in window),
+        unassembled=sum(y.unassembled for y in window),
     )
 
 

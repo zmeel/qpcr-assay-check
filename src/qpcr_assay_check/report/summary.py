@@ -243,7 +243,9 @@ def _inclusivity_row(result: RunResult, cfg: Config, cmp: _Compare) -> SummaryRo
     )
     scope = (
         f"whole fragment, {w.n:,} {what} released {w.first}–{w.last} "
-        f"({w.undetermined:,} undetermined, not counted)"
+        f"({w.undetermined:,} undetermined, not counted"
+        + (f", of which {w.unassembled:,} copies possibly unassembled" if w.unassembled else "")
+        + ")"
     )
     if inc.verdict is Verdict.FAIL:
         reason = f"below your limit of {rules.fail_below_percent:g}% detectable"

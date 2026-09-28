@@ -621,3 +621,81 @@ def test_detection_is_shown_per_assembly_level(tmp_path):
 
     assert _level_coverage([call("A", "Nucleotide record"), call("B", "Nucleotide record")]) == []
     assert len(_level_coverage([call("A", "Contig"), call("B", "Scaffold")])) == 2
+
+
+# ------------------------------------------------------------------ copies possibly unassembled
+def _call(acc, level, copies, *, ok=True, contigs=40, truncated=0, sig=("a",)):
+    from qpcr_assay_check.variants.exhaustive import GenomeCall
+
+    good = dict.fromkeys(("forward", "reverse", "probe"), ok)
+    state = dict.fromkeys(good, "ok" if ok else "fail")
+    return GenomeCall(acc, copies, copies if ok else 0, True, copies if ok else 0, {}, good,
+                      role_state=state, assembly_level=level, n_truncated=truncated,
+                      n_contigs=contigs, signature=sig)  # fmt: skip
+
+
+def test_a_draft_with_far_fewer_copies_than_complete_genomes_is_not_an_escape():
+    """User decision 2026-09-28 (advisor): N. gonorrhoeae GCF_000156755.1 has its opa genes as
+    scaffold gaps and was judged by the one divergent copy that was assembled."""
+    from qpcr_assay_check.variants.exhaustive import copy_coverage, mark_unassembled
+
+    complete = [_call(f"C{i}", "Complete Genome", 6) for i in range(5)]
+    draft = _call("D1", "Contig", 1, ok=False, sig=("divergent",))
+    few = _call("D2", "Contig", 3, ok=False, sig=("divergent",))  # 3 of 6: not "far fewer"
+    whole = _call("D3", "Contig", 1, ok=False, contigs=1, sig=("divergent",))  # one sequence
+    calls = [*complete, draft, few, whole]
+    assert mark_unassembled(calls) == 6.0
+    assert [c.accession for c in calls if c.unassembled] == ["D1"]
+    cc = copy_coverage(calls, make_assay(), "any")
+    assert cc.unassembled == 1 and cc.unassembled_accessions == ["D1"] and cc.escapes == 2
+    contig = next(lv for lv in cc.by_level if lv.level == "Contig")
+    assert (contig.unassembled, contig.escapes, contig.percent) == (1, 2, 0.0)
+
+    # a complete genome failing with the same three sites: the pattern is real, an escape
+    calls = [*complete[:4], _call("C9", "Complete Genome", 6, ok=False, sig=("divergent",)),
+             _call("D1", "Contig", 1, ok=False, sig=("divergent",))]  # fmt: skip
+    mark_unassembled(calls)
+    assert not any(c.unassembled for c in calls)
+
+
+def test_the_unassembled_rule_stays_off_where_it_has_no_basis():
+    from qpcr_assay_check.variants.exhaustive import mark_unassembled
+
+    def draft():
+        return _call("D", "Contig", 1, ok=False)
+
+    single = [_call(f"C{i}", "Complete Genome", 1) for i in range(5)] + [draft()]
+    assert mark_unassembled(single) is None and not single[-1].unassembled  # single-copy target
+    few_complete = [_call(f"C{i}", "Complete Genome", 6) for i in range(4)] + [draft()]
+    assert mark_unassembled(few_complete) is None  # fewer than 5 complete genomes
+    off = [_call(f"C{i}", "Complete Genome", 6) for i in range(5)] + [draft()]
+    assert mark_unassembled(off, "off") is None and not off[-1].unassembled
+
+
+def test_possibly_unassembled_genomes_are_undetermined_in_the_tables(tmp_path):
+    cfg, fake, client, assay = setup(tmp_path)
+    res = run(tmp_path, cfg, client, assay)
+    escape = "GCA_000000003.1"  # the primer variant: likely failure
+    from qpcr_assay_check.variants.exhaustive import _fragment_years
+
+    years = _fragment_years(res.sites, {escape: 2026}, {2026: 1}, [2026], False, {escape})
+    assert (years[0].undetermined, years[0].unassembled, years[0].likely_failure) == (1, 1, 0)
+
+    res.coverage.copies.unassembled_accessions = [escape]
+    res.coverage.copies.unassembled = 1
+    res.coverage.copies.typical_copies = 6.0
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    (row,) = [f for f in result.variant_summary.fragments if f.unassembled]
+    assert row.example_accession == escape
+    from qpcr_assay_check.report.grouping import fragment_view
+
+    fv = fragment_view(result.variant_summary.fragments, result.variant_summary.fragment_total)
+    assert fv.records["possibly unassembled"] == 1 and fv.records.get("likely failure", 0) == 0
+    html = render_report(result, cfg)
+    assert "Copies possibly unassembled" in html and "1 possibly unassembled" in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    assert "Unassembled" in load_workbook(tmp_path / "r.xlsx").sheetnames

@@ -19,6 +19,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   complete genomes in the run, draft with gaps or truncated copies, no complete genome with the
   same failing pattern; setting variants.multicopy_unassembled; store gap_nt and n_truncated).
   Genome files were downloaded to the scratchpad for the check and deleted afterwards.
+- Live run with step 1: detectable Complete Genome 95.9% (297), Chromosome 100% (32), Scaffold
+  87.0% (405), Contig 79.0% (50,806). The likely-failure rows of 1,278, 903 and 505 genomes have
+  no complete genome (Contig 1,269 / 902 / 499); the at-risk row of 2,481 has 10 (real).
+- Step 2 built on the user's request: `mark_unassembled` (variants/exhaustive.py), setting
+  `variants.multicopy_unassembled`. Evidence of an incomplete draft is "more than one sequence
+  or a copy cut by a contig end", not N gaps (contig-level assemblies have none), so nothing is
+  downloaded again. Not yet seen on a live run.
 
 ## 2026-09-27 — Summary instead of a verdict; v1.5.0 released; Legionella draft
 

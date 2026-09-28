@@ -14,6 +14,17 @@ All notable changes to this project are documented here. The format follows
   sit in scaffold gaps (runs of N), so the tool judged the genome by the one divergent copy that
   was assembled and counted it as an escape; the top "Needs attention" row (1,278 genomes) has
   that combination. The breakdown shows whether such escapes occur in complete genomes too.
+- **Copies possibly unassembled** (user decision after the live Neisseria run, 2026-09-28:
+  the three largest likely-failure combinations, 1,278 + 903 + 505 genomes, occur in no
+  complete genome): for a multi-copy target, a draft genome (Scaffold or Contig, more than one
+  sequence or a copy cut by a contig end) whose best copy fails and that carries fewer than half
+  the median copies of the complete and chromosome-level genomes of the run (at least 5 of them,
+  median 2 or more) counts as undetermined, not as an escape, unless a complete genome fails with
+  the same three sites. Shown in the coverage section, per assembly level, per year, on every
+  whole-fragment row, and listed in the workbook (sheet "Unassembled"). Setting
+  `variants.multicopy_unassembled: auto | off`. Deviation from the advisor's draft: N gaps are
+  not required, because contig-level assemblies have none (their missing copies are collapsed
+  or cut at contig ends); a fragmented draft is the evidence, so no genome is downloaded again.
 
 ## [1.5.0] - 2026-09-27
 
