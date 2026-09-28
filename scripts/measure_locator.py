@@ -592,6 +592,11 @@ def run(
         taxon = assay.target.taxid
         path = store_path(Path(args.cache_root), taxon, refs[0], v.flank_nt, v.source,
                           assay.target.excluded_taxids)  # fmt: skip
+        if not path.exists():
+            raise SystemExit(
+                f"No region store at {path}: --group needs the store of an earlier run. Pass the "
+                "same --config as for 'run' (its ncbi.cache_dir), and the same assay file."
+            )
         store = RegionStore(path)
         log.info("Region store %s: %d assemblies", path, len(store.items))
         items = current_items(store)

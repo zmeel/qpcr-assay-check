@@ -25,6 +25,21 @@ verified NCBI facts) at the start of every session. Newest entry first.
   sequence-report endpoint. tests/test_measure_script.py (synthetic). ~17 s per 4 Mb genome.
   Next: the user runs it on Legionella, Neisseria and enterovirus and pastes back
   measure_report.json.
+- First measurement (user, Legionella, 3 named genomes only: the --group options found no
+  store, now an explicit error). Confirms the diagnosis. L. longbeachae GCF_000176095.1: 5 copies,
+  each 24 nt shorter than the L. pneumophila fragment; the current locator splits every copy into
+  two loci (9 seeds 0.746, 6 seeds 0.619) and so sets them aside; the chain (M 130, identity 0.788)
+  places forward 0 mm, reverse 1 mm, genus probe 0 mm, where the current single offset gives the
+  forward 13 mm. L. dumoffii GCF_000236165.1: 3 copies, +23/+78/+23 nt, all split; chain: F 0,
+  R 1, genus probe 0 (current: up to 10 mm, false escapes). GCF_000586155.1: copies cut before the
+  amplicon start sit at -222/-234 (current clamps them to 0 and misplaces every oligo, 7-14 mm);
+  chain: reverse 0 mm on the part present. Over the 3 genomes: 8 of 12 copies differ > 20 nt in
+  length, 27 of 48 oligo sites worse at the current placement. Chance regions M 16-18 (identity
+  0.54-0.60), null max M 16 (9 decoys); whole real copies M >= 114, cut ones M 26-38 (identity 1.0).
+  Step 2 seeds lose 2-3 bases vs step 1 at half the time (1.6 s vs 3.2 s per genome). Datasets
+  /genome/accession/{acc}/sequence_reports verified live: fields role, assigned_molecule_location_type,
+  assembly_unit, chr_name, genbank/refseq_accession, length, sequence_name (a genome with a plasmid
+  still to be seen).
 
 ## 2026-09-28 (end) — Threshold hides divergent Legionella species; next: overhaul with advisor
 
