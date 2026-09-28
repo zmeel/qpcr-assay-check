@@ -376,6 +376,7 @@ def assess(
     calls: list[GenomeCall] | None = None,
     related: list[str] | None = None,
     related_ignored: list[str] | None = None,
+    updated: list[StoredAssembly] | None = None,
 ) -> tuple[list[SiteResult], int, list[str]]:
     """One site per role per genome, from the copy of the region the assay binds best.
 
@@ -387,7 +388,8 @@ def assess(
     :class:`GenomeCall` (copies, per-oligo coverage). Only regions with at least
     ``variants.min_copy_identity`` to the reference amplicon count as copies: ``related``
     collects the genomes with nothing else, ``related_ignored`` those where such regions were
-    set aside next to real copies. Returns the sites, the number of genomes
+    set aside next to real copies; ``updated`` the items whose identities were computed now
+    (to be saved in the store). Returns the sites, the number of genomes
     whose only copies are cut by a contig end, and the genomes whose best copy has an N in an
     oligo site (masked, not assessed).
     """
@@ -402,16 +404,6 @@ def assess(
     parts_rule = cfg.variants.judge_from_parts
     ref_amplicons = [amplicon] + [r.sequence for r in assay.reference_amplicons[1:]]
     min_identity = cfg.variants.min_copy_identity
-    k = cfg.variants.seed_length
-
-    def is_copy(lc: StoredLocus) -> bool:
-        """Close enough to the reference amplicon to be a copy of the target (advisor
-        subagent, 2026-09-28): weaker regions only resemble it and are never judged."""
-        if not min_identity:
-            return True
-        ref = ref_amplicons[lc.ref] if lc.ref < len(ref_amplicons) else ref_amplicons[0]
-        return locate.locus_identity(lc, ref, k) >= min_identity
-
     sites: list[SiteResult] = []
     contig_break = 0
     masked_site: list[str] = []
@@ -419,7 +411,11 @@ def assess(
     for it in items:
         if it.status != "found":
             continue
-        real = [lc for lc in it.loci if is_copy(lc)]
+        if min_identity and any(lc.identity is None for lc in it.loci):
+            it = with_identities(it, ref_amplicons, cfg.variants.seed_length)
+            if updated is not None:
+                updated.append(it)  # computed once, then kept in the store
+        real = real_loci(it, min_identity)
         if not real:
             if related is not None:
                 related.append(it.accession)  # only regions that resemble the target
@@ -495,8 +491,9 @@ def assess(
 
 
 def _channel_sites(assay: Assay, every: dict[str, SiteResult]) -> list[SiteResult]:
-    """For probes in more than one reporter channel: the best site of each channel on this copy,
-    in reporter order (user, 2026-09-28: the tables showed only the best probe, so the second
+    """For probes in more than one reporter channel: the best site of each channel on this copy
+    (for a genome judged from parts: on its cut copies, possibly different ones), in reporter
+    order (user, 2026-09-28: the tables showed only the best probe, so the second
     channel, e.g. an L. pneumophila probe next to a genus probe, was invisible)."""
     channels: dict[str, list[SiteResult]] = defaultdict(list)
     for o in assay.probe:
@@ -610,21 +607,24 @@ def _role_sites(
 MIN_PART_SEEDS = 2  # a cut copy counts as a part of the target only with 2+ exact seeds
 
 
-def _implied_offset(region: str, amplicon: str, k: int) -> int | None:
-    """Where the amplicon starts in ``region`` (sense orientation), from its exact k-mers: the
-    median implied start. Negative when the region is cut before the amplicon's start; the
-    locator stores such an offset as 0, so a cut copy is placed again here."""
-    region, amplicon = region.upper(), amplicon.upper()
-    starts = []
-    for i in range(0, len(amplicon) - k + 1):
-        kmer = amplicon[i : i + k]
-        j = region.find(kmer)
-        while j != -1:
-            starts.append(j - i)
-            j = region.find(kmer, j + 1)
-    if not starts:
-        return None
-    return sorted(starts)[len(starts) // 2]
+def with_identities(it: StoredAssembly, ref_amplicons: list[str], k: int) -> StoredAssembly:
+    """The item with every locus's identity to its reference amplicon filled in."""
+    loci = []
+    for lc in it.loci:
+        if lc.identity is None:
+            ref = ref_amplicons[lc.ref] if lc.ref < len(ref_amplicons) else ref_amplicons[0]
+            lc = lc.model_copy(update={"identity": round(locate.locus_identity(lc, ref, k), 4)})
+        loci.append(lc)
+    return it.model_copy(update={"loci": loci})
+
+
+def real_loci(it: StoredAssembly, min_identity: float) -> list[StoredLocus]:
+    """The loci close enough to the reference amplicon to be copies of the target (advisor
+    subagent, 2026-09-28); weaker regions only resemble it and are never judged. Loci without
+    a computed identity count (as before the threshold existed)."""
+    if not min_identity:
+        return list(it.loci)
+    return [lc for lc in it.loci if lc.identity is None or lc.identity >= min_identity]
 
 
 def _assess_parts(
@@ -648,7 +648,7 @@ def _assess_parts(
         if not stored.truncated or stored.n_seeds < MIN_PART_SEEDS:
             continue
         ref = amplicons[stored.ref] if stored.ref < len(amplicons) else amplicons[0]
-        offset = _implied_offset(stored.region, ref, cfg.variants.seed_length)
+        offset = locate.implied_offset(stored.region, ref, cfg.variants.seed_length)
         if offset is None:
             continue
         locus = stored.model_copy(update={"offset": offset})
@@ -656,6 +656,8 @@ def _assess_parts(
         for role in ROLES:
             for name, site in (_role_sites(it, locus, assay, role, windows, cfg, scoring, memo)
                                or {}).items():  # fmt: skip
+                if "N" in site.s_aln.upper():
+                    continue  # an N is neither a match nor a variant
                 if name not in every or _closeness_key(site, bulges) < _closeness_key(
                     every[name], bulges
                 ):
@@ -836,6 +838,9 @@ def copy_coverage(
     undet = [c.accession for c in calls if c.undetermined]
     out.undetermined, out.undetermined_examples = len(undet), undet[:20]
     out.by_level = _level_coverage(calls)
+    # judged from parts and not counted as detected: out of the per-oligo and channel counts
+    # too, as out of the whole-fragment figures (code review, 2026-09-28)
+    judged = [c for c in calls if not (c.from_parts and c.n_detectable == 0)]
     for role in ROLES:
         members = assay.by_role(role)
         for o in members:
@@ -845,15 +850,15 @@ def copy_coverage(
                     role=role,
                     name=o.name,
                     reporter=o.reporter if role == "probe" else None,
-                    covered=sum(c.oligo_good.get(o.name, False) for c in calls),
+                    covered=sum(c.oligo_good.get(o.name, False) for c in judged),
                     only=sum(
                         c.oligo_good.get(o.name, False)
                         and not any(c.oligo_good.get(x, False) for x in others)
-                        for c in calls
+                        for c in judged
                     ),
                 )  # fmt: skip
             )
-        uncovered = [c for c in calls
+        uncovered = [c for c in judged
                      if not any(c.oligo_good.get(o.name, False) for o in members)]  # fmt: skip
         none = [c.accession for c in uncovered if c.role_state.get(role) != "undetermined"]
         out.role_none[role], out.role_none_examples[role] = len(none), none[:20]
@@ -868,12 +873,12 @@ def copy_coverage(
             ChannelCoverageRow(
                 reporter=reporter,
                 probes=names,
-                covered=sum(any(c.oligo_good.get(x, False) for x in names) for c in calls),
+                covered=sum(any(c.oligo_good.get(x, False) for x in names) for c in judged),
             )  # fmt: skip
         )
     per_genome = [
         [any(c.oligo_good.get(x, False) for x in names) for names in channels.values()]
-        for c in calls
+        for c in judged
     ]
     out.any_channel = sum(any(g) for g in per_genome)
     out.all_channels = sum(all(g) for g in per_genome)
@@ -1015,7 +1020,8 @@ def exhaustive_inclusivity(
     shown = sorted(listed)[-lookback:] if listed else []
     oligos: list[InclusivityOligoResult] = []
     for role in ROLES:
-        role_sites = [s for s in sites if s.role == role]
+        # judged from parts and not counted as detected: out of the per-oligo windows too
+        role_sites = [s for s in sites if s.role == role and s.accession not in (from_parts or ())]
         windows = [
             _stats([s for s in role_sites if year_of.get(s.accession) == y], y, listed[y],
                    max(len(o.sequence) for o in assay.by_role(role)))
@@ -1132,7 +1138,13 @@ def stored_calls(
     store = open_store(assay, cfg, cache_root, amplicon, source)
     items = current_items(store)
     calls: list[GenomeCall] = []
-    assess(items, assay, amplicon, placements(assay, amplicon, cfg), cfg, calls=calls)
+    related: list[str] = []
+    assess(items, assay, amplicon, placements(assay, amplicon, cfg), cfg, calls=calls,
+           related=related)  # fmt: skip
+    # only regions that resemble the target: not found, as the report counts them
+    gone = set(related)
+    items = [it.model_copy(update={"status": "not_found"}) if it.accession in gone else it
+             for it in items]  # fmt: skip
     if source == "datasets":  # as run_exhaustive judges them (code review, 2026-09-28)
         mark_unassembled(calls, cfg.variants.multicopy_unassembled)
     return items, calls, store.path
@@ -1216,17 +1228,30 @@ def run_exhaustive(
     calls: list[GenomeCall] = []
     related: list[str] = []
     related_ignored: list[str] = []
+    updated: list[StoredAssembly] = []
     sites, contig_break, masked_site = assess(
         items, assay, amplicon, placed, cfg, calls=calls, related=related,
-        related_ignored=related_ignored,
+        related_ignored=related_ignored, updated=updated,
     )  # fmt: skip
+    for it in updated:  # identities are computed once and kept (code review, 2026-09-28)
+        store.save(it)
+    if updated:
+        stored = {it.accession: it for it in updated}
+        items = [stored.get(it.accession, it) for it in items]
+    if store.n_refs > 1:
+        # stored before the scan tried the next reference when the first found only related
+        # regions: scan once more, on the next run (code review, 2026-09-28)
+        for acc in related:
+            if not store.items[acc].identity_scanned:
+                store.save(store.items[acc].model_copy(update={"rescan": True}))
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
     unassembled = {c.accession for c in calls if c.unassembled}
     # judged from parts and not counted as detected: undetermined in the whole-fragment outcome
-    unassembled |= {c.accession for c in calls if c.from_parts and c.n_detectable == 0}
     parts_undetermined = {c.accession for c in calls if c.from_parts and c.n_detectable == 0}
     not_found = [it for it in items if it.status == "not_found"]
-    found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
+    real = {it.accession: real_loci(it, v.min_copy_identity) for it in items}
+    found_loci = [real[it.accession][0] for it in items
+                  if it.status == "found" and real[it.accession]]  # fmt: skip
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
     on_plasmid = (sum(known) * 2 >= len(known)) if known else None
     with_plasmid = [it for it in not_found if it.plasmid_contigs]
@@ -1254,7 +1279,7 @@ def run_exhaustive(
         found=len(sites) // len(ROLES),
         not_found=len(not_found),
         contig_break=contig_break,
-        multi_copy=sum(1 for it in items if it.n_loci > 1),
+        multi_copy=sum(1 for it in items if len(real[it.accession]) > 1),
         years=years,
         listed_at=(now or datetime.now(UTC)).isoformat(timespec="seconds"),
         not_found_examples=[it.accession for it in not_found[:20]],
@@ -1285,7 +1310,7 @@ def run_exhaustive(
     coverage.copies.typical_copies = typical
     inclusivity = exhaustive_inclusivity(
         sites, items, years, assay, cfg, source=source,
-        unassembled=unassembled - parts_undetermined, from_parts=parts_undetermined,
+        unassembled=unassembled, from_parts=parts_undetermined,
     )  # fmt: skip
     missing = coverage.not_found + coverage.contig_break + coverage.masked + coverage.related_only
     if missing:
