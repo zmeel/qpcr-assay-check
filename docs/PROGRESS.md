@@ -3,6 +3,29 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
+
+- Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number
+  (identity to one reference fragment) decides both "is this the target locus" and "how well do
+  the oligos bind"; probably also seeds grouped within 20 nt and oligo windows +-15 nt around one
+  median offset, which split or misplace copies of species whose spacer length differs by > 20 nt
+  (to measure); the outcome precedence is written five times. Plan: chain locator (co-linear
+  exact blocks, signed coordinates, no cap), store v2 with a schema header (mismatch = discard
+  and re-download, no rescans), all rules at assess time, one genome_outcome(); copy rule
+  "anchored bases M >= 32 OR identity >= 0.75" (to measure first). Build order 0-6; the
+  per-species reference fragment rejected for now. Seven questions to the user (context
+  accession, genus scope, store key, history "method changed", old stores, download schedule,
+  from-parts default): not yet answered.
+- Step 0 built on the user's request: scripts/measure_locator.py (no change to the tool).
+  Prototype chain locator vs the current one on real genomes picked from the region store
+  (related, single-seed, organism:..., sample) or named; per candidate M at seed steps 1/2/4,
+  signed start/end, length difference, cut/N evidence, identity along the chain, the current
+  loci matched (split?), and per oligo the mismatches at the chain vs the current placement; a
+  null with shuffled/reversed references; timing; an unverified probe of the Datasets
+  sequence-report endpoint. tests/test_measure_script.py (synthetic). ~17 s per 4 Mb genome.
+  Next: the user runs it on Legionella, Neisseria and enterovirus and pastes back
+  measure_report.json.
+
 ## 2026-09-28 (end) — Threshold hides divergent Legionella species; next: overhaul with advisor
 
 - Legionella rerun on #30 code: the copy-identity threshold (0.75 vs the L. pneumophila reference
