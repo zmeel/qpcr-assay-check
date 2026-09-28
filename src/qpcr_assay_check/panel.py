@@ -198,8 +198,8 @@ def member_states(items: list[Any], calls: list[Any]) -> dict[str, tuple[State, 
             state = State.UNKNOWN  # hidden by N, or every copy cut by a contig/record end
         elif all(call_of[it.accession].role_good.values()):
             state = State.DETECTED
-        elif call_of[it.accession].undetermined:
-            state = State.UNDETERMINED
+        elif call_of[it.accession].undetermined or call_of[it.accession].unassembled:
+            state = State.UNDETERMINED  # no published basis, or copies possibly unassembled
         else:
             state = State.ESCAPE
         out[it.accession.partition(".")[0]] = (state, it)

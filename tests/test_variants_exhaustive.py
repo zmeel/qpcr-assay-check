@@ -699,3 +699,58 @@ def test_possibly_unassembled_genomes_are_undetermined_in_the_tables(tmp_path):
     assert "Copies possibly unassembled" in html and "1 possibly unassembled" in html
     write_workbook(result, tmp_path / "r.xlsx")
     assert "Unassembled" in load_workbook(tmp_path / "r.xlsx").sheetnames
+
+
+def test_the_unassembled_rule_agrees_across_every_view(tmp_path):
+    """Code review 2026-09-28: one real run with the rule active; coverage, the per-level table,
+    the per-year table, the fragment rows and the panel judge the same genomes the same way."""
+    from qpcr_assay_check.panel import State, member_states
+    from qpcr_assay_check.report.grouping import fragment_view
+    from qpcr_assay_check.variants.exhaustive import stored_calls
+
+    variant = AMP.replace(F, F_VARIANT, 1)
+
+    def multi(seed):  # three copies, as a complete genome of a multi-copy target carries
+        return {f"CHR{seed}.1": "".join(filler(1500, seed + i) + AMP for i in range(3))
+                + filler(1500, seed + 9)}  # fmt: skip
+
+    fakes = [FakeAssembly(f"GCF_00000010{i}.1", "2025-06-01", multi(20 * i),
+                          level="Complete Genome" if i < 4 else "Chromosome")
+             for i in range(5)]  # fmt: skip
+    fakes += [
+        # a draft with one failing copy and more than one sequence: possibly unassembled
+        FakeAssembly("GCA_000000200.1", "2026-02-01",
+                     {"C1.1": filler(2000, 201) + variant + filler(2000, 202),
+                      "C2.1": filler(3000, 203)}, level="Contig"),
+        # one sequence only: no evidence of an incomplete assembly, a real escape
+        FakeAssembly("GCA_000000300.1", "2026-03-01",
+                     {"S1.1": filler(2000, 301) + variant + filler(2000, 302)}, level="Scaffold"),
+    ]  # fmt: skip
+    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets(fakes))
+    res = run(tmp_path, cfg, client, assay)
+    cc = res.coverage.copies
+    assert cc.typical_copies == 3.0
+    assert cc.unassembled_accessions == ["GCA_000000200.1"] and cc.escapes == 1
+    by_level = {lv.level: lv for lv in cc.by_level}
+    assert (by_level["Contig"].unassembled, by_level["Scaffold"].escapes) == (1, 1)
+    assert sum(y.unassembled for y in res.inclusivity.fragment_years) == 1
+    assert sum(y.likely_failure for y in res.inclusivity.fragment_years) == 1  # the Scaffold
+
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    (row,) = [f for f in result.variant_summary.fragments if f.forward.n_mismatch]
+    assert (row.count, row.unassembled) == (2, 1)
+    fv = fragment_view(result.variant_summary.fragments, result.variant_summary.fragment_total)
+    assert fv.records["possibly unassembled"] == 1 and fv.records["likely failure"] == 1
+    write_workbook(result, tmp_path / "r.xlsx")
+    rows = [[c.value for c in r] for r in load_workbook(tmp_path / "r.xlsx")["Copies and coverage"]
+            .iter_rows() if str(r[0].value).startswith("Assembly level Contig")]  # fmt: skip
+    assert rows and "1 possibly unassembled" in rows[0][4]
+
+    items, calls, _path = stored_calls(assay, cfg, tmp_path / "cache", _no_fetch, "datasets")
+    states = member_states(items, calls)
+    assert states["GCA_000000200"][0] is State.UNDETERMINED
+    assert states["GCA_000000300"][0] is State.ESCAPE

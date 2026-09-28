@@ -202,9 +202,10 @@ variants:
   multicopy_unassembled: auto      # multi-copy targets: a draft genome (Scaffold/Contig, more
                                    #   than one sequence or a copy cut at a contig end) whose best
                                    #   copy fails, with fewer than half the copies of the complete
-                                   #   genomes of the run (median; at least 5 complete genomes,
-                                   #   median 2 or more), counts as undetermined "copies possibly
-                                   #   unassembled" unless a complete genome fails the same way;
+                                   #   and chromosome-level genomes of the run (median; at least 5
+                                   #   of them, median 2 or more), counts as undetermined "copies
+                                   #   possibly unassembled" unless one of those fails the same
+                                   #   way (also in the panel command);
                                    #   off = counted as an escape
 
 report:
