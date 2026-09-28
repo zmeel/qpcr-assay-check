@@ -194,7 +194,7 @@ def fragment_view(
         if moved:  # draft genomes whose copies are possibly unassembled: undetermined
             records["possibly unassembled"] += moved
         if parts:  # judged from cut copies and not counted as detected
-            records["judged from parts"] += parts
+            records["detectable from parts"] += parts
     by_count = sorted([r for r in rows if r[1] != "detectable"], key=lambda r: -r[0].count)
     chosen: list[int] = []
     for outcome in _ORDER:

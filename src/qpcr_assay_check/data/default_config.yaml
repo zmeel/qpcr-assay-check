@@ -216,7 +216,7 @@ variants:
   judge_from_parts: undetermined   # genomes whose copies are cut by a contig end (e.g. rRNA
                                    #   operons in draft assemblies) but that carry a detectable
                                    #   site of every role on the cut copies (2+ exact seeds each):
-                                   #   undetermined = its own class "judged from parts", left
+                                   #   undetermined = its own class "detectable from parts", left
                                    #   out of the percentages; detectable = counted as detected;
                                    #   off = "cut by a contig end". The sites may come from
                                    #   different copies, so this is never proof of one amplicon

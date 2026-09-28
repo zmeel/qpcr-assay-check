@@ -197,7 +197,7 @@ def member_states(items: list[Any], calls: list[Any]) -> dict[str, tuple[State, 
         elif it.status == "masked" or it.accession not in call_of:
             state = State.UNKNOWN  # hidden by N, or every copy cut by a contig/record end
         elif call_of[it.accession].from_parts and not call_of[it.accession].n_detectable:
-            state = State.UNDETERMINED  # judged from parts, not counted as detected
+            state = State.UNDETERMINED  # detectable from parts, not counted as detected
         elif all(call_of[it.accession].role_good.values()):
             state = State.DETECTED
         elif call_of[it.accession].undetermined or call_of[it.accession].unassembled:

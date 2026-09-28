@@ -119,7 +119,7 @@ class FragmentVariantRow(BaseModel):
         "(multi-copy target, draft genome): undetermined, not escapes",
     )
     from_parts: int = Field(
-        default=0, description="genomes of this combination judged from parts (cut copies)"
+        default=0, description="genomes of this combination detectable from parts (cut copies)"
     )
     from_parts_counted: bool = Field(
         default=False, description="those genomes are counted as detected"

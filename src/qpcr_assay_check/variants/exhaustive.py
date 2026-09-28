@@ -492,7 +492,7 @@ def assess(
 
 def _channel_sites(assay: Assay, every: dict[str, SiteResult]) -> list[SiteResult]:
     """For probes in more than one reporter channel: the best site of each channel on this copy
-    (for a genome judged from parts: on its cut copies, possibly different ones), in reporter
+    (for a genome detectable from parts: on its cut copies, possibly different ones), in reporter
     order (user, 2026-09-28: the tables showed only the best probe, so the second
     channel, e.g. an L. pneumophila probe next to a genus probe, was invisible)."""
     channels: dict[str, list[SiteResult]] = defaultdict(list)
@@ -703,7 +703,7 @@ def _role_site(
     def key(s: SiteResult) -> tuple[int, int, int]:
         return _closeness_key(s, bulges)
 
-    present = [o for o in members if o.name in every]  # judged from parts: some may be missing
+    present = [o for o in members if o.name in every]  # detectable from parts: some may be missing
     if role != "probe" or channel_rule == "any":
         return min((every[o.name] for o in present), key=key)
     channels: dict[str, list[SiteResult]] = defaultdict(list)
@@ -838,7 +838,7 @@ def copy_coverage(
     undet = [c.accession for c in calls if c.undetermined]
     out.undetermined, out.undetermined_examples = len(undet), undet[:20]
     out.by_level = _level_coverage(calls)
-    # judged from parts and not counted as detected: out of the per-oligo and channel counts
+    # detectable from parts and not counted as detected: out of the per-oligo and channel counts
     # too, as out of the whole-fragment figures (code review, 2026-09-28)
     judged = [c for c in calls if not (c.from_parts and c.n_detectable == 0)]
     for role in ROLES:
@@ -929,7 +929,7 @@ def _fragment_years(
         )
         row.with_region += 1
         if acc in (from_parts or ()):
-            row.undetermined += 1  # judged from parts, not counted as detected
+            row.undetermined += 1  # detectable from parts, not counted as detected
             row.from_parts += 1
         elif outcome != "detectable" and acc in (unassembled or ()):
             row.undetermined += 1  # copies possibly unassembled: neither detected nor escaped
@@ -973,7 +973,7 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
         f"{100.0 * fail / n:.1f}% likely failure, of {n} genomes with the target region "
         f"(undetermined, not counted: {undet}"
         + (f", of which {w.unassembled} with copies possibly unassembled" if w.unassembled else "")
-        + (f", {w.from_parts} judged from parts" if w.from_parts else "")
+        + (f", {w.from_parts} detectable from parts" if w.from_parts else "")
         + "). The per-oligo and per-year figures are "
         "diagnostics; the status uses the whole fragment over this window."
     ]
@@ -1020,7 +1020,7 @@ def exhaustive_inclusivity(
     shown = sorted(listed)[-lookback:] if listed else []
     oligos: list[InclusivityOligoResult] = []
     for role in ROLES:
-        # judged from parts and not counted as detected: out of the per-oligo windows too
+        # detectable from parts and not counted as detected: out of the per-oligo windows too
         role_sites = [s for s in sites if s.role == role and s.accession not in (from_parts or ())]
         windows = [
             _stats([s for s in role_sites if year_of.get(s.accession) == y], y, listed[y],
@@ -1246,7 +1246,7 @@ def run_exhaustive(
                 store.save(store.items[acc].model_copy(update={"rescan": True}))
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
     unassembled = {c.accession for c in calls if c.unassembled}
-    # judged from parts and not counted as detected: undetermined in the whole-fragment outcome
+    # detectable from parts and not counted as detected: undetermined in the whole-fragment outcome
     parts_undetermined = {c.accession for c in calls if c.from_parts and c.n_detectable == 0}
     not_found = [it for it in items if it.status == "not_found"]
     real = {it.accession: real_loci(it, v.min_copy_identity) for it in items}

@@ -15,6 +15,9 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (e8074d4) and "judged from parts" (setting variants.judge_from_parts, default undetermined as
   the advisor advised). The locator stores a copy cut before the amplicon start with offset 0;
   parts are placed again from exact k-mers.
+- Legionella rerun on #29 (user): 40.6% of the whole-fragment records "judged from parts". The
+  user found the name hid the finding (were the oligos perfect?): every site of such a genome is
+  perfect or tolerated, so the class is now called "detectable from parts" (setting name kept).
 - Code review of PR #29, all fixed with tests: judged-from-parts genomes still counted in the
   per-oligo and channel coverage and per-oligo windows (now left out, percentages on the same
   base); older multi-reference stores never rescanned related-only genomes (now flagged once,
