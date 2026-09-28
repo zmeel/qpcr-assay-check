@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Every reporter channel on the whole-fragment rows** (user, 2026-09-28, Legionella genus VIC
+  + L. pneumophila FAM probe): with probes in more than one reporter channel, each row shows the
+  best probe site of every channel on the same copy (report and workbook column "Probe per
+  channel"); rows are grouped by all channels. Before, only the best-binding probe was shown,
+  so the second channel was invisible.
+
 ### Added
 - **Detection by assembly level** (advisor subagent, 2026-09-28): the coverage section gives
   genomes, detectable (%), escapes and undetermined per assembly level (Complete Genome,

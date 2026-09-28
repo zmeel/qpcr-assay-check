@@ -358,7 +358,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb,
             "Fragment variants",
             ["Outcome", "Pair rule", "Forward", "Probe", "Reverse", "Classes (F/P/R)", "Count",
-             "Fraction (%)", "Mismatches (F/P/R)", "Types", "Assembly levels",
+             "Fraction (%)", "Mismatches (F/P/R)", "Probe per channel", "Types", "Assembly levels",
              "Possibly unassembled", "Example accession",
              "Example organism", "First release", "Last release"],
             [
@@ -367,6 +367,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                  f.count, round(f.percent, 2),
                  f"{f.forward.n_mismatch + f.forward.n_gap}/{f.probe.n_mismatch + f.probe.n_gap}/"
                  f"{f.reverse.n_mismatch + f.reverse.n_gap}",
+                 "; ".join(f"{rep} {v.oligo_name}: {v.s_aln} ({v.grade or ''})"
+                           for rep, v in f.channels),
                  "; ".join(f"{n} {c}" for n, c in f.organisms),
                  "; ".join(f"{n} {c}" for n, c in f.levels), f.unassembled,
                  f.example_accession, f.example_organism or "",

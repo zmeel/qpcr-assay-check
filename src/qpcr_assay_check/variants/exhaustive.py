@@ -412,9 +412,13 @@ def assess(
         if any("N" in s.s_aln.upper() for s in chosen.values()):
             masked_site.append(it.accession)  # an N is neither a match nor a variant
             continue
+        channels = _channel_sites(assay, all_sites)
         for role in ROLES:
             n += 1
-            sites.append(chosen[role].model_copy(update={"id": f"V{n}"}))
+            update: dict[str, Any] = {"id": f"V{n}"}
+            if role == "probe" and channels:
+                update["channel_sites"] = channels
+            sites.append(chosen[role].model_copy(update=update))
         if calls is not None:
             calls.append(
                 GenomeCall(
@@ -447,6 +451,19 @@ def assess(
                 )
             )
     return sites, contig_break, masked_site
+
+
+def _channel_sites(assay: Assay, every: dict[str, SiteResult]) -> list[SiteResult]:
+    """For probes in more than one reporter channel: the best site of each channel on this copy,
+    in reporter order (user, 2026-09-28: the tables showed only the best probe, so the second
+    channel, e.g. an L. pneumophila probe next to a genus probe, was invisible)."""
+    channels: dict[str, list[SiteResult]] = defaultdict(list)
+    for o in assay.probe:
+        if o.name in every:
+            channels[o.reporter or "unspecified"].append(every[o.name])
+    if len(channels) < 2:
+        return []
+    return [min(v, key=_closeness_key) for _r, v in sorted(channels.items())]
 
 
 def _run_length_fields(copies: list[dict[str, SiteResult]],

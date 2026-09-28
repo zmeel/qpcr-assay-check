@@ -754,3 +754,38 @@ def test_the_unassembled_rule_agrees_across_every_view(tmp_path):
     states = member_states(items, calls)
     assert states["GCA_000000200"][0] is State.UNDETERMINED
     assert states["GCA_000000300"][0] is State.ESCAPE
+
+
+def test_every_reporter_channel_is_shown_on_the_fragment_rows(tmp_path):
+    """User 2026-09-28 (Legionella genus VIC + L. pneumophila FAM probe): the fragment rows
+    showed only the best-binding probe, so the other channel was invisible."""
+    cfg, fake, client, _assay = setup(tmp_path)
+    p2 = mutate(P, [3, 8, 13])  # a second channel whose probe differs from the amplicon
+    assay = make_assay(
+        reference_amplicon=AMP, target={"taxid": 813},
+        probe=[{"name": "P1", "sequence": P, "reporter": "FAM"},
+               {"name": "P2", "sequence": p2, "reporter": "HEX"}],
+    )  # fmt: skip
+    res = run(tmp_path, cfg, client, assay)
+    probes = [s for s in res.sites if s.role == "probe"]
+    assert probes and all(len(s.channel_sites) == 2 for s in probes)
+    assert "channel_sites" not in probes[0].model_dump()  # not serialised
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    for f in result.variant_summary.fragments:
+        assert [rep for rep, _v in f.channels] == ["FAM", "HEX"]
+        fam, hex_ = (v for _r, v in f.channels)
+        assert (fam.oligo_name, hex_.oligo_name) == ("P1", "P2") and hex_.n_mismatch == 3
+    html = render_report(result, cfg)
+    assert '<div class="channel"><span class="meta">HEX</span>' in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    ws = load_workbook(tmp_path / "r.xlsx")["Fragment variants"]
+    col = [c.value for c in ws[1]].index("Probe per channel")
+    assert "HEX P2:" in ws[2][col].value
+
+    # one channel only: nothing extra
+    single = run(tmp_path, cfg, client, make_assay(reference_amplicon=AMP, target={"taxid": 813}))
+    assert not any(s.channel_sites for s in single.sites)

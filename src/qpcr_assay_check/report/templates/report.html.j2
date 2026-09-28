@@ -90,6 +90,7 @@ details.changes { margin: 0; } details.changes > summary { cursor: pointer; list
 details.changes > summary::-webkit-details-marker { display: none; }
 pre.aln.compact { font-size: .92rem; letter-spacing: .04em; } /* as .seq: lines up with the header */
 table.frag th .seq { white-space: nowrap; word-break: normal; }
+div.channel + div.channel { margin-top: .35rem; }
 table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </style>
 </head>
@@ -338,11 +339,13 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if fragments %}
 {% set fv = fragments %}
 {% macro outcome_chip(o) %}<span class="chip {{ {'detectable': 's-PASS', 'at risk': 's-WARN', 'likely failure': 's-FAIL', 'undetermined': 's-INCOMPLETE'}.get(o, 's-INFO') }}">{{ o or 'not classified' }}</span>{% endmacro %}
-{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% set freq = site_pct.get((role, v.q_aln, v.s_aln)) %}{% if freq is not none and v.grade != 'perfect' %} <span class="meta" title="this {{ role }} site variant, whatever the other sites are">{{ pct(freq) }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s){% if v.note %}; {{ v.note }}{% endif %}">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span></td>{% endmacro %}
+{% macro site_inner(v, role, tail=5) %}{% if v.grade %}<span class="chip {{ grade_css(v.grade) }}" title="{{ v.grade_note }}">{{ v.grade | replace('_', ' ') }}</span>{% endif %}{% set freq = site_pct.get((role, v.q_aln, v.s_aln)) %}{% if freq is not none and v.grade != 'perfect' %} <span class="meta" title="this {{ role }} site variant, whatever the other sites are">{{ pct(freq) }}</span>{% endif %}<span title="{{ v.oligo_name }}: {{ v.n_mismatch }} mismatch(es), {{ v.n_gap }} gap(s){% if v.note %}; {{ v.note }}{% endif %}">{{ v | aln_compact(tail, oligo_no(role, v.oligo_name) | trim) }}</span>{% endmacro %}
+{% macro site_cell(v, role, tail=5) %}<td class="aln-cell">{{ site_inner(v, role, tail) }}</td>{% endmacro %}
+{% macro probe_cell(f) %}{% if f.channels %}<td class="aln-cell">{% for rep, v in f.channels %}<div class="channel"><span class="meta">{{ rep }}</span> {{ site_inner(v, 'probe', 0) }}</div>{% endfor %}</td>{% else %}{{ site_cell(f.probe, 'probe', 0) }}{% endif %}{% endmacro %}
 {% macro types(orgs, total) %}{% for name, n in orgs[:3] %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}{% if orgs | length > 3 %}; +{{ orgs | length - 3 }}{% endif %}{% endmacro %}
 {% macro frag_rows(rows) %}{% for f, outcome, by_pair in rows %}
   <tr><td>{{ outcome_chip(outcome) }}{% if by_pair %}<br><span class="meta">primer-pair rule (Lefever 2013)</span>{% endif %}</td>
-    {{ site_cell(f.forward, 'forward') }}{{ site_cell(f.probe, 'probe', 0) }}{{ site_cell(f.reverse, 'reverse') }}
+    {{ site_cell(f.forward, 'forward') }}{{ probe_cell(f) }}{{ site_cell(f.reverse, 'reverse') }}
     <td class="num">{{ f.count }}<br><span class="meta">{{ pct(f.percent) }}</span>{% if f.unassembled and outcome != 'detectable' %}<br><span class="meta" title="draft genomes with far fewer copies than the complete genomes: counted as undetermined">{{ f.unassembled }} possibly unassembled</span>{% endif %}</td>
     <td class="types">{{ types(f.organisms, f.count) }}{% if f.levels %}<br><span class="meta">{% for name, n in f.levels %}{{ name }} {{ n }}{{ '; ' if not loop.last }}{% endfor %}</span>{% endif %}</td>
     {% if cov %}<td>{{ f.forward.first_seen or '' }}<br><span class="meta">{{ f.forward.last_seen or '' }}</span></td>{% endif %}
