@@ -108,6 +108,11 @@ class FragmentVariantRow(BaseModel):
     organisms: list[tuple[str, int]] = Field(
         default_factory=list, description="organism names of the records, most frequent first"
     )
+    unassembled: int = Field(
+        default=0,
+        description="genomes of this combination whose copies are possibly unassembled "
+        "(multi-copy target, draft genome): undetermined, not escapes",
+    )
     levels: list[tuple[str, int]] = Field(
         default_factory=list,
         description="assembly levels of the genomes (exhaustive analysis of genome assemblies), "
@@ -277,6 +282,8 @@ def build_variant_summary(
     """
     dates = release_dates or {}
     target_sites = [s for s in target_sites if s.tier == "target"]
+    copies = coverage.copies if coverage is not None else None
+    unassembled = set(copies.unassembled_accessions) if copies is not None else set()
     oligo_variants = [
         _oligo_variants(
             target_sites, role, " / ".join(o.sequence for o in assay.by_role(role)), dates
@@ -328,6 +335,7 @@ def build_variant_summary(
         )
         if coverage is not None and coverage.source == "datasets":
             fragments[-1].levels = Counter(_assembly_level(m[0]) for m in members).most_common()
+            fragments[-1].unassembled = sum(1 for m in members if m[0].accession in unassembled)
     fragments.sort(key=lambda f: (-f.count, f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln))
 
     return VariantSummary(

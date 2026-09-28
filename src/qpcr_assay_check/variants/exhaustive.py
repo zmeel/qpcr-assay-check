@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import statistics
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -308,6 +309,10 @@ class GenomeCall:
     run_variants: list[str] = field(default_factory=list)  # "role: label" in any copy
     run_on_best: bool = False  # the best copy carries a run-length variant
     run_mixed: bool = False  # copies disagree: some read the oligo's run length at that site
+    n_truncated: int = 0  # stored copies cut by a contig end (not assessed)
+    n_contigs: int | None = None  # sequences in the assembly
+    signature: tuple = ()  # the best copy's three sites (query and subject alignment)
+    unassembled: bool = False  # see mark_unassembled
 
     @property
     def undetermined(self) -> bool:
@@ -434,6 +439,9 @@ def assess(
                     role_state=roles_state(chosen, bulges),
                     assembly_level=it.assembly_level,
                     **_run_length_fields([c for c, _a in copies], chosen),
+                    n_truncated=sum(1 for lc in it.loci if lc.truncated),
+                    n_contigs=it.n_contigs,
+                    signature=tuple((chosen[r].q_aln, chosen[r].s_aln) for r in ROLES),
                 )
             )
     return sites, contig_break, masked_site
@@ -579,6 +587,38 @@ def _run_length_breakdown(calls: list[GenomeCall], bulges: bool) -> RunLengthBre
 
 
 _LEVEL_ORDER = {"Complete Genome": 0, "Chromosome": 1, "Scaffold": 2, "Contig": 3}
+COMPLETE_LEVELS = frozenset({"Complete Genome", "Chromosome"})
+DRAFT_LEVELS = frozenset({"Scaffold", "Contig"})
+MIN_COMPLETE_GENOMES = 5  # fewer complete genomes: no typical copy number, the rule is off
+
+
+def mark_unassembled(calls: list[GenomeCall], setting: str = "auto") -> float | None:
+    """Mark draft genomes whose escape is likely an assembly artefact of a multi-copy target
+    (advisor subagent, 2026-09-28; user decision): near-identical repeat copies are often left
+    unassembled in drafts (the opa genes of N. gonorrhoeae GCF_000156755.1 sit in scaffold gaps,
+    so only a divergent copy was assembled and judged). A genome is marked when its best copy
+    fails, it is a fragmented draft (Scaffold or Contig with more than one sequence, or a copy
+    cut by a contig end), it has fewer than half the median copy number of the complete and
+    chromosome-level genomes of this run (at least 5 of them, median 2 or more), and no complete
+    genome fails with the same three sites (then the pattern is real). Marked genomes count as
+    undetermined, never as detected; this can hide a real loss of copies, so they are listed.
+    Returns the typical (median) copy number, or None when the rule does not apply."""
+    if setting == "off":
+        return None
+    complete = [c for c in calls if c.assembly_level in COMPLETE_LEVELS]
+    if len(complete) < MIN_COMPLETE_GENOMES:
+        return None
+    typical = float(statistics.median(c.n_copies for c in complete))
+    if typical < 2:
+        return None  # a single-copy target: a missing or failing copy is a real escape
+    failing_complete = {c.signature for c in complete if c.n_detectable == 0}
+    for c in calls:
+        if c.assembly_level not in DRAFT_LEVELS or c.n_detectable > 0 or c.undetermined:
+            continue
+        fragmented = c.n_truncated > 0 or (c.n_contigs or 0) > 1
+        if fragmented and c.n_copies * 2 < typical and c.signature not in failing_complete:
+            c.unassembled = True
+    return typical
 
 
 def _level_coverage(calls: list[GenomeCall]) -> list[LevelCoverage]:
@@ -593,6 +633,8 @@ def _level_coverage(calls: list[GenomeCall]) -> list[LevelCoverage]:
             row.detectable += 1
         elif c.undetermined:
             row.undetermined += 1
+        elif c.unassembled:
+            row.unassembled += 1
         elif not all(c.role_good.values()):
             row.escapes += 1
     if len(levels) < 2:
@@ -621,8 +663,14 @@ def copy_coverage(
         with_detectable_copy_bulges=configured if bulges else other,
     )
     out.run_length = _run_length_breakdown(calls, bulges)
-    escapes = [c.accession for c in calls if not all(c.role_good.values()) and not c.undetermined]
+    escapes = [
+        c.accession
+        for c in calls
+        if not all(c.role_good.values()) and not c.undetermined and not c.unassembled
+    ]
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
+    unassembled = [c.accession for c in calls if c.unassembled]
+    out.unassembled, out.unassembled_accessions = len(unassembled), unassembled
     undet = [c.accession for c in calls if c.undetermined]
     out.undetermined, out.undetermined_examples = len(undet), undet[:20]
     out.by_level = _level_coverage(calls)
@@ -696,7 +744,7 @@ def _site(it: StoredAssembly, locus: StoredLocus, o: Oligo, strand: str, lo: int
 
 def _fragment_years(
     sites: list[SiteResult], year_of: dict[str, int | None], listed: dict[int, int],
-    shown: list[int], bulges: bool,
+    shown: list[int], bulges: bool, unassembled: set[str] | None = None,
 ) -> list[FragmentYear]:  # fmt: skip
     """Per year, each genome's outcome from its three best-copy sites together, as in the
     whole-fragment table (user, 2026-09-25: one summary next to the per-oligo tables)."""
@@ -712,7 +760,10 @@ def _fragment_years(
             roles["forward"], roles["probe"], roles["reverse"], bulges
         )
         row.with_region += 1
-        if outcome == "detectable":
+        if outcome != "detectable" and acc in (unassembled or ()):
+            row.undetermined += 1  # copies possibly unassembled: neither detected nor escaped
+            row.unassembled += 1
+        elif outcome == "detectable":
             row.detectable += 1
         elif outcome == "at risk":
             row.at_risk += 1
@@ -749,7 +800,9 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
         f"Whole fragment, genomes released {span}: {pct:.1f}% detectable (perfect or "
         f"tolerated), {100.0 * (det + risk) / n:.1f}% including at risk, "
         f"{100.0 * fail / n:.1f}% likely failure, of {n} genomes with the target region "
-        f"(undetermined, not counted: {undet}). The per-oligo and per-year figures are "
+        f"(undetermined, not counted: {undet}"
+        + (f", of which {w.unassembled} with copies possibly unassembled" if w.unassembled else "")
+        + "). The per-oligo and per-year figures are "
         "diagnostics; the status uses the whole fragment over this window."
     ]
     if pct < rules.fail_below_percent:
@@ -783,8 +836,11 @@ def exhaustive_inclusivity(
     cfg: Config,
     *,
     source: str = "datasets",
+    unassembled: set[str] | None = None,
 ) -> InclusivityResult:
-    """Per-release-year inclusivity over every assessed assembly (not a sample)."""
+    """Per-release-year inclusivity over every assessed assembly (not a sample).
+    ``unassembled``: genomes whose copies are possibly unassembled (:func:`mark_unassembled`),
+    counted as undetermined in the whole-fragment outcome."""
     year_of = {it.accession: it.year for it in items}
     listed = {y.year: y.listed for y in years}
     lookback = cfg.inclusivity.lookback_years
@@ -800,8 +856,9 @@ def exhaustive_inclusivity(
         oligo = " / ".join(o.sequence for o in assay.by_role(role))
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
     fragment_years = _fragment_years(
-        sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable
-    )
+        sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable,
+        unassembled or set(),
+    )  # fmt: skip
     verdict, rationale = fragment_verdict(fragment_years, cfg.inclusivity)
     rationale += [
         f"{y.year}: {y.listed} "
@@ -988,6 +1045,8 @@ def run_exhaustive(
     items = current_items(store)
     calls: list[GenomeCall] = []
     sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
+    typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
+    unassembled = {c.accession for c in calls if c.unassembled}
     not_found = [it for it in items if it.status == "not_found"]
     found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
@@ -1041,7 +1100,10 @@ def run_exhaustive(
         copies=copy_coverage(calls, assay, v.probe_channels, v.homopolymer_bulges_detectable),
     )  # fmt: skip
     coverage.copies.copies_capped = sum(1 for it in items if it.copies_capped)
-    inclusivity = exhaustive_inclusivity(sites, items, years, assay, cfg, source=source)
+    coverage.copies.typical_copies = typical
+    inclusivity = exhaustive_inclusivity(
+        sites, items, years, assay, cfg, source=source, unassembled=unassembled
+    )
     missing = coverage.not_found + coverage.contig_break + coverage.masked
     if missing:
         unit, end, col = (

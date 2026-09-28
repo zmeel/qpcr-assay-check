@@ -199,6 +199,13 @@ variants:
                                    #   its class decides (primers: rule R5b, at risk or likely
                                    #   failure); true = detectable. The report shows the count
                                    #   under both rules either way
+  multicopy_unassembled: auto      # multi-copy targets: a draft genome (Scaffold/Contig, more
+                                   #   than one sequence or a copy cut at a contig end) whose best
+                                   #   copy fails, with fewer than half the copies of the complete
+                                   #   genomes of the run (median; at least 5 complete genomes,
+                                   #   median 2 or more), counts as undetermined "copies possibly
+                                   #   unassembled" unless a complete genome fails the same way;
+                                   #   off = counted as an escape
 
 report:
   include_charts: true                       # oligo Tm chart (inline SVG, a few kB)

@@ -432,6 +432,9 @@ class VariantsSettings(_Strict):
     direct_scan_batch: int
     probe_channels: Literal["any", "all"] = "any"  # probes with different reporters (channels)
     homopolymer_bulges_detectable: bool = False  # strict: a run-length variant is not detectable
+    # multi-copy targets: a draft genome whose best copy fails but that has far fewer copies
+    # than the complete genomes of the run counts as undetermined (copies possibly unassembled)
+    multicopy_unassembled: Literal["auto", "off"] = "auto"
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:

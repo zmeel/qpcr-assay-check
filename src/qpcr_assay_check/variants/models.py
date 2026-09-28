@@ -42,11 +42,12 @@ class LevelCoverage(BaseModel):
     detectable: int = 0
     escapes: int = 0
     undetermined: int = 0
+    unassembled: int = Field(default=0, description="copies possibly unassembled (undetermined)")
 
     @property
     def percent(self) -> float | None:
-        """Detectable % of the genomes at this level, undetermined left out."""
-        base = self.genomes - self.undetermined
+        """Detectable % of the genomes at this level, undetermined (either kind) left out."""
+        base = self.genomes - self.undetermined - self.unassembled
         return 100.0 * self.detectable / base if base > 0 else None
 
 
@@ -108,6 +109,17 @@ class CopyCoverage(BaseModel):
         "basis (e.g. a mismatch in an MGB probe): neither detected nor an escape",
     )
     undetermined_examples: list[str] = Field(default_factory=list)
+    unassembled: int = Field(
+        default=0,
+        description="draft genomes whose best copy fails but that carry far fewer copies than "
+        "the complete genomes (copies possibly unassembled): undetermined, not an escape",
+    )
+    unassembled_accessions: list[str] = Field(default_factory=list)
+    typical_copies: float | None = Field(
+        default=None,
+        description="median copies of the complete and chromosome-level genomes; None when "
+        "the unassembled-copies rule did not apply",
+    )
     oligos: list[OligoCoverageRow] = Field(default_factory=list)
     role_none: dict[str, int] = Field(
         default_factory=dict, description="per role: genomes that none of its oligos covers"

@@ -188,7 +188,10 @@ def fragment_view(
     rows = [(f, *fragment_outcome(f, bulges)) for f in fragments]
     records: Counter = Counter()
     for f, outcome, _pair in rows:
-        records[outcome or "not classified"] += f.count
+        moved = getattr(f, "unassembled", 0) if outcome != "detectable" else 0
+        records[outcome or "not classified"] += f.count - moved
+        if moved:  # draft genomes whose copies are possibly unassembled: undetermined
+            records["possibly unassembled"] += moved
     by_count = sorted([r for r in rows if r[1] != "detectable"], key=lambda r: -r[0].count)
     chosen: list[int] = []
     for outcome in _ORDER:
