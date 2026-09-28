@@ -21,6 +21,14 @@ verified NCBI facts) at the start of every session. Newest entry first.
   their identity at scan time; build a reference fragment per species automatically for genus
   assays (e.g. Legionella) from complete genomes; then revisit "possibly unassembled", "detectable
   from parts", the identity threshold and the per-channel probes on that richer data.
+- Also to discuss (user): every fix of the past week that could be done better with all data
+  downloaded again, among them: region hidden by N (partly via N-tolerant seeds, wholly via the
+  reference context, v1.1.1); target on a plasmid judged from FASTA descriptions; copies capped
+  at 5 then 20 per genome and rescans (copies_capped, refs_checked, needs_rescan); cut by a contig
+  end (contig_break) and its clamped offsets; failed downloads counted unavailable after 2 tries;
+  best-binding copy per genome; homopolymer run-length variants and their per-level breakdown;
+  "possibly unassembled" (inferred from copy counts, no gap data stored); "detectable from parts";
+  the copy-identity threshold and the multi-reference fall-through; per-channel probe sites.
 
 ## 2026-09-28 (later) — Legionella; probe channels; judged from parts; copy threshold advice
 
