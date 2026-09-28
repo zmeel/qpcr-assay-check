@@ -67,7 +67,7 @@ class FragmentYear(BaseModel):
         description="of the undetermined: draft genomes whose copies are possibly unassembled",
     )
     from_parts: int = Field(
-        default=0, description="of the undetermined: genomes judged from parts (cut copies)"
+        default=0, description="of the undetermined: genomes detectable from parts (cut copies)"
     )
 
 
@@ -85,7 +85,7 @@ class FragmentWindow:
     at_risk: int
     likely_failure: int
     unassembled: int = 0  # of the undetermined: copies possibly unassembled
-    from_parts: int = 0  # of the undetermined: judged from parts
+    from_parts: int = 0  # of the undetermined: detectable from parts
 
     @property
     def n(self) -> int:

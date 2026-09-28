@@ -64,7 +64,7 @@ class SiteResult(BaseModel):
         default_factory=list,
         exclude=True,
         description="probes in several reporter channels, exhaustive analysis: the best site of "
-        "each channel on the same copy (judged from parts: on the cut copies, possibly "
+        "each channel on the same copy (detectable from parts: on the cut copies, possibly "
         "different ones), reporter order (not serialised)",
     )
 

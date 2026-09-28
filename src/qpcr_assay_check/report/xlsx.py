@@ -418,7 +418,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                       "", ""],
                      ["Escapes (no detectable copy)", "", cc.escapes, "",
                       ", ".join(cc.escape_examples)],
-                     ["Judged from parts (sites on copies cut by a contig end)",
+                     ["Detectable from parts (sites on copies cut by a contig end)",
                       "counted as detected" if cc.from_parts_counted else "undetermined",
                       cc.from_parts, "", "sheet From parts"],
                      ["Copies possibly unassembled (undetermined)",
@@ -438,7 +438,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                         "genomes / detectable / escapes, undetermined, possibly unassembled",
                         lv.genomes, lv.detectable,
                         f"{lv.escapes} escapes, {lv.undetermined} undetermined, "
-                        f"{lv.unassembled} possibly unassembled, {lv.from_parts} judged from parts"]
+                        f"{lv.unassembled} possibly unassembled, "
+                        f"{lv.from_parts} detectable from parts"]
                        for lv in cc.by_level],
                      *_run_length_rows(cc.run_length)],
                     None,

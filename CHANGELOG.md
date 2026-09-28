@@ -19,14 +19,15 @@ All notable changes to this project are documented here. The format follows
   Each copy's identity is computed once and kept in the region store (the first run with this
   version takes longer). A genome in an older store with several reference amplicons whose
   only stored regions are related is scanned once more, with the next reference.
-- **Judged from parts** (user decision 2026-09-28, option 1 of the contig-edge problem;
+- **Detectable from parts** (user decision 2026-09-28, option 1 of the contig-edge problem;
   advisor: its own class): in draft assemblies repeats such as the rRNA operons that carry the
   Legionella 23S-5S spacer break the assembly, so the fragment is split over two contigs while
   each oligo site is whole on one (GCF_000586155.1: forward primer and L. pneumophila probe at
   the end of contig051, the reverse primer at the edges of three other contigs). A genome whose
   copies are all cut by a contig end, or whose best whole copy fails, but that carries a
-  detectable site of every role on the cut copies (each with 2+ exact seeds) is "judged from
-  parts". The sites may come from different copies, so by default it is its own class, left out
+  detectable site of every role on the cut copies (each with 2+ exact seeds) is "detectable
+  from parts" (every oligo site perfect or tolerated; named so on the user's request, first
+  "judged from parts"). The sites may come from different copies, so by default it is its own class, left out
   of the percentages like the undetermined genomes (setting
   `variants.judge_from_parts: undetermined | detectable | off`). Shown in coverage, per level,
   per year, on the fragment rows, in the panel and the workbook (sheet "From parts"). Cut copies
@@ -36,7 +37,7 @@ All notable changes to this project are documented here. The format follows
 ### Changed
 - **Every reporter channel on the whole-fragment rows** (user, 2026-09-28, Legionella genus VIC
   + L. pneumophila FAM probe): with probes in more than one reporter channel, each row shows the
-  best probe site of every channel on the same copy (for a genome judged from parts: on its cut
+  best probe site of every channel on the same copy (for a genome detectable from parts: on its cut
   copies, possibly different ones; report and workbook column "Probe per channel"); rows are
   grouped by all channels. Before, only the best-binding probe was shown,
   so the second channel was invisible.

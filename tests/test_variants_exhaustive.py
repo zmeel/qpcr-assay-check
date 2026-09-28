@@ -819,9 +819,9 @@ def test_a_fragment_split_over_contigs_is_judged_from_its_parts(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     fv = fragment_view(result.variant_summary.fragments, result.variant_summary.fragment_total)
-    assert fv.records["judged from parts"] == 1 and fv.records["detectable"] == 2
+    assert fv.records["detectable from parts"] == 1 and fv.records["detectable"] == 2
     html = render_report(result, cfg)
-    assert "Judged from parts" in html and "1 judged from parts (undetermined)" in html
+    assert "Detectable from parts" in html and "1 detectable from parts (undetermined)" in html
     write_workbook(result, tmp_path / "r.xlsx")
     assert "From parts" in load_workbook(tmp_path / "r.xlsx").sheetnames
 
@@ -915,7 +915,7 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     from qpcr_assay_check.variants.exhaustive import stored_calls
     from qpcr_assay_check.variants.locate import scan_region
 
-    # 1. judged from parts (undetermined): out of the per-oligo and channel counts as well
+    # 1. detectable from parts (undetermined): out of the per-oligo and channel counts as well
     cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
     res = run(tmp_path, cfg, client, assay)
     cc = res.coverage.copies

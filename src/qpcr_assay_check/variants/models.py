@@ -44,7 +44,7 @@ class LevelCoverage(BaseModel):
     undetermined: int = 0
     unassembled: int = Field(default=0, description="copies possibly unassembled (undetermined)")
     from_parts: int = Field(
-        default=0, description="judged from parts and not counted as detected (undetermined)"
+        default=0, description="detectable from parts and not counted as detected (undetermined)"
     )
 
     @property
@@ -120,7 +120,7 @@ class CopyCoverage(BaseModel):
     unassembled_accessions: list[str] = Field(default_factory=list)
     from_parts: int = Field(
         default=0,
-        description="genomes judged from parts: every role has a detectable site on copies cut "
+        description="genomes detectable from parts: every role has a detectable site on copies cut "
         "by a contig end (sites possibly from different copies)",
     )
     from_parts_counted: bool = Field(
