@@ -206,6 +206,13 @@ variants:
                                    #   of them, median 2 or more), counts as undetermined "copies
                                    #   possibly unassembled" unless one of those fails the same
                                    #   way (also in the panel command);
+  min_copy_identity: 0.75          # a located region counts as a copy of the target only when
+                                   #   it matches the reference fragment over at least this share
+                                   #   (banded alignment, over the part it covers). Measured
+                                   #   (advisor, 2026-09-28): true Legionella copies 0.99-1.00, an
+                                   #   unrelated region found through one chance seed 0.57, random
+                                   #   sequence 0.56 +- 0.02, a real divergent N. gonorrhoeae opa
+                                   #   copy 0.80. Weaker regions are listed, never judged; 0 = off
   judge_from_parts: undetermined   # genomes whose copies are cut by a contig end (e.g. rRNA
                                    #   operons in draft assemblies) but that carry a detectable
                                    #   site of every role on the cut copies (2+ exact seeds each):

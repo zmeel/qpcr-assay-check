@@ -219,7 +219,8 @@ def _direct_scan(
     A record whose fetch failed is not stored, so the next run tries it again.
     """
     v = cfg.variants
-    kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt}
+    kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt,
+          "min_identity": v.min_copy_identity}  # fmt: skip
     done = 0
     for i in range(0, len(recs), v.direct_scan_batch):
         chunk = recs[i : i + v.direct_scan_batch]

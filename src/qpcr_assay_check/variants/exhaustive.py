@@ -43,6 +43,7 @@ from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from ..verdict import STATUS_LABEL, Verdict
+from . import locate
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .locate import CONTEXT_NT, scan_region
 from .models import (
@@ -263,7 +264,8 @@ def _process(
                 continue
             records_ = parse_fasta_records(fasta)
             contigs = {name: seq for name, (_d, seq) in records_.items()}
-            kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt}
+            kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt,
+                  "min_identity": v.min_copy_identity}  # fmt: skip
             others = getattr(context, "other_amplicons", [])
             loci, masked, ref = scan_region(
                 contigs, amplicon, context, other_amplicons=others, **kw
@@ -372,6 +374,8 @@ def assess(
     cfg: Config,
     *,
     calls: list[GenomeCall] | None = None,
+    related: list[str] | None = None,
+    related_ignored: list[str] | None = None,
 ) -> tuple[list[SiteResult], int, list[str]]:
     """One site per role per genome, from the copy of the region the assay binds best.
 
@@ -380,7 +384,10 @@ def assess(
     mismatches and gaps; the genome is judged by its best copy, as a PCR needs only one copy it
     can amplify. ``sites_in_amplicon`` gives the oligo windows per reference amplicon (a locus
     records which reference found it). ``calls``, if given, collects each genome's
-    :class:`GenomeCall` (copies, per-oligo coverage). Returns the sites, the number of genomes
+    :class:`GenomeCall` (copies, per-oligo coverage). Only regions with at least
+    ``variants.min_copy_identity`` to the reference amplicon count as copies: ``related``
+    collects the genomes with nothing else, ``related_ignored`` those where such regions were
+    set aside next to real copies. Returns the sites, the number of genomes
     whose only copies are cut by a contig end, and the genomes whose best copy has an N in an
     oligo site (masked, not assessed).
     """
@@ -394,6 +401,17 @@ def assess(
     bulges = cfg.variants.homopolymer_bulges_detectable
     parts_rule = cfg.variants.judge_from_parts
     ref_amplicons = [amplicon] + [r.sequence for r in assay.reference_amplicons[1:]]
+    min_identity = cfg.variants.min_copy_identity
+    k = cfg.variants.seed_length
+
+    def is_copy(lc: StoredLocus) -> bool:
+        """Close enough to the reference amplicon to be a copy of the target (advisor
+        subagent, 2026-09-28): weaker regions only resemble it and are never judged."""
+        if not min_identity:
+            return True
+        ref = ref_amplicons[lc.ref] if lc.ref < len(ref_amplicons) else ref_amplicons[0]
+        return locate.locus_identity(lc, ref, k) >= min_identity
+
     sites: list[SiteResult] = []
     contig_break = 0
     masked_site: list[str] = []
@@ -401,6 +419,14 @@ def assess(
     for it in items:
         if it.status != "found":
             continue
+        real = [lc for lc in it.loci if is_copy(lc)]
+        if not real:
+            if related is not None:
+                related.append(it.accession)  # only regions that resemble the target
+            continue
+        if related_ignored is not None and len(real) < len(it.loci):
+            related_ignored.append(it.accession)
+        it = it.model_copy(update={"loci": real})
         copies = []
         for locus in (lc for lc in it.loci if not lc.truncated):
             windows = per_ref[locus.ref] if locus.ref < len(per_ref) else per_ref[0]
@@ -1188,7 +1214,12 @@ def run_exhaustive(
         )
     items = current_items(store)
     calls: list[GenomeCall] = []
-    sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
+    related: list[str] = []
+    related_ignored: list[str] = []
+    sites, contig_break, masked_site = assess(
+        items, assay, amplicon, placed, cfg, calls=calls, related=related,
+        related_ignored=related_ignored,
+    )  # fmt: skip
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
     unassembled = {c.accession for c in calls if c.unassembled}
     # judged from parts and not counted as detected: undetermined in the whole-fragment outcome
@@ -1245,6 +1276,10 @@ def run_exhaustive(
             and it.direct_checked is False
         ),
         copies=copy_coverage(calls, assay, v.probe_channels, v.homopolymer_bulges_detectable),
+        related_only=len(related),
+        related_only_examples=related[:20],
+        related_ignored=len(related_ignored),
+        min_copy_identity=v.min_copy_identity,
     )  # fmt: skip
     coverage.copies.copies_capped = sum(1 for it in items if it.copies_capped)
     coverage.copies.typical_copies = typical
@@ -1252,7 +1287,7 @@ def run_exhaustive(
         sites, items, years, assay, cfg, source=source,
         unassembled=unassembled - parts_undetermined, from_parts=parts_undetermined,
     )  # fmt: skip
-    missing = coverage.not_found + coverage.contig_break + coverage.masked
+    missing = coverage.not_found + coverage.contig_break + coverage.masked + coverage.related_only
     if missing:
         unit, end, col = (
             ("assemblies", "contig", "Assemblies") if source == "datasets"
@@ -1261,7 +1296,13 @@ def run_exhaustive(
         inclusivity.rationale.append(
             f"{missing} of {len(items)} assessed {unit} are not in the counts above: "
             f"the target region was not found in {coverage.not_found}, was hidden by N in "
-            f"{coverage.masked} and was cut by a {end} end in {coverage.contig_break} "
+            f"{coverage.masked}, was cut by a {end} end in {coverage.contig_break}"
+            + (
+                f" and only resembled by related regions in {coverage.related_only}"
+                if coverage.related_only
+                else ""
+            )
+            + " "
             f"(see the Variant summary). Per year, '{col}' minus 'With region' is that gap."
         )
     if coverage.target_on_plasmid and coverage.not_found_with_plasmid:

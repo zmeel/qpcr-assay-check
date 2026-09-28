@@ -439,6 +439,9 @@ class VariantsSettings(_Strict):
     # a detectable site of every role on the cut copies: undetermined (its own class, left out
     # of the percentages), detectable, or off (cut by a contig end / judged by the whole copy)
     judge_from_parts: Literal["undetermined", "detectable", "off"] = "undetermined"
+    # a located region counts as a copy of the target only at this identity to the reference
+    # amplicon (over the part it covers); 0 = every located region counts
+    min_copy_identity: float = 0.75
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:
@@ -450,6 +453,8 @@ class VariantsSettings(_Strict):
             raise ValueError("max_assemblies_per_run must be at least 1")
         if self.flank_nt < 0 or not 8 <= self.seed_length <= 32 or self.seed_step < 1:
             raise ValueError("flank_nt >= 0, seed_length 8-32 and seed_step >= 1 are required")
+        if not 0.0 <= self.min_copy_identity <= 1.0:
+            raise ValueError("min_copy_identity must be between 0 and 1")
         return self
 
 

@@ -209,6 +209,20 @@ class ExhaustiveCoverage(BaseModel):
         "or an oligo site inside it; not assessed, since an N is neither a match nor a variant",
     )
     masked_examples: list[str] = Field(default_factory=list)
+    related_only: int = Field(
+        default=0,
+        description="genomes whose only located regions fall below min_copy_identity: they "
+        "resemble the target but are not a copy of it (not in the tables)",
+    )
+    related_only_examples: list[str] = Field(default_factory=list)
+    related_ignored: int = Field(
+        default=0,
+        description="genomes with real copies where regions below min_copy_identity were set "
+        "aside (never picked as the best copy)",
+    )
+    min_copy_identity: float | None = Field(
+        default=None, description="the identity threshold used; None: stored before it existed"
+    )
     found_by_direct_scan: int = Field(
         default=0,
         description="Nucleotide records: no BLAST hit, region found by fetching the record (for "

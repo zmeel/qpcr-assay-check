@@ -850,3 +850,58 @@ def test_judging_from_parts_follows_its_setting_and_needs_detectable_sites(tmp_p
     cfg3.variants.max_assemblies_per_run, cfg3.ncbi.datasets_batch_size = 20000, 2
     items, calls, _p = stored_calls(assay, cfg3, tmp_path / "cache", _no_fetch, "datasets")
     assert member_states(items, calls)["GCA_000000007"][0] is State.UNDETERMINED
+
+
+# ------------------------------------------------------------------ copy similarity threshold
+def _related_region(seed: int) -> str:
+    """Unrelated sequence around one 16-base stretch of the amplicon: a chance seed hit (as in
+    L. pneumophila GCF_000586155.1, where such a region was judged instead of the target)."""
+    return filler(300, seed) + AMP[40:56] + filler(300, seed + 1)
+
+
+def test_a_region_found_through_one_chance_seed_is_not_a_copy(tmp_path):
+    """Advisor 2026-09-28: identity to the reference amplicon >= 0.75 makes a copy."""
+    from qpcr_assay_check.variants.locate import amplicon_identity, find_loci
+
+    (lc,) = find_loci({"X": _related_region(81)}, AMP, seed_length=16, seed_step=4, flank=50)
+    assert lc.n_seeds == 1 and amplicon_identity(lc.region, AMP, lc.offset)[0] < 0.7
+    divergent = "".join(("A" if b != "A" else "C") if i % 5 == 2 else b for i, b in enumerate(AMP))
+    ident = amplicon_identity(filler(50, 1) + divergent + filler(50, 2), AMP, 50)[0]
+    assert 0.75 <= ident <= 0.85  # a real divergent copy (every 5th base changed) stays a copy
+
+    extra = [
+        FakeAssembly("GCA_000000008.1", "2026-05-01", {"U8.1": _related_region(81)}),
+        FakeAssembly("GCA_000000009.1", "2026-05-01",  # a real copy next to a related region
+                     {"A9.1": _related_region(91) + filler(500, 93) + AMP + filler(500, 94)}),
+    ]  # fmt: skip
+    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets([*assemblies(), *extra]))
+    res = run(tmp_path, cfg, client, assay)
+    cov = res.coverage
+    assert cov.related_only_examples == ["GCA_000000008.1"] and cov.related_ignored == 1
+    assert "GCA_000000008.1" not in cov.copies.escape_examples
+    assert cov.copies.with_detectable_copy == 3  # GCA_9 judged by its real copy
+    assert any("only resembled by related regions in 1" in x for x in res.inclusivity.rationale)
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    assert "Related regions, not the target" in render_report(result, cfg)
+
+    cfg.variants.min_copy_identity = 0.0  # off: the chance region is judged, as before
+    assert run(tmp_path, cfg, client, assay).coverage.related_only == 0
+
+
+def test_the_next_reference_is_tried_when_the_first_finds_only_a_related_region():
+    from qpcr_assay_check.variants.locate import scan_region
+
+    other = filler(120, 55)  # a second lineage's amplicon, present whole in this genome
+    contigs = {"C": _related_region(81) + filler(400, 56) + other + filler(400, 57)}
+    kw = {"seed_length": 16, "seed_step": 4, "flank": 50}
+    loci, _m, ref = scan_region(contigs, AMP, None, other_amplicons=[other], **kw)
+    assert ref == 0  # without the threshold the chance seed stops the search
+    loci, _m, ref = scan_region(contigs, AMP, None, other_amplicons=[other], min_identity=0.75,
+                                **kw)  # fmt: skip
+    assert ref == 1 and loci[0].n_seeds > 1
+    loci, _m, ref = scan_region({"C": _related_region(81)}, AMP, None, min_identity=0.75, **kw)
+    assert ref == 0 and loci  # nothing better: the related region is kept, to be listed

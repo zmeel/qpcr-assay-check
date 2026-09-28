@@ -289,6 +289,8 @@ def _coverage_row(result: RunResult, cmp: _Compare) -> SummaryRow | None:
         )
     if c.unavailable:
         parts.append(f"{c.unavailable:,} could not be downloaded")
+    if c.related_only:
+        parts.append(f"only related regions (not the target) in {c.related_only:,}")
     if c.complete:
         level, reason = Verdict.PASS, ""
     else:

@@ -15,7 +15,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (e8074d4) and "judged from parts" (setting variants.judge_from_parts, default undetermined as
   the advisor advised). The locator stores a copy cut before the amplicon start with offset 0;
   parts are placed again from exact k-mers.
-- Advisor on a copy-similarity threshold (not built): identity of the region to the reference
+- Copy-similarity threshold built on the user's request (variants.min_copy_identity 0.75,
+  locate.amplicon_identity: banded alignment, cached; about 9 ms per new 260-nt region). Still
+  to verify: the identity of real enterovirus copies across genotypes (the partitioned source
+  uses the threshold too), and the effect on the stored Legionella and Neisseria loci.
+- Advisor on a copy-similarity threshold: identity of the region to the reference
   amplicon >= 0.75 (measured: true Legionella copies 0.99-1.00, the unrelated region 0.57,
   random 260-nt windows 0.56 +- 0.02; N. gonorrhoeae divergent opa copy 0.80; single-seed random
   76 nt: 0.4% >= 0.75). n_seeds cannot separate them (both 1). Below the threshold: store and

@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Copy similarity threshold** (advisor subagent, 2026-09-28; user decision): a region found
+  through the amplicon's exact seeds counts as a copy of the target only when it matches the
+  reference fragment over at least `variants.min_copy_identity` (0.75) of the part it covers
+  (banded alignment). A single chance seed pointed to an unrelated region in L. pneumophila
+  GCF_000586155.1 (identity 0.57), which was judged instead of the target. Weaker regions are
+  listed ("related regions, not the target"), never judged; a genome with nothing else is left
+  out of the tables. The locator tries the next reference amplicon when the first finds only
+  such regions. Measured: true Legionella copies 0.99-1.00, random sequence 0.56 +- 0.02, a
+  real divergent N. gonorrhoeae opa copy 0.80. Not yet checked on enterovirus genotypes.
 - **Judged from parts** (user decision 2026-09-28, option 1 of the contig-edge problem;
   advisor: its own class): in draft assemblies repeats such as the rRNA operons that carry the
   Legionella 23S-5S spacer break the assembly, so the fragment is split over two contigs while
