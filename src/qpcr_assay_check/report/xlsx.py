@@ -418,6 +418,9 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                       "", ""],
                      ["Escapes (no detectable copy)", "", cc.escapes, "",
                       ", ".join(cc.escape_examples)],
+                     ["Judged from parts (sites on copies cut by a contig end)",
+                      "counted as detected" if cc.from_parts_counted else "undetermined",
+                      cc.from_parts, "", "sheet From parts"],
                      ["Copies possibly unassembled (undetermined)",
                       f"median copies of complete genomes {cc.typical_copies:g}"
                       if cc.typical_copies is not None else "rule not applied",
@@ -435,7 +438,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                         "genomes / detectable / escapes, undetermined, possibly unassembled",
                         lv.genomes, lv.detectable,
                         f"{lv.escapes} escapes, {lv.undetermined} undetermined, "
-                        f"{lv.unassembled} possibly unassembled"]
+                        f"{lv.unassembled} possibly unassembled, {lv.from_parts} judged from parts"]
                        for lv in cc.by_level],
                      *_run_length_rows(cc.run_length)],
                     None,
@@ -446,6 +449,13 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb, "Unassembled", ["Accession", "Note"],
             [[acc, "best copy fails; far fewer copies than complete genomes (draft): "
               "undetermined, not an escape"] for acc in cov_all.copies.unassembled_accessions],
+            None,
+        )  # fmt: skip
+    if cov_all is not None and cov_all.copies and cov_all.copies.from_parts_accessions:
+        _sheet(
+            wb, "From parts", ["Accession", "Note"],
+            [[acc, "every site whole on copies cut by a contig end, possibly different copies"]
+             for acc in cov_all.copies.from_parts_accessions],
             None,
         )  # fmt: skip
     incl = result.inclusivity

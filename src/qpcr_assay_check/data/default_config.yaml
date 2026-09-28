@@ -206,6 +206,13 @@ variants:
                                    #   of them, median 2 or more), counts as undetermined "copies
                                    #   possibly unassembled" unless one of those fails the same
                                    #   way (also in the panel command);
+  judge_from_parts: undetermined   # genomes whose copies are cut by a contig end (e.g. rRNA
+                                   #   operons in draft assemblies) but that carry a detectable
+                                   #   site of every role on the cut copies (2+ exact seeds each):
+                                   #   undetermined = its own class "judged from parts", left
+                                   #   out of the percentages; detectable = counted as detected;
+                                   #   off = "cut by a contig end". The sites may come from
+                                   #   different copies, so this is never proof of one amplicon
                                    #   off = counted as an escape
 
 report:

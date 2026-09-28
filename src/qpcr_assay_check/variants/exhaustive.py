@@ -313,6 +313,7 @@ class GenomeCall:
     n_contigs: int | None = None  # sequences in the assembly
     signature: tuple = ()  # the best copy's three genome sites (role, subject alignment)
     unassembled: bool = False  # see mark_unassembled
+    from_parts: bool = False  # judged from sites on copies cut by a contig end (_assess_parts)
 
     @property
     def undetermined(self) -> bool:
@@ -391,6 +392,8 @@ def assess(
     memo: dict[tuple[str, str], tuple[realign.Alignment, str]] = {}
     channel_rule = cfg.variants.probe_channels
     bulges = cfg.variants.homopolymer_bulges_detectable
+    parts_rule = cfg.variants.judge_from_parts
+    ref_amplicons = [amplicon] + [r.sequence for r in assay.reference_amplicons[1:]]
     sites: list[SiteResult] = []
     contig_break = 0
     masked_site: list[str] = []
@@ -404,11 +407,21 @@ def assess(
             copy = _assess_copy(it, locus, assay, windows, cfg, scoring, memo, channel_rule, bulges)
             if copy is not None:
                 copies.append(copy)
-        if not copies:
+        best_i = (
+            min(range(len(copies)), key=lambda i: _copy_key(copies[i][0], bulges)) if copies else 0
+        )
+        best_ok = bool(copies) and all(roles_ok(copies[best_i][0], bulges).values())
+        parts = None
+        if parts_rule != "off" and not best_ok and any(lc.truncated for lc in it.loci):
+            parts = _assess_parts(
+                it, ref_amplicons, per_ref, assay, cfg, scoring, memo, channel_rule, bulges
+            )
+            if parts is not None and not all(roles_ok(parts[0], bulges).values()):
+                parts = None  # only a detectable judgement from parts replaces anything
+        if not copies and parts is None:
             contig_break += 1
             continue
-        best_i = min(range(len(copies)), key=lambda i: _copy_key(copies[i][0], bulges))
-        chosen, all_sites = copies[best_i]
+        chosen, all_sites = parts if parts is not None else copies[best_i]
         if any("N" in s.s_aln.upper() for s in chosen.values()):
             masked_site.append(it.accession)  # an N is neither a match nor a variant
             continue
@@ -424,7 +437,9 @@ def assess(
                 GenomeCall(
                     accession=it.accession,
                     n_copies=len(copies),
-                    n_detectable=sum(all(roles_ok(c, bulges).values()) for c, _a in copies),
+                    n_detectable=sum(all(roles_ok(c, bulges).values()) for c, _a in copies)
+                    + (parts is not None and parts_rule == "detectable"),
+                    from_parts=parts is not None,
                     best_is_first=best_i == 0,
                     n_detectable_other_rule=sum(
                         all(
@@ -526,23 +541,107 @@ def _assess_copy(
     chosen: dict[str, SiteResult] = {}
     every: dict[str, SiteResult] = {}
     for role in ROLES:
-        strand, start, end = windows[role]
-        # the site +- SITE_PAD, clamped to the region (a full-length BLAST hit carries no
-        # flanks); a site that itself runs off the region cannot be assessed
-        if locus.offset + start - 1 < 0 or locus.offset + end > len(locus.region):
+        got = _role_sites(it, locus, assay, role, windows, cfg, scoring, memo)
+        if got is None:
             return None
-        lo = max(0, locus.offset + start - 1 - SITE_PAD)
-        hi = min(len(locus.region), locus.offset + end + SITE_PAD)
-        window = locus.region[lo:hi]
-        oriented = window if strand == "+" else iupac.reverse_complement(window)
-        rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
-        for o in assay.by_role(role):  # alternatives in one mix
-            key = (o.sequence.upper(), oriented)
-            if key not in memo:
-                memo[key] = _align(key[0], oriented, scoring, rules)
-            aln, note = memo[key]
-            site = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
-            every[o.name] = assay.graded(site)
+        every.update(got)
+        chosen[role] = _role_site(assay, role, every, channel_rule, bulges)
+    return chosen, every
+
+
+def _role_sites(
+    it: StoredAssembly,
+    locus: StoredLocus,
+    assay: Assay,
+    role: str,
+    windows: dict[str, tuple[str, int, int]],
+    cfg: Config,
+    scoring: realign.Scoring,
+    memo: dict[tuple[str, str], tuple[realign.Alignment, str]],
+) -> dict[str, SiteResult] | None:
+    """Every oligo of ``role`` on this copy; None if its site runs off the region."""
+    strand, start, end = windows[role]
+    # the site +- SITE_PAD, clamped to the region (a full-length BLAST hit carries no flanks);
+    # a site that itself runs off the region cannot be assessed
+    if locus.offset + start - 1 < 0 or locus.offset + end > len(locus.region):
+        return None
+    lo = max(0, locus.offset + start - 1 - SITE_PAD)
+    hi = min(len(locus.region), locus.offset + end + SITE_PAD)
+    window = locus.region[lo:hi]
+    oriented = window if strand == "+" else iupac.reverse_complement(window)
+    rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
+    out: dict[str, SiteResult] = {}
+    for o in assay.by_role(role):  # alternatives in one mix
+        key = (o.sequence.upper(), oriented)
+        if key not in memo:
+            memo[key] = _align(key[0], oriented, scoring, rules)
+        aln, note = memo[key]
+        site = _site(it, locus, o, strand, lo, len(window), aln, rules, 0, note)
+        out[o.name] = assay.graded(site)
+    return out
+
+
+MIN_PART_SEEDS = 2  # a cut copy counts as a part of the target only with 2+ exact seeds
+
+
+def _implied_offset(region: str, amplicon: str, k: int) -> int | None:
+    """Where the amplicon starts in ``region`` (sense orientation), from its exact k-mers: the
+    median implied start. Negative when the region is cut before the amplicon's start; the
+    locator stores such an offset as 0, so a cut copy is placed again here."""
+    region, amplicon = region.upper(), amplicon.upper()
+    starts = []
+    for i in range(0, len(amplicon) - k + 1):
+        kmer = amplicon[i : i + k]
+        j = region.find(kmer)
+        while j != -1:
+            starts.append(j - i)
+            j = region.find(kmer, j + 1)
+    if not starts:
+        return None
+    return sorted(starts)[len(starts) // 2]
+
+
+def _assess_parts(
+    it: StoredAssembly,
+    amplicons: list[str],
+    per_ref: list[dict[str, tuple[str, int, int]]],
+    assay: Assay,
+    cfg: Config,
+    scoring: realign.Scoring,
+    memo: dict[tuple[str, str], tuple[realign.Alignment, str]],
+    channel_rule: str,
+    bulges: bool,
+) -> tuple[dict[str, SiteResult], dict[str, SiteResult]] | None:
+    """The best site of every oligo on the copies cut by a contig end (user, 2026-09-28: in
+    draft genomes the rRNA operons that carry the Legionella 23S-5S spacer break the assembly,
+    so the fragment is split over two contigs, while each site is whole on one). Returns the
+    sites that count per role and every oligo's site when every role has one, else None. The
+    sites may come from different copies: see :func:`assess`."""
+    every: dict[str, SiteResult] = {}
+    for stored in it.loci:
+        if not stored.truncated or stored.n_seeds < MIN_PART_SEEDS:
+            continue
+        ref = amplicons[stored.ref] if stored.ref < len(amplicons) else amplicons[0]
+        offset = _implied_offset(stored.region, ref, cfg.variants.seed_length)
+        if offset is None:
+            continue
+        locus = stored.model_copy(update={"offset": offset})
+        windows = per_ref[stored.ref] if stored.ref < len(per_ref) else per_ref[0]
+        for role in ROLES:
+            for name, site in (_role_sites(it, locus, assay, role, windows, cfg, scoring, memo)
+                               or {}).items():  # fmt: skip
+                if name not in every or _closeness_key(site, bulges) < _closeness_key(
+                    every[name], bulges
+                ):
+                    every[name] = site
+    reporters = {o.reporter or "unspecified" for o in assay.probe}
+    seen = {o.reporter or "unspecified" for o in assay.probe if o.name in every}
+    if channel_rule == "all" and seen != reporters:
+        return None  # a channel without any site cannot detect
+    chosen: dict[str, SiteResult] = {}
+    for role in ROLES:
+        if not any(o.name in every for o in assay.by_role(role)):
+            return None
         chosen[role] = _role_site(assay, role, every, channel_rule, bulges)
     return chosen, every
 
@@ -576,10 +675,11 @@ def _role_site(
     def key(s: SiteResult) -> tuple[int, int, int]:
         return _closeness_key(s, bulges)
 
+    present = [o for o in members if o.name in every]  # judged from parts: some may be missing
     if role != "probe" or channel_rule == "any":
-        return min((every[o.name] for o in members), key=key)
+        return min((every[o.name] for o in present), key=key)
     channels: dict[str, list[SiteResult]] = defaultdict(list)
-    for o in members:
+    for o in present:
         channels[o.reporter or "unspecified"].append(every[o.name])
     per_channel = [min(v, key=key) for v in channels.values()]
     return max(per_channel, key=key)
@@ -636,7 +736,12 @@ def mark_unassembled(calls: list[GenomeCall], setting: str = "auto") -> float | 
         return None  # a single-copy target: a missing or failing copy is a real escape
     failing_complete = {c.signature for c in complete if c.n_detectable == 0}
     for c in calls:
-        if c.assembly_level not in DRAFT_LEVELS or c.n_detectable > 0 or c.undetermined:
+        if (
+            c.assembly_level not in DRAFT_LEVELS
+            or c.n_detectable > 0
+            or c.undetermined
+            or c.from_parts
+        ):
             continue
         fragmented = c.n_truncated > 0 or (c.n_contigs or 0) > 1
         if fragmented and c.n_copies * 2 < typical and c.signature not in failing_complete:
@@ -652,7 +757,9 @@ def _level_coverage(calls: list[GenomeCall]) -> list[LevelCoverage]:
         name = c.assembly_level or "unknown"
         row = levels.setdefault(name, LevelCoverage(level=name))
         row.genomes += 1
-        if c.n_detectable > 0:
+        if c.from_parts and c.n_detectable == 0:
+            row.from_parts += 1  # its own class: left out of the percentage
+        elif c.n_detectable > 0:
             row.detectable += 1
         elif c.undetermined:
             row.undetermined += 1
@@ -689,8 +796,14 @@ def copy_coverage(
     escapes = [
         c.accession
         for c in calls
-        if not all(c.role_good.values()) and not c.undetermined and not c.unassembled
+        if not all(c.role_good.values())
+        and not c.undetermined
+        and not c.unassembled
+        and not c.from_parts
     ]
+    parts = [c.accession for c in calls if c.from_parts]
+    out.from_parts, out.from_parts_accessions = len(parts), parts
+    out.from_parts_counted = any(c.from_parts and c.n_detectable > 0 for c in calls)
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
     unassembled = [c.accession for c in calls if c.unassembled]
     out.unassembled, out.unassembled_accessions = len(unassembled), unassembled
@@ -768,6 +881,7 @@ def _site(it: StoredAssembly, locus: StoredLocus, o: Oligo, strand: str, lo: int
 def _fragment_years(
     sites: list[SiteResult], year_of: dict[str, int | None], listed: dict[int, int],
     shown: list[int], bulges: bool, unassembled: set[str] | None = None,
+    from_parts: set[str] | None = None,
 ) -> list[FragmentYear]:  # fmt: skip
     """Per year, each genome's outcome from its three best-copy sites together, as in the
     whole-fragment table (user, 2026-09-25: one summary next to the per-oligo tables)."""
@@ -783,7 +897,10 @@ def _fragment_years(
             roles["forward"], roles["probe"], roles["reverse"], bulges
         )
         row.with_region += 1
-        if outcome != "detectable" and acc in (unassembled or ()):
+        if acc in (from_parts or ()):
+            row.undetermined += 1  # judged from parts, not counted as detected
+            row.from_parts += 1
+        elif outcome != "detectable" and acc in (unassembled or ()):
             row.undetermined += 1  # copies possibly unassembled: neither detected nor escaped
             row.unassembled += 1
         elif outcome == "detectable":
@@ -825,6 +942,7 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
         f"{100.0 * fail / n:.1f}% likely failure, of {n} genomes with the target region "
         f"(undetermined, not counted: {undet}"
         + (f", of which {w.unassembled} with copies possibly unassembled" if w.unassembled else "")
+        + (f", {w.from_parts} judged from parts" if w.from_parts else "")
         + "). The per-oligo and per-year figures are "
         "diagnostics; the status uses the whole fragment over this window."
     ]
@@ -860,6 +978,7 @@ def exhaustive_inclusivity(
     *,
     source: str = "datasets",
     unassembled: set[str] | None = None,
+    from_parts: set[str] | None = None,
 ) -> InclusivityResult:
     """Per-release-year inclusivity over every assessed assembly (not a sample).
     ``unassembled``: genomes whose copies are possibly unassembled (:func:`mark_unassembled`),
@@ -880,7 +999,7 @@ def exhaustive_inclusivity(
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
     fragment_years = _fragment_years(
         sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable,
-        unassembled or set(),
+        unassembled or set(), from_parts or set(),
     )  # fmt: skip
     verdict, rationale = fragment_verdict(fragment_years, cfg.inclusivity)
     rationale += [
@@ -1072,6 +1191,9 @@ def run_exhaustive(
     sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
     unassembled = {c.accession for c in calls if c.unassembled}
+    # judged from parts and not counted as detected: undetermined in the whole-fragment outcome
+    unassembled |= {c.accession for c in calls if c.from_parts and c.n_detectable == 0}
+    parts_undetermined = {c.accession for c in calls if c.from_parts and c.n_detectable == 0}
     not_found = [it for it in items if it.status == "not_found"]
     found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
@@ -1127,8 +1249,9 @@ def run_exhaustive(
     coverage.copies.copies_capped = sum(1 for it in items if it.copies_capped)
     coverage.copies.typical_copies = typical
     inclusivity = exhaustive_inclusivity(
-        sites, items, years, assay, cfg, source=source, unassembled=unassembled
-    )
+        sites, items, years, assay, cfg, source=source,
+        unassembled=unassembled - parts_undetermined, from_parts=parts_undetermined,
+    )  # fmt: skip
     missing = coverage.not_found + coverage.contig_break + coverage.masked
     if missing:
         unit, end, col = (

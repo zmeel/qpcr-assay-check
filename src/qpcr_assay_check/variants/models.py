@@ -43,11 +43,14 @@ class LevelCoverage(BaseModel):
     escapes: int = 0
     undetermined: int = 0
     unassembled: int = Field(default=0, description="copies possibly unassembled (undetermined)")
+    from_parts: int = Field(
+        default=0, description="judged from parts and not counted as detected (undetermined)"
+    )
 
     @property
     def percent(self) -> float | None:
         """Detectable % of the genomes at this level, undetermined (either kind) left out."""
-        base = self.genomes - self.undetermined - self.unassembled
+        base = self.genomes - self.undetermined - self.unassembled - self.from_parts
         return 100.0 * self.detectable / base if base > 0 else None
 
 
@@ -115,6 +118,15 @@ class CopyCoverage(BaseModel):
         "the complete genomes (copies possibly unassembled): undetermined, not an escape",
     )
     unassembled_accessions: list[str] = Field(default_factory=list)
+    from_parts: int = Field(
+        default=0,
+        description="genomes judged from parts: every role has a detectable site on copies cut "
+        "by a contig end (sites possibly from different copies)",
+    )
+    from_parts_counted: bool = Field(
+        default=False, description="judged-from-parts genomes are counted as detected"
+    )
+    from_parts_accessions: list[str] = Field(default_factory=list)
     typical_copies: float | None = Field(
         default=None,
         description="median copies of the complete and chromosome-level genomes; None when "

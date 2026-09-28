@@ -789,3 +789,64 @@ def test_every_reporter_channel_is_shown_on_the_fragment_rows(tmp_path):
     # one channel only: nothing extra
     single = run(tmp_path, cfg, client, make_assay(reference_amplicon=AMP, target={"taxid": 813}))
     assert not any(s.channel_sites for s in single.sites)
+
+
+def _split_fixture(right=AMP[60:]):
+    """GCA_7: the fragment split over two contigs (as at an rRNA operon in a draft): the forward
+    primer and probe whole at the end of one, the reverse primer whole at the start of the other."""
+    split = FakeAssembly(
+        "GCA_000000007.1",
+        "2026-04-01",
+        {"L7.1": filler(3000, 71) + AMP[:80], "R7.1": right + filler(3000, 72)},
+    )
+    return FakeDatasets([*assemblies(), split])  # fmt: skip
+
+
+def test_a_fragment_split_over_contigs_is_judged_from_its_parts(tmp_path):
+    """User decision 2026-09-28 (option 1 of the contig-edge problem; advisor: its own class)."""
+    from qpcr_assay_check.report.grouping import fragment_view
+
+    cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    res = run(tmp_path, cfg, client, assay)
+    cc, split = res.coverage.copies, "GCA_000000007.1"
+    assert cc.from_parts_accessions == [split] and not cc.from_parts_counted
+    assert res.coverage.contig_break == 1  # GCA_5: its probe site is cut, so still cut
+    assert split not in cc.escape_examples and cc.with_detectable_copy == 2
+    assert sum(y.from_parts for y in res.inclusivity.fragment_years) == 1
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    fv = fragment_view(result.variant_summary.fragments, result.variant_summary.fragment_total)
+    assert fv.records["judged from parts"] == 1 and fv.records["detectable"] == 2
+    html = render_report(result, cfg)
+    assert "Judged from parts" in html and "1 judged from parts (undetermined)" in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    assert "From parts" in load_workbook(tmp_path / "r.xlsx").sheetnames
+
+
+def test_judging_from_parts_follows_its_setting_and_needs_detectable_sites(tmp_path):
+    from qpcr_assay_check.variants.exhaustive import stored_calls
+
+    cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    cfg.variants.judge_from_parts = "detectable"
+    res = run(tmp_path, cfg, client, assay)
+    assert res.coverage.copies.from_parts_counted and res.coverage.copies.with_detectable_copy == 3
+    cfg.variants.judge_from_parts = "off"
+    assert run(tmp_path, cfg, client, assay).coverage.contig_break == 2
+
+    # the reverse site on the cut copy fails (two mismatches in the 3' end): no judgement from parts
+    bad = AMP[60:].replace(
+        iupac.reverse_complement(R), iupac.reverse_complement(mutate(R, [20, 22]))
+    )
+    cfg2, _f, client2, assay2 = setup(tmp_path / "b", fake=_split_fixture(bad))
+    res2 = run(tmp_path / "b", cfg2, client2, assay2)
+    assert res2.coverage.copies.from_parts == 0 and res2.coverage.contig_break == 2
+    # the panel judges them the same way (undetermined by default)
+    from qpcr_assay_check.panel import State, member_states
+
+    cfg3 = load_config()
+    cfg3.variants.max_assemblies_per_run, cfg3.ncbi.datasets_batch_size = 20000, 2
+    items, calls, _p = stored_calls(assay, cfg3, tmp_path / "cache", _no_fetch, "datasets")
+    assert member_states(items, calls)["GCA_000000007"][0] is State.UNDETERMINED

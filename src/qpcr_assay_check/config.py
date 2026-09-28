@@ -435,6 +435,10 @@ class VariantsSettings(_Strict):
     # multi-copy targets: a draft genome whose best copy fails but that has far fewer copies
     # than the complete genomes of the run counts as undetermined (copies possibly unassembled)
     multicopy_unassembled: Literal["auto", "off"] = "auto"
+    # a genome whose copies are all cut by a contig end (or whose best whole copy fails) but has
+    # a detectable site of every role on the cut copies: undetermined (its own class, left out
+    # of the percentages), detectable, or off (cut by a contig end / judged by the whole copy)
+    judge_from_parts: Literal["undetermined", "detectable", "off"] = "undetermined"
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:
