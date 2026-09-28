@@ -25,6 +25,9 @@ All notable changes to this project are documented here. The format follows
   `variants.multicopy_unassembled: auto | off`. Deviation from the advisor's draft: N gaps are
   not required, because contig-level assemblies have none (their missing copies are collapsed
   or cut at contig ends); a fragmented draft is the evidence, so no genome is downloaded again.
+  The `panel` command applies the same rule (these genomes are undetermined there too); the
+  failing-pattern check compares the genome sites only, not which alternative oligo was chosen
+  (code review).
 
 ## [1.5.0] - 2026-09-27
 

@@ -430,8 +430,10 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                      ["Any channel", cc.probe_channels, cc.any_channel, "", ""],
                      ["All channels", "", cc.all_channels, "", ""],
                      *[[f"Assembly level {lv.level}",
-                        "genomes / detectable / escapes / undetermined", lv.genomes,
-                        lv.detectable, f"{lv.escapes} escapes, {lv.undetermined} undetermined"]
+                        "genomes / detectable / escapes, undetermined, possibly unassembled",
+                        lv.genomes, lv.detectable,
+                        f"{lv.escapes} escapes, {lv.undetermined} undetermined, "
+                        f"{lv.unassembled} possibly unassembled"]
                        for lv in cc.by_level],
                      *_run_length_rows(cc.run_length)],
                     None,

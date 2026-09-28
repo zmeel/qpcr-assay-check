@@ -311,7 +311,7 @@ class GenomeCall:
     run_mixed: bool = False  # copies disagree: some read the oligo's run length at that site
     n_truncated: int = 0  # stored copies cut by a contig end (not assessed)
     n_contigs: int | None = None  # sequences in the assembly
-    signature: tuple = ()  # the best copy's three sites (query and subject alignment)
+    signature: tuple = ()  # the best copy's three genome sites (role, subject alignment)
     unassembled: bool = False  # see mark_unassembled
 
     @property
@@ -441,7 +441,9 @@ def assess(
                     **_run_length_fields([c for c, _a in copies], chosen),
                     n_truncated=sum(1 for lc in it.loci if lc.truncated),
                     n_contigs=it.n_contigs,
-                    signature=tuple((chosen[r].q_aln, chosen[r].s_aln) for r in ROLES),
+                    # the genome's sites only, not which alternative oligo was chosen, as
+                    # the whole-fragment rows group them
+                    signature=tuple((r, chosen[r].s_aln) for r in ROLES),
                 )
             )
     return sites, contig_break, masked_site
@@ -600,7 +602,8 @@ def mark_unassembled(calls: list[GenomeCall], setting: str = "auto") -> float | 
     fails, it is a fragmented draft (Scaffold or Contig with more than one sequence, or a copy
     cut by a contig end), it has fewer than half the median copy number of the complete and
     chromosome-level genomes of this run (at least 5 of them, median 2 or more), and no complete
-    genome fails with the same three sites (then the pattern is real). Marked genomes count as
+    or chromosome-level genome fails with the same three genome sites (then the pattern is
+    real). Marked genomes count as
     undetermined, never as detected; this can hide a real loss of copies, so they are listed.
     Returns the typical (median) copy number, or None when the rule does not apply."""
     if setting == "off":
@@ -608,6 +611,9 @@ def mark_unassembled(calls: list[GenomeCall], setting: str = "auto") -> float | 
     complete = [c for c in calls if c.assembly_level in COMPLETE_LEVELS]
     if len(complete) < MIN_COMPLETE_GENOMES:
         return None
+    # n_copies counts stored complete copies: at most MAX_LOCI_KEPT (20; 5 in stores from before
+    # v1.3.0 until they are rescanned), so a capped count can only lower the median: the
+    # conservative side, fewer genomes marked
     typical = float(statistics.median(c.n_copies for c in complete))
     if typical < 2:
         return None  # a single-copy target: a missing or failing copy is a real escape
@@ -965,6 +971,8 @@ def stored_calls(
     items = current_items(store)
     calls: list[GenomeCall] = []
     assess(items, assay, amplicon, placements(assay, amplicon, cfg), cfg, calls=calls)
+    if source == "datasets":  # as run_exhaustive judges them (code review, 2026-09-28)
+        mark_unassembled(calls, cfg.variants.multicopy_unassembled)
     return items, calls, store.path
 
 
