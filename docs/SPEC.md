@@ -10,6 +10,7 @@ INPUT (CLI arguments and/or a small YAML assay file)
 - template_type (DNA/RNA)
 - target: NCBI taxonomy ID and/or reference accession (+ gene name)
 - optional extra near-neighbour / exclusion taxa
+- Amended 2026-09-29 (user decision, overhaul of the variant analysis): one generic model for (1) one forward, one reverse, one probe; (2) several primers and probes on one region (e.g. Neisseria); (3) several primers and probes for different regions or different target taxa (e.g. Legionella: a genus channel and a species channel on one amplicon; true multiplexes). An assay has oligos, one or more loci (amplified regions: primers, the probes in the product, reference fragment(s), an optional context accession, the taxon searched) and one or more channels (one per reporter dye: its probes and its own target taxon). Files without loci/channels load as one locus and one channel per reporter with the assay's target.
 Global config (YAML, documented defaults): reaction conditions (Na+, Mg2+, dNTPs, primer/probe concentrations), thresholds, max amplicon size, sampling sizes, NCBI email and API key (read from environment variables, never from committed files).
 
 ORGANISM LIST (exclusivity set)
@@ -38,6 +39,7 @@ YEARLY EVALUATION
 - Persist run history (JSON or SQLite) per assay: inputs hash, run date, tool versions, database name, BLAST parameters, RIDs, results.
 - Diff report against the previous run: status changes, inclusivity trend, new mismatch variants, new off-target hits or amplicons. A first run is the baseline year; a run whose assay or configuration changed is marked not comparable (neither holds up the status).
 - Exit codes that reflect the overall review status.
+- Amended 2026-09-29 (user decision): the run history and the diff against the previous run are dropped from the report, together with the panel command and the sampled BLAST-hit inclusivity source; the exhaustive genome analysis (all assemblies / all records) replaces the sampled one. Removal is part of the overhaul; the tool keeps an incremental cache so consecutive runs only process new records.
 - Amended 2026-09-27 (user decision): the tool re-checks an assay in use and does not pass or fail it. The single overall verdict is demoted to a review status (no flags / review / exceeds limit / incomplete; internally PASS/WARN/FAIL/INCOMPLETE, kept in results.json for comparison with earlier records).
 
 OUTPUT

@@ -26,28 +26,37 @@
 #     "Candidatus ..." (Aquirickettsiella, Ovatibacter, Pokemonas, ...) are left out: they are
 #     endosymbionts of arthropods and amoebae with little sequence data and no clinical relevance.
 #
-# TWO PROBES, TWO TARGETS
-#   The tool has one intended target per assay file. Here that target is the family (the genus
-#   probe's target). Probes with different reporters are different channels; with the default
-#   variants.probe_channels: any, a genome counts as detected when either channel detects it. So
-#   this file answers "does the genus channel still detect every Legionella?". It does not judge
-#   whether the L. pneumophila probe still detects every L. pneumophila, and whether it stays
-#   silent on the other species. That needs a second file with the same primers, only the
-#   pneumophila probe, target taxid 446, and the other Legionella species as exclusivity
-#   organisms (a product there is expected; the question is whether the probe would detect it).
+# TWO PROBES, TWO CHANNELS (user, 2026-09-29; format with loci and channels, overhaul step 1)
+#   One primer pair, one amplified region ('loci'), and two channels: the genus probe (VIC) is
+#   read for the genus Legionella, the L. pneumophila probe (FAM) for L. pneumophila (446). The
+#   user chose taxid 444 (Legionellaceae) for "the genus Legionella", so that L. dumoffii and
+#   L. gormanii (NCBI: Fluoribacter) are inside the genus channel's target.
+#   context_accession NC_002942.5 (L. pneumophila Philadelphia 1, complete, 3,397,754 nt; checked
+#   at NCBI on 2026-09-29) gives the sequence either side of the fragment (23S before, 5S after),
+#   which anchors copies of other species whose spacer diverged. It is used only when the
+#   reference fragment occurs in it exactly; not yet checked (the fragment is a placeholder).
+#   Until the per-channel analysis is built (overhaul step 5), the variant analysis still treats
+#   the two channels as the setting variants.probe_channels says.
 
 assay_name: Legionella genus + L. pneumophila
 forward: {name: LEG-F, sequence: TODO-forward-primer}          # placeholder: fill in
 reverse: {name: LEG-R, sequence: TODO-reverse-primer}          # placeholder: fill in
 probe:
-  # reporters must differ for two channels (e.g. the laboratory's own dyes); fill in
-  - {name: LEG-P-genus, sequence: TODO-genus-probe, reporter: null, modifications: []}
-  - {name: LEG-P-pneumophila, sequence: TODO-pneumophila-probe, reporter: null, modifications: []}
+  - {name: LEG-P-genus, sequence: TODO-genus-probe, reporter: VIC, modifications: []}
+  - {name: LEG-P-pneumophila, sequence: TODO-pneumophila-probe, reporter: FAM, modifications: []}
 template_type: DNA
 target:
   taxid: 444                     # Legionellaceae (includes Fluoribacter and Tatlockia, see above)
-reference_amplicons:             # the fragment between and including both primers; fill in
-  - {name: LEG-fragment, sequence: TODO-reference-fragment}
+loci:
+  - name: 23S-5S spacer
+    primers: [LEG-F, LEG-R]
+    probes: [LEG-P-genus, LEG-P-pneumophila]
+    references:                  # the fragment between and including both primers; fill in
+      - {name: LEG-fragment, sequence: TODO-reference-fragment}
+    context_accession: NC_002942.5
+channels:
+  - {name: Legionella, probes: [LEG-P-genus], target_taxid: 444}
+  - {name: L. pneumophila, probes: [LEG-P-pneumophila], target_taxid: 446}
 exclusivity_organisms:           # closest relatives outside the family (order Legionellales)
   - Coxiella burnetii
   - Rickettsiella

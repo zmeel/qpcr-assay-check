@@ -3,6 +3,59 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-29 — Overhaul round 2: a generic assay model (advisor); user decisions
+
+- User: everything on the table; no run history in the report; the current cache may go, but
+  the tool keeps an incremental cache (only new assemblies downloaded; a locus store is
+  discarded only when the locus definition or method changes; BLAST/Taxonomy caches as now).
+  One GENERIC tool for (1) one F, one R, one probe; (2) several primers/probes on one region
+  (Neisseria); (3) several primers/probes for different regions or target taxa (Legionella,
+  true multiplexes).
+- Advisor plan: assay = oligos -> loci (primers, probes, reference fragments, optional context
+  accession, scan taxon, source) -> channels (one per reporter; probes; target taxon; taxa
+  roles). Old files load as one locus + one channel per reporter. Chain locator with context
+  (seed step 2, signed coordinates, all candidates kept); store v2 per (assay, locus) with a
+  schema/key header (mismatch = discard, re-download); assess through anchor-mapped windows,
+  F x R products per locus, detection per channel; lineage membership per genome and channel;
+  inclusivity per channel over its own target, complete in-scope exclusivity per channel (e.g.
+  the pneumophila channel on other Legionella), BLAST tiers per oligo as today. One outcome enum
+  per copy (WHOLE / CUT / MASKED; related = listed, not a copy) and per genome x channel
+  (DETECTED / NOT_DETECTED / UNDETERMINED(site_rule | incomplete | possibly_unassembled) /
+  NO_LOCUS; non-targets SILENT / SIGNAL / UNDETERMINED). Copy rule: (a) M_amp >= 32, or
+  (b) context-anchored M_ctx >= 32 on a side, co-linear, or (c) identity >= 0.75 with M_amp >= 16;
+  (b) awaits the context rerun. Build order 1-8 (model; outcome function; chain locator; store
+  v2 + sequence_reports; assess v2; report per channel; deletions; live re-downloads).
+- User decisions: LEGgenus reporter VIC, LEGpneu FAM; the genus channel targets the genus
+  Legionella (taxid choice 444 vs 445 to confirm: NCBI files L. dumoffii and L. gormanii under
+  Fluoribacter 461); NO_LOCUS in a complete genome = NOT_DETECTED (possible deletion); the
+  panel command and the sampled blast_hits inclusivity source may be removed (SPEC amendment);
+  out-of-scope taxa in a channel's scan are shown as information only.
+
+- Step 1 built (user: genus channel target 444): `Locus` and `Channel` in models.py; old files
+  derive one locus + one channel per reporter; validation of names, roles, dyes; the locus
+  context accession feeds the reference context; a warning for assays with several loci (only
+  the first is analysed until step 5). Legionella draft in the new format; templates and SPEC
+  amended (loci/channels; history, panel and sampled BLAST-hit inclusivity dropped, removal in
+  step 7). tests/test_assay_loci.py.
+
+- Step 2 built: `GenomeOutcome` + `genome_outcome` (variants/exhaustive.py) used by
+  copy_coverage, _level_coverage, the sets for the whole-fragment years, and panel.member_states;
+  existing tests unchanged (counts pinned), tests/test_genome_outcome.py for the precedence.
+
+- Step 3 built: variants/chain.py (Reference, Candidate, CopyRule, is_copy, locate; two-pass
+  context search: step 32 genome-wide, step 8 near a hit). Synthetic tests (tests/test_chain.py):
+  plain, 60-nt insertion, minus strand, cut at the contig start, chance seed, two references,
+  identity rule, divergent fragment between conserved flanks, one flank (cut vs not), N over the
+  fragment, N-runs next to a copy. Timing 2.6 s / 4 Mb genome with context, 1.7 s without. Rule
+  (b)'s threshold still awaits the Legionella context rerun (legionella3).
+
+- Legionella context rerun (legionella3) had no context: the user's reference fragment is not
+  in NC_002942.5 base for base (the old exact-match rule). Without it, identity cannot separate
+  real divergent copies (0.66-0.72, genus probe 0-1 mm; one at 0.658) from look-alike regions
+  (0.60-0.66, 9-13 mm under every oligo). Built: chain.context_from takes the flanks around the
+  fragment's best whole copy in the context record (rule (a)); the measurement script uses it
+  and records the copy it used. Rerun as legionella4.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number
@@ -40,6 +93,34 @@ verified NCBI facts) at the start of every session. Newest entry first.
   /genome/accession/{acc}/sequence_reports verified live: fields role, assigned_molecule_location_type,
   assembly_unit, chr_name, genbank/refseq_accession, length, sequence_name (a genome with a plasmid
   still to be seen).
+- Full measurement runs (user, 2026-09-29). Legionella, 134 genomes (groups related,
+  single-seed, anisa, micdadei, longbeachae, dumoffii, sample, named): 191 of 283 copies differ
+  > 20 nt in length from the L. pneumophila fragment (median 24, max 78); the current locator
+  splits 190 of them; 518 of 1,132 oligo sites have more mismatches at the current placement
+  than at the chain's. Genomes with a copy, current vs chain rule: related 0 -> 23 of 25,
+  longbeachae 1 -> 25/25, dumoffii 1 -> 10/10, anisa 14 -> 25/25, single-seed 9 -> 10,
+  micdadei and sample unchanged; the chain never lost a copy the current locator had. Null max
+  M 18 (402 decoys). Neisseria, 75 genomes: no copy differs > 4 nt, none split, 0 of 657 sites
+  worse; agreement 74/75; null max M 0 (225 decoys); 98 of 299 copies have M 16-23 and pass
+  only by identity >= 0.75 (divergent opa copies), and seeds every 4 nt miss some (min M 0),
+  every 2 nt do not. Seconds per genome: Legionella current 0.85 / step 2 1.65; Neisseria
+  0.27 / 0.28. Still open before the defaults: the ambiguous candidates (Legionella M 24-31
+  with identity < 0.65: 2; M < 24 with identity >= 0.65: 26; Neisseria M < 24 with identity
+  >= 0.75: 98), whole or cut by a contig end.
+- Borderline candidates (user, scripts/measure_borderline.sh). Neisseria: the 98 are one region
+  per genome, the divergent opa copy also in the complete reference GCF_013030075.1 (~1,478,815;
+  whole, identity 0.80/0.785, NG-F 6, NG-R 12, NG-P1 1 mm), plus copies cut by a contig end
+  (M 16-20, identity 1.0 over the part present). Legionella: L. pneumophila copies cut by a
+  contig end (M 24-26, identity 1.0; contigs of 726-1,937 nt); divergent-species copies cut
+  before the amplicon start with only the reverse end present (M 16-19, identity 0.83-0.95,
+  reverse 1-2 mm); WHOLE regions of uncultured / unnamed Legionellaceae with identity 0.66-0.72
+  and M 17-21 where the genus probe matches (0-1 mm) and the reverse 2-3 mm, forward 1-13 mm:
+  real copies of the target locus that neither arm of the rule catches; GCF_024160945.1
+  (Legionella sp.) M 29, identity 0.62, forward 0 but reverse and genus probe 9 mm. Conclusion:
+  for a locus-defined assay the conserved flanks identify the locus and amplicon identity only
+  measures divergence. Next: rerun Legionella with the reference context from NC_002942.5
+  (L. pneumophila Philadelphia 1, complete, 3,397,754 nt; verified at NCBI 2026-09-29), the
+  measurement now records context anchoring per side (M_ctx_left/right).
 
 ## 2026-09-28 (end) — Threshold hides divergent Legionella species; next: overhaul with advisor
 

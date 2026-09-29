@@ -7,6 +7,31 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Chain locator** (overhaul step 3; `variants/chain.py`, not wired in yet): every copy of a
+  locus is found as a chain of exact blocks in the same order on the reference and the genome,
+  from 16-mers every 2 nt in the fragment and, when a context accession gives them, in the
+  sequence on either side (sparse seeds genome-wide, dense seeds near a hit). Coordinates are
+  signed (a copy cut by a contig end keeps its true start), each copy keeps its anchors, the
+  anchored fragment and flank bases, identity along the chain, and the N inside and next to it.
+  `is_copy` applies the rule (a) 32 anchored fragment bases, (b) 32 anchored flank bases with
+  the fragment touched, flanked on both sides or cut, or (c) identity 0.75 with 16 anchored
+  bases; it can change without scanning again. About 2.6 s per 4 Mb genome with context,
+  1.7 s without.
+- **One genome outcome** (overhaul step 2): `genome_outcome` decides once what an assessed
+  genome counts as (detected, not detected, undetermined, possibly unassembled, detectable from
+  parts), and the coverage and escape lists, the per-level table, the whole-fragment years and
+  the panel all read it; before, the same precedence was written out in five places. No count
+  changes.
+- **Loci and channels in the assay model** (overhaul step 1, 2026-09-29; advisor subagent;
+  user decisions). An assay now has one or more `loci` (amplified regions: primers, the probes
+  in the product, reference fragment(s), an optional `context_accession`, the taxon searched)
+  and one or more `channels` (one per reporter dye: its probes and its own `target_taxid`).
+  Files without them load unchanged, as one locus and one channel per reporter with the
+  assay's target. Checks: every oligo in a locus, each probe in one locus and one channel, one
+  dye per channel, no two channels on one dye, forward and reverse primers per locus. The
+  analysis still reads the first locus (a warning names the others) until the per-locus and
+  per-channel analysis is built. The Legionella draft now uses a genus channel (VIC, 444) and
+  an L. pneumophila channel (FAM, 446), with context from NC_002942.5.
 - **Copy similarity threshold** (advisor subagent, 2026-09-28; user decision): a region found
   through the amplicon's exact seeds counts as a copy of the target only when it matches the
   reference fragment over at least `variants.min_copy_identity` (0.75) of the part it covers
