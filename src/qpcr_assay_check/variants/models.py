@@ -163,6 +163,44 @@ class CopyCoverage(BaseModel):
     run_length: RunLengthBreakdown | None = None
 
 
+class ChannelResult(BaseModel):
+    """One detection channel over every scanned genome (overhaul step 5c).
+
+    Target genomes (in the channel's target taxon): detected, not detected (an escape; in a
+    complete genome also when the locus is missing, a possible deletion), undetermined (a site
+    without a published basis, cut or masked copies only, or copies possibly unassembled) or
+    no locus (a draft genome without the region). Other genomes of the scan (e.g. the other
+    Legionella species for an L. pneumophila channel): signal or silent. Genomes in the
+    channel's out-of-scope taxa are counted for information only.
+    """
+
+    name: str
+    reporter: str | None = None
+    probes: list[str]
+    target_taxid: int | None = None
+    target_genomes: int = 0
+    detected: int = 0
+    not_detected: int = 0
+    undetermined: int = 0
+    no_locus: int = 0
+    nontarget_genomes: int = 0
+    signal: int = 0
+    silent: int = 0
+    nontarget_undetermined: int = 0
+    out_of_scope_genomes: int = 0
+    out_of_scope_signal: int = 0
+    membership_unknown: int = Field(
+        default=0, description="genomes whose lineage could not be looked up (not counted)"
+    )
+    not_detected_examples: list[str] = Field(default_factory=list)
+    signal_examples: list[str] = Field(default_factory=list)
+
+    @property
+    def detected_percent(self) -> float | None:
+        judged = self.detected + self.not_detected
+        return round(100 * self.detected / judged, 1) if judged else None
+
+
 class ExhaustiveCoverage(BaseModel):
     """How much of the target's assembly collection the variant analysis covers."""
 
@@ -245,6 +283,9 @@ class ExhaustiveCoverage(BaseModel):
 
     copies: CopyCoverage | None = Field(
         default=None, description="copies, coverage per oligo and channel, escape list (v1.3.0)"
+    )
+    channel_results: list[ChannelResult] = Field(
+        default_factory=list, description="per detection channel (overhaul step 5c)"
     )
 
     @property

@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Per-channel outcomes** (overhaul step 5c): every channel of the first locus is judged over
+  every scanned genome (`coverage.channel_results` in results.json; shown in the report from
+  step 6). Target genomes (in the channel's target taxon, from the genome's NCBI lineage when
+  that differs from the scanned taxon) are detected, not detected, undetermined or 'no locus';
+  a complete genome without the locus counts as not detected (user decision 2026-09-29: a
+  possible deletion). Other genomes of the scan give signal or silent (e.g. the L. pneumophila
+  channel on the other Legionella species); out-of-scope taxa count for information only.
 - **The analysis runs on the chain locator and store v2** (overhaul steps 5a/5b). Genomes
   (assemblies and Nucleotide records) are scanned with the chain locator into the new store;
   the flanks come from the locus's context accession around the fragment's best copy (fetched

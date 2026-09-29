@@ -37,7 +37,7 @@ from ..inclusivity.models import (
     InclusivityResult,
     fragment_window,
 )
-from ..models import Assay, Oligo
+from ..models import Assay, Channel, Oligo
 from ..ncbi.cache import content_key
 from ..ncbi.http import NcbiError
 from ..oligo import grade, iupac
@@ -59,6 +59,7 @@ from .genomestore import (
 )
 from .models import (
     ChannelCoverageRow,
+    ChannelResult,
     CopyCoverage,
     ExhaustiveCoverage,
     LevelCoverage,
@@ -380,6 +381,7 @@ class GenomeCall:
     signature: tuple = ()  # the best copy's three genome sites (role, subject alignment)
     unassembled: bool = False  # see mark_unassembled
     from_parts: bool = False  # judged from sites on copies cut by a contig end (_assess_parts)
+    channel_state: dict[str, str] = field(default_factory=dict)  # channel -> ok|undetermined|fail
 
     @property
     def undetermined(self) -> bool:
@@ -575,6 +577,9 @@ def assess(
                     # the genome's sites only, not which alternative oligo was chosen, as
                     # the whole-fragment rows group them
                     signature=tuple((r, chosen[r].s_aln) for r in ROLES),
+                    channel_state=_channel_states(
+                        assay, copies + ([parts] if parts is not None else []), bulges
+                    ),
                 )
             )
     return sites, contig_break, masked_site
@@ -592,6 +597,32 @@ def _channel_sites(assay: Assay, every: dict[str, SiteResult]) -> list[SiteResul
     if len(channels) < 2:
         return []
     return [min(v, key=_closeness_key) for _r, v in sorted(channels.items())]
+
+
+def _channel_states(
+    assay: Assay,
+    copies: list[tuple[dict[str, SiteResult], dict[str, SiteResult]]],
+    bulges: bool,
+) -> dict[str, str]:
+    """Per channel its best state over the genome's copies: ok when a copy has both primers and
+    one of the channel's probes detectable, undetermined when none fails but one has no
+    published basis, else fail (overhaul step 5c)."""
+    out: dict[str, str] = {}
+    for ch in assay.channels:
+        best: str | None = None
+        for chosen, every in copies:
+            probes = [every[p] for p in ch.probes if p in every]
+            if not probes or "forward" not in chosen or "reverse" not in chosen:
+                continue
+            probe = min(probes, key=lambda x: _closeness_key(x, bulges))
+            sites = {"forward": chosen["forward"], "reverse": chosen["reverse"], "probe": probe}
+            states = set(roles_state(sites, bulges).values())
+            st = "ok" if states == {"ok"} else ("fail" if "fail" in states else "undetermined")
+            if best is None or _STATE_RANK[st] < _STATE_RANK[best]:
+                best = st
+        if best is not None:
+            out[ch.name] = best
+    return out
 
 
 def _run_length_fields(copies: list[dict[str, SiteResult]],
@@ -1242,6 +1273,107 @@ def stored_calls(
     return items, calls, store.path
 
 
+def channel_results(
+    assay: Assay,
+    items: list[StoredAssembly],
+    calls: list[GenomeCall],
+    scan_taxon: int | None,
+    ancestors_of: Callable[[list[int]], dict[int, set[int]]] | None = None,
+) -> list[ChannelResult]:
+    """Every channel of the first locus over every assessed genome (overhaul step 5c).
+
+    A genome belongs to a channel's target when its NCBI lineage holds the channel's target
+    taxon (no lookup needed when that is the scanned taxon itself); a genome in one of the
+    channel's out-of-scope taxa counts for information only. User decision (2026-09-29): a
+    complete genome without the locus counts as not detected (a possible deletion); a draft
+    without it is 'no locus'.
+    """
+    probes0 = set(assay.loci[0].probes)
+    channels = [ch for ch in assay.channels if set(ch.probes) <= probes0]
+    need = [ch for ch in channels
+            if ch.taxa or ch.target_taxid not in (None, scan_taxon)]  # fmt: skip
+    anc: dict[int, set[int]] = {}
+    if need and ancestors_of is not None:
+        try:
+            anc = ancestors_of(sorted({it.taxid for it in items if it.taxid}))
+        except NcbiError as exc:
+            log.warning("Could not look up genome lineages for the channels: %s", exc)
+    call_of = {c.accession: c for c in calls}
+    out: list[ChannelResult] = []
+    for ch in channels:
+        r = ChannelResult(name=ch.name, reporter=ch.reporter, probes=list(ch.probes),
+                          target_taxid=ch.target_taxid)  # fmt: skip
+        for it in items:
+            member = _membership(ch, it.taxid, anc, scan_taxon, ch in need)
+            if member is None:
+                r.membership_unknown += 1
+                continue
+            state = _genome_channel_state(it, call_of.get(it.accession), ch.name)
+            if member == "target":
+                r.target_genomes += 1
+                if state == "ok":
+                    r.detected += 1
+                elif state == "none":
+                    if it.assembly_level in COMPLETE_LEVELS:
+                        r.not_detected += 1  # no locus in a complete genome: possible deletion
+                        r.not_detected_examples.append(it.accession)
+                    else:
+                        r.no_locus += 1
+                elif state == "fail":
+                    r.not_detected += 1
+                    r.not_detected_examples.append(it.accession)
+                else:
+                    r.undetermined += 1
+            elif member == "nontarget":
+                r.nontarget_genomes += 1
+                if state == "ok":
+                    r.signal += 1
+                    r.signal_examples.append(it.accession)
+                elif state in ("fail", "none"):
+                    r.silent += 1
+                else:
+                    r.nontarget_undetermined += 1
+            else:
+                r.out_of_scope_genomes += 1
+                r.out_of_scope_signal += state == "ok"
+        r.not_detected_examples = r.not_detected_examples[:20]
+        r.signal_examples = r.signal_examples[:20]
+        out.append(r)
+    return out
+
+
+def _membership(
+    ch: Channel, taxid: int | None, anc: dict[int, set[int]], scan_taxon: int | None, lookup: bool
+) -> str | None:
+    """target | nontarget | out_of_scope for one genome and channel; None if unknown."""
+    if not lookup:
+        return "target"
+    lineage = anc.get(taxid) if taxid else None
+    if lineage is None:
+        return None
+    for x in ch.taxa:
+        if x.taxid in lineage:
+            return "out_of_scope" if x.role == "out_of_scope" else "nontarget"
+    return "target" if ch.target_taxid in lineage else "nontarget"
+
+
+def _genome_channel_state(it: StoredAssembly, call: GenomeCall | None, channel: str) -> str:
+    """ok | fail | undetermined | none (no locus) for one genome and channel."""
+    if it.status != "found":
+        return "none"
+    if call is None:  # only copies cut by a contig end, or an N in a site
+        return "undetermined"
+    state = call.channel_state.get(channel, "fail")
+    if state != "ok" and genome_outcome(call) in (
+        GenomeOutcome.FROM_PARTS,
+        GenomeOutcome.UNASSEMBLED,
+    ):
+        return "undetermined"
+    if state == "ok" and genome_outcome(call) == GenomeOutcome.FROM_PARTS:
+        return "undetermined"  # from parts is never counted as detected (judge_from_parts)
+    return state
+
+
 Collector = Callable[
     [GenomeStore, int, list[Reference]],
     tuple[list[YearCoverage], int, int, int, list[str]],
@@ -1268,6 +1400,7 @@ def run_exhaustive(
     now: datetime | None = None,
     collector: Collector | None = None,
     source: str = "datasets",
+    ancestors_of: Callable[[list[int]], dict[int, set[int]]] | None = None,
 ) -> ExhaustiveResult:
     """Collect new assemblies (or Nucleotide records), then assess every stored one.
 
@@ -1383,6 +1516,7 @@ def run_exhaustive(
         min_copy_identity=v.min_copy_identity,
     )  # fmt: skip
     coverage.copies.typical_copies = typical
+    coverage.channel_results = channel_results(assay, items, calls, taxon, ancestors_of)
     inclusivity = exhaustive_inclusivity(
         sites, items, years, assay, cfg, source=source,
         unassembled=unassembled, from_parts=parts_undetermined,

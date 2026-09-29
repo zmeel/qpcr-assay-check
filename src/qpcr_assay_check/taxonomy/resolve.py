@@ -146,6 +146,30 @@ def fetch_lineages(
     return out
 
 
+def ancestors(
+    eutils: Eutils, cache: Cache, taxids: list[int], *, ttl_days: float
+) -> dict[int, set[int]]:
+    """Every taxon's NCBI ancestors, itself included (``LineageEx``), cached per taxon."""
+    out: dict[int, set[int]] = {}
+    missing: list[int] = []
+    for t in taxids:
+        cached = cache.get("taxonomy_ancestors", content_key({"ancestors": t}), ttl_days=ttl_days)
+        if cached is None:
+            missing.append(t)
+        else:
+            out[t] = set(json.loads(cached)) | {t}
+    for i in range(0, len(missing), 200):  # keep individual EFetch id lists moderate
+        root = ET.fromstring(eutils.fetch_taxonomy(missing[i : i + 200]))
+        for taxon in root.findall("Taxon"):
+            tid = int(taxon.findtext("TaxId") or 0)
+            ids = {int(x.findtext("TaxId") or 0) for x in taxon.iterfind("LineageEx/Taxon")}
+            out[tid] = ids | {tid}
+            cache.put(
+                "taxonomy_ancestors", content_key({"ancestors": tid}), json.dumps(sorted(ids))
+            )
+    return out
+
+
 def outside_target(
     eutils: Eutils, cache: Cache, target: int, taxids: list[int], *, ttl_days: float
 ) -> list[int]:
@@ -154,20 +178,5 @@ def outside_target(
     Used for ``target.exclude_taxids``: excluding an ancestor or an unrelated taxon would empty
     the target search or search the target itself as an off-target tier. Cached per taxon.
     """
-    ancestors: dict[int, set[int]] = {}
-    missing: list[int] = []
-    for t in taxids:
-        cached = cache.get("taxonomy_ancestors", content_key({"ancestors": t}), ttl_days=ttl_days)
-        if cached is None:
-            missing.append(t)
-        else:
-            ancestors[t] = set(json.loads(cached))
-    if missing:
-        root = ET.fromstring(eutils.fetch_taxonomy(missing))
-        for taxon in root.findall("Taxon"):
-            tid = int(taxon.findtext("TaxId") or 0)
-            ids = {int(x.findtext("TaxId") or 0) for x in taxon.iterfind("LineageEx/Taxon")}
-            ancestors[tid] = ids
-            key = content_key({"ancestors": tid})
-            cache.put("taxonomy_ancestors", key, json.dumps(sorted(ids)))
-    return [t for t in taxids if target not in ancestors.get(t, set())]
+    anc = ancestors(eutils, cache, taxids, ttl_days=ttl_days)
+    return [t for t in taxids if target not in anc.get(t, set()) - {t}]

@@ -77,6 +77,14 @@ verified NCBI facts) at the start of every session. Newest entry first.
   tests/test_variants_step5.py (a test fails when anchor placement is switched off).
   Old variants/*.jsonl stores are no longer read (can be deleted by the user).
 
+- Step 5c built: GenomeCall.channel_state (best state per channel over copies, parts included),
+  channel_results/_membership/_genome_channel_state (exhaustive.py), ChannelResult in
+  coverage.channel_results; taxonomy.resolve.ancestors (cached lineage ids; outside_target uses
+  it); the CLI passes it as ancestors_of. Tests: one channel with complete vs draft genomes
+  without the locus; genus + species channels (target, signal, silent); unknown lineages.
+  Not yet: report and workbook tables per channel (step 6); per-locus analysis beyond the
+  first locus.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number
