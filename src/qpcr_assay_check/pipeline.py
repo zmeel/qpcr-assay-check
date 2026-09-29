@@ -25,6 +25,7 @@ from .specificity.variants import VariantSummary, build_variant_summary
 from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
 from .taxonomy.plan import OrganismListResolution
 from .taxonomy.rollup import TaxonCount
+from .variants.exhaustive import channel_verdict, channels_shown
 from .variants.models import ExhaustiveCoverage
 from .verdict import REVIEW_STATUS, Verdict, combine, exit_code, verdict_from_status
 
@@ -230,6 +231,19 @@ def evaluate(
                 ],
             }
         )
+    if inclusivity is not None and inclusivity.exhaustive and channels_shown(variant_coverage):
+        # every channel counts (overhaul step 6): the inclusivity status is the worst of the
+        # whole-assay figure and each channel's own (e.g. an L. pneumophila channel next to a
+        # genus channel); never better than before
+        judged = [(r, *channel_verdict(r, cfg.inclusivity))
+                  for r in variant_coverage.channel_results]  # type: ignore[union-attr]  # fmt: skip
+        levels = {"all": inclusivity.verdict, **{r.name: v for r, v, _w in judged}}
+        worst = combine(levels, list(levels))
+        lines = [f"Channel {r.name}: {why}" for r, v, why in judged if v is not Verdict.PASS]
+        if worst is not inclusivity.verdict or lines:
+            inclusivity = inclusivity.model_copy(
+                update={"verdict": worst, "rationale": [*inclusivity.rationale, *lines]}
+            )
     if inclusivity is not None:
         note = (
             inclusivity.sample_scheme

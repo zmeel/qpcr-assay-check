@@ -85,6 +85,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   Not yet: report and workbook tables per channel (step 6); per-locus analysis beyond the
   first locus.
 
+- Step 6 built: channels_shown / channel_verdict (exhaustive.py); pipeline folds channel
+  statuses into the inclusivity verdict (worst, never better; rationale lines "Channel X: ...");
+  summary rows "Detection per channel: <name> (<dye>)"; report table (id "channels", in the
+  inclusivity section; replaces the old "Probe channels" counts when shown); workbook sheet
+  "Channels"; AmpliconResult.channels (pairing._channels) shown in the product table and the
+  "Predicted products" sheet. Tests in tests/test_variants_step5.py and tests/test_pairing.py.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number

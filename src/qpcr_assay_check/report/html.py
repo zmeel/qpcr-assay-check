@@ -13,6 +13,7 @@ from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..oligo.grade import site_string
 from ..results import CheckResult, RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
+from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
 from . import plots
 from .grouping import (
@@ -173,6 +174,14 @@ def _environment() -> Environment:
     return env
 
 
+def _channel_table(result: RunResult, cfg: Config) -> list[tuple[Any, Any, str]]:
+    """``(channel result, status, reason)`` rows when the channels differ in anything."""
+    c = result.variant_summary.coverage if result.variant_summary else None
+    if not channels_shown(c):
+        return []
+    return [(r, *channel_verdict(r, cfg.inclusivity)) for r in c.channel_results]  # type: ignore[union-attr]
+
+
 def render_report(result: RunResult, cfg: Config) -> str:
     """Render the evaluation record as one self-contained HTML document."""
     groups: list[tuple[str, list[CheckResult]]] = []
@@ -268,6 +277,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
             else ""
         ),
         status_label=STATUS_LABEL[result.overall.verdict],
+        channel_table=_channel_table(result, cfg),
         summary=summary_rows(
             result, cfg, spec_overview(spec, result.assay, rows_of_searches) if spec else []
         ),

@@ -1342,6 +1342,45 @@ def channel_results(
     return out
 
 
+def channels_shown(coverage: ExhaustiveCoverage | None) -> bool:
+    """Whether the per-channel results add anything to the whole-assay figures: more than one
+    channel, or a channel whose target differs from the scanned taxon."""
+    if coverage is None or not coverage.channel_results:
+        return False
+    rs = coverage.channel_results
+    return len(rs) > 1 or any(r.target_taxid not in (None, coverage.taxon) for r in rs)
+
+
+def channel_verdict(r: ChannelResult, rules: Any) -> tuple[Verdict, str]:
+    """A channel's status over all assessed genomes (``inclusivity`` limits): below the FAIL
+    limit detected FAIL, below the review limit or any signal outside its target WARN, no
+    judged target genome or unknown lineages INCOMPLETE."""
+    pct = r.detected_percent
+    if r.target_genomes == 0 or pct is None:
+        why = ("no genome of its target was assessed"
+               + (f" ({r.membership_unknown:,} genomes without a known lineage)"
+                  if r.membership_unknown else ""))  # fmt: skip
+        return Verdict.INCOMPLETE, why
+    if pct < rules.fail_below_percent:
+        return (
+            Verdict.FAIL,
+            f"{pct:.1f}% detected, below your limit of {rules.fail_below_percent:g}%",
+        )
+    reasons = []
+    level = Verdict.PASS
+    if pct < rules.warn_below_percent:
+        level = Verdict.WARN
+        reasons.append(f"{pct:.1f}% detected, below your review limit of "
+                       f"{rules.warn_below_percent:g}%")  # fmt: skip
+    if r.signal:
+        level = Verdict.WARN
+        reasons.append(f"a signal in {r.signal:,} of {r.nontarget_genomes:,} genomes outside "
+                       "its target")  # fmt: skip
+    if r.membership_unknown and level is Verdict.PASS:
+        return Verdict.INCOMPLETE, f"{r.membership_unknown:,} genomes without a known lineage"
+    return level, "; ".join(reasons)
+
+
 def _membership(
     ch: Channel, taxid: int | None, anc: dict[int, set[int]], scan_taxon: int | None, lookup: bool
 ) -> str | None:

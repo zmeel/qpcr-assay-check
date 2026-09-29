@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Report and workbook per channel** (overhaul step 6). When an assay has more than one
+  channel, or a channel whose target differs from the searched taxon (e.g. Legionella: a genus
+  channel and an L. pneumophila channel), the report shows "Detection per channel" (target
+  genomes detected / not detected / undetermined / drafts without the region, signal in the
+  other genomes of the scan, status with your inclusivity limits), the summary gets one row per
+  channel, and the workbook a "Channels" sheet. Each channel's status also counts in the
+  inclusivity status (the worst of the whole-assay figure and every channel; never better).
+  Predicted off-target products name the channels whose probes bind inside them (report and
+  workbook column "Channels").
 - **Per-channel outcomes** (overhaul step 5c): every channel of the first locus is judged over
   every scanned genome (`coverage.channel_results` in results.json; shown in the report from
   step 6). Target genomes (in the channel's target taxon, from the genome's NCBI lineage when

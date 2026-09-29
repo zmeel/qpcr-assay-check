@@ -42,6 +42,7 @@ class ProductGroup:
     lengths: list[int] = field(default_factory=list)
     pairs: Counter = field(default_factory=Counter)
     names: Counter = field(default_factory=Counter)
+    channels: Counter = field(default_factory=Counter)  # detecting channel -> products
 
     @property
     def n_records(self) -> int:
@@ -73,6 +74,7 @@ def group_products(
         g.lengths.append(a.length)
         g.pairs[a.roles] += 1
         g.names[a.organism or name] += 1
+        g.channels.update(a.channels)
         left, right = sites.get(a.left_site), sites.get(a.right_site)
         mm = (left.n_mismatch + left.n_gap if left else 9) + (
             right.n_mismatch + right.n_gap if right else 9

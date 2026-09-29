@@ -156,3 +156,18 @@ def test_rna_assays_get_a_genomic_dna_remark_for_eukaryotic_genomic_records_only
         0
     ][0]
     assert bact.note == ""
+
+
+def test_a_product_names_the_channels_whose_probes_bind_in_it():
+    from .conftest import CDC_N1_F, CDC_N1_P, CDC_N1_R
+
+    assay = make_assay(
+        forward=CDC_N1_F, reverse=CDC_N1_R,
+        probe=[{"name": "P-genus", "sequence": CDC_N1_P, "reporter": "VIC"},
+               {"name": "P-species", "sequence": CDC_N1_P[::-1], "reporter": "FAM"}],
+        probe_reporter=None,
+    )  # fmt: skip
+    f, r = mk("forward", "+", 100, 119), mk("reverse", "-", 200, 223)
+    p1 = mk("probe", "+", 150, 173, mm=0).model_copy(update={"query": "P-species_v2"})
+    (a,), _, _ = predict_amplicons([f, r, p1], RULES, assay)
+    assert a.classification == "likely_detected" and a.channels == ["FAM"]
