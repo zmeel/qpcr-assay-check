@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Store v2** (overhaul step 4; `variants/genomestore.py`, not wired in yet): one file per
+  locus definition with a header (schema version and key: references with their context, scan
+  settings, taxon, source). A file with another key or no header is set aside and every genome
+  is scanned again (no rescans, no migration). Each genome keeps every chain candidate with its
+  evidence and molecule, and its sequences, length, N and gaps; failed downloads are counted
+  with their reason. `DatasetsClient.sequence_roles` reads the Datasets sequence report (role and
+  molecule type per sequence, paged, one assembly per request; verified live 2026-09-29).
 - **Chain locator** (overhaul step 3; `variants/chain.py`, not wired in yet): every copy of a
   locus is found as a chain of exact blocks in the same order on the reference and the genome,
   from 16-mers every 2 nt in the fragment and, when a context accession gives them, in the

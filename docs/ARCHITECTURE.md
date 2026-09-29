@@ -377,6 +377,20 @@ E-utilities and BLAST:
 - Not yet answered: BLAST against `DATABASE=wgs` with a species ENTREZ_QUERY (the probe's query
   region was outside the 7,500 bp record ESearch returned first, a plasmid; fixed, needs a rerun).
 
+### Verified for the overhaul's store v2 (2026-09-29, Datasets v2, live curl, no API key)
+
+- `GET /genome/accession/{acc}/sequence_reports` returns `{reports, total_count}`; each report
+  has `assembly_accession`, `genbank_accession`, `refseq_accession`, `role`
+  (`assembled-molecule`, `unplaced-scaffold`, `unlocalized-scaffold`), `assigned_molecule_location_type`
+  (`Chromosome`, `Plasmid`), `chr_name` (e.g. `pLPP`), `length`, `sequence_name`, `sort_order`,
+  `assembly_unit`. Checked on GCF_000008485.1 (1 chromosome), GCF_000048645.1 (chromosome +
+  plasmid pLPP), GCF_000156755.1 (42 scaffolds, one unlocalized scaffold on a plasmid) and
+  GCF_000586155.1 (58 unplaced scaffolds).
+- Paging: with `page_size` the answer carries `next_page_token`, and `page_token` gives the next
+  page (checked with page_size 10); `page_size=1000` returned all 42 of GCF_000156755.1.
+- One assembly per request: a comma-separated pair of accessions in the path returned an empty
+  object. So one extra request per assembly when roles are wanted.
+
 ### First live run of the exhaustive variant analysis (2026-09-23, C. trachomatis, v1.1.0 dev)
 
 User's own cryptic-plasmid assay (87 bp reference amplicon). NCBI Datasets listed 357 assemblies

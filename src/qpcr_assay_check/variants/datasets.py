@@ -71,6 +71,19 @@ def _record(report: dict) -> AssemblyRecord | None:
     )
 
 
+@dataclass(frozen=True)
+class SequenceRole:
+    """One sequence of an assembly, as its Datasets sequence report describes it."""
+
+    role: str  # e.g. assembled-molecule, unplaced-scaffold
+    molecule: str  # assigned_molecule_location_type: Chromosome, Plasmid, ...
+    name: str = ""  # chr_name, e.g. pLPP
+
+    @property
+    def plasmid(self) -> bool:
+        return self.molecule.lower() == "plasmid"
+
+
 class DatasetsClient:
     """Throttled access to the two Datasets endpoints the variant analysis needs."""
 
@@ -146,6 +159,33 @@ class DatasetsClient:
         except (zipfile.BadZipFile, zlib.error, EOFError) as exc:  # a damaged member
             raise NcbiError(f"Datasets download was damaged: {exc}") from exc
         return out
+
+    def sequence_roles(self, accession: str) -> dict[str, SequenceRole]:
+        """Role and molecule type of every sequence of one assembly, by sequence accession
+        (RefSeq and GenBank both), from ``/genome/accession/{acc}/sequence_reports``.
+
+        Verified live (2026-09-29): fields ``role`` (assembled-molecule, unplaced-scaffold,
+        unlocalized-scaffold, ...), ``assigned_molecule_location_type`` (Chromosome, Plasmid,
+        ...), ``refseq_accession``, ``genbank_accession``; pages with ``next_page_token``; one
+        assembly per request (a comma-separated list returned an empty answer)."""
+        path = f"/genome/accession/{quote(accession)}/sequence_reports"
+        params = {"page_size": str(PAGE_SIZE)}
+        out: dict[str, SequenceRole] = {}
+        while True:
+            doc = self._get_json(path, params)
+            for r in doc.get("reports") or []:
+                role = SequenceRole(
+                    role=str(r.get("role") or ""),
+                    molecule=str(r.get("assigned_molecule_location_type") or ""),
+                    name=str(r.get("chr_name") or r.get("sequence_name") or ""),
+                )
+                for key in ("refseq_accession", "genbank_accession"):
+                    if r.get(key):
+                        out[str(r[key])] = role
+            token = doc.get("next_page_token")
+            if not token:
+                return out
+            params["page_token"] = token
 
     def _get_json(self, path: str, params: dict[str, str]) -> dict:
         resp = self.http.request("GET", f"{self.base_url}{path}", service="datasets",

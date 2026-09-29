@@ -5,6 +5,8 @@
 # NAME is the output folder under work/measure_out; the log is work/measure_out/NAME.log.
 # NCBI_EMAIL / NCBI_API_KEY: exported in the shell, or in .env in this folder (gitignored;
 # lines NCBI_EMAIL=you@example.org, without quotes).
+# The checkout's src/ is mounted over the image's installed package (PYTHONPATH), so a
+# 'git pull' is enough: no image rebuild for the measurement scripts.
 set -e
 [ $# -ge 1 ] || { echo "usage: sh scripts/measure_locator.sh NAME [options]" >&2; exit 2; }
 name=$1
@@ -16,7 +18,8 @@ opts=""
 [ -n "${NCBI_API_KEY:-}" ] && opts="$opts -e NCBI_API_KEY=$NCBI_API_KEY"
 # shellcheck disable=SC2086
 nohup docker run --rm --user "$(id -u):$(id -g)" $opts -v "$PWD/work:/work" \
-    -v "$PWD/scripts:/scripts:ro" --entrypoint python qpcr-assay-check \
+    -v "$PWD/scripts:/scripts:ro" \
+    -v "$PWD/src:/src:ro" -e PYTHONPATH=/src --entrypoint python qpcr-assay-check \
     /scripts/measure_locator.py --outdir "measure_out/$name" "$@" \
     > "work/measure_out/$name.log" 2>&1 &
 echo "started; follow it with: tail -f work/measure_out/$name.log"
