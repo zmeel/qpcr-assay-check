@@ -116,3 +116,38 @@ def test_context_comes_from_the_best_copy_even_when_it_is_not_exact():
     ctx = context_from(record, AMP, length=300)
     assert (ctx.left, ctx.right) == (LEFT, RIGHT) and ctx.identity < 1.0
     assert context_from({"x": filler(5000, 2)}, AMP) is None
+
+
+def test_a_copy_half_hidden_by_n_is_not_pushed_out_by_a_weak_candidate():
+    """Code review 2026-09-29: every other base N but one intact 22-nt stretch; the exact
+    candidate (22 bases) is not a copy, the N-tolerant one at the same place is."""
+    from qpcr_assay_check.variants.chain import copies_of
+
+    keep = range(P_AT, P_AT + 22)
+    hidden = "".join(b if i in keep or i % 2 == 0 else "N" for i, b in enumerate(AMP))
+    found = locate({"c1": filler(2000, 1) + hidden + filler(2000, 2)}, [REF])
+    assert any(not c.masked and 0 < c.anchored < 32 and not is_copy(c) for c in found)
+    (c,) = copies_of(found)
+    assert c.masked and c.start == 2000
+
+
+def test_a_masked_candidate_gives_way_to_a_copy_by_exact_blocks_at_the_same_place():
+    from qpcr_assay_check.variants.chain import copies_of
+
+    keep = range(P_AT, P_AT + 22)
+    hidden = "".join(b if i in keep or i % 2 == 0 else "N" for i, b in enumerate(AMP))
+    found = locate({"c1": filler(2000, 1) + hidden + filler(2000, 2)}, [REF])
+    (c,) = copies_of(found, CopyRule(min_anchored=20))  # the exact candidate now counts
+    assert not c.masked and c.anchored >= 22
+
+
+def test_every_context_chain_is_kept_so_min_context_applies_after_the_scan():
+    """Code review 2026-09-29: the scan kept context-only chains from 32 bases whatever
+    variants.min_context_bases said."""
+    tail = list(LEFT[-44:])
+    for i in (16, 34):  # mismatches: one 16-nt block of the left flank stays exact
+        tail[i] = {"A": "C", "C": "G", "G": "T", "T": "A"}[tail[i]]
+    genome = {"c1": filler(1000, 1) + "".join(tail) + AMP[:10]}  # cut 10 nt into the fragment
+    (c,) = locate(genome, [REF_CTX])
+    assert c.anchored == 0 and c.context_left == 16 and c.cut
+    assert not is_copy(c) and is_copy(c, CopyRule(min_context=16))

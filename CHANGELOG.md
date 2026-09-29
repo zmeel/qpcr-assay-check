@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Code review of the overhaul** (2026-09-29):
+  - A copy partly hidden by N is no longer pushed out by a weaker candidate at the same place
+    that is not a copy; the scan keeps both and the copy rule picks (`chain.copies_of`).
+  - The scan keeps every chain anchored in the context, so `variants.min_context_bases`
+    really applies without a new scan. The N-tolerant search runs when no candidate has 32
+    anchored fragment bases, a fixed scan setting in the store key, so
+    `variants.min_anchored_bases` can change without a new scan too.
+  - An assay file without `loci:` whose `target.gene` is longer than 60 characters loads
+    again (the locus name is cut to 60).
+  - The store format is now version 3: **every genome is scanned again once**.
+
 ### Removed
 - **Run history and the comparison with the previous run** (overhaul step 7a; user decision
   2026-09-29): no "history" section, summary column or workbook sheet. The incremental cache

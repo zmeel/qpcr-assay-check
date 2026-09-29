@@ -61,7 +61,7 @@ def test_the_store_reloads_and_sets_aside_a_file_with_another_key(tmp_path):
     again = GenomeStore(path, k)
     assert REC.accession in again and again.items[REC.accession].copies[0].anchored > 0
     header = json.loads(path.read_text().splitlines()[0])
-    assert header["schema"] == 2 and header["key"] == k
+    assert header["schema"] == 3 and header["key"] == k
     other = key(step=4)  # a different method: a different key
     assert store_file(tmp_path, other) != path
     moved = GenomeStore(path, other)  # same file, other key (e.g. an edited header)

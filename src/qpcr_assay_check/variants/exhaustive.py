@@ -45,7 +45,7 @@ from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from ..verdict import STATUS_LABEL, Verdict
-from .chain import CopyRule, Reference, context_from, is_copy
+from .chain import CopyRule, Reference, context_from, copies_of
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .genomestore import (
     GenomeRecord,
@@ -169,7 +169,9 @@ def as_items(
     related: list[str] = []
     beside: list[str] = []
     for rec in records:
-        copies = [c for c in rec.copies if is_copy(c.candidate(), rule)]
+        cands = [c.candidate() for c in rec.copies]
+        kept = {id(c) for c in copies_of(cands, rule)}
+        copies = [sc for sc, c in zip(rec.copies, cands, strict=True) if id(c) in kept]
         others = [c for c in rec.copies if c not in copies and c.anchored > 0]
         if not copies and others:
             related.append(rec.accession)

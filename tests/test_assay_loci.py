@@ -169,3 +169,11 @@ def test_the_channel_reporter_fills_probes_without_one():
 def test_inconsistent_loci_and_channels_are_refused(overrides, message):
     with pytest.raises(ValidationError, match=message):
         legionella_like(**overrides)
+
+
+@pytest.mark.parametrize("gene", ["x" * 71, "   "])
+def test_the_default_locus_name_survives_a_long_or_blank_gene(gene):
+    """Code review 2026-09-29: the locus is named after target.gene (free text, no limit)."""
+    a = make_assay(reference_amplicon=AMP, target={"taxid": 2697049, "gene": gene})
+    (lc,) = a.loci
+    assert lc.name == ("x" * 60 if gene.strip() else "target region")

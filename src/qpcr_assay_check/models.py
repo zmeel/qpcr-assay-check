@@ -528,7 +528,8 @@ class Assay(BaseModel):
         if not self.loci:
             self.loci = [
                 Locus(
-                    name=self.target.gene or "target region",
+                    # a locus name holds 60 characters; the gene field is free text
+                    name=(self.target.gene or "").strip()[:60].strip() or "target region",
                     primers=[o.name for o in [*self.forward, *self.reverse]],
                     probes=[o.name for o in self.probe],
                     references=list(self.reference_amplicons),

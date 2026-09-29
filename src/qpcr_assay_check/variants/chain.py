@@ -173,13 +173,16 @@ def locate(
     step: int = DEFAULT_STEP,
     max_indel: int = DEFAULT_MAX_INDEL,
     flank: int = 50,
-    min_context: int = CopyRule.min_context,
+    masked_below: int = CopyRule.min_anchored,
 ) -> list[Candidate]:
     """Every candidate copy of the locus in ``contigs``, most anchored first.
 
-    Chains that touch the fragment are all kept; a chain anchored only in the context is kept
-    from ``min_context`` bases. Where several references find the same place, the candidate
-    with the most anchored fragment bases (then the highest identity) is kept.
+    Every chain is kept (one exact block of ``k`` bases, in the fragment or its context), so
+    the copy rule can be applied, and changed, after the scan. Where several references find
+    the same place, the candidate with the most anchored fragment bases (then the highest
+    identity) is kept. The N-tolerant search runs when no candidate has ``masked_below``
+    anchored fragment bases; its candidates are kept beside the others (see
+    :func:`copies_of`).
     """
     found: list[Candidate] = []
     for ri, ref in enumerate(references):
@@ -195,15 +198,14 @@ def locate(
             for strand, s in (("+", contig), ("-", iupac.reverse_complement(contig))):
                 blocks = _two_pass(s, seq_ref, coarse, fine, k, reach)
                 for ch in chain_blocks(blocks, max_indel, max_gap):
-                    c = _candidate(name, strand, s, ri, ref, ch, flank, max_indel)  # type: ignore[arg-type]
-                    if c.anchored or max(c.context_left, c.context_right) >= min_context:
-                        found.append(c)
+                    found.append(_candidate(name, strand, s, ri, ref, ch, flank, max_indel))  # type: ignore[arg-type]
+    found = _best_per_place(found)
     # no copy by exact blocks (a chance 16-mer elsewhere does not count): look under the N
-    if not any(c.anchored >= CopyRule.min_anchored for c in found) and any(
+    if not any(c.anchored >= masked_below for c in found) and any(
         "N" in s.upper() for s in contigs.values()
     ):
-        found += _masked(contigs, references, k, step, flank)
-    return _best_per_place(found)
+        found += _best_per_place(_masked(contigs, references, k, step, flank))
+    return found
 
 
 def _masked(
@@ -259,16 +261,27 @@ def _candidate(
     )  # fmt: skip
 
 
+def copies_of(candidates: Sequence[Candidate], rule: CopyRule = DEFAULT_RULE) -> list[Candidate]:
+    """The candidates that are copies under ``rule``, one per place: a copy found through
+    N-tolerant seeds is dropped where a copy by exact blocks covers the same place, and kept
+    where only a candidate that is not a copy does (code review 2026-09-29)."""
+    copies = [c for c in candidates if is_copy(c, rule)]
+    exact = [c for c in copies if not c.masked]
+    return exact + [m for m in copies if m.masked and not any(_overlap(m, c) for c in exact)]
+
+
+def _overlap(a: Candidate, b: Candidate) -> bool:
+    return (
+        a.contig == b.contig and a.strand == b.strand and min(a.end, b.end) > max(a.start, b.start)
+    )
+
+
 def _best_per_place(found: list[Candidate]) -> list[Candidate]:
     """One candidate per place on the genome (several references may find the same copy)."""
     order = sorted(found, key=lambda c: (-c.anchored, -(c.identity or 0.0), c.ref))
     kept: list[Candidate] = []
     for c in order:
-        if not any(
-            k.contig == c.contig and k.strand == c.strand
-            and min(k.end, c.end) > max(k.start, c.start)
-            for k in kept
-        ):  # fmt: skip
+        if not any(_overlap(k, c) for k in kept):
             kept.append(c)
     return kept
 
