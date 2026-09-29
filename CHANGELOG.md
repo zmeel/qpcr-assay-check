@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Removed
+- **Run history and the comparison with the previous run** (overhaul step 7a; user decision
+  2026-09-29): no "history" section, summary column or workbook sheet. The incremental cache
+  stays, so a later run only downloads new genomes.
+- **The `panel` command** (overhaul step 7b): per-channel detection (step 6) covers assays
+  with several targets in one run.
+- **The old region store, rescans and seed-cluster locator** (overhaul step 7c): the chain
+  locator and store v2 replace them. Old `variants/` cache files are no longer read and can be
+  deleted.
+- **The sampled inclusivity from the target tier's BLAST hits** (overhaul step 7d):
+  `variants.source: blast_hits` and `inclusivity.sample_per_window` are refused as unknown
+  settings. Inclusivity and the variant summary come only from the exhaustive analysis
+  (`datasets` or `blast_partitioned`). When it cannot run, the report says inclusivity was not
+  assessed and why.
+
 ### Added
 - **Report and workbook per channel** (overhaul step 6). When an assay has more than one
   channel, or a channel whose target differs from the searched taxon (e.g. Legionella: a genus

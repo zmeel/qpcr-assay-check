@@ -92,6 +92,24 @@ verified NCBI facts) at the start of every session. Newest entry first.
   "Channels"; AmpliconResult.channels (pairing._channels) shown in the product table and the
   "Predicted products" sheet. Tests in tests/test_variants_step5.py and tests/test_pairing.py.
 
+- Step 7 built (deletions, four commits):
+  - 7a: run history and the comparison with the previous run removed (history package,
+    pipeline's previous_run, the "history" section, summary column, workbook sheet).
+  - 7b: the `panel` command removed (panel.py, report/panel.py, its tests).
+  - 7c: the old region store (variants/store.py is now only StoredLocus/StoredAssembly, the
+    adapter view of store v2), the rescans and the seed-cluster locator (locate.find_loci and
+    friends, the implied-offset fallback) removed; scripts/measure_locator.py removed,
+    tests/test_measure_borderline.py kept the borderline cases on the chain locator.
+  - 7d: the sampled blast_hits inclusivity removed (variants.source blast_hits,
+    inclusivity.sample_per_window, inclusivity/dates.py and sites.py, assess_target_sites, the
+    "full target hit list" bias note, smoke-test step 08b). When the exhaustive analysis cannot
+    run, inclusivity is "Not assessed: <reason>" instead of a sampled fallback. The target BLAST
+    tier still runs (its perfect full-length counts feed the specificity findings) but its hits
+    are no longer kept.
+- Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
+  settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
+  local until the user approves the push.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number

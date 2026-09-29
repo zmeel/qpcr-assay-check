@@ -186,18 +186,14 @@ contain the region at all (listed, to review), and how many carry more than one 
   amplicon against lists of 100 records at a time, so no search can fill its hit list. At most
   `variants.blast_max_records_per_run` (2,000) records per run; a target with millions of records
   is covered newest first over many runs, and the report says how far it got.
-  `variants.source: blast_hits` keeps the v1.0 behaviour (the target tier's own hits, biased
-  toward perfect matches when the hit list is full, and the report says so).
-- **Inclusivity** is built from the same assemblies, per release year, when this source is used.
+- **Inclusivity** is built from the same genomes, per release year. When the exhaustive analysis
+  cannot run (e.g. NCBI Datasets unreachable), the report says inclusivity was not assessed and
+  why; there is no sampled fallback (removed in the overhaul, 2026-09-29).
 - **Regions hidden by N** (low-coverage sequencing) are found with N-tolerant seeds and reported
   as masked, with examples; they are not counted as matches or variants. A region that is N from
   end to end (v1.1.1; live: SARS-CoV-2 records with 1,144 N over N1) is placed by the reference
   sequence on either side of the amplicon, taken once from the assay's `target.accession` and
   cached; without an accession it is still counted as not found.
-- **Emerging variants:** the history section compares each run's variant tables with the
-  previous run's and lists new variants, marked "emerging" when their first assembly was released
-  after the previous run. A new variant with a primer 3'-end mismatch or 2+ mismatches makes the
-  history section WARN.
 - What is sent to NCBI: assembly listing requests and genome downloads (no oligo sequences).
 
 ### Exclusivity against a clinical organism list (v0.4.0)
@@ -276,51 +272,13 @@ WARN, below `fail_below_percent` FAIL; fewer than `min_genomes_for_verdict` (100
 window INCOMPLETE. When the pooled figure has no flags, a single year inside the window with at
 least `min_genomes_per_year` (30) genomes below the FAIL limit gives Review (WARN; "release year
 <year> on its own"); years outside the window never decide. The per-oligo and per-year tables are
-diagnostics. The coverage section also gives detection per assembly level: for a multi-copy target, escapes that occur mainly in draft assemblies (Scaffold, Contig) and hardly in complete genomes point to repeat copies left unassembled rather than to the strain. Such a draft genome (Scaffold or Contig with more than one sequence, or a copy cut by a contig end) whose best copy fails and that carries fewer than half the median copies of the complete and chromosome-level genomes of the run (at least 5 of them, median 2 or more) counts as undetermined "copies possibly unassembled", not as an escape (also in the `panel` command), unless one of those genomes fails with the same three genome sites; `variants.multicopy_unassembled: off` counts them as escapes. This can hide a real loss of copies, so they are listed (workbook sheet "Unassembled"). A region found through the amplicon's exact seeds counts as a copy only when it matches the reference fragment over at least `variants.min_copy_identity` (0.75) of the part it covers; weaker regions (e.g. an unrelated region found through one chance seed) are listed as "related regions, not the target" and never judged. A genome whose copies of the region are all cut by a contig end (repeats such as rRNA operons break draft assemblies), or whose best whole copy fails, but that carries a detectable site of every role on the cut copies is "detectable from parts": by default its own class, left out of the percentages, because the sites may come from different copies (`variants.judge_from_parts: undetermined | detectable | off`). While not every genome listed by NCBI has been assessed yet (the per-run budget),
+diagnostics. The coverage section also gives detection per assembly level: for a multi-copy target, escapes that occur mainly in draft assemblies (Scaffold, Contig) and hardly in complete genomes point to repeat copies left unassembled rather than to the strain. Such a draft genome (Scaffold or Contig with more than one sequence, or a copy cut by a contig end) whose best copy fails and that carries fewer than half the median copies of the complete and chromosome-level genomes of the run (at least 5 of them, median 2 or more) counts as undetermined "copies possibly unassembled", not as an escape, unless one of those genomes fails with the same three genome sites; `variants.multicopy_unassembled: off` counts them as escapes. This can hide a real loss of copies, so they are listed (workbook sheet "Unassembled"). A region found by the chain locator counts as a copy when (a) at least `variants.min_anchored_bases` (32) of the fragment are in exact blocks, or (b) at least `variants.min_context_bases` (32) of the flanks around it are, on one side with the fragment touched or cut by a contig end, or on both sides, or (c) it matches the reference fragment over at least `variants.min_copy_identity` (0.75) with at least `variants.min_identity_anchored_bases` (16) anchored; weaker regions (e.g. an unrelated region found through one chance seed) are never judged. A genome whose copies of the region are all cut by a contig end (repeats such as rRNA operons break draft assemblies), or whose best whole copy fails, but that carries a detectable site of every role on the cut copies is "detectable from parts": by default its own class, left out of the percentages, because the sites may come from different copies (`variants.judge_from_parts: undetermined | detectable | off`). While not every genome listed by NCBI has been assessed yet (the per-run budget),
 the status is Incomplete, unless the figure is already below the FAIL limit.
-With the sampled source (`blast_hits`) the worst oligo and year still decide, as described below.
 
-A full `run` also gives a year-by-year trend of how well the oligos still match the intended
-target: the "target" tier search every run already makes (perfect full-length hits or near enough)
-is bucketed by each hit's own submission year afterwards (via ESummary), sampled deterministically
-(evenly spread by accession, capped by `inclusivity.sample_per_window`, default 20/year over the
-last `inclusivity.lookback_years`, default 10), and re-aligned over the full oligo length. The
-report gets a per-oligo, per-year table (population size from an independent ESearch count, sample
-size, perfect/1-mismatch/2+-mismatch/3'-mismatch counts, a per-position mismatch profile).
-
-This is deliberately **not** a separate, date-restricted BLAST search: a live check found that
-combining `ENTREZ_QUERY` taxon restriction with a `[PDAT]` date filter in one BLAST call does not
-reliably restrict by date, so inclusivity reuses evidence the run already gathers instead (see
-`docs/ARCHITECTURE.md`). One honest consequence: the yearly sample is whatever the target tier's own
-BLAST hit list returned for that year, not a controlled random sample of everything sequenced that
-year — `population_size` is always shown alongside `sample_size` so the two are never confused.
-A target tier that was never searched, or a year with no dated hits, is INCOMPLETE for that scope
-rather than a silent PASS.
-
-### Run history and changes since the last run (v1.0.0)
-
-Every full `run` looks for the most recently generated `results.json` under the same output
-directory and assay name (`<outdir>/<assay-slug>/*/results.json`, sorted by the record's own
-`generated_at`) and diffs the current evaluation against it: no separate index or database, just
-the same per-run directories every version has already written. The report gets a "Changes since
-the previous run" section: which section statuses changed, which off-target sites or predicted
-products are new or have disappeared, and how the inclusivity trend moved — matched across runs by
-accession and position (not by the run-local site ID, which is only ever stable within one run).
-
-The first run for a new assay has nothing to compare against: it is the baseline year, shown
-as such, and it does not hold up the review status (user decision, 2026-09-27). When the assay
-definition or configuration changed since the previous run the comparison is shown but marked
-"not comparable", and it does not change the review status either. Otherwise the comparison
-has no flags (nothing concerning changed) or `Review` (WARN) (a section got worse, a new critical/warning site or predicted
-product appeared, or inclusivity regressed for some oligo/year) — never `FAIL` by itself, since a
-regression that is bad enough to fail the run already fails the specific section it belongs to
-(specificity, exclusivity, inclusivity); "history" only flags that something changed and is worth a
-human look.
-
-```bash
-# run the same assay again later; -o must point at the same output directory as before
-qpcr-assay-check run my-assay/assay.yaml -o results
-```
+Later runs of the same assay reuse the cache: genomes already stored are not downloaded again,
+unless the locus definition or the scan method changed (then that locus is scanned again from
+scratch). The report has no comparison with a previous run (removed in the overhaul,
+2026-09-29); archive each run's folder to keep the yearly record.
 
 You can also define an assay entirely on the command line:
 
@@ -416,8 +374,9 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
   way, since only a wet-lab check can show whether such a site amplifies.
 - Genomes stored before v1.3.0 kept at most 5 copies; they are downloaded and scanned again once
   (within the per-run maximum), so every copy (up to 20) is assessed.
-- Further reference amplicons are tried when the first finds nothing (region store unchanged, so
-  adding a lineage reference keeps the regions already stored).
+- Several reference fragments per locus are searched together; each copy is compared with the
+  one that fits it best. Adding or changing a reference fragment changes the locus definition,
+  so that locus is scanned again.
 - A site that differs only by the length of a single-base run (e.g. a poly-T of 9 instead of 7)
   is aligned as a bulge with the 3' end intact and labelled "homopolymer length variant", rather
   than shown as 3'-end mismatches. Homopolymer lengths are also a known sequencing-error hotspot.
@@ -471,43 +430,9 @@ target:
   NCBI Taxonomy (the former genus name is a synonym), so it cannot be used as an organism name.
 - Records of such organisms that NCBI files under another taxon (e.g. "unclassified
   Enterovirus") stay in the target; the report says so.
-- Supported with `variants.source: blast_partitioned` (and `blast_hits`), not with `datasets`.
+- Supported with `variants.source: blast_partitioned`, not with `datasets`.
 - Worked example (user-supplied sequences):
   [`docs/examples/enterovirus_realt.yaml`](docs/examples/enterovirus_realt.yaml).
-
-### Panels: genomes that escape every target
-
-Many laboratories detect one organism with two or more assays (e.g. *C. trachomatis* on the
-cryptic plasmid and on a chromosomal gene). The clinical risk is a strain that escapes every
-target at once. After each assay has run its variant analysis, combine them:
-
-```yaml
-# ct_panel.yaml (paths relative to this file)
-panel_name: C. trachomatis two-target panel
-assays:
-  - ct_plasmid.yaml
-  - ct_chromosome.yaml
-```
-
-```bash
-qpcr-assay-check panel ct_panel.yaml -o results
-```
-
-- Reads the region stores the assays' runs already filled: nothing is sent to NCBI (except, once,
-  to cut the amplicon out of a target accession for an assay without a reference amplicon).
-- Each genome is judged per assay exactly as in that assay's report (best-binding copy, the
-  inclusivity criterion, the assay's own homopolymer-bulge setting): detected, escape (region
-  found but no detectable copy), region not found, or not assessable (hidden by N, cut by a
-  contig end). Per genome: detected by every target, by some, by **no target** (no target
-  detects it and at least one shows an escape), or undetermined (no target detects it, but no
-  region is found or assessable: more often an incomplete assembly or a partial record). With
-  Nucleotide records (`blast_partitioned`), "region not found" counts as not assessable, as a
-  record is often another gene or a partial sequence.
-- Only genomes processed by every assay are combined; the rest are counted. The assays must
-  share the target taxon, its exclusions, the variant source and its record filters.
-- Writes `panel.html` (genomes detected by no target first, per release year), `panel.xlsx`
-  (every genome with its outcome per assay) and `panel.json`. Exit code 10 when at least one
-  genome is detected by no target.
 
 ### The example assay
 
@@ -547,15 +472,15 @@ Order of precedence: built-in defaults, then a `--config` file (lab-wide), then 
 `organisms`, `inclusivity`, `variants`. `ncbi` (servers, throttling, cache location) and `report`
 stay lab-wide; the NCBI email and API key always come from environment variables. Unknown keys
 are rejected, naming the assay file's settings. The report's Methods section lists the settings
-that came from the assay file, and a change to them counts as an assay change in the run history
-(run budgets such as `max_assemblies_per_run` excepted). So one file per assay:
+that came from the assay file, and they count in the inputs hash (run budgets such as
+`max_assemblies_per_run` excepted). So one file per assay:
 `qpcr-assay-check run my_assay.yaml --yes`.
 
 ## Review status and exit codes
 
 The tool re-checks an assay that is already in use; it does not pass or fail the assay. The report
-opens with a summary table: per thing checked its scope, the result in numbers, the comparison
-with the previous run and a status, followed by a box for the reviewer's decision (no action,
+opens with a summary table: per thing checked its scope, the result in numbers and a status,
+followed by a box for the reviewer's decision (no action,
 monitor, wet-lab check, redesign; filled in by the laboratory, never by the tool).
 
 | Status | Code in results.json | Exit code | Meaning |
@@ -710,21 +635,8 @@ pruning logic changes, rather than treating this one result as permanent proof.
 - **Inclusivity's originally planned design does not work**: combining `ENTREZ_QUERY` taxon
   restriction with a `[PDAT]` date filter in one BLAST call does not reliably restrict by date
   (checked live, 2026-09-22: 4 of 20 checked hit accessions fell outside the requested window).
-  Implemented instead: reuse the target tier's own search, bucket its hits into years afterwards
-  via ESummary; this itself checked live for the common case (see `docs/ARCHITECTURE.md`).
-- **Inclusivity's yearly sample is not a controlled random sample**: it comes from whatever the
-  target-tier BLAST search's own hit list (capped) returned for that year, so a well-sequenced
-  target can under- or over-represent some years depending on BLAST's own ranking. Reported
-  honestly: `population_size` (an independent ESearch count) is always shown next to `sample_size`.
-- **A first run for an assay is the baseline year**: there is no previous run to compare against,
-  and the comparison does not hold up the review status (since 2026-09-27; before, a first run
-  always ended INCOMPLETE). From the second run onward for that same assay (same output
-  directory, same assay name) it becomes a real comparison.
-- **The previous run is found by assay slug, not by assay content**: renaming an assay (which
-  changes its filesystem-safe slug) starts its history over with nothing to compare against, even
-  if the oligos themselves did not change. Off-target sites and predicted products are matched
-  across runs by accession and position, which is stable for the same physical binding site but
-  will register as "new" if the *reference record itself* is revised to a new accession.version.
+  Inclusivity is built from every genome of the target instead (the exhaustive variant
+  analysis), bucketed by release year.
 - **Docker's default user is non-root (uid 1000)**: a bind-mounted host directory not owned by
   that uid needs `--user "$(id -u):$(id -g)"` on `docker run` (or a `chown` to uid 1000
   beforehand), or `init`/`run` will fail with a permission error writing into it. Confirmed live
