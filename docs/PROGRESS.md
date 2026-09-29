@@ -56,6 +56,16 @@ verified NCBI facts) at the start of every session. Newest entry first.
   fragment's best whole copy in the context record (rule (a)); the measurement script uses it
   and records the copy it used. Rerun as legionella4.
 
+- Step 4 built: variants/genomestore.py (ScanSettings, store_key/store_file, GenomeStore with
+  header check and set-aside, GenomeRecord/StoredCopy, scan_genome, sequence_stats);
+  DatasetsClient.sequence_roles + SequenceRole; fake Datasets serves sequence reports. Verified
+  live here (curl, 2026-09-29; docs/ARCHITECTURE.md): sequence_reports fields incl. Plasmid,
+  paging, one assembly per request. The old store and its rescan code stay until step 5 wires
+  the new one in (deletion then / in step 7). Open for step 5: when to fetch sequence reports
+  (one request per assembly; e.g. only for assemblies with more than one sequence).
+- Measurement: legionella4 (context now from the fragment's best copy in NC_002942.5) running.
+  Wrappers mount the checkout's src/ (no image rebuild for the scripts).
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number

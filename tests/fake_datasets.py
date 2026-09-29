@@ -22,6 +22,9 @@ class FakeAssembly:
     organism: str = "Chlamydia trachomatis"
     taxid: int = 813
     descriptions: dict[str, str] = field(default_factory=dict)  # contig -> FASTA description
+    molecules: dict[str, str] = field(
+        default_factory=dict
+    )  # contig -> Plasmid (default Chromosome)
 
 
 class FakeResponse:
@@ -51,6 +54,9 @@ class FakeDatasets:
         path = url.split("/datasets/v2", 1)[1]
         if path.endswith("/dataset_report"):
             return self._report(params or {})
+        if path.endswith("/sequence_reports"):
+            acc = path.split("/genome/accession/", 1)[1].rsplit("/sequence_reports", 1)[0]
+            return self._sequences(acc, params or {})
         if path.endswith("/download"):
             accs = path.split("/genome/accession/", 1)[1].rsplit("/download", 1)[0].split(",")
             return self._download(accs)
@@ -84,6 +90,30 @@ class FakeDatasets:
             ],
         }
         if start + size < len(items):
+            doc["next_page_token"] = str(start + size)
+        return FakeResponse(200, json.dumps(doc).encode(), "application/json")
+
+    def _sequences(self, acc: str, params: dict) -> FakeResponse:
+        """Sequence reports as measured live: one assembly per request (a list gives nothing),
+        paged by page_size / page_token."""
+        a = next((x for x in self.assemblies if x.accession == acc), None)
+        if a is None:
+            return FakeResponse(200, b"{}", "application/json")
+        names = list(a.contigs)
+        size = int(params.get("page_size", 1000))
+        start = int(params.get("page_token", 0))
+        complete = a.level in ("Complete Genome", "Chromosome")
+        doc: dict = {
+            "total_count": len(names),
+            "reports": [
+                {"refseq_accession": n, "genbank_accession": "GB_" + n,
+                 "role": "assembled-molecule" if complete else "unplaced-scaffold",
+                 "assigned_molecule_location_type": a.molecules.get(n, "Chromosome"),
+                 "chr_name": n}
+                for n in names[start : start + size]
+            ],
+        }  # fmt: skip
+        if start + size < len(names):
             doc["next_page_token"] = str(start + size)
         return FakeResponse(200, json.dumps(doc).encode(), "application/json")
 
