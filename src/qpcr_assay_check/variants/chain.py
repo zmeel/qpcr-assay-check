@@ -33,6 +33,7 @@ CONTEXT_STEP = 8  # seed step in the context, near a hit (conserved flanks need 
 COARSE_CONTEXT_STEP = 32  # over the whole genome: any exact flank stretch of 47+ nt is hit
 DEFAULT_STEP = 2  # measured: step 2 finds what step 1 finds; step 4 missed divergent opa copies
 DEFAULT_MAX_INDEL = 150  # largest length difference to the reference within one chain
+CONTEXT_LENGTH = 1000  # flank taken on each side of the fragment in the context record
 
 
 @dataclass(frozen=True)
@@ -364,3 +365,36 @@ def _n_run(s: str, at: int, direction: int) -> int:
 
 def _distance(pos: int, a: int, b: int) -> int:
     return 0 if a <= pos < b else min(abs(pos - a), abs(pos - b))
+
+
+@dataclass(frozen=True)
+class Context:
+    """The sequence on either side of a locus fragment, cut from a context record around the
+    fragment's best copy there (so the fragment need not occur in it exactly)."""
+
+    left: str
+    right: str
+    contig: str
+    start: int  # fragment start on the copy's sense sequence
+    anchored: int
+    identity: float | None
+
+
+def context_from(
+    seqs: dict[str, str], fragment: str, *, length: int = CONTEXT_LENGTH,
+    rule: CopyRule = DEFAULT_RULE,
+) -> Context | None:  # fmt: skip
+    """Flanks of ``fragment`` from its best whole copy in ``seqs`` (most anchored bases, then
+    identity); None when no whole copy reaches rule (a). User, 2026-09-29: the Legionella
+    reference fragment is not in NC_002942.5 base for base, so an exact match gave no context."""
+    found = [c for c in locate(seqs, [Reference(fragment)], flank=0)
+             if c.anchored >= rule.min_anchored and not c.cut]  # fmt: skip
+    if not found:
+        return None
+    best = max(found, key=lambda c: (c.anchored, c.identity or 0.0))
+    s = seqs[best.contig].upper()
+    s = s if best.strand == "+" else iupac.reverse_complement(s)
+    return Context(
+        left=s[max(0, best.start - length) : best.start], right=s[best.end : best.end + length],
+        contig=best.contig, start=best.start, anchored=best.anchored, identity=best.identity,
+    )  # fmt: skip

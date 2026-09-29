@@ -49,6 +49,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   fragment, N-runs next to a copy. Timing 2.6 s / 4 Mb genome with context, 1.7 s without. Rule
   (b)'s threshold still awaits the Legionella context rerun (legionella3).
 
+- Legionella context rerun (legionella3) had no context: the user's reference fragment is not
+  in NC_002942.5 base for base (the old exact-match rule). Without it, identity cannot separate
+  real divergent copies (0.66-0.72, genus probe 0-1 mm; one at 0.658) from look-alike regions
+  (0.60-0.66, 9-13 mm under every oligo). Built: chain.context_from takes the flanks around the
+  fragment's best whole copy in the context record (rule (a)); the measurement script uses it
+  and records the copy it used. Rerun as legionella4.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number

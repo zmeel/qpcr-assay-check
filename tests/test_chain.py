@@ -106,3 +106,13 @@ def test_a_fragment_hidden_by_n_is_found_through_its_flanks():
 def test_n_runs_next_to_a_copy_are_measured():
     (c,) = copies({"c1": filler(1000, 1) + "N" * 40 + AMP + "N" * 7 + filler(1000, 2)})
     assert (c.n_left, c.n_right, c.n_inside) == (40, 7, 0)
+
+
+def test_context_comes_from_the_best_copy_even_when_it_is_not_exact():
+    from qpcr_assay_check.variants.chain import context_from
+
+    variant = mutate_every(AMP, 40)  # the context record carries a slightly different copy
+    record = {"NC_1": iupac.reverse_complement(filler(1500, 1) + LEFT + variant + RIGHT)}
+    ctx = context_from(record, AMP, length=300)
+    assert (ctx.left, ctx.right) == (LEFT, RIGHT) and ctx.identity < 1.0
+    assert context_from({"x": filler(5000, 2)}, AMP) is None

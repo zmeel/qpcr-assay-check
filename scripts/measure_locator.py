@@ -93,8 +93,9 @@ from qpcr_assay_check.errors import QpcrAssayCheckError
 from qpcr_assay_check.models import Assay
 from qpcr_assay_check.oligo import iupac
 from qpcr_assay_check.oligo.amplicon import find_sites
+from qpcr_assay_check.variants.chain import context_from
 from qpcr_assay_check.variants.datasets import parse_fasta, parse_fasta_records
-from qpcr_assay_check.variants.exhaustive import SITE_PAD, current_items, reference_context
+from qpcr_assay_check.variants.exhaustive import SITE_PAD, current_items
 from qpcr_assay_check.variants.locate import (
     INDEL_TOLERANCE,
     Locus,
@@ -584,10 +585,17 @@ def run(
     oligos = [oligo_sites(assay, amp, mm) for amp in refs]
     context: tuple[str, str] = ("", "")
     ctx_acc = args.context_accession or assay.target.accession
+    ctx_info: dict[str, Any] | None = None
     if ctx_acc and fetch_fasta is not None:
-        context = reference_context(refs[0], parse_fasta(fetch_fasta(ctx_acc)))
-        if not any(context):
-            log.warning("The first reference amplicon is not in %s exactly: no context", ctx_acc)
+        found = context_from(parse_fasta(fetch_fasta(ctx_acc)), refs[0])
+        if found is None:
+            log.warning("No whole copy of the first reference fragment in %s: no context", ctx_acc)
+        else:
+            context = (found.left, found.right)
+            ctx_info = {"contig": found.contig, "start": found.start,
+                        "anchored": found.anchored, "identity": found.identity}  # fmt: skip
+            log.info("Context from %s (%s at %d; %d anchored, identity %s)", ctx_acc,
+                     found.contig, found.start, found.anchored, found.identity)  # fmt: skip
     groups: dict[str, list[str]] = {}
     if args.group:
         taxon = assay.target.taxid
@@ -633,6 +641,7 @@ def run(
             "null_per_genome": args.null + 1,
             "context_accession": ctx_acc if any(context) else None,
             "context_lengths": [len(context[0]), len(context[1])],
+            "context_copy": ctx_info,
         },  # fmt: skip
         "groups": groups,
         "genomes": [],
