@@ -615,10 +615,9 @@ def test_possibly_unassembled_genomes_are_undetermined_in_the_tables(tmp_path):
 
 def test_the_unassembled_rule_agrees_across_every_view(tmp_path):
     """Code review 2026-09-28: one real run with the rule active; coverage, the per-level table,
-    the per-year table, the fragment rows and the panel judge the same genomes the same way."""
-    from qpcr_assay_check.panel import State, member_states
+    the per-year table, the fragment rows and the channel counts judge the same genomes the
+    same way."""
     from qpcr_assay_check.report.grouping import fragment_view
-    from qpcr_assay_check.variants.exhaustive import stored_calls
 
     variant = AMP.replace(F, F_VARIANT, 1)
 
@@ -662,10 +661,9 @@ def test_the_unassembled_rule_agrees_across_every_view(tmp_path):
             .iter_rows() if str(r[0].value).startswith("Assembly level Contig")]  # fmt: skip
     assert rows and "1 possibly unassembled" in rows[0][4]
 
-    items, calls, _path = stored_calls(assay, cfg, tmp_path / "cache", _no_fetch, "datasets")
-    states = member_states(items, calls)
-    assert states["GCA_000000200"][0] is State.UNDETERMINED
-    assert states["GCA_000000300"][0] is State.ESCAPE
+    (ch,) = res.coverage.channel_results
+    assert (ch.undetermined, ch.not_detected) == (1, 1)
+    assert ch.not_detected_examples == ["GCA_000000300.1"]
 
 
 def test_every_reporter_channel_is_shown_on_the_fragment_rows(tmp_path):
@@ -739,8 +737,6 @@ def test_a_fragment_split_over_contigs_is_judged_from_its_parts(tmp_path):
 
 
 def test_judging_from_parts_follows_its_setting_and_needs_detectable_sites(tmp_path):
-    from qpcr_assay_check.variants.exhaustive import stored_calls
-
     cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
     cfg.variants.judge_from_parts = "detectable"
     res = run(tmp_path, cfg, client, assay)
@@ -755,13 +751,10 @@ def test_judging_from_parts_follows_its_setting_and_needs_detectable_sites(tmp_p
     cfg2, _f, client2, assay2 = setup(tmp_path / "b", fake=_split_fixture(bad))
     res2 = run(tmp_path / "b", cfg2, client2, assay2)
     assert res2.coverage.copies.from_parts == 0 and res2.coverage.contig_break == 2
-    # the panel judges them the same way (undetermined by default)
-    from qpcr_assay_check.panel import State, member_states
-
-    cfg3 = load_config()
-    cfg3.variants.max_assemblies_per_run, cfg3.ncbi.datasets_batch_size = 20000, 2
-    items, calls, _p = stored_calls(assay, cfg3, tmp_path / "cache", _no_fetch, "datasets")
-    assert member_states(items, calls)["GCA_000000007"][0] is State.UNDETERMINED
+    # the channel counts judge them the same way (undetermined by default)
+    cfg3, _f3, client3, assay3 = setup(tmp_path / "c", fake=_split_fixture())
+    (ch,) = run(tmp_path / "c", cfg3, client3, assay3).coverage.channel_results
+    assert ch.undetermined >= 1 and "GCA_000000007.1" not in ch.not_detected_examples
 
 
 # ------------------------------------------------------------------ copy similarity threshold
@@ -823,8 +816,6 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     """Code review of PR #29 (2026-09-28)."""
     import json
 
-    from qpcr_assay_check.panel import State, member_states
-    from qpcr_assay_check.variants.exhaustive import stored_calls
     from qpcr_assay_check.variants.locate import scan_region
 
     # 1. detectable from parts (undetermined): out of the per-oligo and channel counts as well
@@ -854,12 +845,13 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     res2 = run(tmp_path / "n", cfg2, client2, assay2)
     assert "GCA_000000007.1" not in res2.coverage.masked_examples
 
-    # 4. the panel counts a genome with only related regions as not found
+    # 4. a genome with only related regions has no locus (a draft: not an escape)
     extra = FakeAssembly("GCA_000000008.1", "2026-05-01", {"U8.1": _related_region(81)})
     cfg3, _f3, client3, assay3 = setup(tmp_path / "r", fake=FakeDatasets([*assemblies(), extra]))
-    run(tmp_path / "r", cfg3, client3, assay3)
-    items, calls, _p = stored_calls(assay3, cfg3, tmp_path / "r" / "cache", _no_fetch, "datasets")
-    assert member_states(items, calls)["GCA_000000008"][0] is State.NOT_FOUND
+    res3 = run(tmp_path / "r", cfg3, client3, assay3)
+    (ch,) = res3.coverage.channel_results
+    assert "GCA_000000008.1" in res3.coverage.related_only_examples
+    assert "GCA_000000008.1" not in ch.not_detected_examples and ch.no_locus >= 1
 
     # 10. a region hidden by N wins over a chance-seed region elsewhere
     masked_amp = "".join("N" if i % 12 == 6 else b for i, b in enumerate(AMP))  # no clean seed

@@ -1251,28 +1251,6 @@ def open_store(
     return store
 
 
-def stored_calls(
-    assay: Assay,
-    cfg: Config,
-    cache_root: Path,
-    fetch_fasta: Callable[[str], str],
-    source: str,
-) -> tuple[list[StoredAssembly], list[GenomeCall], Path]:
-    """Every genome already in the assay's store, judged by its best copy (no new downloads):
-    the items, one :class:`GenomeCall` per genome with a complete copy, and the store's path.
-    ``fetch_fasta`` is only used for a reference amplicon or context not yet known."""
-    amplicon, _src = reference_amplicon(assay, fetch_fasta)
-    refs = locus_references(assay, amplicon, fetch_fasta, Path(cache_root) / "genomes")
-    store = open_genome_store(assay, cfg, cache_root, refs, source)
-    items, _related, _beside = as_items(latest(store.items), copy_rule(cfg))
-    calls: list[GenomeCall] = []
-    assess(items, assay, amplicon, placements(assay, amplicon, cfg), cfg, calls=calls,
-           copies_decided=True)  # fmt: skip
-    if source == "datasets":  # as run_exhaustive judges them (code review, 2026-09-28)
-        mark_unassembled(calls, cfg.variants.multicopy_unassembled)
-    return items, calls, store.path
-
-
 def channel_results(
     assay: Assay,
     items: list[StoredAssembly],
