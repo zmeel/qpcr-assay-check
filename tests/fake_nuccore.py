@@ -33,6 +33,7 @@ class FakeRecord:
 class FakeNuccore:
     records: list[FakeRecord]
     leaks: list[FakeRecord] = field(default_factory=list)  # hit by BLAST, never listed
+    unlisted: list[FakeRecord] = field(default_factory=list)  # EFetch only (e.g. a context record)
     blast_puts: list[str] = field(default_factory=list)
     efetch_ids: list[str] = field(default_factory=list)
     headers: dict = field(default_factory=dict)
@@ -92,7 +93,7 @@ class FakeNuccore:
         self.efetch_ids.append(str(p["id"]))
         ids = str(p["id"]).split(",")
         if len(ids) > 1 or "seq_start" not in p:  # whole records, possibly several
-            recs = [r for r in self.records if r.accession in ids]
+            recs = [r for r in [*self.records, *self.unlisted] if r.accession in ids]
             return FakeResponse(200, "".join(f">{r.accession} {r.title}\n{r.seq}\n" for r in recs))
         r = next(r for r in self.records if r.accession == p["id"])
         lo, hi = int(p.get("seq_start", 1)), int(p.get("seq_stop", len(r.seq)))

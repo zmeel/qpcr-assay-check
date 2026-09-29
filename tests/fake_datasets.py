@@ -46,6 +46,7 @@ class FakeDatasets:
     assemblies: list[FakeAssembly]
     page_size_cap: int = 1000
     missing_from_download: set[str] = field(default_factory=set)
+    breaks_download: set[str] = field(default_factory=set)  # any batch with one fails whole
     calls: list[dict] = field(default_factory=list)
     headers: dict = field(default_factory=dict)
 
@@ -108,7 +109,9 @@ class FakeDatasets:
             "reports": [
                 {"refseq_accession": n, "genbank_accession": "GB_" + n,
                  "role": "assembled-molecule" if complete else "unplaced-scaffold",
-                 "assigned_molecule_location_type": a.molecules.get(n, "Chromosome"),
+                 "assigned_molecule_location_type": a.molecules.get(n) or (
+                     "Plasmid" if "plasmid" in a.descriptions.get(n, "").lower()
+                     else "Chromosome"),
                  "chr_name": n}
                 for n in names[start : start + size]
             ],
@@ -118,6 +121,8 @@ class FakeDatasets:
         return FakeResponse(200, json.dumps(doc).encode(), "application/json")
 
     def _download(self, accessions: list[str]) -> FakeResponse:
+        if self.breaks_download & set(accessions):
+            return FakeResponse(200, b"<html>gateway timeout</html>", "text/html")
         by_acc = {a.accession: a for a in self.assemblies}
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:

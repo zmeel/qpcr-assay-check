@@ -38,6 +38,7 @@ from ..inclusivity.models import (
     fragment_window,
 )
 from ..models import Assay, Oligo
+from ..ncbi.cache import content_key
 from ..ncbi.http import NcbiError
 from ..oligo import grade, iupac
 from ..oligo.amplicon import find_sites
@@ -45,8 +46,17 @@ from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from ..verdict import STATUS_LABEL, Verdict
 from . import locate
+from .chain import CopyRule, Reference, context_from, is_copy
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
-from .locate import CONTEXT_NT, scan_region
+from .genomestore import (
+    GenomeRecord,
+    GenomeStore,
+    StoredCopy,
+    scan_genome,
+    scan_settings,
+    store_file,
+    store_key,
+)
 from .models import (
     ChannelCoverageRow,
     CopyCoverage,
@@ -92,66 +102,113 @@ def reference_amplicon(assay: Assay, fetch_fasta: Callable[[str], str]) -> tuple
     )
 
 
-class ReferenceContext:
-    """The reference sequence just before and after the amplicon (sense), from the accession.
+def locus_references(
+    assay: Assay, amplicon: str, fetch_fasta: Callable[[str], str], cache_dir: Path
+) -> list[Reference]:
+    """The first locus's reference fragments, each with the sequence either side of the first
+    fragment's best copy in the locus's context accession (overhaul step 5).
 
-    Used only to recognise a region wholly hidden by N, so it is fetched on first use (the first
-    record in which the amplicon is not found) and kept in ``cache_file`` for later runs.
-    ``("", "")`` when the assay names no accession, the fetch fails (retried next run), or the
-    amplicon is not in the accession exactly: a wholly masked region then stays 'not found'.
+    The context is fetched once and kept in ``cache_dir``. A fetch that fails raises NcbiError
+    instead of going on without context: the store key includes the context, so a run without
+    it would set every stored genome aside and scan them all again.
     """
-
-    def __init__(
-        self, assay: Assay, amplicon: str, fetch_fasta: Callable[[str], str], cache_file: Path
-    ) -> None:
-        self.acc = assay.loci[0].context_accession or ""  # the target accession by default
-        self.amplicon = amplicon.upper()
-        self.fetch_fasta = fetch_fasta
-        self.cache_file = cache_file
-        self._value: tuple[str, str] | None = None
-        self.other_amplicons: list[str] = []  # further reference amplicons (other lineages)
-
-    def __call__(self) -> tuple[str, str]:
-        if self._value is None:
-            self._value = self._load()
-        return self._value
-
-    def _load(self) -> tuple[str, str]:
-        if not self.acc:
-            return "", ""
+    lc = assay.loci[0]
+    fragments = [amplicon] + [r.sequence.upper() for r in lc.references[1:]]
+    left = right = ""
+    acc = lc.context_accession
+    if acc:
+        cache = Path(cache_dir) / f"context-{content_key([acc, amplicon])[:16]}.json"
         try:
-            cached = json.loads(self.cache_file.read_text(encoding="utf-8"))
-            if cached.get("accession") == self.acc:
-                return cached["left"], cached["right"]
+            left, right = json.loads(cache.read_text(encoding="utf-8"))["flanks"]
         except (OSError, ValueError, KeyError):
-            pass
-        try:
-            ctx = reference_context(self.amplicon, parse_fasta(self.fetch_fasta(self.acc)))
-        except NcbiError as exc:
-            log.warning("Could not fetch %s for the sequence around the amplicon: %s", self.acc,
-                        exc)  # fmt: skip
-            return "", ""
-        if not any(ctx):
-            log.warning(
-                "The reference amplicon is not in %s exactly; a region wholly hidden by N will "
-                "be reported as not found.", self.acc,
-            )  # fmt: skip
-        self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-        self.cache_file.write_text(
-            json.dumps({"accession": self.acc, "left": ctx[0], "right": ctx[1]}), encoding="utf-8"
-        )
-        return ctx
+            try:
+                found = context_from(parse_fasta(fetch_fasta(acc)), amplicon)
+            except NcbiError as exc:
+                raise NcbiError(
+                    f"Could not fetch {acc} for the sequence either side of the reference "
+                    f"fragment ({exc}); try again later."
+                ) from exc
+            if found is None:
+                log.warning("No whole copy of the reference fragment in %s: no context", acc)
+            else:
+                left, right = found.left, found.right
+                log.info("Context from %s (%s at %d; %d anchored bases, identity %s)", acc,
+                         found.contig, found.start, found.anchored, found.identity)  # fmt: skip
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps({"accession": acc, "flanks": [left, right]}), "utf-8")
+    return [Reference(f, left, right) for f in fragments]
 
 
-def reference_context(amplicon: str, seqs: dict[str, str]) -> tuple[str, str]:
-    """Up to ``CONTEXT_NT`` bases before and after the first exact copy of the amplicon."""
-    amp = amplicon.upper()
-    for seq in seqs.values():
-        for s in (seq.upper(), iupac.reverse_complement(seq.upper())):
-            i = s.find(amp)
-            if i >= 0:
-                return s[max(0, i - CONTEXT_NT) : i], s[i + len(amp) : i + len(amp) + CONTEXT_NT]
-    return "", ""
+def copy_rule(cfg: Config) -> CopyRule:
+    v = cfg.variants
+    return CopyRule(min_anchored=v.min_anchored_bases, min_context=v.min_context_bases,
+                    min_identity=v.min_copy_identity,
+                    min_identity_anchored=v.min_identity_anchored_bases)  # fmt: skip
+
+
+def open_genome_store(
+    assay: Assay, cfg: Config, cache_root: Path, references: list[Reference], source: str
+) -> GenomeStore:
+    """The first locus's store: keyed by its references (with context), the scan settings, the
+    taxon and the source; a store with another key is set aside and scanned again."""
+    taxon = assay.loci[0].scan_taxid or assay.target.taxid
+    if taxon is None:
+        raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
+    key = store_key(references, scan_settings(cfg), taxon=taxon, source=source,
+                    excluded=assay.target.excluded_taxids)  # fmt: skip
+    return GenomeStore(store_file(cache_root, key), key)
+
+
+def as_items(
+    records: list[GenomeRecord], rule: CopyRule
+) -> tuple[list[StoredAssembly], list[str], list[str]]:
+    """The stored genomes as the assessment reads them, with the copy rule applied: the items,
+    the genomes with only related regions (no copy, but fragment bases anchored), and those
+    with related regions next to copies."""
+    items: list[StoredAssembly] = []
+    related: list[str] = []
+    beside: list[str] = []
+    for rec in records:
+        copies = [c for c in rec.copies if is_copy(c.candidate(), rule)]
+        others = [c for c in rec.copies if c not in copies and c.anchored > 0]
+        if not copies and others:
+            related.append(rec.accession)
+        elif copies and others:
+            beside.append(rec.accession)
+        copies.sort(key=lambda c: (-c.anchored, -(c.identity or 0.0)))
+        items.append(StoredAssembly(
+            accession=rec.accession, release_date=rec.release_date, organism=rec.organism,
+            taxid=rec.taxid, assembly_level=rec.assembly_level,
+            status="found" if copies else "not_found", n_loci=len(copies),
+            loci=[_as_locus(c) for c in copies], n_contigs=rec.n_sequences,
+            plasmid_contigs=len(rec.plasmids), plasmid_examples=rec.plasmids[:3],
+            found_by=rec.found_by if copies else None, direct_checked=rec.direct_checked,
+        ))  # fmt: skip
+    return items, related, beside
+
+
+def _as_locus(c: StoredCopy) -> StoredLocus:
+    """A stored copy as a region with its anchors (region indices), in forward coordinates."""
+    r0, r1 = c.region_start, c.region_start + len(c.region)
+    start, end = (r0 + 1, r1) if c.strand == "+" else (c.contig_length - r1 + 1,
+                                                      c.contig_length - r0)  # fmt: skip
+    return StoredLocus(
+        contig=c.contig, strand=c.strand, start=start, end=end, region=c.region,
+        offset=c.start - r0, n_seeds=c.anchored, truncated=c.cut,
+        on_plasmid=None if c.molecule is None else c.molecule == "Plasmid", ref=c.ref,
+        identity=c.identity, anchors=[(f, s - r0, n) for f, s, n in c.anchors],
+    )  # fmt: skip
+
+
+def latest(records: dict[str, GenomeRecord]) -> list[GenomeRecord]:
+    """One record per accession base (the highest version wins), oldest release first."""
+    best: dict[str, GenomeRecord] = {}
+    for rec in records.values():
+        base = rec.accession.partition(".")[0]
+        cur = best.get(base)
+        if cur is None or _version(rec.accession) > _version(cur.accession):
+            best[base] = rec
+    return sorted(best.values(), key=lambda r: (r.release_date, r.accession))
 
 
 def oligo_sites(
@@ -184,13 +241,12 @@ def oligo_sites(
 # ------------------------------------------------------------------ collection
 def collect(
     client: DatasetsClient,
-    store: RegionStore,
+    store: GenomeStore,
     taxon: int,
-    amplicon: str,
+    references: list[Reference],
     cfg: Config,
     *,
     now: datetime | None = None,
-    context: Callable[[], tuple[str, str]] | None = None,
 ) -> tuple[list[YearCoverage], int, int, int, list[str]]:
     """List, download and scan new assemblies; returns per-year coverage and run counters."""
     v = cfg.variants
@@ -213,19 +269,17 @@ def collect(
                     pending.append(rec)
                     if processed + len(pending) >= budget:
                         break
-                stored = sum(
-                    1 for it in store.items.values() if it.year == year and store.done(it.accession)
-                )
+                stored = sum(1 for r in store.items.values() if r.year == year)
                 log.info(
                     "%d: %d assemblies listed, %d already stored, %d to scan in this run%s",
                     year, n_year, stored, len(pending),
                     " (the per-run maximum is reached; the rest follow on later runs)"
                     if processed + len(pending) >= budget else "",
                 )  # fmt: skip
-                p, f, accs = _process(client, store, pending, amplicon, cfg, context)
+                p, f, accs = _process(client, store, pending, references, cfg)
                 processed, failed = processed + p, failed + f
                 failed_accessions += accs
-            assessed = sum(1 for it in store.items.values() if it.year == year)
+            assessed = sum(1 for r in store.items.values() if r.year == year)
             unavailable = sum(1 for r in pending if store.unavailable(r.accession))
             years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year),
                                       unavailable=unavailable))  # fmt: skip
@@ -239,44 +293,53 @@ def collect(
 
 def _process(
     client: DatasetsClient,
-    store: RegionStore,
+    store: GenomeStore,
     records: list[AssemblyRecord],
-    amplicon: str,
+    references: list[Reference],
     cfg: Config,
-    context: Callable[[], tuple[str, str]] | None = None,
 ) -> tuple[int, int, list[str]]:
+    """Download in batches, scan each genome, store it; a failed batch is tried again in
+    halves, down to single assemblies, so one bad assembly does not fail 99 others."""
     batch = cfg.ncbi.datasets_batch_size
-    v = cfg.variants
+    settings = scan_settings(cfg)
     done = failed = 0
     failed_accessions: list[str] = []
     for i in range(0, len(records), batch):
         chunk = records[i : i + batch]
-        try:
-            genomes = client.download([r.accession for r in chunk])
-        except NcbiError as exc:
-            log.warning("Genome download failed for %d assemblies: %s", len(chunk), exc)
-            genomes = {}
-        for rec in chunk:
-            fasta = genomes.get(rec.accession)
+        for rec, fasta, reason in _download(client, chunk):
             if fasta is None:
                 failed += 1
                 failed_accessions.append(rec.accession)
-                store.record_failure(rec.accession)
+                store.record_failure(rec.accession, reason)
                 continue
             records_ = parse_fasta_records(fasta)
-            contigs = {name: seq for name, (_d, seq) in records_.items()}
-            kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt,
-                  "min_identity": v.min_copy_identity}  # fmt: skip
-            others = getattr(context, "other_amplicons", [])
-            loci, masked, ref = scan_region(
-                contigs, amplicon, context, other_amplicons=others, **kw
-            )
-            store.add(rec, loci, {name: d for name, (d, _s) in records_.items()}, masked=masked,
-                      context_checked=context is not None and any(context()), ref=ref,
-                      refs_checked=1 + len(others))  # fmt: skip
+            roles = None
+            if len(records_) > 1:  # a single sequence has no plasmid to find
+                try:
+                    roles = client.sequence_roles(rec.accession)
+                except NcbiError as exc:
+                    log.warning("No sequence report for %s (%s); FASTA descriptions are used",
+                                rec.accession, exc)  # fmt: skip
+            store.add(scan_genome(rec, records_, references, settings, roles))
             done += 1
         log.info("  %d / %d assemblies scanned in this run", i + len(chunk), len(records))
     return done, failed, failed_accessions
+
+
+def _download(
+    client: DatasetsClient, chunk: list[AssemblyRecord]
+) -> list[tuple[AssemblyRecord, str | None, str]]:
+    """``(record, FASTA or None, failure reason)`` for each assembly of ``chunk``."""
+    try:
+        genomes = client.download([r.accession for r in chunk])
+    except NcbiError as exc:
+        if len(chunk) == 1:
+            return [(chunk[0], None, str(exc))]
+        log.warning("Genome download failed for %d assemblies (%s); retrying in halves",
+                    len(chunk), exc)  # fmt: skip
+        half = len(chunk) // 2
+        return _download(client, chunk[:half]) + _download(client, chunk[half:])
+    return [(r, genomes.get(r.accession), "not in the download") for r in chunk]
 
 
 # ------------------------------------------------------------------ assessment
@@ -402,6 +465,7 @@ def assess(
     related: list[str] | None = None,
     related_ignored: list[str] | None = None,
     updated: list[StoredAssembly] | None = None,
+    copies_decided: bool = False,
 ) -> tuple[list[SiteResult], int, list[str]]:
     """One site per role per genome, from the copy of the region the assay binds best.
 
@@ -428,7 +492,8 @@ def assess(
     bulges = cfg.variants.homopolymer_bulges_detectable
     parts_rule = cfg.variants.judge_from_parts
     ref_amplicons = [amplicon] + [r.sequence for r in assay.reference_amplicons[1:]]
-    min_identity = cfg.variants.min_copy_identity
+    # the chain locator's copy rule has already chosen the copies (overhaul step 5)
+    min_identity = 0.0 if copies_decided else cfg.variants.min_copy_identity
     sites: list[SiteResult] = []
     contig_break = 0
     masked_site: list[str] = []
@@ -609,12 +674,16 @@ def _role_sites(
 ) -> dict[str, SiteResult] | None:
     """Every oligo of ``role`` on this copy; None if its site runs off the region."""
     strand, start, end = windows[role]
+    # placed through the nearest exact block (chain locator), so a copy longer or shorter than
+    # the reference still gets each site in the right place (overhaul step 5: the single
+    # offset misplaced 518 of 1,132 Legionella sites)
+    off = locus.offset_at(start - 1)
     # the site +- SITE_PAD, clamped to the region (a full-length BLAST hit carries no flanks);
     # a site that itself runs off the region cannot be assessed
-    if locus.offset + start - 1 < 0 or locus.offset + end > len(locus.region):
+    if off + start - 1 < 0 or off + end > len(locus.region):
         return None
-    lo = max(0, locus.offset + start - 1 - SITE_PAD)
-    hi = min(len(locus.region), locus.offset + end + SITE_PAD)
+    lo = max(0, off + start - 1 - SITE_PAD)
+    hi = min(len(locus.region), off + end + SITE_PAD)
     window = locus.region[lo:hi]
     oriented = window if strand == "+" else iupac.reverse_complement(window)
     rules = cfg.specificity.probe_site if role == "probe" else cfg.specificity.primer_site
@@ -670,13 +739,16 @@ def _assess_parts(
     sites may come from different copies: see :func:`assess`."""
     every: dict[str, SiteResult] = {}
     for stored in it.loci:
-        if not stored.truncated or stored.n_seeds < MIN_PART_SEEDS:
+        if not stored.truncated or (not stored.anchors and stored.n_seeds < MIN_PART_SEEDS):
             continue
-        ref = amplicons[stored.ref] if stored.ref < len(amplicons) else amplicons[0]
-        offset = locate.implied_offset(stored.region, ref, cfg.variants.seed_length)
-        if offset is None:
-            continue
-        locus = stored.model_copy(update={"offset": offset})
+        if stored.anchors:  # the chain locator placed it (signed, never clamped)
+            locus = stored
+        else:
+            ref = amplicons[stored.ref] if stored.ref < len(amplicons) else amplicons[0]
+            offset = locate.implied_offset(stored.region, ref, cfg.variants.seed_length)
+            if offset is None:
+                continue
+            locus = stored.model_copy(update={"offset": offset})
         windows = per_ref[stored.ref] if stored.ref < len(per_ref) else per_ref[0]
         for role in ROLES:
             for name, site in (_role_sites(it, locus, assay, role, windows, cfg, scoring, memo)
@@ -1155,27 +1227,23 @@ def stored_calls(
     fetch_fasta: Callable[[str], str],
     source: str,
 ) -> tuple[list[StoredAssembly], list[GenomeCall], Path]:
-    """Every genome already in the assay's region store, judged by its best copy (no new
-    downloads): the stored items, one :class:`GenomeCall` per genome with a complete copy, and
-    the store's path. ``fetch_fasta`` is only used when the assay has no reference amplicon."""
+    """Every genome already in the assay's store, judged by its best copy (no new downloads):
+    the items, one :class:`GenomeCall` per genome with a complete copy, and the store's path.
+    ``fetch_fasta`` is only used for a reference amplicon or context not yet known."""
     amplicon, _src = reference_amplicon(assay, fetch_fasta)
-    store = open_store(assay, cfg, cache_root, amplicon, source)
-    items = current_items(store)
+    refs = locus_references(assay, amplicon, fetch_fasta, Path(cache_root) / "genomes")
+    store = open_genome_store(assay, cfg, cache_root, refs, source)
+    items, _related, _beside = as_items(latest(store.items), copy_rule(cfg))
     calls: list[GenomeCall] = []
-    related: list[str] = []
     assess(items, assay, amplicon, placements(assay, amplicon, cfg), cfg, calls=calls,
-           related=related)  # fmt: skip
-    # only regions that resemble the target: not found, as the report counts them
-    gone = set(related)
-    items = [it.model_copy(update={"status": "not_found"}) if it.accession in gone else it
-             for it in items]  # fmt: skip
+           copies_decided=True)  # fmt: skip
     if source == "datasets":  # as run_exhaustive judges them (code review, 2026-09-28)
         mark_unassembled(calls, cfg.variants.multicopy_unassembled)
     return items, calls, store.path
 
 
 Collector = Callable[
-    [RegionStore, int, str, Callable[[], tuple[str, str]]],
+    [GenomeStore, int, list[Reference]],
     tuple[list[YearCoverage], int, int, int, list[str]],
 ]
 
@@ -1224,25 +1292,22 @@ def run_exhaustive(
         )  # fmt: skip
     fetched: dict[str, str] = {}
 
-    def fetch_once(acc: str) -> str:  # the amplicon and its context come from one record
+    def fetch_once(acc: str) -> str:  # the amplicon and its context may come from one record
         if acc not in fetched:
             fetched[acc] = fetch_fasta(acc)
         return fetched[acc]
 
     amplicon, amp_source = reference_amplicon(assay, fetch_once)
-    others = [r.sequence.upper() for r in assay.reference_amplicons[1:]]
     placed = placements(assay, amplicon, cfg)
     v = cfg.variants
     exclude = assay.target.excluded_taxids
-    store = open_store(assay, cfg, cache_root, amplicon, source)
-    context = ReferenceContext(assay, amplicon, fetch_once, store.path.with_suffix(".context.json"))
-    context.other_amplicons = others
+    refs = locus_references(assay, amplicon, fetch_once, Path(cache_root) / "genomes")
+    store = open_genome_store(assay, cfg, cache_root, refs, source)
+    taxon = assay.loci[0].scan_taxid or taxon
     if collector is None:
-        years, total, processed, failed, _f = collect(
-            client, store, taxon, amplicon, cfg, now=now, context=context
-        )
+        years, total, processed, failed, _f = collect(client, store, taxon, refs, cfg, now=now)
     else:
-        years, total, processed, failed, _f = collector(store, taxon, amplicon, context)
+        years, total, processed, failed, _f = collector(store, taxon, refs)
     if total == 0:
         what = (
             "genome assemblies in NCBI Datasets"
@@ -1253,35 +1318,18 @@ def run_exhaustive(
             f"There are no {what} for taxon {taxon} with the configured filters, so there is "
             "nothing to analyse exhaustively."
         )
-    items = current_items(store)
+    items, related, related_ignored = as_items(latest(store.items), copy_rule(cfg))
     calls: list[GenomeCall] = []
-    related: list[str] = []
-    related_ignored: list[str] = []
-    updated: list[StoredAssembly] = []
     sites, contig_break, masked_site = assess(
-        items, assay, amplicon, placed, cfg, calls=calls, related=related,
-        related_ignored=related_ignored, updated=updated,
-    )  # fmt: skip
-    for it in updated:  # identities are computed once and kept (code review, 2026-09-28)
-        store.save(it)
-    if updated:
-        stored = {it.accession: it for it in updated}
-        items = [stored.get(it.accession, it) for it in items]
-    if store.n_refs > 1:
-        # stored before the scan tried the next reference when the first found only related
-        # regions: scan once more, on the next run (code review, 2026-09-28)
-        for acc in related:
-            if not store.items[acc].identity_scanned:
-                store.save(store.items[acc].model_copy(update={"rescan": True}))
+        items, assay, amplicon, placed, cfg, calls=calls, copies_decided=True
+    )
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
     outcomes = {c.accession: genome_outcome(c) for c in calls}
     unassembled = {a for a, o in outcomes.items() if o == GenomeOutcome.UNASSEMBLED}
     # detectable from parts and not counted as detected: undetermined in the whole-fragment outcome
     parts_undetermined = {a for a, o in outcomes.items() if o == GenomeOutcome.FROM_PARTS}
-    not_found = [it for it in items if it.status == "not_found"]
-    real = {it.accession: real_loci(it, v.min_copy_identity) for it in items}
-    found_loci = [real[it.accession][0] for it in items
-                  if it.status == "found" and real[it.accession]]  # fmt: skip
+    not_found = [it for it in items if it.status == "not_found" and it.accession not in related]
+    found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
     on_plasmid = (sum(known) * 2 >= len(known)) if known else None
     with_plasmid = [it for it in not_found if it.plasmid_contigs]
@@ -1309,7 +1357,7 @@ def run_exhaustive(
         found=len(sites) // len(ROLES),
         not_found=len(not_found),
         contig_break=contig_break,
-        multi_copy=sum(1 for it in items if len(real[it.accession]) > 1),
+        multi_copy=sum(1 for it in items if len(it.loci) > 1),
         years=years,
         listed_at=(now or datetime.now(UTC)).isoformat(timespec="seconds"),
         not_found_examples=[it.accession for it in not_found[:20]],
@@ -1318,11 +1366,9 @@ def run_exhaustive(
         not_found_with_plasmid=len(with_plasmid),
         not_found_with_plasmid_examples=[it.accession for it in with_plasmid[:20]],
         plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
-        plasmid_info_recorded=any(it.plasmid_contigs is not None for it in items),
-        masked=sum(1 for it in items if it.status == "masked") + len(masked_site),
-        masked_examples=(
-            [it.accession for it in items if it.status == "masked"] + masked_site
-        )[:20],
+        plasmid_info_recorded=True,
+        masked=len(masked_site),
+        masked_examples=masked_site[:20],
         found_by_direct_scan=sum(
             1 for it in items if it.found_by == "direct_scan" and it.status == "found"
         ),
@@ -1336,7 +1382,6 @@ def run_exhaustive(
         related_ignored=len(related_ignored),
         min_copy_identity=v.min_copy_identity,
     )  # fmt: skip
-    coverage.copies.copies_capped = sum(1 for it in items if it.copies_capped)
     coverage.copies.typical_copies = typical
     inclusivity = exhaustive_inclusivity(
         sites, items, years, assay, cfg, source=source,

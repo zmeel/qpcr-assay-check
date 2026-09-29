@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Callable
 from datetime import UTC, datetime
 
 from ..config import Config
@@ -34,10 +33,18 @@ from ..ncbi.jobs import Job, JobStore
 from ..ncbi.parser import Hsp, parse_blast_json
 from ..ncbi.runner import BlastRunner
 from ..specificity.fetch import WindowFetcher
+from .chain import Candidate, Reference, locate
 from .datasets import AssemblyRecord, parse_fasta_records
-from .locate import INDEL_TOLERANCE, Locus, find_loci, scan_region
+from .genomestore import (
+    GenomeRecord,
+    GenomeStore,
+    ScanSettings,
+    StoredCopy,
+    scan_genome,
+    scan_settings,
+)
+from .locate import INDEL_TOLERANCE
 from .models import YearCoverage
-from .store import RegionStore
 
 log = logging.getLogger(__name__)
 
@@ -82,21 +89,18 @@ def collect_partitioned(
     runner: BlastRunner,
     jobs: JobStore,
     fetcher: WindowFetcher,
-    store: RegionStore,
+    store: GenomeStore,
     taxon: int,
-    amplicon: str,
+    references: list[Reference],
     cfg: Config,
     *,
     now: datetime | None = None,
-    context: Callable[[], tuple[str, str]] | None = None,
     exclude: list[int] | None = None,
 ) -> tuple[list[YearCoverage], int, int, int, list[str]]:
     """List, scan or BLAST, and store the region of new records.
 
     ``exclude``: taxa inside the target left out of the listing (``target.exclude_taxids``).
-
-    ``context``: the reference sequence on each side of the amplicon, to recognise a region
-    wholly hidden by N (see :func:`~.locate.find_masked_by_context`).
+    ``references``: the locus fragments with their context (chain locator, overhaul step 5).
     """
     v = cfg.variants
     term = base_term(taxon, v.nucleotide_query, exclude)
@@ -135,13 +139,13 @@ def collect_partitioned(
                 # records were not in it yet); only larger ones go to BLAST in accession lists
                 small = [r for r in recs if 0 < r.total_length <= v.direct_scan_max_length]
                 large = [r for r in recs if r not in small]
-                processed += _direct_scan(small, amplicon, cfg, fetcher, store, context)
+                processed += _direct_scan(small, references, cfg, fetcher, store)
                 size = v.blast_records_per_search
                 for i in range(0, len(large), size):
-                    _search(large[i : i + size], amplicon, cfg, runner, jobs, fetcher, store)
+                    _search(large[i : i + size], references, cfg, runner, jobs, fetcher, store)
                     n_searches += 1
                 processed += len(large)
-            assessed = sum(1 for it in store.items.values() if it.year == year)
+            assessed = sum(1 for r in store.items.values() if r.year == year)
             years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year)))
         year -= 1
     log.info(
@@ -159,14 +163,15 @@ def collect_partitioned(
 
 def _search(
     recs: list[AssemblyRecord],
-    amplicon: str,
+    references: list[Reference],
     cfg: Config,
     runner: BlastRunner,
     jobs: JobStore,
     fetcher: WindowFetcher,
-    store: RegionStore,
+    store: GenomeStore,
 ) -> None:
-    """One BLAST of the amplicon against an explicit accession list; store every record."""
+    """One BLAST of the fragment against an explicit accession list; store every record."""
+    amplicon = references[0].fragment.upper()
     by_acc = {r.accession: r for r in recs}
     entrez = "(" + " OR ".join(f"{a}[ACCN]" for a in by_acc) + ")"
     fasta = f">amplicon\n{amplicon}\n"
@@ -180,47 +185,42 @@ def _search(
     )  # fmt: skip
     jobs.upsert(job)
     parsed = parse_blast_json(runner.run(job, fasta, params), ["amplicon"])
-    hsps: dict[str, list[tuple[Hsp, int | None, str]]] = {}
+    hsps: dict[str, list[tuple[Hsp, int | None]]] = {}
     for hit in parsed.queries["amplicon"].hits:
         for d in hit.descriptions:
             if d.accession_version in by_acc:  # hits outside the list are leaks: ignored
-                hsps.setdefault(d.accession_version, []).extend(
-                    (h, hit.length, d.title or "") for h in hit.hsps
-                )
-    missed: list[AssemblyRecord] = []
+                hsps.setdefault(d.accession_version, []).extend((h, hit.length) for h in hit.hsps)
+    settings = scan_settings(cfg)
     for acc, rec in by_acc.items():
-        loci: list[Locus] = []
-        found = sorted(hsps.get(acc, []), key=lambda x: -x[0].bit_score)
-        title = found[0][2] if found else ""
-        for h, length, _title in found:
-            locus = _locus(acc, h, length, amplicon, cfg, fetcher)
-            if locus is not None and not any(
-                abs(locus.start - lc.start) <= INDEL_TOLERANCE for lc in loci
-            ):
-                loci.append(locus)
-        if loci:
-            store.add(rec, loci, {acc: title}, found_by="blast")
-        else:
-            missed.append(rec)
-    for rec in missed:  # too long to fetch whole: 'not found' is BLAST's word only
-        store.add(rec, [], {rec.accession: ""}, direct_checked=False)
+        copies: list[StoredCopy] = []
+        for h, length in sorted(hsps.get(acc, []), key=lambda x: -x[0].bit_score):
+            for c in _hit_copies(acc, h, length or rec.total_length, references, cfg, fetcher,
+                                 settings):  # fmt: skip
+                if not any(k.strand == c.strand and abs(k.start - c.start) <= INDEL_TOLERANCE
+                           for k in copies):  # fmt: skip
+                    copies.append(c)
+        # nothing found: 'not found' is BLAST's word only (too long to fetch whole)
+        store.add(GenomeRecord(
+            accession=rec.accession, release_date=rec.release_date, organism=rec.organism,
+            taxid=rec.taxid, assembly_level=rec.assembly_level, n_sequences=1,
+            total_length=rec.total_length, total_n=0, gaps=0, copies=copies, found_by="blast",
+            direct_checked=None if copies else False,
+        ))  # fmt: skip
 
 
 def _direct_scan(
     recs: list[AssemblyRecord],
-    amplicon: str,
+    references: list[Reference],
     cfg: Config,
     fetcher: WindowFetcher,
-    store: RegionStore,
-    context: Callable[[], tuple[str, str]] | None = None,
+    store: GenomeStore,
 ) -> int:
     """Fetch records whole (several per EFetch request) and scan them; returns how many stored.
 
     A record whose fetch failed is not stored, so the next run tries it again.
     """
     v = cfg.variants
-    kw = {"seed_length": v.seed_length, "seed_step": v.seed_step, "flank": v.flank_nt,
-          "min_identity": v.min_copy_identity}  # fmt: skip
+    settings = scan_settings(cfg)
     done = 0
     for i in range(0, len(recs), v.direct_scan_batch):
         chunk = recs[i : i + v.direct_scan_batch]
@@ -236,42 +236,45 @@ def _direct_scan(
             if got is None:
                 log.warning("EFetch returned no sequence for %s; retried next run", rec.accession)
                 continue
-            desc, seq = got
-            others = getattr(context, "other_amplicons", [])
-            loci, masked, ref = scan_region({rec.accession: seq}, amplicon, context,
-                                            other_amplicons=others, **kw)  # fmt: skip
-            store.add(rec, loci, {rec.accession: desc}, found_by="direct_scan",
-                      direct_checked=True, masked=masked,
-                      context_checked=context is not None and any(context()), ref=ref,
-                      refs_checked=1 + len(others))  # fmt: skip
+            scanned = scan_genome(rec, {rec.accession: got}, references, settings)
+            store.add(scanned.model_copy(update={"found_by": "direct_scan",
+                                                 "direct_checked": True}))  # fmt: skip
             done += 1
     return done
 
 
-def _locus(
-    acc: str, h: Hsp, length: int | None, amplicon: str, cfg: Config, fetcher: WindowFetcher
-) -> Locus | None:
-    n = len(amplicon)
+def _hit_copies(
+    acc: str, h: Hsp, length: int, references: list[Reference], cfg: Config,
+    fetcher: WindowFetcher, settings: ScanSettings,
+) -> list[StoredCopy]:  # fmt: skip
+    """The copies behind one BLAST hit, in the record's coordinates: the hit's own subject when
+    it covers the whole fragment, else the record fetched around it."""
+    n = len(references[0].fragment)
     lo, hi = min(h.hit_from, h.hit_to), max(h.hit_from, h.hit_to)
     strand = "+" if h.hit_strand.lower().startswith("plus") else "-"
+    length = max(length, hi)
+    kw = {"k": settings.k, "step": settings.step, "max_indel": settings.max_indel,
+          "flank": settings.flank}  # fmt: skip
     if h.query_from == 1 and h.query_to == n and h.hseq:
-        region = h.hseq.replace("-", "").upper()  # already in the amplicon's orientation
-        return Locus(contig=acc, strand=strand, start=lo, end=hi, region=region, offset=0,
-                     n_seeds=0, truncated=False)  # fmt: skip
-    # partial hit: fetch the record around it and locate the whole amplicon there
+        region = h.hseq.replace("-", "").upper()  # already in the fragment's orientation
+        found = [c for c in locate({acc: region}, references, **kw) if c.strand == "+"]
+        return [_shift(c, strand, lo, hi, length) for c in found]
     pad = n + cfg.variants.flank_nt + INDEL_TOLERANCE
-    w_lo, w_hi = max(1, lo - pad), hi + pad
-    if length:
-        w_hi = min(w_hi, length)
+    w_lo, w_hi = max(1, lo - pad), min(hi + pad, length)
     window = fetcher.get(acc, w_lo, w_hi)  # None (counted, logged) when the fetch failed
     if not window:
-        return None
-    v = cfg.variants
-    found = find_loci({acc: window.upper()}, amplicon, seed_length=v.seed_length,
-                      seed_step=v.seed_step, flank=v.flank_nt)  # fmt: skip
-    if not found:
-        return None
-    lc = found[0]
-    return Locus(contig=acc, strand=lc.strand, start=lc.start + w_lo - 1, end=lc.end + w_lo - 1,
-                 region=lc.region, offset=lc.offset, n_seeds=lc.n_seeds,
-                 truncated=lc.truncated)  # fmt: skip
+        return []
+    found = locate({acc: window.upper()}, references, **kw)
+    return [_shift(c, c.strand, w_lo, w_lo + len(window) - 1, length) for c in found]
+
+
+def _shift(c: Candidate, strand: str, w_lo: int, w_hi: int, length: int) -> StoredCopy:
+    """A copy found in a piece of a record (forward 1-based ``w_lo``..``w_hi``) moved to the
+    record's own sense coordinates (the reverse complement's for the minus strand)."""
+    shift = w_lo - 1 if strand == "+" else length - w_hi
+    sc = StoredCopy.of(c, None)
+    return sc.model_copy(update={
+        "strand": strand, "contig_length": length, "start": c.start + shift,
+        "end": c.end + shift, "region_start": c.region_start + shift,
+        "anchors": [(f, p + shift, m) for f, p, m in c.anchors],
+    })  # fmt: skip

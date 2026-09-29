@@ -41,6 +41,20 @@ class StoredLocus(BaseModel):
         description="identity to its reference amplicon over the part it covers "
         "(locate.amplicon_identity); None: not computed yet",
     )
+    anchors: list[tuple[int, int, int]] | None = Field(
+        default=None,
+        description="chain locator: (fragment position, region index, length) of each exact "
+        "block; oligo sites are placed through the nearest one (overhaul step 5)",
+    )
+
+    def offset_at(self, pos: int) -> int:
+        """Region index minus fragment position at fragment position ``pos``: through the
+        nearest exact block when the chain locator found the copy, else the single offset."""
+        if not self.anchors:
+            return self.offset
+        f, r, _n = min(self.anchors, key=lambda a: 0 if a[0] <= pos < a[0] + a[2]
+                       else min(abs(pos - a[0]), abs(pos - a[0] - a[2])))  # fmt: skip
+        return r - f
 
 
 class StoredAssembly(BaseModel):

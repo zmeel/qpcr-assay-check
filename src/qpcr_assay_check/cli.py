@@ -338,10 +338,10 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
                 cfg.search.result_format,
             )  # fmt: skip
 
-            def collector(store: Any, taxon: int, amplicon: str, context: Any) -> Any:
+            def collector(store: Any, taxon: int, references: Any) -> Any:
                 return collect_partitioned(
-                    eutils, runner, runner.store, fetcher, store, taxon, amplicon, cfg,
-                    context=context, exclude=assay.target.excluded_taxids,
+                    eutils, runner, runner.store, fetcher, store, taxon, references, cfg,
+                    exclude=assay.target.excluded_taxids,
                 )  # fmt: skip
 
         try:

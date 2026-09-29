@@ -47,6 +47,13 @@ class ScanSettings(BaseModel):
     flank: int = 50
 
 
+def scan_settings(cfg: Any) -> ScanSettings:
+    """The scan settings of a configuration (``variants`` section)."""
+    v = cfg.variants
+    return ScanSettings(k=v.seed_length, step=v.seed_step, max_indel=v.max_indel,
+                        flank=v.flank_nt)  # fmt: skip
+
+
 class StoredCopy(BaseModel):
     """One candidate copy (a :class:`chain.Candidate`) and the molecule it sits on."""
 
@@ -67,6 +74,7 @@ class StoredCopy(BaseModel):
     n_right: int
     region: str
     region_start: int
+    masked: bool = False
     molecule: str | None = Field(
         default=None,
         description="Chromosome, Plasmid, ... (Datasets sequence report, else 'Plasmid' when "
@@ -77,6 +85,11 @@ class StoredCopy(BaseModel):
     def of(cls, c: Candidate, molecule: str | None) -> StoredCopy:
         fields = {name: getattr(c, name) for name in cls.model_fields if name != "molecule"}
         return cls(**fields, molecule=molecule)
+
+    @property
+    def cut(self) -> bool:
+        """A contig end falls inside the fragment."""
+        return self.start < 0 or self.end > self.contig_length
 
     def candidate(self) -> Candidate:
         """Back to a chain.Candidate (for is_copy, place and the other helpers)."""
@@ -98,6 +111,16 @@ class GenomeRecord(BaseModel):
     total_n: int
     gaps: int = Field(description=f"N-runs of {GAP_MIN_N} or more")
     copies: list[StoredCopy] = Field(default_factory=list, description="every candidate")
+    plasmids: list[str] = Field(
+        default_factory=list,
+        description="sequences on a plasmid, with their FASTA description (first 20)",
+    )
+    found_by: Literal["scan", "blast", "direct_scan"] = "scan"
+    direct_checked: bool | None = Field(
+        default=None,
+        description="Nucleotide records: False when BLAST found nothing and the record was too "
+        "long to fetch and scan whole ('not found' is then BLAST's word only)",
+    )
 
     @property
     def year(self) -> int:
@@ -131,6 +154,7 @@ class GenomeStore:
         self.path = Path(path)
         self.key = key
         self.items: dict[str, GenomeRecord] = {}
+        self.aliases: set[str] = set()  # Nucleotide UIDs already looked up in this run
         self.failures_path = self.path.with_name(self.path.name + ".failures.json")
         self.failures: dict[str, dict[str, Any]] = {}
         if self.path.exists() and not self._load():
@@ -173,6 +197,10 @@ class GenomeStore:
         return True
 
     def __contains__(self, accession: str) -> bool:
+        return accession in self.items
+
+    def done(self, accession: str) -> bool:
+        """Stored: nothing left to download (a new key means a new, empty file)."""
         return accession in self.items
 
     def add(self, rec: GenomeRecord) -> GenomeRecord:
@@ -221,11 +249,14 @@ def scan_genome(
     found = locate(seqs, references, k=settings.k, step=settings.step,
                    max_indel=settings.max_indel, flank=settings.flank)  # fmt: skip
     n, total, total_n, gaps = sequence_stats(seqs)
+    plasmids = [f"{name} {desc}"[:160] for name, (desc, _s) in records.items()
+                if _molecule(name, records, roles) == "Plasmid"]  # fmt: skip
     return GenomeRecord(
         accession=rec.accession, release_date=rec.release_date, organism=rec.organism,
         taxid=rec.taxid, assembly_level=rec.assembly_level, n_sequences=n, total_length=total,
         total_n=total_n, gaps=gaps,
         copies=[StoredCopy.of(c, _molecule(c.contig, records, roles)) for c in found],
+        plasmids=plasmids[:20],
     )  # fmt: skip
 
 
