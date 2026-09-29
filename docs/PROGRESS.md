@@ -42,6 +42,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   copy_coverage, _level_coverage, the sets for the whole-fragment years, and panel.member_states;
   existing tests unchanged (counts pinned), tests/test_genome_outcome.py for the precedence.
 
+- Step 3 built: variants/chain.py (Reference, Candidate, CopyRule, is_copy, locate; two-pass
+  context search: step 32 genome-wide, step 8 near a hit). Synthetic tests (tests/test_chain.py):
+  plain, 60-nt insertion, minus strand, cut at the contig start, chance seed, two references,
+  identity rule, divergent fragment between conserved flanks, one flank (cut vs not), N over the
+  fragment, N-runs next to a copy. Timing 2.6 s / 4 Mb genome with context, 1.7 s without. Rule
+  (b)'s threshold still awaits the Legionella context rerun (legionella3).
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number

@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Chain locator** (overhaul step 3; `variants/chain.py`, not wired in yet): every copy of a
+  locus is found as a chain of exact blocks in the same order on the reference and the genome,
+  from 16-mers every 2 nt in the fragment and, when a context accession gives them, in the
+  sequence on either side (sparse seeds genome-wide, dense seeds near a hit). Coordinates are
+  signed (a copy cut by a contig end keeps its true start), each copy keeps its anchors, the
+  anchored fragment and flank bases, identity along the chain, and the N inside and next to it.
+  `is_copy` applies the rule (a) 32 anchored fragment bases, (b) 32 anchored flank bases with
+  the fragment touched, flanked on both sides or cut, or (c) identity 0.75 with 16 anchored
+  bases; it can change without scanning again. About 2.6 s per 4 Mb genome with context,
+  1.7 s without.
 - **One genome outcome** (overhaul step 2): `genome_outcome` decides once what an assessed
   genome counts as (detected, not detected, undetermined, possibly unassembled, detectable from
   parts), and the coverage and escape lists, the per-level table, the whole-fragment years and
