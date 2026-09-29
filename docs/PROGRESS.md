@@ -40,6 +40,20 @@ verified NCBI facts) at the start of every session. Newest entry first.
   /genome/accession/{acc}/sequence_reports verified live: fields role, assigned_molecule_location_type,
   assembly_unit, chr_name, genbank/refseq_accession, length, sequence_name (a genome with a plasmid
   still to be seen).
+- Full measurement runs (user, 2026-09-29). Legionella, 134 genomes (groups related,
+  single-seed, anisa, micdadei, longbeachae, dumoffii, sample, named): 191 of 283 copies differ
+  > 20 nt in length from the L. pneumophila fragment (median 24, max 78); the current locator
+  splits 190 of them; 518 of 1,132 oligo sites have more mismatches at the current placement
+  than at the chain's. Genomes with a copy, current vs chain rule: related 0 -> 23 of 25,
+  longbeachae 1 -> 25/25, dumoffii 1 -> 10/10, anisa 14 -> 25/25, single-seed 9 -> 10,
+  micdadei and sample unchanged; the chain never lost a copy the current locator had. Null max
+  M 18 (402 decoys). Neisseria, 75 genomes: no copy differs > 4 nt, none split, 0 of 657 sites
+  worse; agreement 74/75; null max M 0 (225 decoys); 98 of 299 copies have M 16-23 and pass
+  only by identity >= 0.75 (divergent opa copies), and seeds every 4 nt miss some (min M 0),
+  every 2 nt do not. Seconds per genome: Legionella current 0.85 / step 2 1.65; Neisseria
+  0.27 / 0.28. Still open before the defaults: the ambiguous candidates (Legionella M 24-31
+  with identity < 0.65: 2; M < 24 with identity >= 0.65: 26; Neisseria M < 24 with identity
+  >= 0.75: 98), whole or cut by a contig end.
 
 ## 2026-09-28 (end) — Threshold hides divergent Legionella species; next: overhaul with advisor
 
