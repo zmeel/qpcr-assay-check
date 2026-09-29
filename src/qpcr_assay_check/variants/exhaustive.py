@@ -103,7 +103,7 @@ class ReferenceContext:
     def __init__(
         self, assay: Assay, amplicon: str, fetch_fasta: Callable[[str], str], cache_file: Path
     ) -> None:
-        self.acc = assay.target.accession or ""
+        self.acc = assay.loci[0].context_accession or ""  # the target accession by default
         self.amplicon = amplicon.upper()
         self.fetch_fasta = fetch_fasta
         self.cache_file = cache_file
@@ -1193,6 +1193,11 @@ def run_exhaustive(
             "with variants.source: datasets (the NCBI Datasets genome listing has no 'NOT' "
             "filter); use blast_partitioned."
         )
+    if len(assay.loci) > 1:
+        log.warning(
+            "The assay has %d loci; the variant analysis covers only the first (%s) until the "
+            "per-locus analysis is built.", len(assay.loci), assay.loci[0].name,
+        )  # fmt: skip
     fetched: dict[str, str] = {}
 
     def fetch_once(acc: str) -> str:  # the amplicon and its context come from one record

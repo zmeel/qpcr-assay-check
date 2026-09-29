@@ -57,6 +57,23 @@ settings:                                  # only what differs from the defaults
 ## together as the off-target "near neighbours" tier. exclusivity_organisms: empty = the global
 ## starter list (settings organisms). The assay's own target is always left out.
 #
+## Loci and channels (optional; without them the whole mix is one region, and each reporter one
+## channel with the target above). Write them when probes are read for DIFFERENT targets, or
+## when the mix amplifies several regions (a multiplex):
+##   loci:                                  # one entry per amplified region
+##     - name: 23S-5S spacer
+##       primers: [F, R]                    # its forward and reverse primer names
+##       probes: [P-genus, P-species]       # the probes inside its product
+##       references: [{name: ref, sequence: ...}]   # its reference fragment(s), per locus
+##       context_accession: NC_002942.5     # optional: a record holding the fragment exactly;
+##                                          # default: target.accession
+##       scan_taxid: 444                    # optional: genomes searched (default: target taxid)
+##   channels:                              # one entry per reporter dye
+##     - {name: Legionella, probes: [P-genus], target_taxid: 444}      # reporter from its probes
+##     - {name: L. pneumophila, probes: [P-species], target_taxid: 446}
+##   With loci, reference fragments go under each locus, not under reference_amplicons.
+##   Each probe is in one locus and one channel; two channels never share a dye.
+#
 # --- settings reference start ---
 # reaction:                        # conditions for Tm and structure calculations
 #   na_mM: 50.0                    # monovalent cations (mM)

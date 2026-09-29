@@ -48,6 +48,17 @@ class TemplateType(StrEnum):
 TaxonRole = Literal["must_not_detect", "out_of_scope"]
 
 
+def _check_accession(v: str | None) -> str | None:
+    if v is None:
+        return None
+    v = v.strip().upper()
+    if not _ACCESSION_RE.match(v):
+        raise ValueError(
+            f"'{v}' does not look like an NCBI accession (expected e.g. NC_045512.2 or MN908947.3)"
+        )
+    return v
+
+
 class TargetTaxon(BaseModel):
     """A taxon inside the target taxon that is not part of the intended target.
 
@@ -87,15 +98,7 @@ class Target(BaseModel):
     @field_validator("accession")
     @classmethod
     def _check_accession(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        v = v.strip().upper()
-        if not _ACCESSION_RE.match(v):
-            raise ValueError(
-                f"'{v}' does not look like an NCBI accession (expected e.g. NC_045512.2 or "
-                "MN908947.3)"
-            )
-        return v
+        return _check_accession(v)
 
     @model_validator(mode="after")
     def _need_taxid_or_accession(self) -> Target:
@@ -252,6 +255,12 @@ class ReferenceAmplicon(BaseModel):
         return _clean_amplicon(v)
 
 
+def _unique(what: str, names: list[str]) -> None:
+    dup = sorted({n for n in names if names.count(n) > 1})
+    if dup:
+        raise ValueError(f"{what}: name(s) {', '.join(dup)} used twice")
+
+
 def _modification_list(v: Any) -> list[str]:
     if v is None:
         return []
@@ -306,6 +315,68 @@ def _oligo_entries(role: str, v: Any) -> list[dict[str, Any]]:
     return out
 
 
+LocusSource = Literal["datasets", "blast_partitioned", "none"]
+
+
+class Locus(BaseModel):
+    """One amplified region of the mix: its primers, the probes inside its product, and the
+    reference fragment(s) the variant analysis looks for (overhaul step 1, 2026-09-29).
+
+    An assay file without 'loci' has one, made of every oligo of the mix, the assay's
+    reference_amplicons and its target. Several loci describe a multiplex: e.g. two targets in
+    one tube, each with its own primers and reference fragment.
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=60)
+    primers: list[str] = Field(description="names of this locus's forward and reverse primers")
+    probes: list[str] = Field(description="names of the probes that bind inside its product")
+    references: list[ReferenceAmplicon] = Field(
+        default_factory=list,
+        description="reference fragment(s) of this region (sense strand), one per lineage",
+    )
+    context_accession: str | None = Field(
+        default=None,
+        description="a record holding the reference fragment exactly; the sequence on either "
+        "side of it anchors copies whose fragment diverged or is cut (default: the target "
+        "accession)",
+    )
+    scan_taxid: int | None = Field(
+        default=None, gt=0, description="genomes searched for this locus (default: target taxid)"
+    )
+    source: LocusSource | None = Field(
+        default=None,
+        description="where its genomes come from: datasets, blast_partitioned, or none (no "
+        "variant analysis, e.g. an internal control); default: settings variants.source",
+    )
+
+    @field_validator("context_accession")
+    @classmethod
+    def _accession(cls, v: str | None) -> str | None:
+        return _check_accession(v)
+
+
+class Channel(BaseModel):
+    """One detection channel: the probes read with one reporter dye, and the taxon they are
+    meant to detect (overhaul step 1). Without 'channels', each reporter of the mix is one
+    channel with the assay's target."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=60)
+    reporter: str | None = None
+    probes: list[str] = Field(min_length=1)
+    target_taxid: int | None = Field(
+        default=None, gt=0, description="taxon this channel should detect (default: the target)"
+    )
+    taxa: list[TargetTaxon] = Field(
+        default_factory=list,
+        description="taxa inside this channel's target that are not its target (as target.taxa); "
+        "default: target.taxa when the channel's target is the assay's",
+    )
+
+
 class Assay(BaseModel):
     """One real-time PCR assay: forward primer(s), reverse primer(s), probe(s), and its target.
 
@@ -350,6 +421,14 @@ class Assay(BaseModel):
         default_factory=list,
         description="Optional named reference amplicons, one per lineage; each oligo is placed in "
         "the one it fits best.",
+    )
+    loci: list[Locus] = Field(
+        default_factory=list,
+        description="the amplified region(s); default: one, from every oligo of the mix",
+    )
+    channels: list[Channel] = Field(
+        default_factory=list,
+        description="the detection channels; default: one per reporter, with the target",
     )
     oligo_source: str | None = Field(default=None, description="Where the oligos come from")
     notes: str | None = None
@@ -440,7 +519,120 @@ class Assay(BaseModel):
             if len(set(names)) != len(names):
                 raise ValueError("reference_amplicons names must be unique")
             self.reference_amplicon = self.reference_amplicons[0].sequence
+        self._loci()
+        self._channels()
         return self
+
+    def _loci(self) -> None:
+        """One locus from the whole mix, or check the given ones (names, roles, coverage)."""
+        if not self.loci:
+            self.loci = [
+                Locus(
+                    name=self.target.gene or "target region",
+                    primers=[o.name for o in [*self.forward, *self.reverse]],
+                    probes=[o.name for o in self.probe],
+                    references=list(self.reference_amplicons),
+                    context_accession=self.target.accession,
+                    scan_taxid=self.target.taxid,
+                )
+            ]
+            return
+        roles = {o.name: o.role for o in self.oligo_list}
+        _unique("loci", [lc.name for lc in self.loci])
+        probe_locus: dict[str, str] = {}
+        used: set[str] = set()
+        for lc in self.loci:
+            for name in [*lc.primers, *lc.probes]:
+                if name not in roles:
+                    raise ValueError(f"locus '{lc.name}': no oligo named '{name}'")
+            if {roles[n] for n in lc.primers} != {"forward", "reverse"}:
+                raise ValueError(
+                    f"locus '{lc.name}': list at least one forward and one reverse primer "
+                    "under 'primers' (probes go under 'probes')"
+                )
+            if not lc.probes or any(roles[n] != "probe" for n in lc.probes):
+                raise ValueError(f"locus '{lc.name}': 'probes' takes one or more probe names")
+            for n in lc.probes:
+                if n in probe_locus:
+                    raise ValueError(
+                        f"probe '{n}' is in loci '{probe_locus[n]}' and '{lc.name}'; a probe "
+                        "binds inside one product"
+                    )
+                probe_locus[n] = lc.name
+            used.update(lc.primers, lc.probes)
+            if lc.scan_taxid is None:
+                lc.scan_taxid = self.target.taxid
+            if lc.context_accession is None:
+                lc.context_accession = self.target.accession
+        missing = [o.name for o in self.oligo_list if o.name not in used]
+        if missing:
+            raise ValueError(f"oligo(s) {', '.join(missing)} belong to no locus")
+        first = self.loci[0].references
+        if self.reference_amplicons and self.reference_amplicons != first:
+            raise ValueError(
+                "with 'loci', give the reference fragments per locus (loci: references), not in "
+                "reference_amplicon(s)"
+            )
+        # the variant analysis still reads the first locus's fragments here (overhaul step 1)
+        self.reference_amplicons = list(first)
+        self.reference_amplicon = first[0].sequence if first else None
+
+    def _channels(self) -> None:
+        """One channel per reporter, or check the given ones (probes, reporters, targets)."""
+        if not self.channels:
+            groups: dict[str | None, list[str]] = {}
+            for p in self.probe:
+                groups.setdefault(p.reporter, []).append(p.name)
+            self.channels = [
+                Channel(name=rep or "probe", reporter=rep, probes=names,
+                        target_taxid=self.target.taxid, taxa=list(self.target.taxa))
+                for rep, names in groups.items()
+            ]  # fmt: skip
+            return
+        _unique("channels", [c.name for c in self.channels])
+        probes = {p.name: p for p in self.probe}
+        seen: dict[str, str] = {}
+        for ch in self.channels:
+            for n in ch.probes:
+                if n not in probes:
+                    raise ValueError(f"channel '{ch.name}': no probe named '{n}'")
+                if n in seen:
+                    raise ValueError(f"probe '{n}' is in channels '{seen[n]}' and '{ch.name}'")
+                seen[n] = ch.name
+            own = {probes[n].reporter for n in ch.probes} - {None}
+            if ch.reporter is None and len(own) > 1:
+                raise ValueError(
+                    f"channel '{ch.name}': its probes have different reporters "
+                    f"({', '.join(sorted(own))}); one channel is one dye"
+                )
+            ch.reporter = ch.reporter or next(iter(own), None)
+            if ch.reporter is not None and own - {ch.reporter}:
+                raise ValueError(
+                    f"channel '{ch.name}' reads {ch.reporter}, but probe(s) of it carry "
+                    f"{', '.join(sorted(own - {ch.reporter}))}"
+                )
+            for n in ch.probes:
+                probes[n].reporter = probes[n].reporter or ch.reporter
+            if ch.target_taxid is None:
+                ch.target_taxid = self.target.taxid
+            if not ch.taxa and ch.target_taxid == self.target.taxid:
+                ch.taxa = list(self.target.taxa)
+            if ch.target_taxid in {x.taxid for x in ch.taxa}:
+                raise ValueError(f"channel '{ch.name}': 'taxa' must not contain its own target")
+        missing = [n for n in probes if n not in seen]
+        if missing:
+            raise ValueError(f"probe(s) {', '.join(missing)} belong to no channel")
+        dyes = [c.reporter for c in self.channels if c.reporter is not None]
+        if len(set(dyes)) != len(dyes):
+            raise ValueError("two channels read the same reporter dye; merge them into one")
+
+    def channel_of(self, probe: str) -> Channel:
+        """The channel a probe is read in."""
+        return next(c for c in self.channels if probe in c.probes)
+
+    def locus_of(self, oligo: str) -> list[Locus]:
+        """The loci an oligo belongs to (a primer may serve several)."""
+        return [lc for lc in self.loci if oligo in (*lc.primers, *lc.probes)]
 
     @field_validator("near_neighbour_taxids", "exclusion_taxids")
     @classmethod

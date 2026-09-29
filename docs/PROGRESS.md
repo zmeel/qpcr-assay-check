@@ -31,6 +31,13 @@ verified NCBI facts) at the start of every session. Newest entry first.
   panel command and the sampled blast_hits inclusivity source may be removed (SPEC amendment);
   out-of-scope taxa in a channel's scan are shown as information only.
 
+- Step 1 built (user: genus channel target 444): `Locus` and `Channel` in models.py; old files
+  derive one locus + one channel per reporter; validation of names, roles, dyes; the locus
+  context accession feeds the reference context; a warning for assays with several loci (only
+  the first is analysed until step 5). Legionella draft in the new format; templates and SPEC
+  amended (loci/channels; history, panel and sampled BLAST-hit inclusivity dropped, removal in
+  step 7). tests/test_assay_loci.py.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number

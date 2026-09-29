@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Loci and channels in the assay model** (overhaul step 1, 2026-09-29; advisor subagent;
+  user decisions). An assay now has one or more `loci` (amplified regions: primers, the probes
+  in the product, reference fragment(s), an optional `context_accession`, the taxon searched)
+  and one or more `channels` (one per reporter dye: its probes and its own `target_taxid`).
+  Files without them load unchanged, as one locus and one channel per reporter with the
+  assay's target. Checks: every oligo in a locus, each probe in one locus and one channel, one
+  dye per channel, no two channels on one dye, forward and reverse primers per locus. The
+  analysis still reads the first locus (a warning names the others) until the per-locus and
+  per-channel analysis is built. The Legionella draft now uses a genus channel (VIC, 444) and
+  an L. pneumophila channel (FAM, 446), with context from NC_002942.5.
 - **Copy similarity threshold** (advisor subagent, 2026-09-28; user decision): a region found
   through the amplicon's exact seeds counts as a copy of the target only when it matches the
   reference fragment over at least `variants.min_copy_identity` (0.75) of the part it covers
