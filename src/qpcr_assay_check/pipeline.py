@@ -13,7 +13,6 @@ import primer3
 
 from . import __version__
 from .config import Config
-from .history.diff import compute_history
 from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
 from .oligo.qc import run_oligo_qc
@@ -80,7 +79,6 @@ def evaluate(
     variant_coverage: ExhaustiveCoverage | None = None,
     release_dates: dict[str, str] | None = None,
     variant_note: str | None = None,
-    previous_run: RunResult | None = None,
 ) -> RunResult:
     """Run every analysis that exists in this version and assemble the evaluation record."""
     now = (now or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
@@ -269,50 +267,7 @@ def evaluate(
                 note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
             )
         )
-    history = None
-    if qc_only:
-        sections.append(
-            SectionResult(
-                key="history",
-                title="Comparison with the previous run",
-                state="skipped",
-                verdict=None,
-                note="Skipped (--qc-only).",
-            )
-        )
-    else:
-        history = compute_history(
-            previous_run,
-            inputs_hash=digest,
-            section_verdicts={s.key: s.verdict for s in sections},
-            section_titles={s.key: s.title for s in sections},
-            sites=specificity.sites if specificity else [],
-            amplicons=specificity.amplicons if specificity else [],
-            inclusivity=inclusivity,
-            variant_summary=variant_summary,
-            window_years=cfg.inclusivity.verdict_window_years,
-        )
-        if history.has_previous:
-            note = f"Compared to the run on {history.previous_generated_at}: {history.rationale[0]}"
-            if len(history.rationale) > 1:
-                note += f" (+{len(history.rationale) - 1} more change(s), see rationale)."
-        else:
-            note = history.rationale[0]
-        sections.append(
-            SectionResult(
-                key="history",
-                title="Comparison with the previous run",
-                state="evaluated",
-                verdict=history.verdict,
-                note=note,
-            )
-        )
-
     required = ["oligo_qc"] if qc_only else [s.key for s in sections]
-    if history is not None and (not history.has_previous or history.inputs_changed):
-        # a first run is the baseline year and a changed assay or configuration makes the
-        # comparison not like for like: neither holds up the review status (user, 2026-09-27)
-        required.remove("history")
     by_key: dict[str, Verdict | None] = {s.key: s.verdict for s in sections}
     verdict = combine(by_key, required)
     not_evaluated = [s.title for s in sections if s.key in required and s.verdict is None]
@@ -378,12 +333,6 @@ def evaluate(
         )
     if inclusivity is not None and inclusivity.verdict is not Verdict.PASS:
         findings += [f"Inclusivity: {line}" for line in inclusivity.rationale]
-    if (
-        history is not None
-        and history.verdict is not Verdict.PASS
-        and not history.inputs_changed  # not comparable: listed in its section, not a finding
-    ):
-        findings += [f"History: {line}" for line in history.rationale]
     if not findings and verdict is Verdict.PASS:
         findings = ["No oligo QC check was outside the preferred range or the limit."]
     overall = OverallResult(
@@ -414,7 +363,6 @@ def evaluate(
         taxonomy_breakdown=taxonomy_breakdown or [],
         variant_summary=variant_summary,
         inclusivity=inclusivity,
-        history=history,
         search=search_outcome.model_dump(mode="json") if search_outcome else None,
         sections=sections,
         overall=overall,

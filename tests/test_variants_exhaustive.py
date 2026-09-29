@@ -341,46 +341,6 @@ def _evaluate(assay, cfg, res, now, previous=None):
     )  # fmt: skip
 
 
-def test_the_history_flags_emerging_and_newly_assessed_variants(tmp_path):
-    base = [
-        FakeAssembly("GCF_000000001.1", "2024-03-01", genome(1)),
-        FakeAssembly("GCF_000000002.1", "2025-05-01", genome(2)),
-    ]
-    cfg, _, client, assay = setup(tmp_path, fake=FakeDatasets(list(base)))
-    first = _evaluate(assay, cfg, run(tmp_path, cfg, client, assay),
-                      datetime(2026, 9, 1, tzinfo=UTC))  # fmt: skip
-
-    probe_variant = AMP.replace(P, mutate(P, [3]), 1)
-    later = base + [
-        FakeAssembly("GCA_000000003.1", "2026-09-10", genome(3, AMP.replace(F, F_VARIANT, 1))),
-        FakeAssembly("GCA_000000009.1", "2020-06-01", genome(9, probe_variant)),
-    ]
-    cfg, _, client, assay = setup(tmp_path, fake=FakeDatasets(later))
-    second = _evaluate(assay, cfg, run(tmp_path, cfg, client, assay), NOW, previous=first)
-    h = second.history
-    assert h.variants_compared and {v.kind for v in h.variant_changes} == {"new"}
-    fwd = next(v for v in h.variant_changes if v.role == "forward")
-    probe = next(v for v in h.variant_changes if v.role == "probe")
-    assert fwd.newly_released is True and fwd.concern  # a 3'-terminal primer mismatch
-    assert probe.newly_released is False and not probe.concern  # older assembly, 1 mismatch
-    assert h.verdict.value == "WARN"
-    assert any("emerging" in line and "3'-end mismatch" in line for line in h.rationale)
-    html = render_report(second, cfg)
-    assert "Oligo sequence variants since the previous run" in html
-    assert "emerging" in html and "newly assessed" in html
-
-
-def test_variants_are_not_compared_across_different_sources(tmp_path):
-    cfg, _, client, assay = setup(tmp_path)
-    res = run(tmp_path, cfg, client, assay)
-    first = _evaluate(assay, cfg, res, datetime(2026, 9, 1, tzinfo=UTC))
-    first.variant_summary.source = "blast_hits"
-    first.variant_summary.coverage = None
-    second = _evaluate(assay, cfg, res, NOW, previous=first)
-    assert not second.history.variants_compared and not second.history.variant_changes
-    assert "Variants not compared" in second.history.variants_note
-
-
 # ------------------------------------------------------------------ wholly masked (v1.1.1)
 # Live: SARS-CoV-2 records with one run of 1,144 N over the whole N1 region (OZ558241.1) were
 # reported as 'not found'. Synthetic stand-ins: the reference around the amplicon is LEFT/RIGHT.

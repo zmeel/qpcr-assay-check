@@ -286,13 +286,11 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         keep_tiers=set(cfg.specificity.off_target_tiers) | {"target", "out_of_scope"},
         on_plan=show,
     )
-    from .history.store import find_previous_run
     from .inclusivity.aggregate import compute_inclusivity
     from .ncbi.http import NcbiError
     from .taxonomy.resolve import ancestors, fetch_lineages
     from .taxonomy.rollup import taxonomy_breakdown
 
-    previous_run = find_previous_run(outdir, assay.slug)
     eutils = Eutils(remote.http, cfg.ncbi.eutils_url)
     fetcher = WindowFetcher(eutils, remote.cache)
     specificity = assess_specificity(
@@ -405,7 +403,6 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         variant_coverage=exhaustive.coverage if exhaustive is not None else None,
         release_dates=exhaustive.release_dates if exhaustive is not None else None,
         variant_note=variant_note,
-        previous_run=previous_run,
     )
 
 

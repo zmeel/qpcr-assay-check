@@ -11,7 +11,6 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from ..config import Config
-from ..history.models import HistoryResult
 from ..results import RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
@@ -82,54 +81,8 @@ def _run_length_rows(rl: Any) -> list[list[object]]:
     ]  # fmt: skip
 
 
-def _history_rows(hist: HistoryResult) -> list[list[object]]:
-    rows: list[list[object]] = [
-        ["run", "", "Previous run", "", hist.previous_run_id or ""],
-        ["run", "", "Previous generated (UTC)", "", hist.previous_generated_at or ""],
-        ["run", "", "Assay/config changed since then", "", "yes" if hist.inputs_changed else "no"],
-    ]
-    for sc in hist.section_changes:
-        if sc.changed:
-            before = STATUS_LABEL[sc.verdict_before] if sc.verdict_before else "not assessed"
-            after = STATUS_LABEL[sc.verdict_after] if sc.verdict_after else "not assessed"
-            rows.append(["section", sc.title, "", before, after])
-    for s in hist.new_sites:
-        where = f"{s.role} {s.accession}:{s.subject_start}-{s.subject_end}"
-        rows.append(["site: new", s.tier, where, "", s.level_after])
-    for s in hist.resolved_sites:
-        where = f"{s.role} {s.accession}:{s.subject_start}-{s.subject_end}"
-        rows.append(["site: resolved", s.tier, where, s.level_before, ""])
-    for s in hist.changed_sites:
-        where = f"{s.role} {s.accession}:{s.subject_start}-{s.subject_end}"
-        before = f"{s.level_before}, {s.n_mismatch_before} mm"
-        after = f"{s.level_after}, {s.n_mismatch_after} mm"
-        rows.append(["site: changed", s.tier, where, before, after])
-    for a in hist.new_amplicons:
-        where = f"{a.accession}:{a.start}-{a.end} ({a.roles})"
-        rows.append(["amplicon: new", a.tier, where, "", a.classification or ""])
-    for a in hist.resolved_amplicons:
-        where = f"{a.accession}:{a.start}-{a.end} ({a.roles})"
-        rows.append(["amplicon: resolved", a.tier, where, a.classification or "", ""])
-    for c in hist.inclusivity_changes:
-        before = (
-            f"{c.percent_before:.0f}% of {c.sample_size_before}"
-            if c.percent_before is not None
-            else ""
-        )
-        after = (
-            f"{c.percent_after:.0f}% of {c.sample_size_after}"
-            if c.percent_after is not None
-            else ""
-        )
-        rows.append(["inclusivity", c.role, f"year {c.year}", before, after])
-    return rows
-
-
 def _section_status(result: RunResult, section: Any) -> str:
-    """A section's status as the report names it (baseline / not comparable for history)."""
-    h = result.history
-    if section.key == "history" and h is not None and (not h.has_previous or h.inputs_changed):
-        return "Baseline" if not h.has_previous else "Not comparable"
+    """A section's status as the report names it."""
     return STATUS_LABEL[section.verdict] if section.verdict else "Not assessed"
 
 
@@ -508,12 +461,6 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             ],
             None,
         )  # fmt: skip
-    hist = result.history
-    if hist is not None and hist.has_previous:
-        _sheet(
-            wb, "History", ["Kind", "Tier/Role", "Description", "Before", "After"],
-            _history_rows(hist), None,
-        )  # fmt: skip
     _sheet(
         wb,
         "Sections",
@@ -530,13 +477,12 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
         _sheet(
             wb,
             "Checks",
-            ["What was checked", "Scope", "Result", "Compared with the previous run", "Status",
-             "Why"],
+            ["What was checked", "Scope", "Result", "Status", "Why"],
             [
-                [r.check, r.scope, r.result, r.compared, r.label, r.reason]
+                [r.check, r.scope, r.result, r.label, r.reason]
                 for r in summary_rows(result, cfg, overview)
             ],
-            4,
+            3,
         )  # fmt: skip
     _sheet(wb, "Findings", ["Finding"], [[line] for line in result.overall.rationale], None)
     wb.save(path)

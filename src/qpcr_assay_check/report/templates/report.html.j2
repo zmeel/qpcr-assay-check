@@ -112,19 +112,18 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 </header>
 
 <h2 id="summary" class="first">Summary of this year's check</h2>
-<p>What was checked, what was found and what changed since the previous run. The status marks where a limit you configured was crossed or evidence is missing; it is not a pass or fail of the assay. The laboratory decides what to do (reviewer's decision below).</p>
+<p>What was checked and what was found. The status marks where a limit you configured was crossed or evidence is missing; it is not a pass or fail of the assay. The laboratory decides what to do (reviewer's decision below).</p>
 {% set flagged = summary | selectattr('css', 'in', ['WARN', 'FAIL']) | list %}
 {% set missing = summary | selectattr('css', 'equalto', 'INCOMPLETE') | list %}
 <p class="status-line"><span class="chip s-{{ r.overall.verdict.value }} status-{{ r.overall.verdict.value }}">{{ status_label }}</span>
   {{ flagged | length }} of {{ summary | length }} checks flagged for review{% if missing %}, {{ missing | length }} with evidence incomplete or not assessed{% endif %}.</p>
 <div class="scroll"><table class="summary">
-  <thead><tr><th>What was checked</th><th>Scope</th><th>Result</th><th>Compared with the previous run</th><th>Status</th></tr></thead>
+  <thead><tr><th>What was checked</th><th>Scope</th><th>Result</th><th>Status</th></tr></thead>
   <tbody>
   {% for row in summary %}
   <tr><th scope="row">{% if row.anchor %}<a href="#{{ row.anchor }}">{{ row.check }}</a>{% else %}{{ row.check }}{% endif %}</th>
     <td class="note">{{ row.scope }}</td>
     <td>{{ row.result | ncbi }}</td>
-    <td class="note">{{ row.compared }}</td>
     <td><span class="chip s-{{ row.css }} status-{{ row.css }}">{{ row.label }}</span>{% if row.reason %}<br><span class="meta">{{ row.reason | ncbi }}</span>{% endif %}</td></tr>
   {% endfor %}
   </tbody>
@@ -380,7 +379,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if r.variant_summary.fragment_excluded_unmeasured %}<p class="meta">{{ r.variant_summary.fragment_excluded_unmeasured }} further target-tier record(s) excluded from this table: forward, probe or reverse not among that record's hits, or one of the three not fully re-aligned.{% if r.variant_summary.target_list_full %} With a full hit list, each oligo's hits are a separate selection of records, so most records appear in only one or two of the three lists.{% endif %}</p>{% endif %}
 <h3>Variants per oligo</h3>
 {% if not (r.variant_summary.oligos | selectattr('rows') | list) %}<p><strong>No oligo site could be assessed</strong>: the target region was not found in any assessed record (see the coverage above).</p>{% endif %}
-<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies and for new variants in the history. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Each variant is one line against the oligo in the column header, as in the whole-fragment table (a dot is a matching base, a letter a mismatch, the primer 3′ end underlined); below it the changes, as position from the 3′ end and oligo base–template base (Stadhouders' convention, as in the class notes). Click the changes to open the three-line alignment and the class note. Every variant is in the workbook (sheet "Oligo variants").</p>
+<p class="meta">How often each site variant occurs per oligo, whatever the other two sites are: the reference for frequencies. Only variants that are not perfect are listed, worst class first: variants at risk, likely to fail or indeterminate when seen in 2 or more records (those seen once: one row per class), tolerated ones the {{ tolerated_shown }} most frequent. Each variant is one line against the oligo in the column header, as in the whole-fragment table (a dot is a matching base, a letter a mismatch, the primer 3′ end underlined); below it the changes, as position from the 3′ end and oligo base–template base (Stadhouders' convention, as in the class notes). Click the changes to open the three-line alignment and the class note. Every variant is in the workbook (sheet "Oligo variants").</p>
 {% for v in oligo_views %}{% set o = r.variant_summary.oligos[loop.index0] %}
 {% if o.rows %}
 {% set alts = assay.by_role(o.role) %}
@@ -568,105 +567,6 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   although it usually prevents extension: judge priming from the mismatch and 3′ columns, not from Tm.</p>
 {% else %}
 <p>No site with enough identical bases to be relevant was found in the searched off-target tiers.</p>
-{% endif %}
-{% endif %}
-
-{% if r.history %}
-<h2 id="history">Changes since the previous run</h2>
-{% if not r.history.has_previous %}
-<p><span class="chip s-INFO">Baseline</span> This is the first recorded run for this assay: there is nothing yet to compare it against. It is the baseline for next year's comparison.</p>
-{% else %}
-<p>{% if r.history.inputs_changed %}<span class="chip s-INFO">Not comparable</span>{% else %}{{ chip(r.history.verdict.value) }}{% endif %} compared to the run on {{ r.history.previous_generated_at }}
-  (<code>{{ r.history.previous_run_id }}</code>)</p>
-{% if r.history.inputs_changed %}<div class="notice"><p>The assay definition or configuration changed since that run: some of the differences below may reflect that rather than new NCBI data.</p></div>{% endif %}
-<ul>{% for line in r.history.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}</ul>
-{% set changed_sections = r.history.section_changes | selectattr('changed') | list %}
-{% if changed_sections %}
-<h3>Section status</h3>
-<div class="scroll"><table>
-  <thead><tr><th>Section</th><th>Before</th><th>After</th></tr></thead>
-  <tbody>
-  {% for sc in changed_sections %}
-  <tr><td>{{ sc.title }}</td>
-    <td>{% if sc.verdict_before %}{{ chip(sc.verdict_before.value) }}{% else %}<span class="chip s-none">not evaluated</span>{% endif %}</td>
-    <td>{% if sc.verdict_after %}{{ chip(sc.verdict_after.value) }}{% else %}<span class="chip s-none">not evaluated</span>{% endif %}</td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-{% endif %}
-{% if r.history.new_sites or r.history.resolved_sites or r.history.changed_sites %}
-{% set sv = history_sites %}
-<h3>Off-target sites</h3>
-<p class="meta">Changes at warning or critical level, one row per change, tier and organism; sites are matched across runs by accession and position. Every change, one per site, is in the workbook (sheet "History").</p>
-{% if sv.groups %}
-<div class="scroll"><table>
-  <thead><tr><th>Change</th><th>Tier</th><th>Organism</th><th>Sites</th><th>Level</th><th>Oligos</th><th>Example</th></tr></thead>
-  <tbody>
-  {% for g in sv.groups %}{% set e = g.example %}
-  <tr><td><span class="chip {{ {'new': 's-WARN', 'resolved': 's-PASS', 'changed': 's-INFO'}[g.kind] }}">{{ 'no longer found' if g.kind == 'resolved' else g.kind }}</span></td><td>{{ g.tier }}</td><td>{{ g.organism }}</td>
-    <td class="num">{{ g.n_sites }}<br><span class="meta">{{ g.records | length }} record{{ '' if g.records | length == 1 else 's' }}</span></td>
-    <td>{% for lvl, n in g.levels.most_common() %}{{ chip(lvl) }} {{ n }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
-    <td>{% for role, n in g.roles.most_common() %}{{ role }} {{ n }}{{ ', ' if not loop.last }}{% endfor %}</td>
-    <td>{{ e.accession | ncbi }} <span class="meta">{{ e.subject_start }}–{{ e.subject_end }} ({{ e.orientation }}), {{ e.role }}, {% if g.kind == 'changed' %}{{ e.level_before }} → {{ e.level_after }}, {{ e.n_mismatch_before }} → {{ e.n_mismatch_after }} mismatches{% elif g.kind == 'resolved' %}{{ e.n_mismatch_before }} mismatches{% else %}{{ e.n_mismatch_after }} mismatches{% endif %}</span></td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-{% else %}<p>No change at warning or critical level.</p>{% endif %}
-{% if sv.minor %}<p class="meta">At minor level only: {% for kind in ['new', 'resolved', 'changed'] if sv.minor[kind] %}{{ sv.minor[kind] }} {{ 'no longer found' if kind == 'resolved' else kind }}{{ ', ' if not loop.last }}{% endfor %}. The report keeps only the closest minor sites per oligo, so these come and go between runs; they are in the workbook.</p>{% endif %}
-{% endif %}
-{% if r.history.new_amplicons or r.history.resolved_amplicons %}
-<h3>Predicted off-target products</h3>
-<div class="scroll"><table>
-  <thead><tr><th>Change</th><th>Tier</th><th>Organism / record</th><th>Position</th><th>Primers</th><th>Class</th></tr></thead>
-  <tbody>
-  {% for a in r.history.new_amplicons %}
-  <tr><td><span class="chip s-WARN">new</span></td><td>{{ a.tier }}</td>
-    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession | ncbi }}</span></td>
-    <td class="num">{{ a.start }}–{{ a.end }}</td><td>{{ a.roles }}</td>
-    <td>{% if a.classification %}{{ chip(a.classification) }}{% endif %}</td></tr>
-  {% endfor %}
-  {% for a in r.history.resolved_amplicons %}
-  <tr><td><span class="chip s-PASS">resolved</span></td><td>{{ a.tier }}</td>
-    <td>{{ a.organism or 'unknown' }}<br><span class="meta">{{ a.accession | ncbi }}</span></td>
-    <td class="num">{{ a.start }}–{{ a.end }}</td><td>{{ a.roles }}</td>
-    <td>{% if a.classification %}{{ chip(a.classification) }}{% endif %}</td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-{% endif %}
-{% if r.history.inclusivity_changes %}
-<h3>Inclusivity trend</h3>
-<div class="scroll"><table>
-  <thead><tr><th>Oligo</th><th>Year</th><th>Before</th><th>After</th><th>New mismatch position(s)</th></tr></thead>
-  <tbody>
-  {% for c in r.history.inclusivity_changes %}
-  <tr><td>{{ c.role }}</td><td class="num">{{ c.year }}</td>
-    <td class="num">{% if c.percent_before is not none %}{{ '%.0f' % c.percent_before }}% of {{ c.sample_size_before }}{% else %}–{% endif %}</td>
-    <td class="num">{% if c.percent_after is not none %}{{ '%.0f' % c.percent_after }}% of {{ c.sample_size_after }}{% else %}–{% endif %}</td>
-    <td class="num">{{ c.new_mismatch_positions | join(', ') or '–' }}</td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-{% endif %}
-{% if r.history.variant_changes %}
-<h3>Oligo sequence variants since the previous run</h3>
-<p class="meta">"Emerging": the variant's first record (assembly or Nucleotide record) was released after the previous run. "Newly assessed": it is in an older record that this run assessed for the first time (e.g. the previous run had not finished the collection).</p>
-<div class="scroll"><table>
-  <thead><tr><th>Change</th><th>Oligo</th><th>Variant</th><th>Match to the oligo</th><th>Records</th><th>First release</th><th>Example</th></tr></thead>
-  <tbody>
-  {% for v in r.history.variant_changes %}
-  <tr><td>{% if v.kind == 'new' %}{% if v.concern %}<strong>new</strong>{% else %}new{% endif %}<br><span class="meta">{{ 'emerging' if v.newly_released else ('newly assessed' if v.newly_released is not none else 'release date unknown') }}</span>{% else %}no longer seen{% endif %}</td>
-    <td>{{ v.role }}</td>
-    <td class="aln-cell">{{ v | aln_html(0 if v.role == 'probe' else 5) }}</td>
-    <td>{{ match(v, v.role != 'probe') }}</td>
-    <td class="num">{% if v.kind == 'new' %}{{ v.count_after }}{% if v.percent_after is not none %} ({{ pct(v.percent_after) }}){% endif %}{% else %}{{ v.count_before }} before{% endif %}</td>
-    <td>{{ v.first_seen or '' }}</td><td>{{ v.example_accession | ncbi }}</td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-{% elif r.history.variants_note %}
-<p class="meta">{{ r.history.variants_note | ncbi }}</p>
-{% endif %}
 {% endif %}
 {% endif %}
 
