@@ -106,6 +106,24 @@ verified NCBI facts) at the start of every session. Newest entry first.
     run, inclusivity is "Not assessed: <reason>" instead of a sampled fallback. The target BLAST
     tier still runs (its perfect full-length counts feed the specificity findings) but its hits
     are no longer kept.
+- legionella4 (context from NC_002942.5; 134 genomes; 55 borderline candidates, 28 found only
+  through context, not listed yet). With the tool's rule (a 32 / b 32 / c 0.75 with 16):
+  - look-alike regions: identity 0.600-0.658, M 16-17, length unchanged, context 0 on both
+    sides, 8-13 mismatches under every oligo (the same region in many species, L. pneumophila
+    included): none is a copy. Context separates them cleanly; identity alone does not (a real
+    copy with a 71-nt deletion sits at 0.658 too).
+  - real divergent copies in other Legionellaceae: identity 0.658-0.727, length -71 to +45,
+    context left 40-792, genus probe 0-1 mm: all copies through rule (b) (smallest context 40).
+  - L. pneumophila copies cut by a contig end (M 24-26): copies through (b) and/or (c).
+  - copies cut at the contig start in other species (identity 0.83-0.95, M 16-18, context 0):
+    copies through (c).
+  - one miss: GCF_900114725.1 (L. jamestowniensis) copy cut 25 nt from the contig start,
+    identity 0.745, M 19, no context: not a copy (just under 0.75); the genome has another
+    (cut) copy through (b).
+  - Legionella sp. 27cVA30 (GCF_024160945.1): the copy has 680 context bases and F 0 mm but
+    R 9 and genus probe 9 mm; a copy through (b), so the genus channel will call it not
+    detected (a finding about the assay, not a locator error).
+  - Defaults kept (32 / 32 / 0.75 / 16).
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.
