@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 
 from ..config import Config
 from ..results import RunResult
-from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
+from ..specificity.variants import group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
 from .grouping import fragment_outcome, spec_overview
@@ -111,11 +111,6 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                 else []
             ),
             *[["Rationale", line] for line in result.overall.rationale],
-            *(
-                [["Variant tables", LIST_FULL_NOTE]]
-                if result.variant_summary is not None and result.variant_summary.target_list_full
-                else []
-            ),
         ],
         None,
     )

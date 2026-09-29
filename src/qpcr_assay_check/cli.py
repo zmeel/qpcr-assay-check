@@ -258,7 +258,6 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     from .search.planner import plan_searches
     from .specificity.assess import assess_specificity
     from .specificity.fetch import WindowFetcher
-    from .specificity.variants import assess_target_sites
     from .variants.datasets import DatasetsClient
     from .variants.exhaustive import run_exhaustive
     from .variants.partitioned import collect_partitioned
@@ -283,10 +282,9 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         cfg,
         outdir,
         confirm=_make_confirm(yes),
-        keep_tiers=set(cfg.specificity.off_target_tiers) | {"target", "out_of_scope"},
+        keep_tiers=set(cfg.specificity.off_target_tiers) | {"out_of_scope"},
         on_plan=show,
     )
-    from .inclusivity.aggregate import compute_inclusivity
     from .ncbi.http import NcbiError
     from .taxonomy.resolve import ancestors, fetch_lineages
     from .taxonomy.rollup import taxonomy_breakdown
@@ -322,74 +320,38 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     except NcbiError as exc:
         log.warning("Could not fetch taxonomy lineages for exclusivity grouping: %s", exc)
         taxon_species = {}
-    tier_searched = any(r.tier == "target" for r in remote.outcome.searches)
     exhaustive, variant_note = None, None
-    if cfg.variants.source in ("datasets", "blast_partitioned"):
-        # Every genome assembly (datasets) or every Nucleotide record (blast_partitioned) of the
-        # target (v1.1.0), not the target tier's BLAST hits, which are BLAST's best matches and
-        # so biased toward perfect ones when the hit list is full.
-        collector = None
-        if cfg.variants.source == "blast_partitioned":
-            runner = BlastRunner(
-                BlastApi(remote.http, cfg.ncbi.blast_url), remote.cache,
-                JobStore(remote.cache.root / "variants" / "jobs-partitioned.json"), cfg.ncbi,
-                cfg.search.result_format,
+    # Every genome assembly (datasets) or every Nucleotide record (blast_partitioned) of the
+    # target, not the target tier's BLAST hits (a sample; removed, user decision 2026-09-29).
+    collector = None
+    if cfg.variants.source == "blast_partitioned":
+        runner = BlastRunner(
+            BlastApi(remote.http, cfg.ncbi.blast_url), remote.cache,
+            JobStore(remote.cache.root / "variants" / "jobs-partitioned.json"), cfg.ncbi,
+            cfg.search.result_format,
+        )  # fmt: skip
+
+        def collector(store: Any, taxon: int, references: Any) -> Any:
+            return collect_partitioned(
+                eutils, runner, runner.store, fetcher, store, taxon, references, cfg,
+                exclude=assay.target.excluded_taxids,
             )  # fmt: skip
 
-            def collector(store: Any, taxon: int, references: Any) -> Any:
-                return collect_partitioned(
-                    eutils, runner, runner.store, fetcher, store, taxon, references, cfg,
-                    exclude=assay.target.excluded_taxids,
-                )  # fmt: skip
-
-        try:
-            exhaustive = run_exhaustive(
-                assay, cfg, DatasetsClient(remote.http, cfg.ncbi.datasets_url),
-                remote.cache.root, eutils.fetch_fasta,
-                collector=collector, source=cfg.variants.source,
-                ancestors_of=lambda taxids: ancestors(
-                    eutils, remote.cache, taxids, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
-                ),
-            )  # fmt: skip
-        except (InputError, NcbiError) as exc:
-            variant_note = (
-                f"the exhaustive analysis was not run ({exc}); the variant tables and "
-                "inclusivity use the target tier's BLAST hits instead."
-            )
-            log.warning("%s", variant_note)
     try:
-        target_sites = (
-            exhaustive.sites
-            if exhaustive is not None
-            else assess_target_sites(assay, cfg, remote.plan, remote.parsed, fetcher)
-            if tier_searched
-            else None
+        exhaustive = run_exhaustive(
+            assay, cfg, DatasetsClient(remote.http, cfg.ncbi.datasets_url),
+            remote.cache.root, eutils.fetch_fasta,
+            collector=collector, source=cfg.variants.source,
+            ancestors_of=lambda taxids: ancestors(
+                eutils, remote.cache, taxids, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
+            ),
+        )  # fmt: skip
+    except (InputError, NcbiError) as exc:
+        variant_note = (
+            f"the exhaustive variant analysis was not run ({exc}); without it there is no "
+            "variant summary and no inclusivity in this run (run again when fixed)."
         )
-    except NcbiError as exc:
-        # Informational only (the variant summary has no verdict): a fetch failure here should
-        # not discard an otherwise-complete specificity/exclusivity verdict.
-        log.warning("Could not build the variant summary: %s", exc)
-        target_sites = None
-    try:
-        inclusivity = (
-            exhaustive.inclusivity
-            if exhaustive is not None
-            else compute_inclusivity(
-                assay,
-                cfg,
-                remote.plan,
-                remote.parsed,
-                fetcher,
-                eutils,
-                remote.cache,
-                tier_searched=tier_searched,
-            )
-        )
-    except NcbiError as exc:
-        # Informational only (not a required section): a date-lookup failure should not
-        # discard an otherwise-complete specificity/exclusivity verdict.
-        log.warning("Could not compute inclusivity: %s", exc)
-        inclusivity = None
+        log.warning("%s", variant_note)
     return evaluate(
         assay,
         cfg,
@@ -398,8 +360,8 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         organism_resolution=remote.organism_resolution,
         taxonomy_breakdown=breakdown,
         taxon_species=taxon_species,
-        inclusivity=inclusivity,
-        target_sites=target_sites,
+        inclusivity=exhaustive.inclusivity if exhaustive is not None else None,
+        target_sites=exhaustive.sites if exhaustive is not None else None,
         variant_coverage=exhaustive.coverage if exhaustive is not None else None,
         release_dates=exhaustive.release_dates if exhaustive is not None else None,
         variant_note=variant_note,

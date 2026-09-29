@@ -9,8 +9,8 @@ WHY THIS EXISTS
 
     v0.4.0 phase 4a added steps 03b (taxonomy lineage parsing: Rank, LineageEx) and 03c (the
     actual exclusivity-tier organism-list resolution, live) -- both new and unverified before now.
-    v0.4.0 phase 4b added step 08b (the ESummary-based inclusivity date lookup, live) -- the real
-    nuccore docsum field name(s) and the accession re-indexing logic were unverified before now.
+    v0.4.0 phase 4b added step 08b (an ESummary-based inclusivity date lookup); it was removed with
+    the sampled inclusivity in the overhaul (step 7d).
 
 WHAT IT SENDS TO NCBI
     * the three CDC 2019-nCoV N1 oligo sequences (published sequences, not proprietary)
@@ -698,44 +698,6 @@ def main() -> int:
                 rep.findings["blast_date_window_restriction_honoured"] = r.get("count") == len(accs)
             info["window_check"] = check
             return info
-
-    @rep.step("08b_esummary_inclusivity_dates")
-    def _esummary_dates() -> dict[str, Any]:
-        """Checks the phase 4b ESummary-based date lookup (inclusivity/dates.py) live.
-
-        Unverified until now: the real nuccore ESummary docsum field name(s) that carry a
-        submission/creation date, and whether esummary()/fetch_years() correctly re-index by the
-        docsum's own accessionversion/caption field for more than one accession at once (NCBI
-        keys its JSON result by resolved UID, not by the accession string given as input).
-        """
-        from qpcr_assay_check.inclusivity.dates import fetch_years, year_from_docsum
-
-        accs = [REFERENCE, "NC_000007.14"]  # SARS-CoV-2 reference + human chromosome 7 (unrelated)
-        # eu.esummary() returns its docsums keyed by NCBI's own resolved UID, not by the accession
-        # string given as input (confirmed by this very check) -- re-index by each docsum's own
-        # accessionversion field to look them up by accession, exactly as fetch_years() must do.
-        docsums = eu.esummary("nuccore", accs)
-        by_accession = {d.get("accessionversion"): d for d in docsums.values()}
-        years = fetch_years(eu, cache, accs, ttl_days=0)
-        rep.findings["esummary_keyed_by_uid_not_accession"] = bool(
-            docsums and not (set(accs) & set(docsums))
-        )
-        rep.findings["esummary_docsum_keys"] = {
-            acc: sorted(by_accession[acc].keys()) for acc in accs if acc in by_accession
-        }
-        rep.findings["esummary_reindexed_by_accession_correctly"] = {
-            acc: by_accession[acc].get("accessionversion") == acc
-            for acc in accs
-            if acc in by_accession
-        }
-        rep.findings["esummary_years_extracted"] = years
-        return {
-            "docsums_by_uid": docsums,
-            "year_from_docsum_per_accession": {
-                acc: year_from_docsum(by_accession[acc]) for acc in accs if acc in by_accession
-            },
-            "fetch_years_result": years,
-        }
 
     if args.human:
 

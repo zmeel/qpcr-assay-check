@@ -1,6 +1,6 @@
 """Variant-summary lumping (per oligo and per whole fragment), tested on directly constructed
-sites -- mirrors tests/test_pairing.py's style. The end-to-end path from a target-tier search
-(assess_target_sites) is tested at the bottom, on a constructed world."""
+sites -- mirrors tests/test_pairing.py's style. The end-to-end path (the exhaustive variant
+analysis) is tested in tests/test_variants_exhaustive.py and tests/test_run_full.py."""
 
 from qpcr_assay_check.specificity.models import SiteResult
 from qpcr_assay_check.specificity.variants import build_variant_summary
@@ -146,50 +146,6 @@ def test_non_target_tier_sites_never_form_a_fragment():
     summary = build_variant_summary(triple("A.1", tier="background"), ASSAY)
     assert summary.fragment_total == 0
     assert summary.fragments == []
-
-
-# ------------------------------------------------ end to end: target-tier search -> variant table
-def test_target_tier_hits_are_assessed_and_a_trimmed_3prime_variant_is_re_aligned(tmp_path):
-    from qpcr_assay_check.config import load_config
-    from qpcr_assay_check.oligo import iupac
-    from qpcr_assay_check.search.orchestrate import run_search
-    from qpcr_assay_check.search.planner import plan_searches
-    from qpcr_assay_check.specificity.variants import assess_target_sites
-
-    from .conftest import CDC_N1_F as F
-    from .conftest import CDC_N1_P as P
-    from .conftest import CDC_N1_R as R
-    from .world import World, WorldFake, make_runner, mutate
-
-    target, ref, var = 2697049, "NC_045512.2", "OT000099.1"
-    w = World()
-    for acc, fwd in ((ref, F), (var, mutate(F, [20]))):  # var: 3'-terminal forward mismatch
-        seq = "T" * 50 + fwd + "T" * 30 + P + "T" * 30 + iupac.reverse_complement(R) + "T" * 50
-        w.genome(acc, target, "SARS-CoV-2", seq)
-        w.hit(target, "forward", F, acc, 51, "+", trim3=1 if acc == var else 0)
-        w.hit(target, "probe", P, acc, 51 + len(F) + 30, "+")
-        w.hit(target, "reverse", R, acc, 51 + len(F) + 30 + len(P) + 30, "-")
-
-    cfg = load_config()
-    cfg.search.background_taxids = []
-    assay = make_assay(target={"taxid": target, "accession": ref})
-    runner, store, fetcher = make_runner(cfg, tmp_path, WorldFake(w))
-    plan = plan_searches(assay, cfg)
-    parsed: dict = {}
-    run_search(
-        plan, cfg, runner, store, tmp_path / "s", inputs_hash="h", keep=parsed,
-        keep_tiers={"target"},
-    )  # fmt: skip
-
-    sites = assess_target_sites(assay, cfg, plan, parsed, fetcher)
-    assert len(sites) == 6  # one per record and oligo
-    trimmed = next(s for s in sites if s.accession == var and s.role == "forward")
-    assert trimmed.source == "realigned" and trimmed.n_mismatch == 1 and trimmed.terminal_defect
-
-    summary = build_variant_summary(sites, assay)
-    fwd = next(o for o in summary.oligos if o.role == "forward")
-    assert fwd.total_measured == 2 and [r.count for r in fwd.rows] == [1, 1]
-    assert summary.fragment_total == 2 and summary.fragment_excluded_unmeasured == 0
 
 
 # ------------------------------------------------------------------ off-target grouping (report)

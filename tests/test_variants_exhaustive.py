@@ -227,7 +227,7 @@ def test_the_report_and_workbook_show_coverage_and_first_release_dates(tmp_path)
         specificity=_empty_specificity(),
     )  # fmt: skip
     vs = result.variant_summary
-    assert vs.source == "datasets" and not vs.target_list_full
+    assert vs.source == "datasets"
     fwd = next(o for o in vs.oligos if o.role == "forward")
     variant = next(r for r in fwd.rows if r.n_mismatch)
     assert variant.first_seen == variant.last_seen == "2026-01-15"

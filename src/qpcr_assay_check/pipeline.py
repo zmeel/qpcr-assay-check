@@ -123,16 +123,6 @@ def evaluate(
             variant_summary = build_variant_summary(
                 target_sites, assay, release_dates=release_dates, coverage=variant_coverage
             )
-            variant_summary.target_list_full = (
-                variant_coverage is None
-                and bool(search_outcome)
-                and any(
-                    sat.list_full
-                    for r in search_outcome.searches
-                    if r.tier == "target"
-                    for sat in r.saturation
-                )
-            )
         n = specificity.n_sites
         sections.append(
             SectionResult(
@@ -264,7 +254,11 @@ def evaluate(
                 title=_inclusivity_title(inclusivity),
                 state="skipped",
                 verdict=None,
-                note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
+                note="Skipped (--qc-only)."
+                if qc_only
+                else f"Not assessed: {variant_note}"
+                if variant_note
+                else "No search results were supplied.",
             )
         )
     required = ["oligo_qc"] if qc_only else [s.key for s in sections]

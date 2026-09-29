@@ -5,9 +5,9 @@ variant, with a count and a percentage of the assessed total), generalised beyon
 the whole fragment (forward + probe + reverse considered together, when all three bind the same
 record).
 
-The sites come from :func:`assess_target_sites`: every target-tier BLAST hit, with partial hits
-fetched and re-aligned (the off-target assessment never builds target-tier sites). The counts cover
-the hits BLAST returned (at most ``hitlist_size`` per oligo), not the whole target population.
+The sites come from the exhaustive variant analysis (:mod:`..variants.exhaustive`): one site per
+oligo role on each assessed genome's best copy, every genome of the target (the sampled source
+from the target tier's BLAST hits was removed in the overhaul, 2026-09-29).
 
 Only sites with a real, fully observed alignment (``source`` ``blast_full`` or ``realigned``) are
 counted. A ``blast_partial_worst_case`` site has assumed-matched flanks, not observed bases;
@@ -19,7 +19,6 @@ It carries no verdict of its own.
 
 from __future__ import annotations
 
-import itertools
 import logging
 import re
 from collections import Counter, defaultdict
@@ -27,25 +26,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ..align import realign
-from ..config import Config
-from ..inclusivity.sites import assess_candidates
 from ..models import Assay
-from ..ncbi.parser import ParsedSearch
-from ..search.planner import SearchPlan
 from ..variants.models import ExhaustiveCoverage
-from .fetch import WindowFetcher
 from .models import Level, SiteResult
-from .sites import Candidate, make_candidate
 
 log = logging.getLogger(__name__)
-
-LIST_FULL_NOTE = (
-    "The target search's hit list was full: the target has more records than BLAST returns. "
-    "BLAST lists the best-scoring matches first, so these hits are biased toward perfect matches; "
-    "variants with mismatches can be under-represented or missing entirely, and the percentages "
-    "are not the prevalence of each variant in the target population."
-)
 
 _MEASURED = {"blast_full", "realigned"}
 _DEGENERATE = re.compile(r"_v\d+$")  # a degenerate variant's query label -> the oligo name
@@ -146,15 +131,10 @@ class VariantSummary(BaseModel):
         "reverse missing among the record's hits, or one of the three not fully re-aligned",
     )
     fragments: list[FragmentVariantRow] = Field(default_factory=list)
-    target_list_full: bool = Field(
-        default=False,
-        description="the target search returned a full hit list for at least one oligo, so the "
-        "tables are biased toward perfect matches (see LIST_FULL_NOTE)",
-    )
-    source: Literal["blast_hits", "datasets", "blast_partitioned"] = Field(
-        default="blast_hits",
-        description="blast_hits: the target tier's BLAST hits; datasets: every genome assembly "
-        "of the target in NCBI Datasets (exhaustive, see coverage)",
+    source: Literal["datasets", "blast_partitioned"] = Field(
+        default="datasets",
+        description="datasets: every genome assembly of the target in NCBI Datasets; "
+        "blast_partitioned: every Nucleotide record (exhaustive either way, see coverage)",
     )
     coverage: ExhaustiveCoverage | None = None
 
@@ -210,58 +190,6 @@ def _oligo_variants(
         n_excluded_unmeasured=len(role_sites) - len(measured),
         rows=rows,
     )
-
-
-def assess_target_sites(
-    assay: Assay,
-    cfg: Config,
-    plan: SearchPlan,
-    parsed: dict[str, ParsedSearch],
-    fetcher: WindowFetcher,
-) -> list[SiteResult]:
-    """Full-length sites for every target-tier hit, the best one per record and oligo.
-
-    Partial hits are always fetched and re-aligned (windows are cached), as for inclusivity: a
-    variant table needs the observed bases, not a worst-case bound. A record can carry more than
-    one HSP per oligo (or one per degenerate variant); the closest match is the one that binds.
-    """
-    rules = cfg.specificity
-    scoring = realign.Scoring(
-        rules.alignment.match, rules.alignment.mismatch,
-        rules.alignment.gap_open, rules.alignment.gap_extend,
-    )  # fmt: skip
-    min_identical = cfg.search.relevance.min_identical_bases
-    ids = itertools.count(1)
-    sites: list[SiteResult] = []
-    for ps in plan.searches:
-        if ps.tier != "target" or ps.key not in parsed:
-            continue
-        for label in ps.labels:
-            role = assay.role_of(label)
-            site_rules = rules.probe_site if role == "probe" else rules.primer_site
-            cands: list[Candidate] = [
-                make_candidate("target", label, plan.queries[label], hit, hsp, role)
-                for hit in parsed[ps.key].queries[label].hits
-                for hsp in hit.hsps
-                if hsp.identity >= min_identical
-            ]
-            n_partial = sum(1 for c in cands if c.partial)
-            log.info(
-                "Variant summary: %d target-tier site(s) for %s, %d partial (fetched and "
-                "re-aligned; windows are cached)", len(cands), label, n_partial,
-            )  # fmt: skip
-            found = assess_candidates(
-                cands, site_rules, fetcher, scoring, rules.window_padding_nt, ids
-            )
-            # graded as in the exhaustive analysis, so the fragment table can classify the rows
-            sites += [assay.graded(s).model_copy(update={"id": f"T{s.id[1:]}"}) for s in found]
-
-    best: dict[tuple[str, str], SiteResult] = {}
-    for s in sites:
-        key = (s.accession, s.role)
-        if key not in best or _closeness(s) < _closeness(best[key]):
-            best[key] = s
-    return sorted(best.values(), key=lambda s: int(s.id[1:]))
 
 
 def _closeness(s: SiteResult) -> tuple[int, int, int, int]:
@@ -365,7 +293,7 @@ def build_variant_summary(
         fragment_total=total_fragments,
         fragment_excluded_unmeasured=excluded,
         fragments=fragments,
-        source=coverage.source if coverage is not None else "blast_hits",  # type: ignore[arg-type]
+        source=coverage.source if coverage is not None else "datasets",  # type: ignore[arg-type]
         coverage=coverage,
     )
 
