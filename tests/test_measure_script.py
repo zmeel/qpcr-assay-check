@@ -166,3 +166,20 @@ def test_groups_without_a_store_stop_with_a_clear_message(tmp_path):
     )
     with pytest.raises(SystemExit, match="No region store"):
         script.run(args, ASSAY, load_config(), lambda accs: {})
+
+
+def test_borderline_lists_whole_and_cut_candidates(tmp_path):
+    spec2 = importlib.util.spec_from_file_location(
+        "measure_borderline", ROOT / "scripts" / "measure_borderline.py"
+    )
+    bl = importlib.util.module_from_spec(spec2)
+    spec2.loader.exec_module(bl)
+    cut = {"M_amp": {"1": 26}, "identity_chain": 1.0, "context_only": False, "cut_left": True,
+           "cut_right": False, "length_diff": 0, "amp_start": -234, "contig_len": 900,
+           "sites": [{"oligo": "R", "mm_chain": 0}]}  # fmt: skip
+    whole = dict(cut, **{"M_amp": {"1": 130}, "cut_left": False})  # not borderline
+    chance = dict(cut, **{"M_amp": {"1": 17}, "identity_chain": 0.57, "cut_left": False})
+    report = {"genomes": [{"accession": "GCF_1.1", "organism": "Legionella x",
+                           "candidates": [cut, whole, chance]}]}  # fmt: skip
+    (line,) = bl.borderline(report)
+    assert line.startswith("GCF_1.1 Legionella_x 26 1.0 0 cut -234 900 R:0")
