@@ -23,6 +23,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -323,6 +324,30 @@ class GenomeCall:
         (e.g. a mismatch in an MGB probe); counted neither as detected nor as an escape."""
         states = set(self.role_state.values())
         return self.n_detectable == 0 and "fail" not in states and "undetermined" in states
+
+
+class GenomeOutcome(StrEnum):
+    """What one assessed genome counts as (overhaul step 2: one place decides it)."""
+
+    DETECTED = "detected"
+    NOT_DETECTED = "not detected"  # an escape: the region is there, no copy is detectable
+    UNDETERMINED = "undetermined"  # only sites without a published basis (rules R6, R9)
+    UNASSEMBLED = "possibly unassembled"  # see mark_unassembled
+    FROM_PARTS = "detectable from parts"  # cut copies only, not counted (judge_from_parts)
+
+
+def genome_outcome(c: GenomeCall) -> GenomeOutcome:
+    """The one precedence every count uses: parts (not counted), detected, undetermined,
+    possibly unassembled, not detected."""
+    if c.from_parts and c.n_detectable == 0:
+        return GenomeOutcome.FROM_PARTS
+    if c.n_detectable > 0 or (c.role_good and all(c.role_good.values())):
+        return GenomeOutcome.DETECTED
+    if c.undetermined:
+        return GenomeOutcome.UNDETERMINED
+    if c.unassembled:
+        return GenomeOutcome.UNASSEMBLED
+    return GenomeOutcome.NOT_DETECTED
 
 
 def detectable(s: SiteResult, bulges: bool = False) -> bool:
@@ -777,6 +802,15 @@ def mark_unassembled(calls: list[GenomeCall], setting: str = "auto") -> float | 
     return typical
 
 
+_LEVEL_FIELD = {
+    GenomeOutcome.DETECTED: "detectable",
+    GenomeOutcome.NOT_DETECTED: "escapes",
+    GenomeOutcome.UNDETERMINED: "undetermined",
+    GenomeOutcome.UNASSEMBLED: "unassembled",
+    GenomeOutcome.FROM_PARTS: "from_parts",
+}
+
+
 def _level_coverage(calls: list[GenomeCall]) -> list[LevelCoverage]:
     """Detectable genomes, escapes and undetermined per assembly level, complete genomes first
     (only when the genomes come in more than one level; Nucleotide records have none)."""
@@ -785,16 +819,8 @@ def _level_coverage(calls: list[GenomeCall]) -> list[LevelCoverage]:
         name = c.assembly_level or "unknown"
         row = levels.setdefault(name, LevelCoverage(level=name))
         row.genomes += 1
-        if c.from_parts and c.n_detectable == 0:
-            row.from_parts += 1  # its own class: left out of the percentage
-        elif c.n_detectable > 0:
-            row.detectable += 1
-        elif c.undetermined:
-            row.undetermined += 1
-        elif c.unassembled:
-            row.unassembled += 1
-        elif not all(c.role_good.values()):
-            row.escapes += 1
+        field_ = _LEVEL_FIELD[genome_outcome(c)]  # from parts: its own class, out of the %
+        setattr(row, field_, getattr(row, field_) + 1)
     if len(levels) < 2:
         return []
     return sorted(levels.values(), key=lambda r: (_LEVEL_ORDER.get(r.level, 9), r.level))
@@ -821,26 +847,24 @@ def copy_coverage(
         with_detectable_copy_bulges=configured if bulges else other,
     )
     out.run_length = _run_length_breakdown(calls, bulges)
-    escapes = [
-        c.accession
-        for c in calls
-        if not all(c.role_good.values())
-        and not c.undetermined
-        and not c.unassembled
-        and not c.from_parts
-    ]
+    outcome = {c.accession: genome_outcome(c) for c in calls}
+
+    def having(o: GenomeOutcome) -> list[str]:
+        return [acc for acc, x in outcome.items() if x == o]
+
+    escapes = having(GenomeOutcome.NOT_DETECTED)
     parts = [c.accession for c in calls if c.from_parts]
     out.from_parts, out.from_parts_accessions = len(parts), parts
     out.from_parts_counted = any(c.from_parts and c.n_detectable > 0 for c in calls)
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
-    unassembled = [c.accession for c in calls if c.unassembled]
+    unassembled = having(GenomeOutcome.UNASSEMBLED)
     out.unassembled, out.unassembled_accessions = len(unassembled), unassembled
-    undet = [c.accession for c in calls if c.undetermined]
+    undet = having(GenomeOutcome.UNDETERMINED)
     out.undetermined, out.undetermined_examples = len(undet), undet[:20]
     out.by_level = _level_coverage(calls)
     # detectable from parts and not counted as detected: out of the per-oligo and channel counts
     # too, as out of the whole-fragment figures (code review, 2026-09-28)
-    judged = [c for c in calls if not (c.from_parts and c.n_detectable == 0)]
+    judged = [c for c in calls if outcome[c.accession] != GenomeOutcome.FROM_PARTS]
     for role in ROLES:
         members = assay.by_role(role)
         for o in members:
@@ -1250,9 +1274,10 @@ def run_exhaustive(
             if not store.items[acc].identity_scanned:
                 store.save(store.items[acc].model_copy(update={"rescan": True}))
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
-    unassembled = {c.accession for c in calls if c.unassembled}
+    outcomes = {c.accession: genome_outcome(c) for c in calls}
+    unassembled = {a for a, o in outcomes.items() if o == GenomeOutcome.UNASSEMBLED}
     # detectable from parts and not counted as detected: undetermined in the whole-fragment outcome
-    parts_undetermined = {c.accession for c in calls if c.from_parts and c.n_detectable == 0}
+    parts_undetermined = {a for a, o in outcomes.items() if o == GenomeOutcome.FROM_PARTS}
     not_found = [it for it in items if it.status == "not_found"]
     real = {it.accession: real_loci(it, v.min_copy_identity) for it in items}
     found_loci = [real[it.accession][0] for it in items

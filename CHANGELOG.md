@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **One genome outcome** (overhaul step 2): `genome_outcome` decides once what an assessed
+  genome counts as (detected, not detected, undetermined, possibly unassembled, detectable from
+  parts), and the coverage and escape lists, the per-level table, the whole-fragment years and
+  the panel all read it; before, the same precedence was written out in five places. No count
+  changes.
 - **Loci and channels in the assay model** (overhaul step 1, 2026-09-29; advisor subagent;
   user decisions). An assay now has one or more `loci` (amplified regions: primers, the probes
   in the product, reference fragment(s), an optional `context_accession`, the taxon searched)

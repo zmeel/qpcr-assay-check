@@ -38,6 +38,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   amended (loci/channels; history, panel and sampled BLAST-hit inclusivity dropped, removal in
   step 7). tests/test_assay_loci.py.
 
+- Step 2 built: `GenomeOutcome` + `genome_outcome` (variants/exhaustive.py) used by
+  copy_coverage, _level_coverage, the sets for the whole-fragment years, and panel.member_states;
+  existing tests unchanged (counts pinned), tests/test_genome_outcome.py for the precedence.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number
