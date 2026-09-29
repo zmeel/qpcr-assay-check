@@ -42,11 +42,10 @@ def setup(tmp_path, fake, *, assay=None, fetch_fasta=lambda a: "", **variants):
     runner, jobs, fetcher = make_runner(cfg, tmp_path, fake)
     assay = assay or make_assay(reference_amplicon=AMP, target={"taxid": 2697049})
 
-    def collector(store, taxon, amplicon, context):
+    def collector(store, taxon, references):
         return collect_partitioned(
-            fetcher.eutils, runner, jobs, fetcher, store, taxon, amplicon, cfg, now=NOW,
-            context=context,
-        )  # fmt: skip
+            fetcher.eutils, runner, jobs, fetcher, store, taxon, references, cfg, now=NOW
+        )
 
     def run():
         return run_exhaustive(assay, cfg, None, tmp_path / "cache", fetch_fasta, now=NOW,
@@ -109,27 +108,6 @@ def test_records_missing_from_the_blast_database_are_found_by_a_direct_scan(tmp_
     fwd = sorted((s.accession, s.n_mismatch) for s in res.sites if s.role == "forward")
     assert fwd == [("MZ000001.1", 0), ("MZ000002.1", 1), ("MZ000003.1", 0), ("MZ000005.1", 0)]
     assert any("," in ids for ids in fake.efetch_ids)  # several records per EFetch request
-
-
-def test_old_not_found_records_without_a_direct_check_are_scanned_again(tmp_path):
-    import json
-
-    recs = records()
-    for r in recs:
-        r.in_blast_db = False
-    fake = FakeNuccore(recs)
-    run = setup(tmp_path, fake)
-    run()
-    (path,) = (tmp_path / "cache" / "variants").glob("*-blast_partitioned.jsonl")
-    lines = []
-    for line in path.read_text().splitlines():  # as the first live run stored them
-        item = json.loads(line)
-        item.update(status="not_found", loci=[], n_loci=0, found_by=None)
-        item.pop("direct_checked")
-        lines.append(json.dumps(item))
-    path.write_text("\n".join(lines) + "\n")
-    c = run().coverage
-    assert c.processed_this_run == 5 and c.found == 4
 
 
 def test_the_report_shows_coverage_even_when_no_region_was_found(tmp_path):

@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from ..oligo import iupac
-from .locate import INDEL_TOLERANCE, _occurrences, amplicon_identity
+from .locate import INDEL_TOLERANCE, _occurrences, amplicon_identity, find_masked
 
 ACGT = frozenset("ACGT")
 CONTEXT_STEP = 8  # seed step in the context, near a hit (conserved flanks need few seeds)
@@ -98,6 +98,7 @@ class Candidate:
     n_right: int  # N-run just after it
     region: str = field(repr=False)
     region_start: int = 0
+    masked: bool = False  # found only through N-tolerant seeds (no exact block left)
 
     @property
     def cut_left(self) -> bool:
@@ -150,8 +151,9 @@ DEFAULT_RULE = CopyRule()
 
 
 def is_copy(c: Candidate, rule: CopyRule = DEFAULT_RULE) -> bool:
-    """Rule (a), (b) or (c) of :class:`CopyRule`."""
-    if c.anchored >= rule.min_anchored:
+    """Rule (a), (b) or (c) of :class:`CopyRule`; a copy found only through N-tolerant seeds
+    counts too (it is judged 'hidden by N', never as a match)."""
+    if c.masked or c.anchored >= rule.min_anchored:
         return True
     left, right = c.context_left >= rule.min_context, c.context_right >= rule.min_context
     if (left or right) and (c.anchored > 0 or (left and right) or c.cut):
@@ -185,8 +187,9 @@ def locate(
         lo, hi = ref.span
         fine = seed_positions(len(seq_ref), k, lo, hi, step)
         coarse = seed_positions(len(seq_ref), k, lo, hi, step, COARSE_CONTEXT_STEP)
-        max_gap = (hi - lo) + max_indel
-        reach = len(seq_ref) + max_indel
+        # blocks as far apart as the whole reference may chain (flanks either side of a long
+        # N-run over the fragment); their offsets must still agree within max_indel
+        max_gap = reach = len(seq_ref) + max_indel
         for name, contig in contigs.items():
             contig = contig.upper()
             for strand, s in (("+", contig), ("-", iupac.reverse_complement(contig))):
@@ -195,7 +198,31 @@ def locate(
                     c = _candidate(name, strand, s, ri, ref, ch, flank, max_indel)  # type: ignore[arg-type]
                     if c.anchored or max(c.context_left, c.context_right) >= min_context:
                         found.append(c)
+    if not any(c.anchored for c in found) and any("N" in s.upper() for s in contigs.values()):
+        found += _masked(contigs, references, k, step, flank)
     return _best_per_place(found)
+
+
+def _masked(
+    contigs: dict[str, str], references: Sequence[Reference], k: int, step: int, flank: int
+) -> list[Candidate]:
+    """Where no exact block of the fragment is left: its place through N-tolerant seeds
+    (locate.find_masked: at least two agreeing seeds, half of each a real base)."""
+    out: list[Candidate] = []
+    for ri, ref in enumerate(references):
+        n = len(ref.fragment)
+        for lc in find_masked(contigs, ref.fragment, seed_length=k, seed_step=step, flank=flank):
+            length = len(contigs[lc.contig])
+            r0 = lc.start - 1 if lc.strand == "+" else length - lc.end
+            start = r0 + lc.offset
+            inside = lc.region[lc.offset : lc.offset + n]
+            out.append(Candidate(
+                contig=lc.contig, strand=lc.strand, contig_length=length, ref=ri, start=start,
+                end=start + n, fragment_length=n, anchors=((0, start, 0),), anchored=0,
+                context_left=0, context_right=0, identity=None, n_inside=inside.count("N"),
+                n_left=0, n_right=0, region=lc.region, region_start=r0, masked=True,
+            ))  # fmt: skip
+    return out
 
 
 def _candidate(

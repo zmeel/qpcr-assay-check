@@ -172,7 +172,7 @@ settings:                                  # only what differs from the defaults
 #   max_assemblies_per_run: 20000  # newest first, later runs continue; e.g. 5000 for shorter runs
 #   flank_nt: 50
 #   seed_length: 16
-#   seed_step: 4
+#   seed_step: 2
 #   nucleotide_query: null         # blast_partitioned: extra Entrez filter, e.g. "25000:32000[SLEN]"
 #   blast_max_records_per_run: 2000
 #   blast_records_per_search: 100
@@ -180,7 +180,11 @@ settings:                                  # only what differs from the defaults
 #   direct_scan_batch: 20
 #   probe_channels: any            # probes with different reporters: any | all channels must detect
 #   homopolymer_bulges_detectable: false  # true: a site differing only by a run length (poly-A 7->8) counts as detectable
-#   min_copy_identity: 0.75        # a located region counts as a copy only at this identity to the reference fragment
+#   min_anchored_bases: 32         # copy rule (a): fragment bases in exact blocks, in order
+#   min_context_bases: 32          # copy rule (b): bases anchored either side (loci: context_accession)
+#   min_copy_identity: 0.75        # copy rule (c): identity to the reference fragment ...
+#   min_identity_anchored_bases: 16  #   ... with at least this many fragment bases anchored
+#   max_indel: 150                 # largest length difference to the reference within one copy
 #   judge_from_parts: undetermined  # detectable | off: copies cut by a contig end, judged from their sites
 #   multicopy_unassembled: auto    # off: a draft genome with far fewer copies than complete/chromosome-level genomes counts as an escape
 # --- settings reference end ---

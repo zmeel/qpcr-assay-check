@@ -7,6 +7,26 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Per-channel outcomes** (overhaul step 5c): every channel of the first locus is judged over
+  every scanned genome (`coverage.channel_results` in results.json; shown in the report from
+  step 6). Target genomes (in the channel's target taxon, from the genome's NCBI lineage when
+  that differs from the scanned taxon) are detected, not detected, undetermined or 'no locus';
+  a complete genome without the locus counts as not detected (user decision 2026-09-29: a
+  possible deletion). Other genomes of the scan give signal or silent (e.g. the L. pneumophila
+  channel on the other Legionella species); out-of-scope taxa count for information only.
+- **The analysis runs on the chain locator and store v2** (overhaul steps 5a/5b). Genomes
+  (assemblies and Nucleotide records) are scanned with the chain locator into the new store;
+  the flanks come from the locus's context accession around the fragment's best copy (fetched
+  once; a failed fetch stops the variant analysis instead of scanning everything again without
+  them). Each oligo is placed through the nearest exact block of its copy, so a copy longer or
+  shorter than the reference is judged at the right sites (live: the single offset misplaced
+  518 of 1,132 Legionella sites). The copy rule (a/b/c) is applied at assessment time
+  (`variants.min_anchored_bases`, `min_context_bases`, `min_copy_identity`,
+  `min_identity_anchored_bases`), so changing it needs no new download. A failed download batch
+  is retried in halves; sequence reports are fetched for genomes with more than one sequence.
+  `variants.seed_step` is now 2. A fragment without any exact 16-mer left is still found
+  through N-tolerant seeds and reported as hidden by N. **The first run with this version scans
+  every genome again** (a new store; the old `variants/` files are no longer read).
 - **Store v2** (overhaul step 4; `variants/genomestore.py`, not wired in yet): one file per
   locus definition with a header (schema version and key: references with their context, scan
   settings, taxon, source). A file with another key or no header is set aside and every genome

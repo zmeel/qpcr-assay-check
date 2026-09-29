@@ -66,6 +66,25 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Measurement: legionella4 (context now from the fragment's best copy in NC_002942.5) running.
   Wrappers mount the checkout's src/ (no image rebuild for the scripts).
 
+- Step 5a/5b built: exhaustive.py collects into GenomeStore (collect/_process/_download with
+  halving retries; sequence roles only for >1 sequence), locus_references (context via
+  context_from, cached in genomes/context-*.json; fetch failure raises), open_genome_store,
+  as_items adapter (copy rule applied; related / related-beside lists), assess(copies_decided)
+  with StoredLocus.offset_at (anchor placement) and anchored parts; partitioned.py on the new
+  store (BLAST hits relocated with the chain locator, shifted to record coordinates).
+  chain.locate: blocks may chain across the whole reference span (flanks around an N-run);
+  N-tolerant fallback (masked candidates). Old rescan tests removed; new tests in
+  tests/test_variants_step5.py (a test fails when anchor placement is switched off).
+  Old variants/*.jsonl stores are no longer read (can be deleted by the user).
+
+- Step 5c built: GenomeCall.channel_state (best state per channel over copies, parts included),
+  channel_results/_membership/_genome_channel_state (exhaustive.py), ChannelResult in
+  coverage.channel_results; taxonomy.resolve.ancestors (cached lineage ids; outside_target uses
+  it); the CLI passes it as ancestors_of. Tests: one channel with complete vs draft genomes
+  without the locus; genus + species channels (target, signal, silent); unknown lineages.
+  Not yet: report and workbook tables per channel (step 6); per-locus analysis beyond the
+  first locus.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number

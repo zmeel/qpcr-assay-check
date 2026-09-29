@@ -289,7 +289,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     from .history.store import find_previous_run
     from .inclusivity.aggregate import compute_inclusivity
     from .ncbi.http import NcbiError
-    from .taxonomy.resolve import fetch_lineages
+    from .taxonomy.resolve import ancestors, fetch_lineages
     from .taxonomy.rollup import taxonomy_breakdown
 
     previous_run = find_previous_run(outdir, assay.slug)
@@ -338,10 +338,10 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
                 cfg.search.result_format,
             )  # fmt: skip
 
-            def collector(store: Any, taxon: int, amplicon: str, context: Any) -> Any:
+            def collector(store: Any, taxon: int, references: Any) -> Any:
                 return collect_partitioned(
-                    eutils, runner, runner.store, fetcher, store, taxon, amplicon, cfg,
-                    context=context, exclude=assay.target.excluded_taxids,
+                    eutils, runner, runner.store, fetcher, store, taxon, references, cfg,
+                    exclude=assay.target.excluded_taxids,
                 )  # fmt: skip
 
         try:
@@ -349,6 +349,9 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
                 assay, cfg, DatasetsClient(remote.http, cfg.ncbi.datasets_url),
                 remote.cache.root, eutils.fetch_fasta,
                 collector=collector, source=cfg.variants.source,
+                ancestors_of=lambda taxids: ancestors(
+                    eutils, remote.cache, taxids, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
+                ),
             )  # fmt: skip
         except (InputError, NcbiError) as exc:
             variant_note = (

@@ -442,6 +442,13 @@ class VariantsSettings(_Strict):
     # a located region counts as a copy of the target only at this identity to the reference
     # amplicon (over the part it covers); 0 = every located region counts
     min_copy_identity: float = 0.75
+    # the copy rule of the chain locator (overhaul, 2026-09-29): (a) anchored fragment bases,
+    # (b) anchored bases of the sequence either side, (c) with min_copy_identity: the anchored
+    # bases a divergent copy needs at least
+    min_anchored_bases: int = 32
+    min_context_bases: int = 32
+    min_identity_anchored_bases: int = 16
+    max_indel: int = 150  # largest length difference to the reference within one copy
 
     @model_validator(mode="after")
     def _sane(self) -> VariantsSettings:
@@ -455,6 +462,9 @@ class VariantsSettings(_Strict):
             raise ValueError("flank_nt >= 0, seed_length 8-32 and seed_step >= 1 are required")
         if not 0.0 <= self.min_copy_identity <= 1.0:
             raise ValueError("min_copy_identity must be between 0 and 1")
+        if min(self.min_anchored_bases, self.min_context_bases,
+               self.min_identity_anchored_bases, self.max_indel) < 1:  # fmt: skip
+            raise ValueError("the copy-rule base counts and max_indel must be at least 1")
         return self
 
 

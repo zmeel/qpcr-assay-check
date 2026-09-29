@@ -19,8 +19,8 @@ from qpcr_assay_check.report.html import render_report
 from qpcr_assay_check.report.xlsx import write_workbook
 from qpcr_assay_check.variants.datasets import DatasetsClient
 from qpcr_assay_check.variants.exhaustive import reference_amplicon, run_exhaustive
+from qpcr_assay_check.variants.genomestore import GenomeStore
 from qpcr_assay_check.variants.locate import find_loci, find_masked, find_masked_by_context
-from qpcr_assay_check.variants.store import RegionStore
 from qpcr_assay_check.verdict import STATUS_LABEL, Verdict
 
 from .conftest import CDC_N1_F as F
@@ -181,11 +181,21 @@ def test_an_assembly_that_keeps_failing_is_left_out_without_blocking_completion(
 def test_the_region_store_survives_a_restart(tmp_path):
     cfg, fake, client, assay = setup(tmp_path)
     run(tmp_path, cfg, client, assay)
-    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
-    store = RegionStore(path)
+    (path,) = (tmp_path / "cache" / "genomes").glob("813-*.jsonl")
+    key = json.loads(path.read_text().splitlines()[0])["key"]
+    store = GenomeStore(path, key)
     assert len(store.items) == 5 and "GCA_000000004.1" in store
-    assert store.items["GCA_000000004.1"].status == "not_found"
-    assert all(len(lc.region) < 400 for it in store.items.values() for lc in it.loci)  # no genomes
+    assert not store.items["GCA_000000004.1"].copies
+    assert all(len(c.region) < 400 for r in store.items.values() for c in r.copies)  # no genomes
+    downloads = len(fake.downloads)
+    run(tmp_path, cfg, client, assay)  # a second run: everything from the store
+    assert len(fake.downloads) == downloads
+    cfg.variants.min_anchored_bases = 40  # a copy-rule setting: judged again, not re-downloaded
+    run(tmp_path, cfg, client, assay)
+    assert len(fake.downloads) == downloads
+    cfg.variants.seed_step = 3  # a scan setting: another store key, every genome scanned again
+    run(tmp_path, cfg, client, assay)
+    assert len(fake.downloads) > downloads
 
 
 def test_no_assemblies_is_an_input_error_not_an_empty_pass(tmp_path):
@@ -281,24 +291,6 @@ def test_a_plasmid_target_separates_missing_plasmids_from_a_missing_region(tmp_p
     )
 
 
-def test_not_found_entries_stored_before_the_plasmid_check_are_scanned_again(tmp_path):
-    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets(plasmid_assemblies()))
-    run(tmp_path, cfg, client, assay)
-    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
-    # rewrite the store as an older version would have: no plasmid counts on 'not found' lines
-    lines = []
-    for line in path.read_text().splitlines():
-        item = json.loads(line)
-        if item["status"] == "not_found":
-            item.pop("plasmid_contigs"), item.pop("n_contigs"), item.pop("plasmid_examples")
-        lines.append(json.dumps(item))
-    path.write_text("\n".join(lines) + "\n")
-    before = len(fake.downloads)
-    c = run(tmp_path, cfg, client, assay).coverage
-    assert c.processed_this_run == 2 and len(fake.downloads) > before  # only the two 'not found'
-    assert (c.not_found_without_plasmid, c.not_found_with_plasmid) == (1, 1)
-
-
 def test_variant_tables_describe_the_match_in_words(tmp_path):
     cfg, fake, client, assay = setup(tmp_path)
     res = run(tmp_path, cfg, client, assay)
@@ -322,26 +314,6 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
     assert frag.index("likely failure") < frag.index("Detectable (")
     # the frequency of a non-perfect site variant sits next to its class
     assert 'title="this forward site variant, whatever the other sites are"' in frag
-
-
-def test_found_entries_without_plasmid_info_are_rescanned_so_the_split_can_be_shown(tmp_path):
-    """Live finding: found entries from the first v1.1.0 run had no plasmid info, which hid it."""
-    cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets(plasmid_assemblies()))
-    run(tmp_path, cfg, client, assay)
-    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
-    lines = []
-    for line in path.read_text().splitlines():
-        item = json.loads(line)
-        for key in ("plasmid_contigs", "n_contigs", "plasmid_examples"):
-            item.pop(key)
-        for lc in item["loci"]:
-            lc.pop("on_plasmid")
-        lines.append(json.dumps(item))
-    path.write_text("\n".join(lines) + "\n")
-    c = run(tmp_path, cfg, client, assay).coverage
-    assert c.processed_this_run == 4 and c.target_on_plasmid is True
-    assert (c.not_found_without_plasmid, c.not_found_with_plasmid) == (1, 1)
-    assert run(tmp_path, cfg, client, assay).coverage.processed_this_run == 0  # only once
 
 
 def test_exhaustive_inclusivity_explains_assemblies_without_the_region(tmp_path):
@@ -464,26 +436,6 @@ def test_a_wholly_masked_assembly_is_counted_as_hidden_by_n_not_as_not_found(tmp
     assert c.masked_examples == ["GCA_000000009.1"] and c.not_found_examples == ["GCA_000000004.1"]
     assert fetched == ["NC_000117.1"]  # the reference, once, only because something was not found
     assert go().coverage.masked == 1 and fetched == ["NC_000117.1"]  # nothing rescanned or fetched
-
-
-def test_not_found_entries_stored_before_v1_1_1_are_checked_once_for_a_masked_region(tmp_path):
-    go, fetched, fake = _masked_setup(tmp_path)
-    go()
-    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
-    # as v1.1.0 stored them: the masked one as 'not found', neither with context_checked
-    lines = []
-    for line in path.read_text().splitlines():
-        item = json.loads(line)
-        item.pop("context_checked", None)
-        if item["status"] == "masked":
-            item.update(status="not_found", loci=[], n_loci=0)
-        lines.append(json.dumps(item))
-    path.write_text("\n".join(lines) + "\n")
-    for f in path.parent.glob("*.context.json"):
-        f.unlink()  # and without the cached reference context
-    c = go().coverage
-    assert c.processed_this_run == 2 and (c.masked, c.not_found) == (1, 1)
-    assert go().coverage.processed_this_run == 0  # checked once, not every run
 
 
 def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
@@ -927,13 +879,14 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     # 2026: GCA_3 only (probe and reverse detectable); GCA_7 (from parts) would add 3
     assert sum(w.n_detectable for w in windows if w.year == 2026) == 2
 
-    # 5. identities are computed once and kept in the store
-    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
+    # 5. every stored copy with fragment bases anchored carries its identity
+    (path,) = (tmp_path / "cache" / "genomes").glob("813-*.jsonl")
     last = {}
-    for line in path.read_text().splitlines():
+    for line in path.read_text().splitlines()[1:]:
         item = json.loads(line)
         last[item["accession"]] = item
-    assert all(lc["identity"] is not None for it in last.values() for lc in it["loci"])
+    assert all(c["identity"] is not None for it in last.values() for c in it["copies"]
+               if c["anchored"])  # fmt: skip
 
     # 3. an N in a cut copy's site is skipped, never chosen (was: the genome became "masked")
     nsplit = AMP[60:].replace(iupac.reverse_complement(R)[5], "N", 1)
@@ -954,41 +907,3 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     loci, masked, _ref = scan_region(contigs, AMP, None, seed_length=16, seed_step=4,
                                      flank=50, min_identity=0.75)  # fmt: skip
     assert masked and not loci
-
-
-def test_a_related_only_genome_in_an_older_multi_reference_store_is_scanned_again(tmp_path):
-    """Code review of PR #29: stored before the scan tried the next reference amplicon."""
-    from qpcr_assay_check.variants.store import RegionStore
-
-    other = filler(120, 55)
-    extra = FakeAssembly(
-        "GCA_000000008.1",
-        "2026-05-01",
-        {"U8.1": _related_region(81) + filler(400, 56) + other + filler(400, 57)},
-    )
-    cfg, fake, client, _a = setup(tmp_path, fake=FakeDatasets([*assemblies(), extra]))
-    assay = make_assay(reference_amplicon=AMP, target={"taxid": 813},
-                       reference_amplicons=[{"name": "A", "sequence": AMP},
-                                            {"name": "B", "sequence": other}])  # fmt: skip
-    res = run(tmp_path, cfg, client, assay)
-    assert "GCA_000000008.1" not in res.coverage.related_only_examples  # found through ref B
-    (path,) = (tmp_path / "cache" / "variants").glob("813-*.jsonl")
-    # rewrite it as an older version stored it: only the chance region, no identity_scanned
-    store = RegionStore(path)
-    old = store.items["GCA_000000008.1"]
-    region = _related_region(81)
-    from qpcr_assay_check.variants.locate import find_loci
-
-    (lc,) = find_loci({"U8.1": region}, AMP, seed_length=16, seed_step=4, flank=50)
-    store.save(old.model_copy(update={
-        "loci": [old.loci[0].model_copy(update={
-            "contig": lc.contig, "strand": lc.strand, "start": lc.start, "end": lc.end,
-            "region": lc.region, "offset": lc.offset, "n_seeds": lc.n_seeds,
-            "truncated": lc.truncated, "ref": 0, "identity": None})],
-        "n_loci": 1, "identity_scanned": None}))  # fmt: skip
-    res = run(tmp_path, cfg, client, assay)
-    assert "GCA_000000008.1" in res.coverage.related_only_examples
-    assert RegionStore(path).items["GCA_000000008.1"].rescan  # flagged once
-    res = run(tmp_path, cfg, client, assay)  # the next run scans it again
-    assert "GCA_000000008.1" not in res.coverage.related_only_examples
-    assert not RegionStore(path).items["GCA_000000008.1"].rescan

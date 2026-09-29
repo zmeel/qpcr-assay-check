@@ -182,7 +182,7 @@ def test_a_second_run_reuses_the_cache_and_sends_no_new_searches(env):
     first = invoke(env, "--yes")
     assert first.exit_code in (20, 30)
     puts, fetches = fake.n_put, len(fake.efetch_calls)
-    assert puts == 2 and fetches == 1
+    assert puts == 2 and fetches == 2  # a window, and the target record once for the context
     second = invoke(env, "--yes")
     assert second.exit_code == first.exit_code
     assert (
@@ -469,6 +469,8 @@ def test_a_full_run_can_use_partitioned_blast_for_the_variant_summary(env, monke
     fake = FakeNuccore([
         FakeRecord("1", "MZ000001.1", "2026/01/02", filler(300, 1) + amp + filler(300, 2)),
         FakeRecord("2", "MZ000002.1", "2025/03/04", filler(900, 3)),
+    ], unlisted=[  # the target accession: the sequence either side of the fragment (context)
+        FakeRecord("0", "NC_045512.2", "2020/01/01", filler(500, 4) + amp + filler(500, 5)),
     ])  # fmt: skip
     monkeypatch.setattr("qpcr_assay_check.ncbi.http.requests.Session", lambda: fake)
     env.conf.write_text(

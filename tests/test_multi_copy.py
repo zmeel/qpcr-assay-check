@@ -192,24 +192,6 @@ def test_a_bulge_with_a_mismatch_is_never_detectable():
     assert not detectable(site, True) and not detectable(site, False)  # type: ignore[arg-type]
 
 
-def test_genomes_stored_with_the_old_copy_limit_are_downloaded_again_once(tmp_path, monkeypatch):
-    from qpcr_assay_check.variants import store as store_mod
-
-    def once():
-        cfg, fake, client, _ = setup(tmp_path, fake=FakeDatasets(
-            [FakeAssembly("GCA_000000113.1", "2026-02-01", copies(13, *[AMP] * 7))]))  # fmt: skip
-        assay = make_assay(reference_amplicon=AMP, target={"taxid": 813})
-        res = run_exhaustive(assay, cfg, client, tmp_path / "cache", _no_fetch, now=NOW)
-        c = res.coverage.copies
-        return c.max_copies, c.copies_capped, len(fake.downloads)
-
-    monkeypatch.setattr(store_mod, "MAX_LOCI_KEPT", 5)  # a store written before v1.3.0
-    assert once() == (5, 0, 1)
-    monkeypatch.setattr(store_mod, "MAX_LOCI_KEPT", 20)
-    assert once() == (7, 0, 1)  # downloaded again: every copy is stored now
-    assert once() == (7, 0, 0)  # and only once
-
-
 def test_a_genome_with_more_copies_than_kept_is_not_rescanned_every_run():
     from qpcr_assay_check.variants.store import MAX_LOCI_KEPT, StoredAssembly
 

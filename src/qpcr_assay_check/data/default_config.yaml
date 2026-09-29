@@ -182,8 +182,9 @@ variants:
   exclude_atypical: true           # NCBI's "atypical" flag (assembly problems)
   max_assemblies_per_run: 20000    # newest first; the rest follow on later runs (resumable)
   flank_nt: 50                     # bases kept on each side of the amplicon
-  seed_length: 16                  # exact k-mers of the reference amplicon used to find it
-  seed_step: 4                     #   (every 4th position, both strands)
+  seed_length: 16                  # exact k-mers of the reference fragment used to find it
+  seed_step: 2                     #   (every 2nd position, both strands; measured 2026-09-29:
+                                   #   every 4th missed divergent opa copies, every 2nd did not)
   # blast_partitioned only:
   nucleotide_query: null           # extra Entrez filter for the record list, e.g. "25000:32000[SLEN]"
   blast_max_records_per_run: 2000  # newest first; one BLAST search per blast_records_per_search
@@ -206,13 +207,18 @@ variants:
                                    #   of them, median 2 or more), counts as undetermined "copies
                                    #   possibly unassembled" unless one of those fails the same
                                    #   way (also in the panel command);
-  min_copy_identity: 0.75          # a located region counts as a copy of the target only when
-                                   #   it matches the reference fragment over at least this share
-                                   #   (banded alignment, over the part it covers). Measured
-                                   #   (advisor, 2026-09-28): true Legionella copies 0.99-1.00, an
-                                   #   unrelated region found through one chance seed 0.57, random
-                                   #   sequence 0.56 +- 0.02, a real divergent N. gonorrhoeae opa
-                                   #   copy 0.80. Weaker regions are listed, never judged; 0 = off
+  # A located region counts as a copy of the locus when ANY of (a), (b), (c) holds; weaker
+  # regions are listed, never judged. Measured (2026-09-28/29): chance regions reach at most 18
+  # anchored bases and identity 0.54-0.60; true copies of a divergent species 114+ bases.
+  min_anchored_bases: 32           # (a) fragment bases in exact blocks, in order
+  min_context_bases: 32            # (b) bases anchored in the sequence on one side of the
+                                   #   fragment (context accession), with the fragment touched,
+                                   #   flanked on both sides, or cut by a contig end
+  min_copy_identity: 0.75          # (c) identity to the reference fragment over the part the
+                                   #   copy covers (e.g. the divergent N. gonorrhoeae opa copy:
+                                   #   0.80) ...
+  min_identity_anchored_bases: 16  #   ... with at least this many fragment bases anchored
+  max_indel: 150                   # largest length difference to the reference within one copy
   judge_from_parts: undetermined   # genomes whose copies are cut by a contig end (e.g. rRNA
                                    #   operons in draft assemblies) but that carry a detectable
                                    #   site of every role on the cut copies (2+ exact seeds each):
