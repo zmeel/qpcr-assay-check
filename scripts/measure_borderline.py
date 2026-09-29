@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """List the borderline candidates of measure_locator.py reports, one line each.  (step 0)
 
-Borderline: fewer than 32 anchored bases (M) with identity >= 0.65, or M from 24 to 31. These
+Borderline: fewer than 32 anchored bases (M) with identity >= 0.60, or M from 24 to 31. These
 decide the copy rule of the locator overhaul, so each line says whether the candidate is whole
 or cut by a contig end. Output: coordinates and numbers only, no sequences.
 
@@ -20,7 +20,10 @@ from pathlib import Path
 from typing import Any
 
 log = logging.getLogger("measure_borderline")
-HEADER = "accession organism M identity length_diff whole/cut start contig_len mismatches"
+HEADER = (
+    "accession organism M identity length_diff whole/cut start contig_len ctx_left ctx_right "
+    "mismatches"
+)
 
 
 def borderline(report: dict[str, Any]) -> Iterator[str]:
@@ -28,13 +31,14 @@ def borderline(report: dict[str, Any]) -> Iterator[str]:
     for g in report.get("genomes", []):
         for c in g.get("candidates", []):
             m, ident = c["M_amp"]["1"], c.get("identity_chain", 0)
-            if c["context_only"] or not ((m < 32 and ident >= 0.65) or 24 <= m < 32):
+            if c["context_only"] or not ((m < 32 and ident >= 0.60) or 24 <= m < 32):
                 continue
             cut = "cut" if c["cut_left"] or c["cut_right"] else "whole"
             mm = " ".join(f"{s['oligo']}:{s['mm_chain']}" for s in c["sites"])
             organism = (g.get("organism") or "?").replace(" ", "_")[:28]
             yield (f"{g['accession']} {organism} {m} {ident} {c['length_diff']} {cut} "
-                   f"{c['amp_start']} {c['contig_len']} {mm}")  # fmt: skip
+                   f"{c['amp_start']} {c['contig_len']} {c.get('M_ctx_left', '-')} "
+                   f"{c.get('M_ctx_right', '-')} {mm}")  # fmt: skip
 
 
 def main(argv: list[str] | None = None) -> int:

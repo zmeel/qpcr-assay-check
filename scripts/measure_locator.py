@@ -360,6 +360,7 @@ def measure_genome(
             cand: dict[str, Any] = {
                 "ref": ri, "contig": contig, "strand": strand, "contig_len": len(s),
                 "n_blocks": len(ch.blocks), "M_amp": {1: m_amp}, "M_all": ch.anchored(0, len(ref)),
+                "M_ctx_left": ch.anchored(0, lo), "M_ctx_right": ch.anchored(hi, len(ref)),
                 "context_only": m_amp == 0, "amp_start": a0, "amp_end": a1,
                 "length_diff": (a1 - a0) - len(amp), "cut_left": a0 < 0, "cut_right": a1 > len(s),
                 "dist_to_start": a0, "dist_to_end": len(s) - a1,

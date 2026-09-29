@@ -54,6 +54,20 @@ verified NCBI facts) at the start of every session. Newest entry first.
   0.27 / 0.28. Still open before the defaults: the ambiguous candidates (Legionella M 24-31
   with identity < 0.65: 2; M < 24 with identity >= 0.65: 26; Neisseria M < 24 with identity
   >= 0.75: 98), whole or cut by a contig end.
+- Borderline candidates (user, scripts/measure_borderline.sh). Neisseria: the 98 are one region
+  per genome, the divergent opa copy also in the complete reference GCF_013030075.1 (~1,478,815;
+  whole, identity 0.80/0.785, NG-F 6, NG-R 12, NG-P1 1 mm), plus copies cut by a contig end
+  (M 16-20, identity 1.0 over the part present). Legionella: L. pneumophila copies cut by a
+  contig end (M 24-26, identity 1.0; contigs of 726-1,937 nt); divergent-species copies cut
+  before the amplicon start with only the reverse end present (M 16-19, identity 0.83-0.95,
+  reverse 1-2 mm); WHOLE regions of uncultured / unnamed Legionellaceae with identity 0.66-0.72
+  and M 17-21 where the genus probe matches (0-1 mm) and the reverse 2-3 mm, forward 1-13 mm:
+  real copies of the target locus that neither arm of the rule catches; GCF_024160945.1
+  (Legionella sp.) M 29, identity 0.62, forward 0 but reverse and genus probe 9 mm. Conclusion:
+  for a locus-defined assay the conserved flanks identify the locus and amplicon identity only
+  measures divergence. Next: rerun Legionella with the reference context from NC_002942.5
+  (L. pneumophila Philadelphia 1, complete, 3,397,754 nt; verified at NCBI 2026-09-29), the
+  measurement now records context anchoring per side (M_ctx_left/right).
 
 ## 2026-09-28 (end) — Threshold hides divergent Legionella species; next: overhaul with advisor
 

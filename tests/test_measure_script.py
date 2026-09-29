@@ -182,4 +182,18 @@ def test_borderline_lists_whole_and_cut_candidates(tmp_path):
     report = {"genomes": [{"accession": "GCF_1.1", "organism": "Legionella x",
                            "candidates": [cut, whole, chance]}]}  # fmt: skip
     (line,) = bl.borderline(report)
-    assert line.startswith("GCF_1.1 Legionella_x 26 1.0 0 cut -234 900 R:0")
+    assert line.startswith("GCF_1.1 Legionella_x 26 1.0 0 cut -234 900 - - R:0")
+
+
+def test_context_anchors_are_counted_on_each_side():
+    left, right = filler(300, 21), filler(300, 22)
+    cfg = load_config()
+    oligos = [script.oligo_sites(ASSAY, AMP, cfg.thresholds.amplicon.max_site_mismatches)]
+    spacer = filler(len(AMP), 23)  # the amplicon itself wholly divergent, its flanks conserved
+    row = script.measure_genome(
+        {"C1": filler(2000, 1) + left + spacer + right + filler(2000, 2)}, [AMP], (left, right),
+        oligos, k=16, current_step=4, flank=50, max_indel=150, n_null=0, rule_m=32,
+        rule_identity=0.75, min_copy_identity=0.75,
+    )  # fmt: skip
+    (c,) = [c for c in row["candidates"] if c["context_only"]]
+    assert c["M_ctx_left"] >= 290 and c["M_ctx_right"] >= 290 and c["amp_start"] == 2300
