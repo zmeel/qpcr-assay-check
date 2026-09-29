@@ -144,3 +144,25 @@ def test_nucleotide_fasta_is_split_per_accession():
     text = ">OR000001.1 enterovirus D68\nACGT\n>OR000002.1 x\nGGCC\n"
     assert script._by_accession(text, ["OR000001.1", "OR000002"]) == {
         "OR000001.1": {"OR000001.1": "ACGT"}, "OR000002": {"OR000002.1": "GGCC"}}  # fmt: skip
+
+
+def test_groups_without_a_store_stop_with_a_clear_message(tmp_path):
+    import pytest
+
+    args = argparse.Namespace(
+        group=["related"],
+        accessions="",
+        per_group=5,
+        max_genomes=10,
+        batch=2,
+        max_indel=150,
+        null=1,
+        rule_m=32,
+        rule_identity=0.75,
+        context_accession="",
+        probe_sequence_report="",
+        outdir=tmp_path / "out",
+        cache_root=tmp_path / "cache",
+    )
+    with pytest.raises(SystemExit, match="No region store"):
+        script.run(args, ASSAY, load_config(), lambda accs: {})
