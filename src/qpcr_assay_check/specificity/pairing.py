@@ -11,6 +11,13 @@ from .models import AmpliconResult, SiteResult
 from .sites import record_type
 
 
+def _channels(assay: Assay, binding: list[SiteResult]) -> list[str]:
+    """The channels whose probes bind inside a product (a degenerate variant counts as its
+    oligo), in the assay's channel order."""
+    names = {re.sub(r"_v\d+$", "", p.query) for p in binding}
+    return [ch.name for ch in assay.channels if names & set(ch.probes)]
+
+
 def _who(site: SiteResult) -> str:
     """The oligo's name for a named oligo, else its role (unchanged for single-oligo assays)."""
     name = re.sub(r"_v\d+$", "", site.query)
@@ -113,6 +120,7 @@ def predict_amplicons(
                         end=right.subject_end,
                         length=length,
                         probe_site=best.id if best else None,
+                        channels=_channels(assay, binding),
                         classification="likely_detected" if binding else "amplified_not_detected",
                         record_type=rtype,  # type: ignore[arg-type]
                         note=_note(assay, rules, left, rtype),

@@ -235,7 +235,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   {% for g in groups %}
   <tr><td>{{ g.tier }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
     <td class="num">{{ g.n_products }}<br><span class="meta">{{ g.n_records }} record{{ '' if g.n_records == 1 else 's' }}</span></td>
-    <td>{% if g.n_detected %}{{ chip('likely_detected') }} {{ g.n_detected }}{% endif %}{% if g.n_products - g.n_detected %}{% if g.n_detected %}<br>{% endif %}{{ chip('amplified_not_detected') }} {{ g.n_products - g.n_detected }}{% endif %}</td>
+    <td>{% if g.n_detected %}{{ chip('likely_detected') }} {{ g.n_detected }}{% if assay.channels | length > 1 and g.channels %}<br><span class="meta">{% for ch, c in g.channels.most_common() %}{{ ch }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}{% endif %}{% if g.n_products - g.n_detected %}{% if g.n_detected %}<br>{% endif %}{{ chip('amplified_not_detected') }} {{ g.n_products - g.n_detected }}{% endif %}</td>
     <td>{{ g.best_mismatches }} primer mismatch{{ '' if g.best_mismatches == 1 else 'es' }}<br><span class="meta">{{ g.best.accession | ncbi }} {{ g.best.start }}–{{ g.best.end }}</span></td>
     <td class="num">{{ g.length_range }}</td><td>{% for pair, c in g.pairs.most_common(3) %}{{ pair }}{% if g.pairs | length > 1 %} ({{ c }}){% endif %}{{ '<br>' | safe if not loop.last }}{% endfor %}</td></tr>
   {% endfor %}
@@ -319,7 +319,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   {% endfor %}
   </tbody>
 </table></div>
-{% if cc.channels | length > 1 %}
+{% if cc.channels | length > 1 and not channel_table %}
 <p><strong>Probe channels</strong> (probes with different reporters detect different regions; counted as detected when <strong>{{ 'any channel' if cc.probe_channels == 'any' else 'every channel' }}</strong> detects, setting <code>variants.probe_channels</code>):</p>
 <div class="scroll"><table>
   <thead><tr><th>Reporter</th><th>Probes</th><th>Genomes detected</th></tr></thead>
@@ -458,6 +458,19 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p>The target tier was not searched in this run, so this section is Incomplete: evidence is missing.</p>
 {% else %}
 <div class="notice"><p><strong>Sampling.</strong> {{ r.inclusivity.sample_scheme }}</p></div>
+{% if channel_table %}
+<h3 id="channels">Detection per channel</h3>
+<p class="meta">Each reporter channel is judged on its own target: a genome counts when one of its copies carries both primers and one of the channel's probes detectable. Target membership comes from each genome's NCBI lineage. A complete genome without the region counts as not detected (a possible deletion); a draft without it is listed separately. "Other genomes" are the rest of the genomes searched: a signal there means the channel also detects them. All assessed years; the status uses your inclusivity limits.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Channel</th><th>Probes</th><th>Target</th><th>Genomes</th><th>Detected</th><th>Not detected</th><th>Undetermined</th><th>Drafts without region</th><th>Other genomes</th><th>Signal there</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for ch, level, why in channel_table %}
+  <tr><td>{{ ch.name }}{% if ch.reporter %} <span class="meta">{{ ch.reporter }}</span>{% endif %}</td><td>{{ ch.probes | join(', ') }}</td><td>{{ ch.target_taxid }}</td><td class="num">{{ ch.target_genomes }}</td><td class="num">{{ ch.detected }}{% if ch.detected_percent is not none %} <span class="meta">({{ pct(ch.detected_percent) }})</span>{% endif %}</td><td class="num">{{ ch.not_detected }}{% if ch.not_detected_examples %}<br><span class="meta">e.g. {{ ch.not_detected_examples[:5] | join(', ') | ncbi }}</span>{% endif %}</td><td class="num">{{ ch.undetermined }}</td><td class="num">{{ ch.no_locus }}</td><td class="num">{{ ch.nontarget_genomes }}{% if ch.out_of_scope_genomes %}<br><span class="meta">+ {{ ch.out_of_scope_genomes }} out of scope ({{ ch.out_of_scope_signal }} signal, information)</span>{% endif %}</td><td class="num">{{ ch.signal }}{% if ch.signal_examples %}<br><span class="meta">e.g. {{ ch.signal_examples[:5] | join(', ') | ncbi }}</span>{% endif %}</td><td>{{ chip(level.value) }}{% if why %}<br><span class="meta">{{ why }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if channel_table | map(attribute='0.membership_unknown') | sum %}<p class="meta">Genomes without a known lineage are not counted for a channel whose target differs from the searched taxon.</p>{% endif %}
+{% endif %}
 {% if r.inclusivity.fragment_years %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 <p class="meta">The summary and the inclusivity status use this outcome, pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete release years and the current one (see Rationale below); when the pooled figure has no flags, a single year in that window with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives Review; smaller years are marked "few records" and only shown. Per year, each genome's outcome from its three sites together, as in the whole-fragment table: detectable when all three are perfect or tolerated, otherwise the worst site, and likely failure by the primer-pair rule (3 + &ge;2 or 4 + 1 mismatches across the two primers). Percentages are of the records with all three sites minus the undetermined ones, the same base as the summary; undetermined records are counted but not in a percentage. Years in the summary window are marked. The tables per oligo below show each site on its own; they explain the status but do not decide it.</p>

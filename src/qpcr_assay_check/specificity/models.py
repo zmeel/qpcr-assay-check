@@ -84,6 +84,10 @@ class AmpliconResult(BaseModel):
     end: int
     length: int
     probe_site: str | None = None
+    channels: list[str] = Field(
+        default_factory=list,
+        description="detection channels with a probe binding inside the product (overhaul step 6)",
+    )
     classification: Literal["likely_detected", "amplified_not_detected"]
     record_type: Literal["genomic", "transcript", "other"]
     note: str = ""

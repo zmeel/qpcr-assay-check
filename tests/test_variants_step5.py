@@ -88,7 +88,7 @@ def test_one_channel_counts_a_missing_locus_as_not_detected_only_in_complete_gen
     assert ch.not_detected_examples == ["GCF_000000002.1"] and ch.detected_percent == 50.0
 
 
-def test_a_species_channel_is_judged_on_its_own_target_and_silent_elsewhere(tmp_path):
+def _two_channels(tmp_path):
     """Legionella-type: a genus channel and a species channel on one amplicon (SYNTHETIC)."""
     from qpcr_assay_check.models import Assay
 
@@ -117,11 +117,48 @@ def test_a_species_channel_is_judged_on_its_own_target_and_silent_elsewhere(tmp_
     lineage = {446: {446, 445, 444}, 450: {450, 445, 444}}
     res = run_exhaustive(assay, cfg, client, tmp_path / "cache", _no_fetch, now=NOW,
                          ancestors_of=lambda ids: {t: lineage[t] for t in ids})  # fmt: skip
+    return assay, cfg, res
+
+
+def test_a_species_channel_is_judged_on_its_own_target_and_silent_elsewhere(tmp_path):
+    _assay, _cfg, res = _two_channels(tmp_path)
     genus, spec = res.coverage.channel_results
     assert (genus.target_genomes, genus.detected, genus.nontarget_genomes) == (3, 3, 0)
     assert (spec.target_genomes, spec.detected) == (1, 1)
     assert (spec.nontarget_genomes, spec.silent, spec.signal) == (2, 1, 1)
     assert spec.signal_examples == ["GCF_000000003.1"]  # the species probe also binds there
+
+
+def test_the_report_and_workbook_show_each_channel_and_its_status(tmp_path):
+    from openpyxl import load_workbook
+
+    from qpcr_assay_check.pipeline import evaluate
+    from qpcr_assay_check.report.html import render_report
+    from qpcr_assay_check.report.summary import summary_rows
+    from qpcr_assay_check.report.xlsx import write_workbook
+    from qpcr_assay_check.verdict import Verdict
+
+    from .test_variants_exhaustive import _empty_specificity
+
+    assay, cfg, res = _two_channels(tmp_path)
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    # three genomes are too few for the pooled figure (Incomplete, which outranks Review); the
+    # species channel's signal in a non-target genome is added to the rationale
+    assert result.inclusivity.verdict is Verdict.INCOMPLETE
+    assert any(line.startswith("Channel species: a signal in 1 of 2") for line in
+               result.inclusivity.rationale)  # fmt: skip
+    rows = {r.check: r for r in summary_rows(result, cfg, [])}
+    assert rows["Detection per channel: genus (VIC)"].css == "PASS"
+    assert rows["Detection per channel: species (FAM)"].css == "WARN"
+    html = render_report(result, cfg)
+    assert 'id="channels"' in html and "Detection per channel" in html
+    write_workbook(result, tmp_path / "r.xlsx", cfg)
+    sheet = list(load_workbook(tmp_path / "r.xlsx")["Channels"].iter_rows(values_only=True))
+    assert [r[0] for r in sheet[1:]] == ["genus", "species"] and sheet[2][11] == 1
 
 
 def test_genomes_without_a_lineage_are_not_counted_for_a_narrower_channel(tmp_path):
@@ -135,3 +172,24 @@ def test_genomes_without_a_lineage_are_not_counted_for_a_narrower_channel(tmp_pa
     res = run_exhaustive(assay, cfg, client, tmp_path / "cache", _no_fetch, now=NOW)
     (ch,) = res.coverage.channel_results
     assert ch.target_genomes == 0 and ch.membership_unknown == res.coverage.assessed_total
+
+
+def test_channel_status_rules():
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.variants.exhaustive import channel_verdict
+    from qpcr_assay_check.variants.models import ChannelResult
+    from qpcr_assay_check.verdict import Verdict
+
+    rules = load_config().inclusivity  # review below warn_below_percent, FAIL below fail_below
+    ch = lambda **kw: ChannelResult(name="c", probes=["p"], **kw)  # noqa: E731
+    ok = ch(target_genomes=100, detected=100)
+    assert channel_verdict(ok, rules) == (Verdict.PASS, "")
+    low = int(rules.fail_below_percent) - 1
+    assert channel_verdict(ch(target_genomes=100, detected=low, not_detected=100 - low),
+                           rules)[0] is Verdict.FAIL  # fmt: skip
+    level, why = channel_verdict(ch(target_genomes=100, detected=100, nontarget_genomes=5,
+                                    signal=2), rules)  # fmt: skip
+    assert level is Verdict.WARN and "2 of 5 genomes outside its target" in why
+    assert channel_verdict(ch(), rules)[0] is Verdict.INCOMPLETE
+    unknown = ch(target_genomes=10, detected=10, membership_unknown=3)
+    assert channel_verdict(unknown, rules)[0] is Verdict.INCOMPLETE

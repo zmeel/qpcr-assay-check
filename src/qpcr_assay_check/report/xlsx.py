@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from openpyxl import Workbook
@@ -13,6 +14,7 @@ from ..config import Config
 from ..history.models import HistoryResult
 from ..results import RunResult
 from ..specificity.variants import LIST_FULL_NOTE, group_off_target_sites
+from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
 from .grouping import fragment_outcome, spec_overview
 from .ncbi_links import accession_url, taxon_url
@@ -280,10 +282,11 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb,
             "Predicted products",
             ["ID", "Tier", "Accession", "Organism", "Start", "End", "Length (bp)", "Primers",
-             "Class", "Probe site", "Record", "Note"],
+             "Class", "Probe site", "Channels", "Record", "Note"],
             [
                 [a.id, a.tier, a.accession, a.organism or "", a.start, a.end, a.length, a.roles,
-                 a.classification, a.probe_site or "", a.record_type, a.note]
+                 a.classification, a.probe_site or "", ", ".join(a.channels), a.record_type,
+                 a.note]
                 for a in spec.amplicons
             ],
             None,
@@ -458,6 +461,26 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             [[acc, "every site whole on copies cut by a contig end, possibly different copies"]
              for acc in cov_all.copies.from_parts_accessions],
             None,
+        )  # fmt: skip
+    if channels_shown(cov_all):
+        rules = SimpleNamespace(**result.config.get("inclusivity", {}))
+        rows = []
+        for r in cov_all.channel_results:  # type: ignore[union-attr]
+            level, why = channel_verdict(r, rules)
+            rows.append([
+                r.name, r.reporter or "", ", ".join(r.probes), r.target_taxid, r.target_genomes,
+                r.detected, r.detected_percent, r.not_detected, r.undetermined, r.no_locus,
+                r.nontarget_genomes, r.signal, r.out_of_scope_genomes, r.membership_unknown,
+                STATUS_LABEL[level], why, ", ".join(r.not_detected_examples),
+                ", ".join(r.signal_examples),
+            ])  # fmt: skip
+        _sheet(
+            wb, "Channels",
+            ["Channel", "Reporter", "Probes", "Taxid", "Target genomes", "Detected",
+             "Detected %", "Not detected", "Undetermined", "Drafts without region",
+             "Other genomes", "Signal in other genomes", "Out of scope (information)",
+             "Lineage unknown", "Status", "Why", "Not detected (examples)", "Signal (examples)"],
+            rows, 14,
         )  # fmt: skip
     incl = result.inclusivity
     if incl is not None and incl.oligos:

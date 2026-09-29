@@ -154,7 +154,8 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     html = render_report(result, cfg)
     assert "Copies, coverage per oligo, and escapes" in html and "none of them" in html
     assert "poly-A run 4→5 (homopolymer length variant)" in html
-    assert "Probe channels" in html and "any channel" in html
+    # two reporters: the per-channel table (overhaul step 6) replaces the old channel counts
+    assert "Detection per channel" in html and "Probe channels" not in html
     assert "not counted (strict)" in html and "if homopolymer bulges are tolerated" in html
     # graded classes: the columns and the explanation, although the first year (2017) is empty
     # (live 2026-09-25 they were hidden, as the template looked at the first year only)

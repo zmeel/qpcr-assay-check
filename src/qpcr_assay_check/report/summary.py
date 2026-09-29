@@ -14,6 +14,7 @@ from typing import Any
 from ..config import Config
 from ..inclusivity.models import fragment_window
 from ..results import RunResult
+from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL, Verdict
 from .grouping import TIER_TITLE
 
@@ -271,6 +272,36 @@ def _inclusivity_row(result: RunResult, cfg: Config, cmp: _Compare) -> SummaryRo
     )
 
 
+def _channel_rows(result: RunResult, cfg: Config) -> list[SummaryRow]:
+    """One row per detection channel (overhaul step 6), when channels differ in anything: its
+    own target, detection over every assessed genome of it, and any signal elsewhere."""
+    vs = result.variant_summary
+    c = vs.coverage if vs else None
+    if not channels_shown(c):
+        return []
+    rows = []
+    for r in c.channel_results:  # type: ignore[union-attr]
+        level, why = channel_verdict(r, cfg.inclusivity)
+        judged = r.detected + r.not_detected
+        scope = (f"{r.target_genomes:,} genomes of its target (taxon {r.target_taxid}), all "
+                 f"years; {r.nontarget_genomes:,} other genomes of the scan")  # fmt: skip
+        parts = [
+            f"{r.detected_percent:.1f}% detected ({r.detected:,} of {judged:,})"
+            if r.detected_percent is not None
+            else "no target genome judged"
+        ]
+        if r.undetermined:
+            parts.append(f"{r.undetermined:,} undetermined")
+        if r.no_locus:
+            parts.append(f"{r.no_locus:,} drafts without the region")
+        if r.nontarget_genomes:
+            parts.append(f"signal in {r.signal:,} of {r.nontarget_genomes:,} other genomes")
+        dye = f" ({r.reporter})" if r.reporter else ""
+        rows.append(_row(f"Detection per channel: {r.name}{dye}", scope, ", ".join(parts), "–",
+                         level, why, "channels"))  # fmt: skip
+    return rows
+
+
 def _coverage_row(result: RunResult, cmp: _Compare) -> SummaryRow | None:
     vs = result.variant_summary
     c = vs.coverage if vs else None
@@ -357,6 +388,7 @@ def summary_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Su
     if result.mode != "qc-only":
         rows += _tier_rows(result, cfg, overview, cmp)
         rows.append(_inclusivity_row(result, cfg, cmp))
+        rows += _channel_rows(result, cfg)
         cov = _coverage_row(result, cmp)
         if cov is not None:
             rows.append(cov)
