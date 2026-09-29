@@ -1,9 +1,9 @@
 """One precedence for every genome count (overhaul step 2): coverage, assembly levels, the
-escape and undetermined lists, the whole-fragment years and the panel all use genome_outcome."""
+escape and undetermined lists, the whole-fragment years and the channel counts all use
+genome_outcome."""
 
 import pytest
 
-from qpcr_assay_check.panel import State, member_states
 from qpcr_assay_check.variants.exhaustive import (
     GenomeCall,
     GenomeOutcome,
@@ -65,8 +65,12 @@ def test_every_count_uses_the_same_outcome():
     c = levels["Contig"]
     assert (c.detectable, c.escapes, c.undetermined, c.unassembled, c.from_parts) == (0, 0, 1, 1, 1)
     assert (levels["Complete Genome"].detectable, levels["Complete Genome"].escapes) == (1, 1)
-    items = [StoredAssembly(accession=x.accession, release_date="2024-01-01", status="found")
-             for x in calls]  # fmt: skip
-    states = {acc: st for acc, (st, _it) in member_states(items, calls).items()}
-    assert states == {"A": State.DETECTED, "B": State.ESCAPE, "C": State.UNDETERMINED,
-                      "D": State.UNDETERMINED, "E": State.UNDETERMINED}  # fmt: skip
+    from qpcr_assay_check.variants.exhaustive import _genome_channel_state
+
+    items = {x.accession: StoredAssembly(accession=x.accession, release_date="2024-01-01",
+                                         status="found") for x in calls}  # fmt: skip
+    for x in calls:  # one channel ("FAM"): its state per genome follows the same outcome
+        x.channel_state = {"FAM": "ok" if x.accession == "A" else "fail"}
+    states = {x.accession: _genome_channel_state(items[x.accession], x, "FAM") for x in calls}
+    assert states == {"A": "ok", "B": "fail", "C": "fail", "D": "undetermined",
+                      "E": "undetermined"}  # fmt: skip

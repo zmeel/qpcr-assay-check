@@ -198,7 +198,10 @@ def locate(
                     c = _candidate(name, strand, s, ri, ref, ch, flank, max_indel)  # type: ignore[arg-type]
                     if c.anchored or max(c.context_left, c.context_right) >= min_context:
                         found.append(c)
-    if not any(c.anchored for c in found) and any("N" in s.upper() for s in contigs.values()):
+    # no copy by exact blocks (a chance 16-mer elsewhere does not count): look under the N
+    if not any(c.anchored >= CopyRule.min_anchored for c in found) and any(
+        "N" in s.upper() for s in contigs.values()
+    ):
         found += _masked(contigs, references, k, step, flank)
     return _best_per_place(found)
 

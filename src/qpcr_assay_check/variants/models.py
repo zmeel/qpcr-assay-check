@@ -94,10 +94,6 @@ class CopyCoverage(BaseModel):
     genomes: int = Field(description="genomes with at least one complete copy assessed")
     multi_copy: int = Field(description="genomes with more than one complete copy assessed")
     max_copies: int = 0
-    copies_capped: int = Field(
-        default=0,
-        description="genomes with more copies than were stored (older stores kept at most 5)",
-    )
     best_copy_not_first: int = Field(
         default=0,
         description="genomes whose best-binding copy is not the one found most confidently "
@@ -270,11 +266,6 @@ class ExhaustiveCoverage(BaseModel):
         default=0,
         description="Nucleotide records without a BLAST hit that were not fetched and scanned "
         "(longer than direct_scan_max_length, or the fetch failed)",
-    )
-    plasmid_info_recorded: bool = Field(
-        default=False,
-        description="plasmid sequences were counted for at least one assembly (so the split of "
-        "'region not found' can be shown)",
     )
     plasmid_header_examples: list[str] = Field(
         default_factory=list,

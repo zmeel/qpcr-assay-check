@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from qpcr_assay_check.config import load_config
 from qpcr_assay_check.pipeline import evaluate
 from qpcr_assay_check.report.summary import summary_rows
-from qpcr_assay_check.results import RunResult
 from qpcr_assay_check.specificity.models import Finding
 from qpcr_assay_check.verdict import Verdict
 
@@ -56,30 +55,3 @@ def test_the_rows_always_show_the_overall_status():
     # the organism list was not searched: its own row says so
     (excl,) = [r for r in rows if r.check.startswith("Exclusivity")]
     assert excl.css == "INCOMPLETE" and "not searched" in excl.result
-
-
-def test_a_changed_assay_is_not_comparable_and_older_records_still_load():
-    cfg = load_config()
-    assay = make_assay()
-    first = evaluate(assay, cfg, now=NOW, specificity=_specificity_with_exclusivity())
-    # as an earlier version wrote it: no review_status, first run INCOMPLETE, no window figure
-    data = first.model_dump(mode="json")
-    del data["overall"]["review_status"]
-    data["history"]["verdict"] = "INCOMPLETE"
-    data["history"].pop("window_percent_before")
-    old = RunResult.model_validate(data)
-    assert old.overall.review_status == ""
-
-    same = evaluate(assay, cfg, now=NOW, specificity=_specificity_with_exclusivity(),
-                    previous_run=old)  # fmt: skip
-    assert same.history.has_previous and not same.history.inputs_changed
-    assert "history" in same.overall.required_sections
-
-    cfg.inclusivity.warn_below_percent = 90.0  # a setting changed since that run
-    changed = evaluate(assay, cfg, now=NOW, specificity=_specificity_with_exclusivity(),
-                       previous_run=old)  # fmt: skip
-    assert changed.history.inputs_changed
-    assert "history" not in changed.overall.required_sections
-    assert not any(line.startswith("History:") for line in changed.overall.rationale)
-    (row,) = [r for r in summary_rows(changed, cfg, []) if r.anchor == "history"]
-    assert row.label == "Not comparable" and row.css == "INFO"

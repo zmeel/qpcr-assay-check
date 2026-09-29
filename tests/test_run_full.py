@@ -3,7 +3,6 @@
 import json
 import re
 import time
-from datetime import UTC, datetime
 
 import pytest
 import yaml
@@ -117,44 +116,16 @@ def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_ver
     # exclusivity is implemented (v0.4.0), but this fake never resolves organism names, so its
     # own tier was never searched: missing evidence, so INCOMPLETE rather than a false PASS.
     assert states["exclusivity"] == "evaluated" and data["exclusivity"]["verdict"] == "INCOMPLETE"
-    # inclusivity is implemented (v0.4.0) and the target tier was searched, but this fake never
-    # registers a submission date for the target hit, so there is no dated evidence: INCOMPLETE.
-    assert states["inclusivity"] == "evaluated" and data["inclusivity"]["verdict"] == "INCOMPLETE"
-    # history is implemented (v1.0.0); this is the first run for this assay: the baseline year,
-    # evaluated (not skipped) and not holding up the review status (user, 2026-09-27).
-    assert states["history"] == "evaluated" and data["history"]["verdict"] == "PASS"
-    assert "history" not in data["overall"]["required_sections"]
+    # this fake has no NCBI Datasets, so the exhaustive variant analysis fails: no inclusivity in
+    # this run (the sampled fallback was removed in the overhaul), and the report says why.
+    assert states["inclusivity"] == "skipped" and data["inclusivity"] is None
+    notes = {s["key"]: s.get("note") or "" for s in data["sections"]}
+    assert notes["inclusivity"].startswith("Not assessed: the exhaustive variant analysis")
+    # no run history since the overhaul (user, 2026-09-29)
+    assert "history" not in states and "history" not in data
     assert data["overall"]["review_status"] == "incomplete_evidence"
-    assert data["history"]["has_previous"] is False
-    # every section was genuinely evaluated (even if some concluded INCOMPLETE), so nothing is
-    # truly "not yet evaluated" in this run -- that heading must not appear.
     html = (run_dir(env) / "report.html").read_text()
-    assert "Not yet evaluated" not in html
-    assert "first recorded run for this assay" in html
-
-
-def test_inclusivity_end_to_end_with_a_dated_target_hit(env):
-    """The target tier's own hit gets a submission date, so inclusivity has real evidence."""
-    w = world_with(hits="none")  # human background stays clean; only inclusivity matters here
-    w.date("NC_045512.2", "2023/05/01")
-    env.install(w)
-
-    r = invoke(env, "--yes")
-    assert r.exit_code == 30, r.output  # exclusivity has no evidence, history is not implemented
-
-    data = json.loads((run_dir(env) / "results.json").read_text())
-    incl = data["inclusivity"]
-    assert incl["tier_searched"] is True and incl["target_taxid"] == 2697049
-    forward = next(o for o in incl["oligos"] if o["role"] == "forward")
-    by_year = {win["year"]: win for win in forward["windows"]}
-    assert by_year[2023]["sample_size"] == 1 and by_year[2023]["n_perfect"] == 1
-    states = {s["key"]: s["state"] for s in data["sections"]}
-    assert states["inclusivity"] == "evaluated"
-
-    html = (run_dir(env) / "report.html").read_text()
-    assert "Inclusivity across the intended target (sampled)" in html and "2023" in html
-    wb = load_workbook(run_dir(env) / "results.xlsx")
-    assert "Inclusivity" in wb.sheetnames
+    assert "previous run" not in html  # no run history since the overhaul
 
 
 def test_dry_run_sends_nothing(env):
@@ -355,72 +326,6 @@ def test_exclusivity_excludes_the_assay_s_own_target_even_when_listed(env, tmp_p
 
     html = (run_dir(env) / "report.html").read_text()
     assert "excluded from this search" in html
-
-
-def test_history_diff_across_two_runs(env, tmp_path, monkeypatch):
-    """Run the same assay twice; the second run must see and report what changed."""
-    # A controlled, strictly increasing clock: real wall-clock resolution (whole seconds) could
-    # tie two fast in-process runs to the same generated_at, which would make "which run is the
-    # previous one" ambiguous -- something that cannot happen for a real yearly re-evaluation.
-    times = iter([datetime(2025, 1, 1, tzinfo=UTC), datetime(2026, 1, 1, tzinfo=UTC)])
-    monkeypatch.setattr(
-        "qpcr_assay_check.pipeline.datetime",
-        type("_Clock", (), {"now": staticmethod(lambda tz=None: next(times))}),
-    )
-
-    env.install(world_with(hits="none"))
-    first = invoke(env, "--yes")
-    # clean, but INCOMPLETE: exclusivity/inclusivity/history all lack evidence on a first run
-    assert first.exit_code == 30, first.output
-    (first_path,) = env.out.rglob("results.json")
-    run1_id = json.loads(first_path.read_text())["run_id"]
-
-    # A fresh cache for the second run: otherwise the identical BLAST queries would be served
-    # from run 1's on-disk cache instead of reaching the (now different) fake world.
-    env.conf.write_text(f"ncbi:\n  cache_dir: {tmp_path / 'cache2'}\n")
-    env.install(world_with(f=[10], r=[5], p=[8]))  # a new critical off-target site appears
-    second = invoke(env, "--yes")
-    assert second.exit_code == 20, second.output  # the new off-target product now fails the run
-
-    run2_path = next(p for p in env.out.rglob("results.json") if p != first_path)
-    data2 = json.loads(run2_path.read_text())
-    hist = data2["history"]
-    assert hist["has_previous"] is True
-    assert hist["previous_run_id"] == run1_id
-    assert hist["inputs_changed"] is False  # same assay file both times
-    assert hist["verdict"] == "WARN"  # the "history" section itself just flags the change
-    assert len(hist["new_sites"]) >= 1
-    assert any(s["level_after"] == "critical" for s in hist["new_sites"])
-    states = {s["key"]: s["state"] for s in data2["sections"]}
-    assert states["history"] == "evaluated"
-
-    html = run2_path.parent.joinpath("report.html").read_text()
-    assert "Changes since the previous run" in html
-    assert run1_id in html
-    wb = load_workbook(run2_path.parent / "results.xlsx")
-    assert "History" in wb.sheetnames
-    # the summary table (user, 2026-09-27): per check what changed since the previous run
-    checks = {row[0].value: row for row in wb["Checks"].iter_rows(min_row=2)}
-    background = checks["Off-target: Background"]
-    assert background[4].value == "Exceeds limit" and "new product" in background[3].value
-    assert checks["Compared with the previous run"][4].value == "Review"
-    assert "No flags → Exceeds limit" in " ".join(data2["history"]["rationale"])
-    first_html = first_path.parent.joinpath("report.html").read_text()
-    assert "baseline (first run)" in first_html and ">Baseline</span>" in first_html
-
-
-def test_a_full_run_fills_the_variant_summary_from_the_target_tier(env):
-    """Live finding: the section was always empty, because no target-tier site was ever built."""
-    env.install(world_with(hits="none"))
-    invoke(env, "--yes")
-    d = run_dir(env)
-    vs = json.loads((d / "results.json").read_text())["variant_summary"]
-    by_role = {o["role"]: o for o in vs["oligos"]}
-    assert all(by_role[role]["total_measured"] >= 1 for role in ("forward", "probe", "reverse"))
-    assert vs["fragment_total"] >= 1
-    assert "Variant summary (assay's own target)" in (d / "report.html").read_text()
-    sheets = set(load_workbook(d / "results.xlsx").sheetnames)
-    assert {"Oligo variants", "Fragment variants"} <= sheets
 
 
 def test_a_full_run_uses_every_genome_assembly_for_the_variant_summary(env, monkeypatch):

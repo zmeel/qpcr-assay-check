@@ -382,14 +382,11 @@ class OrganismsSettings(_Strict):
 class InclusivitySettings(_Strict):
     """Time-windowed inclusivity: how well the oligos still match the intended target, over time.
 
-    Built from the same "target" tier search every run already makes (taxon-restricted only, no
-    date filter -- combining ENTREZ_QUERY taxon restriction with a [PDAT] date filter in one BLAST
-    call was checked live and found unreliable, see docs/ARCHITECTURE.md), bucketed into years
-    afterwards using each hit's own submission date (ESummary).
+    Built from the exhaustive variant analysis (every genome of the target), bucketed by release
+    year. The sampled source from the target tier's own BLAST hits was removed in the overhaul.
     """
 
     lookback_years: int
-    sample_per_window: int
     warn_below_percent: float
     fail_below_percent: float
     # exhaustive analysis (advisor subagent, 2026-09-26): the verdict uses the whole-fragment
@@ -400,8 +397,8 @@ class InclusivitySettings(_Strict):
 
     @model_validator(mode="after")
     def _sane(self) -> InclusivitySettings:
-        if self.lookback_years < 1 or self.sample_per_window < 1:
-            raise ValueError("lookback_years and sample_per_window must be >= 1")
+        if self.lookback_years < 1:
+            raise ValueError("lookback_years must be >= 1")
         if self.verdict_window_years < 0 or self.min_genomes_for_verdict < 1:
             raise ValueError("verdict_window_years must be >= 0, min_genomes_for_verdict >= 1")
         if not (0 <= self.fail_below_percent <= self.warn_below_percent <= 100):
@@ -414,11 +411,11 @@ class VariantsSettings(_Strict):
 
     ``source: datasets`` lists every genome assembly of the target taxon in NCBI Datasets,
     downloads them in batches, locates the reference amplicon in each and keeps only that region
-    (plus flanks); the genome itself is discarded. ``source: blast_hits`` keeps the v1.0 behaviour
-    (the target tier's BLAST hits, biased toward perfect matches when the hit list is full).
+    (plus flanks); the genome itself is discarded. ``source: blast_partitioned`` does the same
+    for every Nucleotide record (targets without assemblies, e.g. viruses).
     """
 
-    source: Literal["datasets", "blast_partitioned", "blast_hits"]
+    source: Literal["datasets", "blast_partitioned"]
     current_assemblies_only: bool
     exclude_atypical: bool
     max_assemblies_per_run: int

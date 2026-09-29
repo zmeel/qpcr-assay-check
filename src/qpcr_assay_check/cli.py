@@ -258,7 +258,6 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     from .search.planner import plan_searches
     from .specificity.assess import assess_specificity
     from .specificity.fetch import WindowFetcher
-    from .specificity.variants import assess_target_sites
     from .variants.datasets import DatasetsClient
     from .variants.exhaustive import run_exhaustive
     from .variants.partitioned import collect_partitioned
@@ -283,16 +282,13 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         cfg,
         outdir,
         confirm=_make_confirm(yes),
-        keep_tiers=set(cfg.specificity.off_target_tiers) | {"target", "out_of_scope"},
+        keep_tiers=set(cfg.specificity.off_target_tiers) | {"out_of_scope"},
         on_plan=show,
     )
-    from .history.store import find_previous_run
-    from .inclusivity.aggregate import compute_inclusivity
     from .ncbi.http import NcbiError
     from .taxonomy.resolve import ancestors, fetch_lineages
     from .taxonomy.rollup import taxonomy_breakdown
 
-    previous_run = find_previous_run(outdir, assay.slug)
     eutils = Eutils(remote.http, cfg.ncbi.eutils_url)
     fetcher = WindowFetcher(eutils, remote.cache)
     specificity = assess_specificity(
@@ -324,74 +320,38 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     except NcbiError as exc:
         log.warning("Could not fetch taxonomy lineages for exclusivity grouping: %s", exc)
         taxon_species = {}
-    tier_searched = any(r.tier == "target" for r in remote.outcome.searches)
     exhaustive, variant_note = None, None
-    if cfg.variants.source in ("datasets", "blast_partitioned"):
-        # Every genome assembly (datasets) or every Nucleotide record (blast_partitioned) of the
-        # target (v1.1.0), not the target tier's BLAST hits, which are BLAST's best matches and
-        # so biased toward perfect ones when the hit list is full.
-        collector = None
-        if cfg.variants.source == "blast_partitioned":
-            runner = BlastRunner(
-                BlastApi(remote.http, cfg.ncbi.blast_url), remote.cache,
-                JobStore(remote.cache.root / "variants" / "jobs-partitioned.json"), cfg.ncbi,
-                cfg.search.result_format,
+    # Every genome assembly (datasets) or every Nucleotide record (blast_partitioned) of the
+    # target, not the target tier's BLAST hits (a sample; removed, user decision 2026-09-29).
+    collector = None
+    if cfg.variants.source == "blast_partitioned":
+        runner = BlastRunner(
+            BlastApi(remote.http, cfg.ncbi.blast_url), remote.cache,
+            JobStore(remote.cache.root / "variants" / "jobs-partitioned.json"), cfg.ncbi,
+            cfg.search.result_format,
+        )  # fmt: skip
+
+        def collector(store: Any, taxon: int, references: Any) -> Any:
+            return collect_partitioned(
+                eutils, runner, runner.store, fetcher, store, taxon, references, cfg,
+                exclude=assay.target.excluded_taxids,
             )  # fmt: skip
 
-            def collector(store: Any, taxon: int, references: Any) -> Any:
-                return collect_partitioned(
-                    eutils, runner, runner.store, fetcher, store, taxon, references, cfg,
-                    exclude=assay.target.excluded_taxids,
-                )  # fmt: skip
-
-        try:
-            exhaustive = run_exhaustive(
-                assay, cfg, DatasetsClient(remote.http, cfg.ncbi.datasets_url),
-                remote.cache.root, eutils.fetch_fasta,
-                collector=collector, source=cfg.variants.source,
-                ancestors_of=lambda taxids: ancestors(
-                    eutils, remote.cache, taxids, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
-                ),
-            )  # fmt: skip
-        except (InputError, NcbiError) as exc:
-            variant_note = (
-                f"the exhaustive analysis was not run ({exc}); the variant tables and "
-                "inclusivity use the target tier's BLAST hits instead."
-            )
-            log.warning("%s", variant_note)
     try:
-        target_sites = (
-            exhaustive.sites
-            if exhaustive is not None
-            else assess_target_sites(assay, cfg, remote.plan, remote.parsed, fetcher)
-            if tier_searched
-            else None
+        exhaustive = run_exhaustive(
+            assay, cfg, DatasetsClient(remote.http, cfg.ncbi.datasets_url),
+            remote.cache.root, eutils.fetch_fasta,
+            collector=collector, source=cfg.variants.source,
+            ancestors_of=lambda taxids: ancestors(
+                eutils, remote.cache, taxids, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
+            ),
+        )  # fmt: skip
+    except (InputError, NcbiError) as exc:
+        variant_note = (
+            f"the exhaustive variant analysis was not run ({exc}); without it there is no "
+            "variant summary and no inclusivity in this run (run again when fixed)."
         )
-    except NcbiError as exc:
-        # Informational only (the variant summary has no verdict): a fetch failure here should
-        # not discard an otherwise-complete specificity/exclusivity verdict.
-        log.warning("Could not build the variant summary: %s", exc)
-        target_sites = None
-    try:
-        inclusivity = (
-            exhaustive.inclusivity
-            if exhaustive is not None
-            else compute_inclusivity(
-                assay,
-                cfg,
-                remote.plan,
-                remote.parsed,
-                fetcher,
-                eutils,
-                remote.cache,
-                tier_searched=tier_searched,
-            )
-        )
-    except NcbiError as exc:
-        # Informational only (not a required section): a date-lookup failure should not
-        # discard an otherwise-complete specificity/exclusivity verdict.
-        log.warning("Could not compute inclusivity: %s", exc)
-        inclusivity = None
+        log.warning("%s", variant_note)
     return evaluate(
         assay,
         cfg,
@@ -400,12 +360,11 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         organism_resolution=remote.organism_resolution,
         taxonomy_breakdown=breakdown,
         taxon_species=taxon_species,
-        inclusivity=inclusivity,
-        target_sites=target_sites,
+        inclusivity=exhaustive.inclusivity if exhaustive is not None else None,
+        target_sites=exhaustive.sites if exhaustive is not None else None,
         variant_coverage=exhaustive.coverage if exhaustive is not None else None,
         release_dates=exhaustive.release_dates if exhaustive is not None else None,
         variant_note=variant_note,
-        previous_run=previous_run,
     )
 
 
@@ -520,68 +479,3 @@ def search(
         typer.echo(f"WARNING: {w}")
     typer.echo(f"Results written to {search_dir}")
     raise typer.Exit(EXIT_CODES[Verdict.WARN] if outcome.saturated else 0)
-
-
-@app.command()
-def panel(
-    panel_file: Annotated[
-        Path, typer.Argument(exists=True, dir_okay=False, help="Panel YAML file.")
-    ],
-    config: Annotated[
-        Path | None, typer.Option("--config", "-c", help="Configuration YAML (lab-wide).")
-    ] = None,
-    outdir: Annotated[Path, typer.Option("--outdir", "-o", help="Base output directory.")] = Path(
-        "results"
-    ),
-    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="More logging.")] = 0,
-) -> None:
-    """Find genomes that escape every target of a multi-target panel.
-
-    The panel file names two or more assay files for the same target. Each assay must have run
-    its variant analysis first; the panel only combines the genomes their region stores already
-    hold, so it sends nothing to NCBI (except to cut the amplicon out of a target accession for
-    an assay without a reference amplicon). Writes panel.html, panel.xlsx and panel.json.
-    Exit codes: 0 no genome escapes every target, 10 at least one does, 64 invalid input,
-    70 NCBI problem.
-    """
-    from .ncbi.cache import Cache
-    from .ncbi.http import NcbiError
-    from .panel import PanelClass, run_panel
-    from .report.panel import write_panel_outputs
-
-    _setup_logging(verbose)
-
-    def load_member(path: Path) -> tuple[Assay, Config]:
-        assay = build_assay(path, {})
-        return assay, load_config(config, assay.settings)
-
-    clients: list[Any] = []  # one shared E-utilities client (throttling), made on first use
-
-    def fetch_fasta(acc: str) -> str:  # only for an assay without a reference amplicon
-        from .ncbi.eutils import Eutils
-        from .ncbi.http import NcbiHttp
-        from .ncbi.settings import credentials_from_env
-
-        if not clients:
-            cfg = load_config(config)
-            clients.append(Eutils(NcbiHttp(cfg.ncbi, credentials_from_env()), cfg.ncbi.eutils_url))
-        return clients[0].fetch_fasta(acc)
-
-    try:
-        cache_root = Cache(load_config(config).ncbi.cache_dir).root
-        result = run_panel(panel_file, load_member, cache_root, fetch_fasta)
-        out = write_panel_outputs(result, outdir)
-    except NcbiError as exc:
-        typer.echo(f"NCBI problem: {exc}", err=True)
-        raise typer.Exit(EXIT_NCBI_ERROR) from exc
-    except QpcrAssayCheckError as exc:
-        _fail(str(exc))
-        return
-    n_none = result.counts[PanelClass.NONE.value]
-    typer.echo(f"Panel '{result.panel_name}': {result.in_all} genomes processed by every assay")
-    for cls, n in result.counts.items():
-        typer.echo(f"  {cls}: {n}")
-    if result.not_in_all:
-        typer.echo(f"  ({result.not_in_all} processed by only some assays, not combined)")
-    typer.echo(f"Written to {out}")
-    raise typer.Exit(EXIT_CODES[Verdict.WARN] if n_none else 0)

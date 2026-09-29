@@ -20,7 +20,7 @@ their checks.
 | 7 | Degenerate-base suggestion | Medium | None | No |
 | 8 | Several oligos per role, named oligos, multi-copy targets | High | None | No |
 
-## 1. Panel-level escape detection (multi-target assays) (done, `qpcr-assay-check panel`)
+## 1. Panel-level escape detection (multi-target assays) (built as `qpcr-assay-check panel`, removed in the 2026-09-29 overhaul; per-channel detection replaces it)
 
 Many assays detect one organism with two targets, e.g. *C. trachomatis* on the cryptic plasmid
 plus a chromosomal gene. The clinical risk is a strain that escapes **every** target at once;

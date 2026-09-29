@@ -1,5 +1,14 @@
 # Architecture
 
+**Overhaul (2026-09-29).** The assay model has loci and channels; genomes are scanned with the
+chain locator (`variants/chain.py`) into store v2 (`variants/genomestore.py`) and judged per
+channel. Removed in overhaul step 7: the run history and diff against the previous run
+(`history/`), the `panel` command, the old region store with its rescans and seed-cluster
+locator, and the sampled inclusivity from the target tier's hits via ESummary
+(`inclusivity/dates.py`, `inclusivity/sites.py`). The sections below that describe those parts
+are kept as the record of why they were built and what was verified live; they no longer
+describe the code.
+
 Status: v0.3.0 implements steps 1, 2, 5, 6 (from v0.2.0) plus 7 and 8: full-length re-alignment of
 every relevant hit and amplicon pairing, feeding a real specificity verdict. v0.4.0 (tagged
 2026-09-22) adds steps 3, part of 4, and 9: organism names are resolved to taxonomy IDs (never

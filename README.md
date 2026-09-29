@@ -16,7 +16,7 @@ anything you must not detect is now predicted to amplify.
   human background, by remote taxon-restricted BLAST with full-length re-alignment and predicted
   off-target products.
 - **A record for your quality system**: an HTML report, JSON record and Excel workbook with the
-  tool version and a SHA-256 hash of the inputs, compared with the previous run of the same assay.
+  tool version and a SHA-256 hash of the inputs.
   NCBI is only used remotely; there is no local database to maintain.
 
 > **In silico analysis does not replace experimental validation.** The laboratory must verify
@@ -104,8 +104,8 @@ anything; `run --qc-only` uses no network at all.
 
 ## What the report contains
 
-- **Summary of this year's check**: a table with each thing checked, its result in numbers, the
-  comparison with the previous run and a status (no flags, review, exceeds limit, incomplete),
+- **Summary of this year's check**: a table with each thing checked, its result in numbers and a
+  status (no flags, review, exceeds limit, incomplete),
   then a box for the reviewer's decision. The tool does not pass or fail the assay; missing
   evidence is never shown as "no flags".
 - **Variant summary**: coverage per oligo and the escapes (genomes without a detectable copy),
@@ -118,13 +118,11 @@ anything; `run --qc-only` uses no network at all.
 - **Specificity**: per search tier whether any off-target product is predicted, which primer
   carries the discrimination and its closest site, and whether anything was left unassessed; the
   products and closest sites per species follow.
-- **Changes since the previous run**: new variants, new off-target sites and products, changes
-  in the percentages.
 - **Oligo quality control** (Tm, GC, hairpins and dimers), folded near the end: it depends only
   on the oligo sequences.
 
-Every row the report condenses is in the Excel workbook. For assays run as a panel (two targets
-for one organism), `qpcr-assay-check panel` lists the genomes that escape every target.
+Every row the report condenses is in the Excel workbook. An assay with several channels (e.g. a
+genus and a species probe) gets detection per channel, each over its own target taxon.
 
 ## The assay file
 
@@ -168,8 +166,7 @@ taxa inside the target that the assay must not detect, and every setting: see
 - Each run writes a folder with `report.html` (self-contained, no scripts, no external requests),
   `results.json`, `results.xlsx` and `hits.tsv`. Archive the folder; the report states the tool
   version, the settings and the SHA-256 hash of the inputs.
-- Run the same assay into the same output folder each year: the report compares itself with the
-  previous run.
+- Later runs of the same assay reuse the cache: only genomes not stored before are downloaded.
 - Record your own wet-lab results per oligo variant in the assay file (`evidence:`): genomes
   with that exact variant then take the laboratory's outcome instead of the in silico class
   ([user guide](docs/USER_GUIDE.md#laboratory-evidence-per-oligo-variant)).

@@ -17,10 +17,11 @@ from qpcr_assay_check.oligo import iupac
 from qpcr_assay_check.pipeline import evaluate
 from qpcr_assay_check.report.html import render_report
 from qpcr_assay_check.report.xlsx import write_workbook
+from qpcr_assay_check.variants.chain import Reference, is_copy, locate
 from qpcr_assay_check.variants.datasets import DatasetsClient
 from qpcr_assay_check.variants.exhaustive import reference_amplicon, run_exhaustive
 from qpcr_assay_check.variants.genomestore import GenomeStore
-from qpcr_assay_check.variants.locate import find_loci, find_masked, find_masked_by_context
+from qpcr_assay_check.variants.locate import find_masked
 from qpcr_assay_check.verdict import STATUS_LABEL, Verdict
 
 from .conftest import CDC_N1_F as F
@@ -76,23 +77,24 @@ def _no_fetch(acc: str) -> str:
 
 # ------------------------------------------------------------------ locate
 def test_the_amplicon_is_found_on_either_strand_and_despite_a_primer_mismatch():
-    kw = {"seed_length": 16, "seed_step": 4, "flank": 50}
-    (fwd,) = find_loci(genome(1), AMP, **kw)
-    (rev,) = find_loci(genome(2, reverse=True), AMP, **kw)
-    (var,) = find_loci(genome(3, AMP.replace(F, F_VARIANT, 1)), AMP, **kw)
-    for lc in (fwd, rev, var):
-        assert not lc.truncated
+    def one(contigs):
+        (c,) = [c for c in locate(contigs, [Reference(AMP)]) if is_copy(c)]
+        return c
+
+    fwd, rev = one(genome(1)), one(genome(2, reverse=True))
+    var = one(genome(3, AMP.replace(F, F_VARIANT, 1)))
+    assert not any(c.cut for c in (fwd, rev, var))
     assert fwd.strand == "+" and rev.strand == "-"
-    assert fwd.region[fwd.offset : fwd.offset + len(AMP)] == AMP
-    assert rev.region[rev.offset : rev.offset + len(AMP)] == AMP  # read in the amplicon's sense
-    assert var.region[var.offset : var.offset + len(F)] == F_VARIANT
+    for c in (fwd, rev):  # read in the fragment's sense
+        assert c.region[c.start - c.region_start :][: len(AMP)] == AMP
+    assert var.region[var.start - var.region_start :][: len(F)] == F_VARIANT
 
 
 def test_a_contig_break_is_flagged_and_an_absent_region_finds_nothing():
-    kw = {"seed_length": 16, "seed_step": 4, "flank": 50}
     broken = {"a": filler(3000, 7) + AMP[:60], "b": AMP[60:] + filler(3000, 8)}
-    assert all(lc.truncated for lc in find_loci(broken, AMP, **kw))
-    assert find_loci({"x": filler(6000, 4)}, AMP, **kw) == []
+    found = [c for c in locate(broken, [Reference(AMP)]) if is_copy(c)]
+    assert len(found) == 2 and all(c.cut for c in found)
+    assert locate({"x": filler(6000, 4)}, [Reference(AMP)]) == []
 
 
 # ------------------------------------------------------------------ the whole flow
@@ -225,7 +227,7 @@ def test_the_report_and_workbook_show_coverage_and_first_release_dates(tmp_path)
         specificity=_empty_specificity(),
     )  # fmt: skip
     vs = result.variant_summary
-    assert vs.source == "datasets" and not vs.target_list_full
+    assert vs.source == "datasets"
     fwd = next(o for o in vs.oligos if o.role == "forward")
     variant = next(r for r in fwd.rows if r.n_mismatch)
     assert variant.first_seen == variant.last_seen == "2026-01-15"
@@ -341,46 +343,6 @@ def _evaluate(assay, cfg, res, now, previous=None):
     )  # fmt: skip
 
 
-def test_the_history_flags_emerging_and_newly_assessed_variants(tmp_path):
-    base = [
-        FakeAssembly("GCF_000000001.1", "2024-03-01", genome(1)),
-        FakeAssembly("GCF_000000002.1", "2025-05-01", genome(2)),
-    ]
-    cfg, _, client, assay = setup(tmp_path, fake=FakeDatasets(list(base)))
-    first = _evaluate(assay, cfg, run(tmp_path, cfg, client, assay),
-                      datetime(2026, 9, 1, tzinfo=UTC))  # fmt: skip
-
-    probe_variant = AMP.replace(P, mutate(P, [3]), 1)
-    later = base + [
-        FakeAssembly("GCA_000000003.1", "2026-09-10", genome(3, AMP.replace(F, F_VARIANT, 1))),
-        FakeAssembly("GCA_000000009.1", "2020-06-01", genome(9, probe_variant)),
-    ]
-    cfg, _, client, assay = setup(tmp_path, fake=FakeDatasets(later))
-    second = _evaluate(assay, cfg, run(tmp_path, cfg, client, assay), NOW, previous=first)
-    h = second.history
-    assert h.variants_compared and {v.kind for v in h.variant_changes} == {"new"}
-    fwd = next(v for v in h.variant_changes if v.role == "forward")
-    probe = next(v for v in h.variant_changes if v.role == "probe")
-    assert fwd.newly_released is True and fwd.concern  # a 3'-terminal primer mismatch
-    assert probe.newly_released is False and not probe.concern  # older assembly, 1 mismatch
-    assert h.verdict.value == "WARN"
-    assert any("emerging" in line and "3'-end mismatch" in line for line in h.rationale)
-    html = render_report(second, cfg)
-    assert "Oligo sequence variants since the previous run" in html
-    assert "emerging" in html and "newly assessed" in html
-
-
-def test_variants_are_not_compared_across_different_sources(tmp_path):
-    cfg, _, client, assay = setup(tmp_path)
-    res = run(tmp_path, cfg, client, assay)
-    first = _evaluate(assay, cfg, res, datetime(2026, 9, 1, tzinfo=UTC))
-    first.variant_summary.source = "blast_hits"
-    first.variant_summary.coverage = None
-    second = _evaluate(assay, cfg, res, NOW, previous=first)
-    assert not second.history.variants_compared and not second.history.variant_changes
-    assert "Variants not compared" in second.history.variants_note
-
-
 # ------------------------------------------------------------------ wholly masked (v1.1.1)
 # Live: SARS-CoV-2 records with one run of 1,144 N over the whole N1 region (OZ558241.1) were
 # reported as 'not found'. Synthetic stand-ins: the reference around the amplicon is LEFT/RIGHT.
@@ -393,20 +355,19 @@ KW = {"seed_length": 16, "flank": 50}
 
 
 def test_a_region_wholly_hidden_by_n_is_placed_by_the_reference_around_it():
-    assert find_loci({"c": HIDDEN}, AMP, seed_step=4, **KW) == []
-    assert find_masked({"c": HIDDEN}, AMP, seed_step=4, **KW) == []  # no real base to match
+    assert locate({"c": HIDDEN}, [Reference(AMP)]) == []  # no real base of the fragment
+    assert find_masked({"c": HIDDEN}, AMP, seed_step=4, **KW) == []
     for seq, strand in ((HIDDEN, "+"), (iupac.reverse_complement(HIDDEN), "-")):
-        (lc,) = find_masked_by_context({"c": seq}, AMP, LEFT, RIGHT, **KW)
-        assert lc.strand == strand
-        assert lc.region[lc.offset : lc.offset + len(AMP)] == "N" * len(AMP)
-    (lc,) = find_masked_by_context({"c": HIDDEN}, AMP, LEFT, RIGHT, **KW)
-    assert lc.start == 3000 - 50 - 20 + 1  # the amplicon starts after 3000 bases; flank + pad
+        (c,) = locate({"c": seq}, [Reference(AMP, LEFT, RIGHT)])
+        assert c.strand == strand and is_copy(c) and c.n_inside == len(AMP)
+        assert c.start == 3000  # the fragment starts after 3000 bases (on its sense strand)
 
 
-def test_real_bases_where_the_amplicon_should_be_are_not_called_masked():
-    divergent = LEFT + filler(len(AMP), 53) + RIGHT + "N" * 200  # absent or too divergent
-    assert find_masked_by_context({"c": divergent}, AMP, LEFT, RIGHT, **KW) == []
-    assert find_masked_by_context({"c": HIDDEN}, AMP, "", "", **KW) == []  # no context: no call
+def test_real_bases_between_the_flanks_are_a_copy_to_judge_not_a_masked_one():
+    divergent = LEFT + filler(len(AMP), 53) + RIGHT + "N" * 200  # divergent, or deleted
+    (c,) = locate({"c": divergent}, [Reference(AMP, LEFT, RIGHT)])
+    assert is_copy(c) and c.n_inside == 0 and c.anchored == 0  # judged: likely not detected
+    assert locate({"c": HIDDEN}, [Reference(AMP)]) == []  # no context: no call
 
 
 def _masked_setup(tmp_path):
@@ -655,10 +616,9 @@ def test_possibly_unassembled_genomes_are_undetermined_in_the_tables(tmp_path):
 
 def test_the_unassembled_rule_agrees_across_every_view(tmp_path):
     """Code review 2026-09-28: one real run with the rule active; coverage, the per-level table,
-    the per-year table, the fragment rows and the panel judge the same genomes the same way."""
-    from qpcr_assay_check.panel import State, member_states
+    the per-year table, the fragment rows and the channel counts judge the same genomes the
+    same way."""
     from qpcr_assay_check.report.grouping import fragment_view
-    from qpcr_assay_check.variants.exhaustive import stored_calls
 
     variant = AMP.replace(F, F_VARIANT, 1)
 
@@ -702,10 +662,9 @@ def test_the_unassembled_rule_agrees_across_every_view(tmp_path):
             .iter_rows() if str(r[0].value).startswith("Assembly level Contig")]  # fmt: skip
     assert rows and "1 possibly unassembled" in rows[0][4]
 
-    items, calls, _path = stored_calls(assay, cfg, tmp_path / "cache", _no_fetch, "datasets")
-    states = member_states(items, calls)
-    assert states["GCA_000000200"][0] is State.UNDETERMINED
-    assert states["GCA_000000300"][0] is State.ESCAPE
+    (ch,) = res.coverage.channel_results
+    assert (ch.undetermined, ch.not_detected) == (1, 1)
+    assert ch.not_detected_examples == ["GCA_000000300.1"]
 
 
 def test_every_reporter_channel_is_shown_on_the_fragment_rows(tmp_path):
@@ -779,8 +738,6 @@ def test_a_fragment_split_over_contigs_is_judged_from_its_parts(tmp_path):
 
 
 def test_judging_from_parts_follows_its_setting_and_needs_detectable_sites(tmp_path):
-    from qpcr_assay_check.variants.exhaustive import stored_calls
-
     cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
     cfg.variants.judge_from_parts = "detectable"
     res = run(tmp_path, cfg, client, assay)
@@ -795,13 +752,10 @@ def test_judging_from_parts_follows_its_setting_and_needs_detectable_sites(tmp_p
     cfg2, _f, client2, assay2 = setup(tmp_path / "b", fake=_split_fixture(bad))
     res2 = run(tmp_path / "b", cfg2, client2, assay2)
     assert res2.coverage.copies.from_parts == 0 and res2.coverage.contig_break == 2
-    # the panel judges them the same way (undetermined by default)
-    from qpcr_assay_check.panel import State, member_states
-
-    cfg3 = load_config()
-    cfg3.variants.max_assemblies_per_run, cfg3.ncbi.datasets_batch_size = 20000, 2
-    items, calls, _p = stored_calls(assay, cfg3, tmp_path / "cache", _no_fetch, "datasets")
-    assert member_states(items, calls)["GCA_000000007"][0] is State.UNDETERMINED
+    # the channel counts judge them the same way (undetermined by default)
+    cfg3, _f3, client3, assay3 = setup(tmp_path / "c", fake=_split_fixture())
+    (ch,) = run(tmp_path / "c", cfg3, client3, assay3).coverage.channel_results
+    assert ch.undetermined >= 1 and "GCA_000000007.1" not in ch.not_detected_examples
 
 
 # ------------------------------------------------------------------ copy similarity threshold
@@ -813,10 +767,10 @@ def _related_region(seed: int) -> str:
 
 def test_a_region_found_through_one_chance_seed_is_not_a_copy(tmp_path):
     """Advisor 2026-09-28: identity to the reference amplicon >= 0.75 makes a copy."""
-    from qpcr_assay_check.variants.locate import amplicon_identity, find_loci
+    from qpcr_assay_check.variants.locate import amplicon_identity
 
-    (lc,) = find_loci({"X": _related_region(81)}, AMP, seed_length=16, seed_step=4, flank=50)
-    assert lc.n_seeds == 1 and amplicon_identity(lc.region, AMP, lc.offset)[0] < 0.7
+    (c,) = locate({"X": _related_region(81)}, [Reference(AMP)])
+    assert c.anchored < 24 and c.identity < 0.7 and not is_copy(c)
     divergent = "".join(("A" if b != "A" else "C") if i % 5 == 2 else b for i, b in enumerate(AMP))
     ident = amplicon_identity(filler(50, 1) + divergent + filler(50, 2), AMP, 50)[0]
     assert 0.75 <= ident <= 0.85  # a real divergent copy (every 5th base changed) stays a copy
@@ -844,28 +798,18 @@ def test_a_region_found_through_one_chance_seed_is_not_a_copy(tmp_path):
     assert run(tmp_path, cfg, client, assay).coverage.related_only == 0
 
 
-def test_the_next_reference_is_tried_when_the_first_finds_only_a_related_region():
-    from qpcr_assay_check.variants.locate import scan_region
-
-    other = filler(120, 55)  # a second lineage's amplicon, present whole in this genome
+def test_every_reference_is_tried_and_the_best_per_place_is_kept():
+    other = filler(120, 55)  # a second lineage's fragment, present whole in this genome
     contigs = {"C": _related_region(81) + filler(400, 56) + other + filler(400, 57)}
-    kw = {"seed_length": 16, "seed_step": 4, "flank": 50}
-    loci, _m, ref = scan_region(contigs, AMP, None, other_amplicons=[other], **kw)
-    assert ref == 0  # without the threshold the chance seed stops the search
-    loci, _m, ref = scan_region(contigs, AMP, None, other_amplicons=[other], min_identity=0.75,
-                                **kw)  # fmt: skip
-    assert ref == 1 and loci[0].n_seeds > 1
-    loci, _m, ref = scan_region({"C": _related_region(81)}, AMP, None, min_identity=0.75, **kw)
-    assert ref == 0 and loci  # nothing better: the related region is kept, to be listed
+    found = locate(contigs, [Reference(AMP), Reference(other)])
+    copies = [c for c in found if is_copy(c)]
+    assert [(c.ref, c.anchored) for c in copies] == [(1, 120)]
+    assert any(c.ref == 0 and not is_copy(c) for c in found)  # the chance region: listed only
 
 
 def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     """Code review of PR #29 (2026-09-28)."""
     import json
-
-    from qpcr_assay_check.panel import State, member_states
-    from qpcr_assay_check.variants.exhaustive import stored_calls
-    from qpcr_assay_check.variants.locate import scan_region
 
     # 1. detectable from parts (undetermined): out of the per-oligo and channel counts as well
     cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
@@ -894,16 +838,16 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     res2 = run(tmp_path / "n", cfg2, client2, assay2)
     assert "GCA_000000007.1" not in res2.coverage.masked_examples
 
-    # 4. the panel counts a genome with only related regions as not found
+    # 4. a genome with only related regions has no locus (a draft: not an escape)
     extra = FakeAssembly("GCA_000000008.1", "2026-05-01", {"U8.1": _related_region(81)})
     cfg3, _f3, client3, assay3 = setup(tmp_path / "r", fake=FakeDatasets([*assemblies(), extra]))
-    run(tmp_path / "r", cfg3, client3, assay3)
-    items, calls, _p = stored_calls(assay3, cfg3, tmp_path / "r" / "cache", _no_fetch, "datasets")
-    assert member_states(items, calls)["GCA_000000008"][0] is State.NOT_FOUND
+    res3 = run(tmp_path / "r", cfg3, client3, assay3)
+    (ch,) = res3.coverage.channel_results
+    assert "GCA_000000008.1" in res3.coverage.related_only_examples
+    assert "GCA_000000008.1" not in ch.not_detected_examples and ch.no_locus >= 1
 
     # 10. a region hidden by N wins over a chance-seed region elsewhere
     masked_amp = "".join("N" if i % 12 == 6 else b for i, b in enumerate(AMP))  # no clean seed
     contigs = {"C": _related_region(81) + filler(300, 5) + masked_amp + filler(300, 6)}
-    loci, masked, _ref = scan_region(contigs, AMP, None, seed_length=16, seed_step=4,
-                                     flank=50, min_identity=0.75)  # fmt: skip
-    assert masked and not loci
+    found = locate(contigs, [Reference(AMP)])
+    assert [c.masked for c in found if is_copy(c)] == [True]  # the chance region is no copy
