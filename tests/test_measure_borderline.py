@@ -21,3 +21,13 @@ def test_borderline_lists_whole_and_cut_candidates():
                            "candidates": [cut, whole, chance]}]}  # fmt: skip
     (line,) = bl.borderline(report)
     assert line.startswith("GCF_1.1 Legionella_x 26 1.0 0 cut -234 900 - - R:0")
+
+
+def test_context_only_candidates_are_listed_separately():
+    ctx = {"M_amp": {"1": 0}, "context_only": True, "cut_left": False, "cut_right": True,
+           "length_diff": 3, "amp_start": 880, "contig_len": 900, "M_ctx_left": 640,
+           "M_ctx_right": 0, "N_inside": 0}  # fmt: skip
+    report = {"genomes": [{"accession": "GCA_2.1", "organism": "Legionella y",
+                           "candidates": [ctx]}]}  # fmt: skip
+    assert list(bl.borderline(report)) == []
+    assert list(bl.context_only(report)) == ["GCA_2.1 Legionella_y 640 0 3 cut 880 900 0"]
