@@ -123,7 +123,18 @@ verified NCBI facts) at the start of every session. Newest entry first.
   - Legionella sp. 27cVA30 (GCF_024160945.1): the copy has 680 context bases and F 0 mm but
     R 9 and genus probe 9 mm; a copy through (b), so the genus channel will call it not
     detected (a finding about the assay, not a locator error).
+  - the 28 context-only candidates: 27 cut by a contig end, one flank anchored (64-992 bases,
+    chance chains reach at most 18), the fragment itself beyond the contig end (0-15 nt of it on
+    the contig): contig breaks inside rRNA-operon repeats, in pairs where the left and the right
+    flank of one locus sit on two contigs. Copies through (b) as cut; they carry no oligo site,
+    do not count in n_copies (whole copies only) and turn "not found" into "cut by a contig end"
+    (both undetermined in a draft). None is in a complete genome. One whole candidate
+    (GCA_902168255.1, 336 left-flank bases, nothing of the fragment) is not a copy.
   - Defaults kept (32 / 32 / 0.75 / 16).
+- Step 8 prepared: scripts/run_assay.sh (a full run in Docker, in the background, with the
+  checkout's src/ mounted; log in work/runs/NAME.log) and scripts/run_summary.py (counts,
+  verdicts and accessions from results.json, no sequences; written to
+  work/runs/NAME-summary.json when the run ends). tests/test_run_summary.py.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.
