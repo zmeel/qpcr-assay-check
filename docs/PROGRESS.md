@@ -131,6 +131,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
     (both undetermined in a draft). None is in a complete genome. One whole candidate
     (GCA_902168255.1, 336 left-flank bases, nothing of the fragment) is not a copy.
   - Defaults kept (32 / 32 / 0.75 / 16).
+- Step 8 prepared: scripts/run_assay.sh (a full run in Docker, in the background, with the
+  checkout's src/ mounted; log in work/runs/NAME.log) and scripts/run_summary.py (counts,
+  verdicts and accessions from results.json, no sequences; written to
+  work/runs/NAME-summary.json when the run ends). tests/test_run_summary.py.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.
