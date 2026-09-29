@@ -135,6 +135,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   checkout's src/ mounted; log in work/runs/NAME.log) and scripts/run_summary.py (counts,
   verdicts and accessions from results.json, no sequences; written to
   work/runs/NAME-summary.json when the run ends). tests/test_run_summary.py.
+- Code review of the whole overhaul (7b202e4^..HEAD): three bugs, all fixed with regression
+  tests that fail on the old code: a masked copy dropped by a weak candidate at the same place
+  (chain._best_per_place; now chain.copies_of), min_context_bases / the masked fallback not
+  following the config at scan time (every chain kept; ScanSettings.masked_below fixed at 32),
+  and a gene name over 60 characters breaking the default locus. Store SCHEMA 3: the
+  Neisseria run started on schema 2 has to start again.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

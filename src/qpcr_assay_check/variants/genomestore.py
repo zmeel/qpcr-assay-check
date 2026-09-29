@@ -32,7 +32,7 @@ from .datasets import AssemblyRecord, SequenceRole, is_plasmid
 
 log = logging.getLogger(__name__)
 
-SCHEMA = 2
+SCHEMA = 3  # 3: every chain kept, N-tolerant candidates beside the others (review 2026-09-29)
 GAP_MIN_N = 10  # an N-run of at least this length counts as an assembly gap
 UNAVAILABLE_AFTER = 2  # failed download attempts before a genome counts as unavailable
 _GAP_RE = re.compile(f"N{{{GAP_MIN_N},}}")
@@ -45,6 +45,12 @@ class ScanSettings(BaseModel):
     step: int = 2
     max_indel: int = 150
     flank: int = 50
+    masked_below: int = Field(
+        default=32,
+        description="the N-tolerant search runs when no candidate has this many anchored "
+        "fragment bases; a scan setting (in the store key), not the copy rule, so that "
+        "variants.min_anchored_bases can change without a new scan",
+    )
 
 
 def scan_settings(cfg: Any) -> ScanSettings:
@@ -247,7 +253,8 @@ def scan_genome(
     fetched; otherwise a FASTA description naming a plasmid marks the molecule."""
     seqs = {name: seq for name, (_d, seq) in records.items()}
     found = locate(seqs, references, k=settings.k, step=settings.step,
-                   max_indel=settings.max_indel, flank=settings.flank)  # fmt: skip
+                   max_indel=settings.max_indel, flank=settings.flank,
+                   masked_below=settings.masked_below)  # fmt: skip
     n, total, total_n, gaps = sequence_stats(seqs)
     plasmids = [f"{name} {desc}"[:160] for name, (desc, _s) in records.items()
                 if _molecule(name, records, roles) == "Plasmid"]  # fmt: skip

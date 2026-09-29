@@ -254,7 +254,7 @@ def _hit_copies(
     strand = "+" if h.hit_strand.lower().startswith("plus") else "-"
     length = max(length, hi)
     kw = {"k": settings.k, "step": settings.step, "max_indel": settings.max_indel,
-          "flank": settings.flank}  # fmt: skip
+          "flank": settings.flank, "masked_below": settings.masked_below}  # fmt: skip
     if h.query_from == 1 and h.query_to == n and h.hseq:
         region = h.hseq.replace("-", "").upper()  # already in the fragment's orientation
         found = [c for c in locate({acc: region}, references, **kw) if c.strand == "+"]
