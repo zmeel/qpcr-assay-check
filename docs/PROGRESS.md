@@ -3,6 +3,34 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-09-29 — Overhaul round 2: a generic assay model (advisor); user decisions
+
+- User: everything on the table; no run history in the report; the current cache may go, but
+  the tool keeps an incremental cache (only new assemblies downloaded; a locus store is
+  discarded only when the locus definition or method changes; BLAST/Taxonomy caches as now).
+  One GENERIC tool for (1) one F, one R, one probe; (2) several primers/probes on one region
+  (Neisseria); (3) several primers/probes for different regions or target taxa (Legionella,
+  true multiplexes).
+- Advisor plan: assay = oligos -> loci (primers, probes, reference fragments, optional context
+  accession, scan taxon, source) -> channels (one per reporter; probes; target taxon; taxa
+  roles). Old files load as one locus + one channel per reporter. Chain locator with context
+  (seed step 2, signed coordinates, all candidates kept); store v2 per (assay, locus) with a
+  schema/key header (mismatch = discard, re-download); assess through anchor-mapped windows,
+  F x R products per locus, detection per channel; lineage membership per genome and channel;
+  inclusivity per channel over its own target, complete in-scope exclusivity per channel (e.g.
+  the pneumophila channel on other Legionella), BLAST tiers per oligo as today. One outcome enum
+  per copy (WHOLE / CUT / MASKED; related = listed, not a copy) and per genome x channel
+  (DETECTED / NOT_DETECTED / UNDETERMINED(site_rule | incomplete | possibly_unassembled) /
+  NO_LOCUS; non-targets SILENT / SIGNAL / UNDETERMINED). Copy rule: (a) M_amp >= 32, or
+  (b) context-anchored M_ctx >= 32 on a side, co-linear, or (c) identity >= 0.75 with M_amp >= 16;
+  (b) awaits the context rerun. Build order 1-8 (model; outcome function; chain locator; store
+  v2 + sequence_reports; assess v2; report per channel; deletions; live re-downloads).
+- User decisions: LEGgenus reporter VIC, LEGpneu FAM; the genus channel targets the genus
+  Legionella (taxid choice 444 vs 445 to confirm: NCBI files L. dumoffii and L. gormanii under
+  Fluoribacter 461); NO_LOCUS in a complete genome = NOT_DETECTED (possible deletion); the
+  panel command and the sampled blast_hits inclusivity source may be removed (SPEC amendment);
+  out-of-scope taxa in a channel's scan are shown as information only.
+
 ## 2026-09-28 (overhaul) — Advisor plan; step 0: measurement script
 
 - Advisor (read-only) on the overhaul of the exhaustive variant analysis. Diagnosis: one number
