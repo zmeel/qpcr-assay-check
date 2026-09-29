@@ -15,9 +15,10 @@ from qpcr_assay_check.ncbi.blast import build_entrez_query
 from qpcr_assay_check.pipeline import evaluate
 from qpcr_assay_check.report.html import render_report
 from qpcr_assay_check.search.planner import plan_searches
+from qpcr_assay_check.variants.chain import Reference
 from qpcr_assay_check.variants.exhaustive import run_exhaustive
+from qpcr_assay_check.variants.genomestore import ScanSettings, store_file, store_key
 from qpcr_assay_check.variants.partitioned import base_term
-from qpcr_assay_check.variants.store import store_path
 
 from .conftest import make_assay
 
@@ -59,9 +60,10 @@ def test_invalid_exclusions_are_rejected(target, message):
 
 
 def test_the_region_store_is_separate_for_a_different_exclusion(tmp_path):
-    a = store_path(tmp_path, 100, "ACGT", 50, "blast_partitioned")
-    b = store_path(tmp_path, 100, "ACGT", 50, "blast_partitioned", [200])
-    assert a != b and a == store_path(tmp_path, 100, "ACGT", 50, "blast_partitioned", [])
+    refs, scan = [Reference("ACGT" * 10)], ScanSettings()
+    key = lambda ex: store_key(refs, scan, taxon=100, source="blast_partitioned", excluded=ex)  # noqa: E731
+    a, b = store_file(tmp_path, key([])), store_file(tmp_path, key([200]))
+    assert a != b and a == store_file(tmp_path, key(()))
 
 
 def test_the_datasets_source_refuses_exclusions(tmp_path):

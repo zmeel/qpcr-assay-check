@@ -45,7 +45,6 @@ from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from ..verdict import STATUS_LABEL, Verdict
-from . import locate
 from .chain import CopyRule, Reference, context_from, is_copy
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .genomestore import (
@@ -67,7 +66,7 @@ from .models import (
     RunLengthBreakdown,
     YearCoverage,
 )
-from .store import RegionStore, StoredAssembly, StoredLocus, store_path
+from .store import StoredAssembly, StoredLocus
 
 log = logging.getLogger(__name__)
 
@@ -344,17 +343,6 @@ def _download(
 
 
 # ------------------------------------------------------------------ assessment
-def current_items(store: RegionStore) -> list[StoredAssembly]:
-    """Stored assemblies, one per accession base (the highest version wins)."""
-    best: dict[str, StoredAssembly] = {}
-    for it in store.items.values():
-        base = it.accession.partition(".")[0]
-        cur = best.get(base)
-        if cur is None or _version(it.accession) > _version(cur.accession):
-            best[base] = it
-    return sorted(best.values(), key=lambda it: (it.release_date, it.accession))
-
-
 def _version(acc: str) -> int:
     tail = acc.rpartition(".")[2]
     return int(tail) if tail.isdigit() else 0
@@ -464,10 +452,6 @@ def assess(
     cfg: Config,
     *,
     calls: list[GenomeCall] | None = None,
-    related: list[str] | None = None,
-    related_ignored: list[str] | None = None,
-    updated: list[StoredAssembly] | None = None,
-    copies_decided: bool = False,
 ) -> tuple[list[SiteResult], int, list[str]]:
     """One site per role per genome, from the copy of the region the assay binds best.
 
@@ -476,11 +460,8 @@ def assess(
     mismatches and gaps; the genome is judged by its best copy, as a PCR needs only one copy it
     can amplify. ``sites_in_amplicon`` gives the oligo windows per reference amplicon (a locus
     records which reference found it). ``calls``, if given, collects each genome's
-    :class:`GenomeCall` (copies, per-oligo coverage). Only regions with at least
-    ``variants.min_copy_identity`` to the reference amplicon count as copies: ``related``
-    collects the genomes with nothing else, ``related_ignored`` those where such regions were
-    set aside next to real copies; ``updated`` the items whose identities were computed now
-    (to be saved in the store). Returns the sites, the number of genomes
+    :class:`GenomeCall` (copies, per-oligo coverage). The items' copies are already chosen by
+    the copy rule (:func:`as_items`). Returns the sites, the number of genomes
     whose only copies are cut by a contig end, and the genomes whose best copy has an N in an
     oligo site (masked, not assessed).
     """
@@ -493,9 +474,6 @@ def assess(
     channel_rule = cfg.variants.probe_channels
     bulges = cfg.variants.homopolymer_bulges_detectable
     parts_rule = cfg.variants.judge_from_parts
-    ref_amplicons = [amplicon] + [r.sequence for r in assay.reference_amplicons[1:]]
-    # the chain locator's copy rule has already chosen the copies (overhaul step 5)
-    min_identity = 0.0 if copies_decided else cfg.variants.min_copy_identity
     sites: list[SiteResult] = []
     contig_break = 0
     masked_site: list[str] = []
@@ -503,18 +481,6 @@ def assess(
     for it in items:
         if it.status != "found":
             continue
-        if min_identity and any(lc.identity is None for lc in it.loci):
-            it = with_identities(it, ref_amplicons, cfg.variants.seed_length)
-            if updated is not None:
-                updated.append(it)  # computed once, then kept in the store
-        real = real_loci(it, min_identity)
-        if not real:
-            if related is not None:
-                related.append(it.accession)  # only regions that resemble the target
-            continue
-        if related_ignored is not None and len(real) < len(it.loci):
-            related_ignored.append(it.accession)
-        it = it.model_copy(update={"loci": real})
         copies = []
         for locus in (lc for lc in it.loci if not lc.truncated):
             windows = per_ref[locus.ref] if locus.ref < len(per_ref) else per_ref[0]
@@ -527,9 +493,7 @@ def assess(
         best_ok = bool(copies) and all(roles_ok(copies[best_i][0], bulges).values())
         parts = None
         if parts_rule != "off" and not best_ok and any(lc.truncated for lc in it.loci):
-            parts = _assess_parts(
-                it, ref_amplicons, per_ref, assay, cfg, scoring, memo, channel_rule, bulges
-            )
+            parts = _assess_parts(it, per_ref, assay, cfg, scoring, memo, channel_rule, bulges)
             if parts is not None and not all(roles_ok(parts[0], bulges).values()):
                 parts = None  # only a detectable judgement from parts replaces anything
         if not copies and parts is None:
@@ -729,32 +693,8 @@ def _role_sites(
     return out
 
 
-MIN_PART_SEEDS = 2  # a cut copy counts as a part of the target only with 2+ exact seeds
-
-
-def with_identities(it: StoredAssembly, ref_amplicons: list[str], k: int) -> StoredAssembly:
-    """The item with every locus's identity to its reference amplicon filled in."""
-    loci = []
-    for lc in it.loci:
-        if lc.identity is None:
-            ref = ref_amplicons[lc.ref] if lc.ref < len(ref_amplicons) else ref_amplicons[0]
-            lc = lc.model_copy(update={"identity": round(locate.locus_identity(lc, ref, k), 4)})
-        loci.append(lc)
-    return it.model_copy(update={"loci": loci})
-
-
-def real_loci(it: StoredAssembly, min_identity: float) -> list[StoredLocus]:
-    """The loci close enough to the reference amplicon to be copies of the target (advisor
-    subagent, 2026-09-28); weaker regions only resemble it and are never judged. Loci without
-    a computed identity count (as before the threshold existed)."""
-    if not min_identity:
-        return list(it.loci)
-    return [lc for lc in it.loci if lc.identity is None or lc.identity >= min_identity]
-
-
 def _assess_parts(
     it: StoredAssembly,
-    amplicons: list[str],
     per_ref: list[dict[str, tuple[str, int, int]]],
     assay: Assay,
     cfg: Config,
@@ -770,16 +710,9 @@ def _assess_parts(
     sites may come from different copies: see :func:`assess`."""
     every: dict[str, SiteResult] = {}
     for stored in it.loci:
-        if not stored.truncated or (not stored.anchors and stored.n_seeds < MIN_PART_SEEDS):
+        if not stored.truncated:
             continue
-        if stored.anchors:  # the chain locator placed it (signed, never clamped)
-            locus = stored
-        else:
-            ref = amplicons[stored.ref] if stored.ref < len(amplicons) else amplicons[0]
-            offset = locate.implied_offset(stored.region, ref, cfg.variants.seed_length)
-            if offset is None:
-                continue
-            locus = stored.model_copy(update={"offset": offset})
+        locus = stored  # placed by the chain locator (signed, never clamped)
         windows = per_ref[stored.ref] if stored.ref < len(per_ref) else per_ref[0]
         for role in ROLES:
             for name, site in (_role_sites(it, locus, assay, role, windows, cfg, scoring, memo)
@@ -884,9 +817,7 @@ def mark_unassembled(calls: list[GenomeCall], setting: str = "auto") -> float | 
     complete = [c for c in calls if c.assembly_level in COMPLETE_LEVELS]
     if len(complete) < MIN_COMPLETE_GENOMES:
         return None
-    # n_copies counts stored complete copies: at most MAX_LOCI_KEPT (20; 5 in stores from before
-    # v1.3.0 until they are rescanned), so a capped count can only lower the median: the
-    # conservative side, fewer genomes marked
+    # n_copies counts the whole copies of each genome (every copy is kept, no cap)
     typical = float(statistics.median(c.n_copies for c in complete))
     if typical < 2:
         return None  # a single-copy target: a missing or failing copy is a real escape
@@ -1235,22 +1166,6 @@ def placements(assay: Assay, amplicon: str, cfg: Config) -> list[dict[str, tuple
     return placed
 
 
-def open_store(
-    assay: Assay, cfg: Config, cache_root: Path, amplicon: str, source: str
-) -> RegionStore:
-    """The assay's region store (keyed by the first reference only, so adding a lineage
-    reference keeps the stored regions)."""
-    taxon = assay.target.taxid
-    if taxon is None:
-        raise InputError("The exhaustive variant analysis needs the target's taxonomy ID.")
-    path = store_path(
-        cache_root, taxon, amplicon, cfg.variants.flank_nt, source, assay.target.excluded_taxids
-    )
-    store = RegionStore(path)
-    store.n_refs = len(assay.reference_amplicons) or 1
-    return store
-
-
 def channel_results(
     assay: Assay,
     items: list[StoredAssembly],
@@ -1470,9 +1385,7 @@ def run_exhaustive(
         )
     items, related, related_ignored = as_items(latest(store.items), copy_rule(cfg))
     calls: list[GenomeCall] = []
-    sites, contig_break, masked_site = assess(
-        items, assay, amplicon, placed, cfg, calls=calls, copies_decided=True
-    )
+    sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
     outcomes = {c.accession: genome_outcome(c) for c in calls}
     unassembled = {a for a, o in outcomes.items() if o == GenomeOutcome.UNASSEMBLED}
@@ -1516,7 +1429,6 @@ def run_exhaustive(
         not_found_with_plasmid=len(with_plasmid),
         not_found_with_plasmid_examples=[it.accession for it in with_plasmid[:20]],
         plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
-        plasmid_info_recorded=True,
         masked=len(masked_site),
         masked_examples=masked_site[:20],
         found_by_direct_scan=sum(

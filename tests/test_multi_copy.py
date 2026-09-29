@@ -193,19 +193,6 @@ def test_a_bulge_with_a_mismatch_is_never_detectable():
     assert not detectable(site, True) and not detectable(site, False)  # type: ignore[arg-type]
 
 
-def test_a_genome_with_more_copies_than_kept_is_not_rescanned_every_run():
-    from qpcr_assay_check.variants.store import MAX_LOCI_KEPT, StoredAssembly
-
-    base = {"accession": "GCA_1.1", "release_date": "2026-01-01", "status": "found",
-            "plasmid_contigs": 0}  # fmt: skip
-    loci = [{"contig": "c", "strand": "+", "start": 1, "end": 2, "region": "A", "offset": 0,
-             "n_seeds": 1, "truncated": False}]  # fmt: skip
-    old = StoredAssembly(**base, n_loci=8, loci=loci * 5)
-    many = StoredAssembly(**base, n_loci=MAX_LOCI_KEPT + 5, loci=loci * MAX_LOCI_KEPT)
-    assert old.needs_rescan and old.copies_capped
-    assert not many.needs_rescan and not many.copies_capped
-
-
 def test_one_mismatch_in_an_mgb_probe_makes_a_genome_undetermined_not_an_escape(tmp_path):
     """User decision 2026-09-25 (the enterovirus MGB probe: 196 genomes had counted as escapes)."""
     probes = [{"name": "P", "sequence": P, "reporter": "FAM", "modifications": ["MGB"]}]
