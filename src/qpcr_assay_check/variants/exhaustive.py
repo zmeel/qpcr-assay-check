@@ -1485,7 +1485,9 @@ def run_exhaustive(
                    and all(lc.fallback for lc in it.loci)]  # fmt: skip
     found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
-    on_plasmid = (sum(known) * 2 >= len(known)) if known else None
+    # plasmids are a property of genome assemblies; a Nucleotide record's title is no molecule
+    # label (a patent record titled "..., and plasmids" is not a plasmid)
+    on_plasmid = (sum(known) * 2 >= len(known)) if known and source == "datasets" else None
     with_plasmid = [it for it in not_found if it.plasmid_contigs]
     coverage = ExhaustiveCoverage(
         taxon=taxon,
@@ -1516,10 +1518,16 @@ def run_exhaustive(
         listed_at=(now or datetime.now(UTC)).isoformat(timespec="seconds"),
         not_found_examples=[it.accession for it in not_found[:20]],
         target_on_plasmid=on_plasmid,
-        not_found_without_plasmid=sum(1 for it in not_found if it.plasmid_contigs == 0),
-        not_found_with_plasmid=len(with_plasmid),
-        not_found_with_plasmid_examples=[it.accession for it in with_plasmid[:20]],
-        plasmid_header_examples=[x for it in items for x in it.plasmid_examples][:5],
+        not_found_without_plasmid=(
+            sum(1 for it in not_found if it.plasmid_contigs == 0) if source == "datasets" else 0
+        ),
+        not_found_with_plasmid=len(with_plasmid) if source == "datasets" else 0,
+        not_found_with_plasmid_examples=(
+            [it.accession for it in with_plasmid[:20]] if source == "datasets" else []
+        ),
+        plasmid_header_examples=(
+            [x for it in items for x in it.plasmid_examples][:5] if source == "datasets" else []
+        ),
         masked=len(masked_site),
         masked_examples=masked_site[:20],
         found_by_direct_scan=sum(
