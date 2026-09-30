@@ -37,6 +37,11 @@ All notable changes to this project are documented here. The format follows
   specificity result is INCOMPLETE. EXPECT stays 1000 (1e5 nearly filled the hit list).
 
 ### Fixed
+- The partner scan took a run of N (unknown bases) for a perfect primer site: an N was
+  compatible with every base, so a 21-N stretch 1.5 kb downstream on PX731700.1 (rhinovirus A7)
+  gave a predicted 1,506-bp "likely detected" product in the live enterovirus run
+  (2026-09-30). The scan now scores and counts unobserved template bases as mismatches;
+  BLAST-reported sites are unchanged.
 - Code review of the new specificity code (2026-09-30): the probe re-alignment added the best
   alignment even when it could not bind (now only sites of at least warning level); the partner
   scan's duplicate check ignored the search tier, so a record in two tiers lost its product in

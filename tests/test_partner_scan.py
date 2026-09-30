@@ -160,3 +160,28 @@ def test_the_limitations_say_whether_the_scan_ran(tmp_path):
     off, _, _ = run(w, tmp_path / "off")
     assert any("partner scan narrows that gap" in x for x in on.limitations)
     assert any("partner scan was switched off" in x for x in off.limitations)
+
+
+def test_a_run_of_n_is_not_a_partner_site(tmp_path):
+    """Live enterovirus run (2026-09-30): PX731700.1 has a stretch of N 1.5 kb downstream; the
+    scan took it for a perfect reverse primer site and predicted a 1,506-bp product."""
+    from .world import World, filler
+
+    w = World()
+    seq = filler(200, 1) + F + filler(300, 2) + "N" * 60 + filler(200, 3)
+    w.genome(ACC, NEAR, "Rhinovirus A", seq)
+    w.hit(NEAR, "forward", F, ACC, 201, "+")
+    res, _, _ = run(w, tmp_path, **SCAN)
+    assert res.amplicons == [] and res.partner_scan.primer_sites_added == 0
+
+
+def test_unobserved_bases_count_as_mismatches_in_a_scanned_site():
+    from qpcr_assay_check.align import realign
+
+    strict = realign.measure("ACGTACGT", "ACGNNCGT", unobserved_matches=False)
+    assert (strict.n_mismatch, strict.n_ambiguous) == (2, 0)
+    lenient = realign.measure("ACGTACGT", "ACGNNCGT")
+    assert (lenient.n_mismatch, lenient.n_ambiguous) == (0, 2)
+    sc = realign.Scoring(unobserved_matches=False)
+    aln = realign.align_semiglobal("ACGTACGTAC", "TTTT" + "N" * 12 + "TTACGTACGTCCTT", sc)
+    assert "N" not in aln.s_aln and aln.s_aln.startswith("ACGTACGT")

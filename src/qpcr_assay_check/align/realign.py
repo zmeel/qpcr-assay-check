@@ -26,6 +26,7 @@ class Scoring:
     mismatch: int = -3
     gap_open: int = 5
     gap_extend: int = 2
+    unobserved_matches: bool = True  # False: a subject N or other ambiguity code is a mismatch
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,8 @@ def sanitise_subject(seq: str) -> str:
 
 
 def _score(a: str, b: str, sc: Scoring) -> int:
+    if not sc.unobserved_matches and b not in "ACGT":
+        return sc.mismatch
     return sc.match if iupac.compatible(a, b) else sc.mismatch
 
 
@@ -129,8 +132,11 @@ def align_semiglobal(oligo: str, subject: str, sc: Scoring | None = None) -> Ali
     return Alignment("".join(reversed(qa)), "".join(reversed(sa)), j, best_j, best)
 
 
-def measure(q_aln: str, s_aln: str) -> Metrics:
-    """Mismatches, gaps and 3'-end quality of an alignment (oligo on top, subject below)."""
+def measure(q_aln: str, s_aln: str, *, unobserved_matches: bool = True) -> Metrics:
+    """Mismatches, gaps and 3'-end quality of an alignment (oligo on top, subject below).
+
+    ``unobserved_matches=False`` counts a subject N or other ambiguity code as a mismatch (an
+    unknown base is no evidence that the oligo binds there)."""
     if len(q_aln) != len(s_aln):
         raise ValueError("aligned strings must have equal length")
     length = sum(c != "-" for c in q_aln)
@@ -146,7 +152,7 @@ def measure(q_aln: str, s_aln: str) -> Metrics:
         if sc_ == "-":  # oligo base without a partner
             n_gap += 1
             defects.add(pos)
-        elif iupac.compatible(qc, sc_):
+        elif iupac.compatible(qc, sc_) and (unobserved_matches or sc_ in "ACGT"):
             n_match += 1
             if sc_ not in "ACGT":
                 n_amb += 1

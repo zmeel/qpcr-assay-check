@@ -355,8 +355,11 @@ def site_from_scan(
     note: str,
 ) -> SiteResult:
     """A site found by aligning an oligo in sequence fetched next to another site (``anchor``,
-    whose record, organism and tier it shares)."""
+    whose record, organism and tier it shares). Unobserved template bases (N, ambiguity codes)
+    count as mismatches: a run of N must not look like a perfect site (live enterovirus run,
+    2026-09-30: a 21-N stretch of PX731700.1 made a 'perfect' reverse primer site)."""
     start, end = placed(aln, w_lo, w_len, orientation)
+    m = realign.measure(aln.q_aln, aln.s_aln, unobserved_matches=False)
     return SiteResult(
         id=site_id,
         tier=anchor.tier,
@@ -374,7 +377,7 @@ def site_from_scan(
         subject_length=anchor.subject_length,
         source="scanned",
         note=note,
-        **_result_fields(aln.q_aln, aln.s_aln, realign.measure(aln.q_aln, aln.s_aln), rules),
+        **_result_fields(aln.q_aln, aln.s_aln, m, rules),
     )
 
 
