@@ -197,6 +197,17 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Intermittent test failure found: tests/test_variants_exhaustive.py plasmid fixture seeded
   chromosomes with hash(acc) % 1000 (per-process); seeds 11/12 recreate AMP's own spacer
   (1 run in ~125). Fixed seeds.
+- Comparison with SymbioSeas/assayval (user, 2026-09-30): local BLAST per genome with word
+  size 4, count thresholds, gapless hits only; its blind-spot figures for word size 7 reproduced
+  exactly (17-mer 2 mm: 10/136; 13-mer 1 mm: 1/13). Word-size check: NCBI's URL API documents
+  blastn WORD_SIZE 7, 11, 15 only (https://blast.ncbi.nlm.nih.gov/doc/blast-help/urlapi.html,
+  read 2026-09-30), so the remote search cannot go below 7. Blind spot for the user's oligos at
+  word 7 (uniform placements, sites with the last 5 nt clean): 1 mismatch never missed; 2
+  mismatches up to 7.4% (17-mers NG-F, Entero-P); 3 mismatches 15-33% for 17-19-mers, 1-6% for
+  21-24-mers, 0 for LEGpneu (35 nt). Affects only the specificity search (off-target sites);
+  the genome scan does not use BLAST. Proposed mitigation (not built): re-align the partner
+  primer and the probe inside a window around every relevant primer site, so a site hidden
+  from BLAST is still found when the other primer's site is visible.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.
