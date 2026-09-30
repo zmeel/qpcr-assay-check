@@ -132,3 +132,11 @@ settings:                       # only what differs from the defaults, for this 
   variants:
     source: blast_partitioned   # virus: every Nucleotide record
     nucleotide_query: "6500:8500[SLEN]"   # near-complete genomes; remove for every record
+  search:
+    max_taxids_per_search: 1    # each near-neighbour taxon (the rhinoviruses) in its own
+                                #   search: all five together filled the probe's 5,000-hit list
+                                #   (live run 2026-09-30); one search per taxon is five smaller
+                                #   searches, sent anew rather than taken from the cache
+  specificity:
+    max_sites_per_query: 6000   # the rhinovirus tier had about 5,000 relevant alignments per
+                                #   oligo; the default 2,000 left it Incomplete
