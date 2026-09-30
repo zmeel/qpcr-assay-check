@@ -37,6 +37,12 @@ All notable changes to this project are documented here. The format follows
   specificity result is INCOMPLETE. EXPECT stays 1000 (1e5 nearly filled the hit list).
 
 ### Fixed
+- The score floors all read "not known" in the live enterovirus run: NCBI reports the search
+  space as 0 for each query of a multi-query search (checked in the user's cache,
+  2026-09-30). The space is now derived from the reported alignments (E = K x space x
+  e^(-lambda S), largest over the alignments; checked against the single-query sweep), or
+  bounded from above by query length x database length when there is none; the report marks
+  which ("space from hits", "upper bound").
 - The partner scan took a run of N (unknown bases) for a perfect primer site: an N was
   compatible with every base, so a 21-N stretch 1.5 kb downstream on PX731700.1 (rhinovirus A7)
   gave a predicted 1,506-bp "likely detected" product in the live enterovirus run

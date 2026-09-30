@@ -119,3 +119,42 @@ def test_a_full_hit_list_qualifies_always_reported():
     out = floors([rec], {"forward": "GTTGAAACACCGCCCGG"}, ["background"], s)
     assert out[0].list_full
     assert "unless cut from the full hit list" in floor_findings(out, s.expect)[0].message
+
+
+def _multi(stat, hsps, query_len=17):
+    hits = [{"num": i + 1, "description": [{"id": f"gi|1|gb|X{i}.1|", "accession": f"X{i}"}],
+             "hsps": [dict({"num": 1, "bit_score": 20.0, "identity": 12, "align_len": 12,
+                            "query_from": 1, "query_to": 12, "hit_from": 1, "hit_to": 12,
+                            "qseq": "A" * 12, "hseq": "A" * 12}, **h)]}
+            for i, h in enumerate(hsps)]  # fmt: skip
+    doc = {"BlastOutput2": [{"report": {"results": {"search": {
+        "query_id": "Q_1", "query_title": "forward", "query_len": query_len, "hits": hits,
+        "stat": stat}}}}]}  # fmt: skip
+    return parse_blast_json(json.dumps(doc), ["forward"]).queries["forward"].stat
+
+
+def test_a_zero_search_space_is_derived_from_the_reported_alignments():
+    """Live cache check (2026-09-30): multi-query searches report eff_space 0. The sweep's own
+    numbers: the largest E-value, 621.94 at score 10, gives the reported 8.12e8."""
+    stat = dict(STAT, eff_space=0, hsp_len=0)
+    st = _multi(stat, [{"score": 10, "evalue": 621.94}, {"score": 13, "evalue": 9.8}])
+    assert st.space_source == "from_hits"
+    assert st.eff_space == pytest.approx(STAT["eff_space"], rel=0.01)
+    assert score_floor(st.eff_space, st.kappa, st.lambda_, 1000) == 10
+
+
+def test_without_alignments_the_space_is_bounded_from_above():
+    stat = dict(STAT, eff_space=0, hsp_len=0)
+    st = _multi(stat, [])
+    assert st.space_source == "upper_bound" and st.eff_space == 17 * STAT["db_len"]
+    # an upper bound can only raise the floor: the guarantee gets weaker, never stronger
+    assert score_floor(st.eff_space, st.kappa, st.lambda_, 1000) >= 10
+
+
+def test_the_finding_says_how_the_space_was_known():
+    s = load_config().search
+    rec = _record("background", 8e8)
+    rec.stats["forward"] = rec.stats["forward"].model_copy(update={"space_source": "from_hits"})
+    out = floors([rec], {"forward": "GTTGAAACACCGCCCGG"}, ["background"], s)
+    assert out[0].space_source == "from_hits"
+    assert "derived from the reported alignments" in floor_findings(out, s.expect)[0].message
