@@ -193,7 +193,18 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
         + (f", {w.from_parts:,} detectable from parts" if w.from_parts else "")
         + ")"
     )
-    if inc.verdict is Verdict.FAIL:
+    # the whole fragment's own status; a worse section status comes from a channel
+    year_below = any(line.startswith("Release year ") for line in inc.rationale)
+    if pct < rules.fail_below_percent:
+        own = Verdict.FAIL
+    elif pct < rules.warn_below_percent or year_below:
+        own = Verdict.WARN
+    else:
+        own = Verdict.PASS
+    channel = next((line for line in inc.rationale if line.startswith("Channel ")), "")
+    if inc.verdict in (Verdict.FAIL, Verdict.WARN) and own is not inc.verdict and channel:
+        reason = channel
+    elif inc.verdict is Verdict.FAIL:
         reason = f"below your limit of {rules.fail_below_percent:g}% detectable"
     elif inc.verdict is Verdict.WARN:
         reason = (

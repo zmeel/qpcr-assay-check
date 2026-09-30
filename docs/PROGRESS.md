@@ -156,6 +156,20 @@ verified NCBI facts) at the start of every session. Newest entry first.
     NG-P1 perfect: worth checking that record's identity.
   - Report fixes from it: the "no product is predicted" sentence under a tier with a product;
     the set-aside count (nearly all genomes since schema 3) no longer shown.
+- Step 8, Legionella (user, 22:24-08:54, 11,911 assemblies in one run, about 3.2 s each):
+  - Region found 7,341 (2,912 of them detectable from parts), cut by a contig end 4,433,
+    not found 104, hidden by N 7, related only 26. So 7,345 genomes (62%) have no whole copy
+    (the pre-overhaul run: 6,064 with every copy cut); the rise is drafts whose fragment is not
+    assembled at all but whose flank sits at a contig end: now "cut", before "not found".
+    2,850 of the 2,912 from parts are all-perfect L. pneumophila drafts.
+  - Whole fragment 2023-2026: 95.4% detectable of 2,697 (No flags). Complete genomes 93.3%
+    (25 escapes: L. anisa, L. micdadei, F. dumoffii, L. steigerwaltii, L. quinlivanii: genus
+    probe LEGgenus likely failure). L. longbeachae complete genomes now detectable (VIC
+    perfect); the pre-overhaul run's 49 L. longbeachae failures were misplaced sites.
+  - Channels: genus (VIC) 95.8% of 4,337 judged, 7,444 undetermined, 130 drafts without the
+    region; L. pneumophila (FAM) 99.8% of 3,982, signal in 2 of 757 other genomes
+    (GCF_026191185.1, GCF_026191275.1): Review.
+  - Fixed from it: the summary called the channel's Review "a single release year below 80%".
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

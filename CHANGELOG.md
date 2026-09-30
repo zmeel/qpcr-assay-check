@@ -20,6 +20,9 @@ All notable changes to this project are documented here. The format follows
   - Report: a tier with a predicted product no longer also says "so no product is
     predicted" when both primers have a perfect site (live Neisseria report, 2026-09-30);
     the count of genomes with a set-aside non-copy region is no longer shown (nearly all).
+  - Summary: when only a channel makes the inclusivity status Review or Exceeds limit, the
+    row names that channel instead of "a single release year below 80%" (live Legionella
+    report, 2026-09-30).
 
 ### Removed
 - **Run history and the comparison with the previous run** (overhaul step 7a; user decision
