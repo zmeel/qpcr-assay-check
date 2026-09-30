@@ -1,14 +1,19 @@
 # Example assay: Neisseria gonorrhoeae, one primer pair with two alternative FAM-MGB probes.
 #
 # STATUS
-#   Current format (after v1.3.0): named oligos, several per role (docs/USER_GUIDE.md "Several oligos per
-#   role"). The variant analysis judges each genome by its best-binding copy of this multi-copy
-#   target, reports coverage per oligo and the escapes, and tries NG-fragment-P2 where
-#   NG-fragment-P1 finds nothing. Since v1.3.0 every site gets a graded mismatch class
-#   (docs/MISMATCH_CLASSES.md); both probes carry MGB, so a single probe mismatch is
-#   "undetermined" and two or more are "likely failure". No taxa inside N. gonorrhoeae are left
-#   out of the target (target.taxa stays empty). Settings for this assay are in its own
-#   'settings:' section at the end.
+#   Loci and channels format (overhaul of 2026-09-29; rewritten 2026-09-30, oligos, fragments,
+#   target and settings unchanged). One amplified region with both fragments as references and
+#   both probes; one FAM channel whose target is the assay target (485). The variant analysis
+#   judges each genome by its best-binding copy of this multi-copy target. Both probes carry
+#   MGB, so a single probe mismatch is "indeterminate" and two or more are "likely failure"
+#   (docs/MISMATCH_CLASSES.md). No wet-lab evidence entries (user, 2026-09-30). No taxa inside
+#   N. gonorrhoeae are left out of the target. Settings for this assay are at the end.
+#
+# NO CONTEXT ACCESSION
+#   The region occurs 2-7 times per genome and the copies sit in different surroundings, so the
+#   sequence either side of one copy does not describe the others. The fragments alone locate
+#   the copies: the live run of 2026-09-29 found the region in 19,970 of 20,000 genomes, none
+#   "not found", without a context accession.
 #
 # PROVENANCE
 #   Sequences supplied by the user (2026-09-24); not checked against a publication or kit insert.
@@ -43,10 +48,16 @@ probe:
   - {name: NG-P2, sequence: CTTTGAACCATCAGTGAAA, reporter: FAM, modifications: [MGB]}
 template_type: DNA
 target:
-  taxid: 485
-reference_amplicons:
-  - {name: NG-fragment-P1, sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCCTTCAACATCAGTGAAAATCTTTTTTTAACCGGTCAAACCG}
-  - {name: NG-fragment-P2, sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCTTTGAACCATCAGTGAAAATCTTTTTTTTTAACCGGTTAAACCG}
+  taxid: 485                     # Neisseria gonorrhoeae
+loci:
+  - name: NG target region
+    primers: [NG-F, NG-R]
+    probes: [NG-P1, NG-P2]
+    references:                  # both fragments as supplied (see WHAT WAS CHECKED)
+      - {name: NG-fragment-P1, sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCCTTCAACATCAGTGAAAATCTTTTTTTAACCGGTCAAACCG}
+      - {name: NG-fragment-P2, sequence: GTTGAAACACCGCCCGGAACCCGATATAATCCGCCTTTGAACCATCAGTGAAAATCTTTTTTTTTAACCGGTTAAACCG}
+channels:
+  - {name: N. gonorrhoeae, probes: [NG-P1, NG-P2]}   # reporter FAM (from the probes); target 485
 exclusivity_organisms:
   - Neisseria meningitidis
 oligo_source: Supplied by the user; source publication or kit not stated.
