@@ -88,8 +88,9 @@ def test_one_channel_counts_a_missing_locus_as_not_detected_only_in_complete_gen
     assert ch.not_detected_examples == ["GCF_000000002.1"] and ch.detected_percent == 50.0
 
 
-def _two_channels(tmp_path):
-    """Legionella-type: a genus channel and a species channel on one amplicon (SYNTHETIC)."""
+def _two_channels(tmp_path, tune=None):
+    """Legionella-type: a genus channel and a species channel on one amplicon (SYNTHETIC);
+    ``tune`` changes the configuration before the analysis runs."""
     from qpcr_assay_check.models import Assay
 
     from .conftest import CDC_N1_F as F
@@ -114,6 +115,8 @@ def _two_channels(tmp_path):
         FakeAssembly("GCF_000000003.1", "2025-03-01", genome(AMP, 5), taxid=450),
     ])  # fmt: skip
     cfg, _f, client, _a = setup(tmp_path, fake=fake)
+    if tune is not None:
+        tune(cfg)
     lineage = {446: {446, 445, 444}, 450: {450, 445, 444}}
     res = run_exhaustive(assay, cfg, client, tmp_path / "cache", _no_fetch, now=NOW,
                          ancestors_of=lambda ids: {t: lineage[t] for t in ids})  # fmt: skip
@@ -193,3 +196,27 @@ def test_channel_status_rules():
     assert channel_verdict(ch(), rules)[0] is Verdict.INCOMPLETE
     unknown = ch(target_genomes=10, detected=10, membership_unknown=3)
     assert channel_verdict(unknown, rules)[0] is Verdict.INCOMPLETE
+
+
+def test_the_summary_names_the_channel_when_only_a_channel_makes_inclusivity_review(tmp_path):
+    """Live Legionella report (user, 2026-09-30): the whole fragment had no flags, the species
+    channel a signal outside its target, and the summary said 'a single release year below
+    80%'."""
+    from qpcr_assay_check.pipeline import evaluate
+    from qpcr_assay_check.report.summary import summary_rows
+    from qpcr_assay_check.verdict import Verdict
+
+    from .test_variants_exhaustive import _empty_specificity
+
+    def few_genomes_suffice(cfg):
+        cfg.inclusivity.min_genomes_for_verdict = cfg.inclusivity.min_genomes_per_year = 1
+
+    assay, cfg, res = _two_channels(tmp_path, few_genomes_suffice)
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    assert result.inclusivity.verdict is Verdict.WARN
+    row = next(r for r in summary_rows(result, cfg, []) if r.check.startswith("Target detection"))
+    assert row.reason.startswith("Channel species: a signal") and "release year" not in row.reason
