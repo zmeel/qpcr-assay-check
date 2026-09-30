@@ -109,6 +109,13 @@ window (`efetch`, padded for gaps) and semi-globally re-aligns the *whole* oligo
 past BLAST's seed are not missed. Hits that provably cannot reach even a "warning" level (from
 BLAST's own scoring bound) are not fetched, to keep a background-tier run to a practical number of
 `efetch` calls; `scripts/validate_assessment.py` checks that bound against real NCBI hits.
+Because BLAST reports only alignments above a score set by the E-value cut-off and the size of
+the search, the report states per tier and oligo the smallest score reported and how many
+mismatches a site may carry and still always be found ("Reported down to"). Next to every
+off-target primer site that forms no product, the tool fetches the sequence a product could span
+and aligns the partner primers in it (the *partner scan*), and it re-aligns the probes inside
+every product without a reported probe site, so a partner or probe site that BLAST's cut-off
+hid is still found (`specificity.partner_scan_max_windows`, default 1,000; 0 switches it off).
 To skip the human background search (it takes about an hour), set `search.background_taxids: []`
 in a `--config` file. The search plan then warns, and the report's rationale states that
 off-target binding to human DNA was not evaluated.

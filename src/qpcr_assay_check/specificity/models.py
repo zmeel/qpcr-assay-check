@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from ..verdict import Verdict
 
 Level = Literal["critical", "warning", "minor"]
-SiteSource = Literal["blast_full", "realigned", "blast_partial_worst_case"]
+SiteSource = Literal["blast_full", "realigned", "blast_partial_worst_case", "scanned"]
 
 
 class SiteResult(BaseModel):
@@ -32,6 +32,7 @@ class SiteResult(BaseModel):
     )
     subject_start: int
     subject_end: int
+    subject_length: int | None = Field(default=None, description="length of the subject record")
     source: SiteSource
     q_aln: str
     s_aln: str
@@ -112,6 +113,39 @@ class TierCount(BaseModel):
     truncated: bool = False
 
 
+class ScoreFloor(BaseModel):
+    """The smallest alignment score the searches of one tier could report for one oligo."""
+
+    tier: str
+    query: str
+    length: int
+    min_score: int | None = Field(
+        description="highest score floor of the tier's searches; None without search statistics"
+    )
+    max_mismatches_reported: int | None = Field(
+        description="mismatches (no gap) a full-length site may have and still always be reported"
+    )
+    searches_without_statistics: int = 0
+
+
+class PartnerScan(BaseModel):
+    """The partner scan: windows next to off-target primer sites searched for partners and
+    probes that BLAST did not report."""
+
+    primer_sites: int = Field(
+        description="off-target primer sites that can prime and formed no product from BLAST's "
+        "sites alone"
+    )
+    windows: int = Field(description="windows next to primer sites scanned for partners")
+    product_windows: int = Field(
+        default=0, description="products fetched to re-align the probes in"
+    )
+    windows_failed: int = 0
+    not_scanned: int = Field(default=0, description="primer sites beyond the window limit")
+    primer_sites_added: int = 0
+    probe_sites_added: int = 0
+
+
 class SpecificityResult(BaseModel):
     """Everything the specificity assessment found."""
 
@@ -134,3 +168,5 @@ class SpecificityResult(BaseModel):
     searches: list[dict] = Field(default_factory=list, description="search records incl. RIDs")
     parameters: dict = Field(default_factory=dict)
     limitations: list[str] = Field(default_factory=list)
+    score_floors: list[ScoreFloor] = Field(default_factory=list)
+    partner_scan: PartnerScan | None = None

@@ -359,6 +359,7 @@ class SpecificitySettings(_Strict):
     probe_binds_if: Literal["critical", "warning"]
     severity: SeverityMap
     eukaryote_taxids: list[int]
+    partner_scan_max_windows: int = 1000
 
     @model_validator(mode="after")
     def _positive(self) -> SpecificitySettings:
@@ -368,6 +369,8 @@ class SpecificitySettings(_Strict):
             )
         if self.window_padding_nt < 0:
             raise ValueError("window_padding_nt must be >= 0")
+        if self.partner_scan_max_windows < 0:
+            raise ValueError("partner_scan_max_windows must be >= 0 (0 switches the scan off)")
         return self
 
 

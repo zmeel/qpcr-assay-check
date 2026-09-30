@@ -204,6 +204,7 @@ def _common(c: Candidate) -> dict[str, object]:
         "title": (d.title if d else "")[:200],
         "n_merged": len(c.hit.descriptions),
         "orientation": c.orientation,
+        "subject_length": c.hit.length,
     }
 
 
@@ -314,11 +315,7 @@ def site_from_alignment(
 ) -> SiteResult:
     """A partial hit completed by re-aligning the whole oligo inside the fetched window."""
     m = realign.measure(aln.q_aln, aln.s_aln)
-    if c.orientation == "+":
-        start, end = w_lo + aln.s_start, w_lo + aln.s_end - 1
-    else:  # the window was reverse-complemented: index i corresponds to w_hi - i
-        w_hi = w_lo + len(window) - 1
-        start, end = w_hi - (aln.s_end - 1), w_hi - aln.s_start
+    start, end = placed(aln, w_lo, len(window), c.orientation)
     return _result(
         c,
         source="realigned",
@@ -331,6 +328,53 @@ def site_from_alignment(
         n_unaligned=0,
         rules=rules,
         site_id=site_id,
+    )
+
+
+def placed(aln: realign.Alignment, w_lo: int, w_len: int, orientation: str) -> tuple[int, int]:
+    """Forward-strand start and end of an alignment made in an oriented window that begins at
+    ``w_lo`` and is ``w_len`` bases long."""
+    if orientation == "+":
+        return w_lo + aln.s_start, w_lo + aln.s_end - 1
+    w_hi = w_lo + w_len - 1  # the window was reverse-complemented: index i is w_hi - i
+    return w_hi - (aln.s_end - 1), w_hi - aln.s_start
+
+
+def site_from_scan(
+    anchor: SiteResult,
+    *,
+    label: str,
+    role: str,
+    oligo: str,
+    orientation: Literal["+", "-"],
+    aln: realign.Alignment,
+    w_lo: int,
+    w_len: int,
+    rules: SiteRules,
+    site_id: str,
+    note: str,
+) -> SiteResult:
+    """A site found by aligning an oligo in sequence fetched next to another site (``anchor``,
+    whose record, organism and tier it shares)."""
+    start, end = placed(aln, w_lo, w_len, orientation)
+    return SiteResult(
+        id=site_id,
+        tier=anchor.tier,
+        query=label,
+        role=role,  # type: ignore[arg-type]
+        oligo=oligo,
+        accession=anchor.accession,
+        taxid=anchor.taxid,
+        organism=anchor.organism,
+        title=anchor.title,
+        n_merged=anchor.n_merged,
+        orientation=orientation,
+        subject_start=start,
+        subject_end=end,
+        subject_length=anchor.subject_length,
+        source="scanned",
+        note=note,
+        **_result_fields(aln.q_aln, aln.s_aln, realign.measure(aln.q_aln, aln.s_aln), rules),
     )
 
 

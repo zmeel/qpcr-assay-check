@@ -76,6 +76,18 @@ class Hit(BaseModel):
         return max((h.identity for h in self.hsps), default=0)
 
 
+class SearchStat(BaseModel):
+    """Karlin-Altschul statistics NCBI reports for one query (``search.stat`` in JSON2).
+
+    With them the smallest raw score an alignment needs to be reported follows from
+    ``E = kappa * eff_space * exp(-lambda * S)``.
+    """
+
+    eff_space: float
+    kappa: float
+    lambda_: float = Field(description="'lambda' in the report")
+
+
 class QueryResult(BaseModel):
     """All hits for one query oligo."""
 
@@ -84,6 +96,7 @@ class QueryResult(BaseModel):
     query_len: int | None = None
     hits: list[Hit] = Field(default_factory=list)
     message: str | None = None
+    stat: SearchStat | None = None
 
 
 class ParsedSearch(BaseModel):
@@ -138,6 +151,20 @@ def _description(raw: dict[str, Any]) -> HitDescription:
         taxid=int(taxid) if taxid not in (None, "") else None,
         sciname=raw.get("sciname"),
     )
+
+
+def _stat(raw: Any) -> SearchStat | None:
+    """The search statistics, or None when the report lacks them (they are optional here)."""
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return SearchStat(
+            eff_space=float(raw["eff_space"]),
+            kappa=float(raw["kappa"]),
+            lambda_=float(raw["lambda"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _label_for(title: str, query_id: str, labels: list[str]) -> str:
@@ -198,6 +225,7 @@ def parse_blast_json(text: str, labels: list[str]) -> ParsedSearch:
             query_len=int(search["query_len"]) if "query_len" in search else None,
             hits=hits,
             message=search.get("message"),
+            stat=_stat(search.get("stat")),
         )
     missing = [x for x in labels if x not in queries]
     if missing:

@@ -215,16 +215,17 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 <p class="meta">Complete: every relevant alignment of every oligo was assessed (no full hit list, nothing cut at max_sites_per_query). RIDs are NCBI's search IDs, with the day they were issued; NCBI keeps results for about 36 hours, so they record provenance rather than live links.</p>
 <details class="qc"><summary>Hits and alignments per oligo</summary>
 <div class="scroll"><table>
-  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Hit list full</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th></tr></thead>
+  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Hit list full</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th><th>Reported down to</th></tr></thead>
   <tbody>
   {% for t in search_rows %}{% for q, n in t.hits.items() %}{% set c = spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('query', 'equalto', q) | first %}
-  <tr><td>{{ t.tier }}</td><td>{{ q }}</td><td class="num">{{ n }}</td><td>{{ 'yes' if q in t.saturated else 'no' }}</td>{% if c %}<td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td>{% else %}<td colspan="3" class="meta">{{ 'not used for specificity' if t.tier == 'target' else '' }}</td>{% endif %}</tr>
+  <tr><td>{{ t.tier }}</td><td>{{ q }}</td><td class="num">{{ n }}</td><td>{{ 'yes' if q in t.saturated else 'no' }}</td>{% if c %}<td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td>{% else %}<td colspan="3" class="meta">{{ 'not used for specificity' if t.tier == 'target' else '' }}</td>{% endif %}{% set fl = spec.score_floors | selectattr('tier', 'equalto', t.tier) | selectattr('query', 'equalto', q) | first %}<td>{% if fl and fl.min_score is not none %}score {{ fl.min_score }}{% if fl.max_mismatches_reported is not none and fl.max_mismatches_reported >= 0 %}<br><span class="meta">≤ {{ fl.max_mismatches_reported }} mismatch{{ '' if fl.max_mismatches_reported == 1 else 'es' }} always</span>{% endif %}{% elif fl %}<span class="meta">not known</span>{% endif %}</td></tr>
   {% endfor %}{% endfor %}
   </tbody>
 </table></div>
 <p class="meta">Sites found: {{ spec.n_sites.critical }} critical, {{ spec.n_sites.warning }} warning, {{ spec.n_sites.minor }} minor.
   Levels follow the configured limits (mismatches, gaps and clean 3′ nucleotides). {{ spec.n_fetched }} sequence windows were used for full-length
-  re-alignment{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.</p>
+  re-alignment and the partner scan{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.
+  Reported down to: the smallest alignment score the tier's least sensitive search could report with the E-value cut-off {{ r.config.search.expect }}, from NCBI's own search statistics, and the most mismatches (no gap) a full-length site can carry and still always be reported.</p>
 </details>
 
 <h2>Predicted off-target products</h2>
@@ -243,7 +244,7 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
 {% if spec.amplicons %}
 {% set judged = product_groups | rejectattr('tier', 'equalto', 'out_of_scope') | list %}
 {% set oos = product_groups | selectattr('tier', 'equalto', 'out_of_scope') | list %}
-<p class="meta">One row per search tier and species (identical products counted once), most concerning first: products the probe would detect, then the fewest primer mismatches. Every product is listed in the workbook (sheet "Predicted products"). A product is predicted when two primer sites of at least warning level face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp; {{ spec.n_primer_only }} primer site(s) at warning or critical level formed no product.</p>
+<p class="meta">One row per search tier and species (identical products counted once), most concerning first: products the probe would detect, then the fewest primer mismatches. Every product is listed in the workbook (sheet "Predicted products"). A product is predicted when two primer sites of at least warning level face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp; {{ spec.n_primer_only }} primer site(s) at warning or critical level formed no product.{% if spec.partner_scan %} Next to {{ spec.partner_scan.windows }} off-target primer site(s) the sequence was fetched and the partner primers aligned in it (partner scan), and probes were re-aligned inside products without a reported probe site: {{ spec.partner_scan.primer_sites_added }} primer and {{ spec.partner_scan.probe_sites_added }} probe site(s) BLAST had not reported.{% endif %}</p>
 {% if judged %}{{ product_table(products_shown[0]) }}{% if products_shown[1] %}<p class="meta">{{ products_shown[1] }} further species row(s) with products the probe would not detect: see the workbook.</p>{% endif %}
 {% else %}<p>No product was predicted in the judged tiers ({{ spec.counts | map(attribute='tier') | reject('equalto', 'out_of_scope') | unique | join(', ') or 'none searched' }}).</p>{% endif %}
 {% if assay.target.must_not_detect_taxids and not (judged | selectattr('tier', 'equalto', 'near_neighbours') | list) %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}

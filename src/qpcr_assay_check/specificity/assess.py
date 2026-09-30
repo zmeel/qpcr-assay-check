@@ -16,8 +16,10 @@ from ..search.planner import OUT_OF_SCOPE_TIER, SearchPlan
 from .duplex import estimate_duplex
 from .fetch import WindowFetcher
 from .findings import build_findings, verdict_of
-from .models import Finding, SiteResult, SpecificityResult, TierCount
+from .models import Finding, PartnerScan, SiteResult, SpecificityResult, TierCount
 from .pairing import predict_amplicons, primer_can_prime
+from .reach import floor_findings, floors
+from .scan import PartnerScanner
 from .sites import (
     Candidate,
     can_reach_warning,
@@ -32,13 +34,14 @@ from .sites import (
 log = logging.getLogger(__name__)
 
 LIMITATIONS = [
-    "BLAST reports a site only when it contains an exact 7-base match (the smallest word size "
-    "NCBI's remote BLAST allows for blastn) and its alignment scores high enough for the E-value "
-    "cut-off (1000). A short oligo with few mismatches can fall below that score: a 17-nt oligo "
-    "with one internal mismatch scores 13 (+1 per match, -3 per mismatch), about the smallest "
-    "score reported. For oligos of 17-21 nt, sites with 1-3 mismatches can therefore be missing "
-    "from the search, more often the shorter the oligo; an absent hit is not proof of absent "
-    "binding.",
+    "BLAST reports a site only when it contains an exact match as long as the BLAST word (7 bases, "
+    "the smallest NCBI's remote BLAST allows for blastn) and its alignment scores high enough for "
+    "the E-value cut-off. The smallest reportable score depends on the size of each search and "
+    "is given per tier and oligo under 'search' (computed from NCBI's own search statistics); a "
+    "site scoring less can be missing, so an absent hit is not proof of absent binding. The "
+    "partner scan closes this gap for the second primer and the probe of a product once BLAST "
+    "has reported one primer site; a product of which BLAST reported neither primer site is "
+    "not found.",
     "Partial BLAST hits that were not re-aligned are assessed with the most risk-conservative "
     "assumption compatible with BLAST's scoring; they are marked as worst case.",
     "Duplex Tm and ΔG are nearest-neighbour estimates of stability. A mismatch at the 3'-terminal "
@@ -136,10 +139,6 @@ def assess_specificity(
         if n % 200 == 0:
             log.info("  %d / %d windows done", n, len(pending))
 
-    n_sites = {"critical": 0, "warning": 0, "minor": 0}
-    for s in sites:
-        n_sites[s.level] += 1
-
     # ---- keep every critical/warning site plus the closest minor ones for display
     keep = [s for s in sites if s.level != "minor"]
     minor: dict[tuple[str, str], list[SiteResult]] = defaultdict(list)
@@ -151,16 +150,42 @@ def assess_specificity(
         keep.extend(group[: rules.report_top_sites])
     keep.sort(key=lambda s: int(s.id[1:]))
 
+    # ---- products; then the partner scan: partner primers next to off-target primer sites
+    # that form no product yet, and probes re-aligned inside products without probe signal
+    def pair() -> tuple[list[SiteResult], list, set[str], set[str]]:
+        priming = [s for s in keep if s.role == "probe" or primer_can_prime(s)]
+        return priming, *predict_amplicons(priming, rules, assay)
+
+    priming, amplicons, used, amp_truncated = pair()
+    scanning = rules.partner_scan_max_windows > 0
+    scanner = PartnerScanner(assay, plan.queries, rules, scoring, fetcher, ids)
+    if scanning:
+        anchors = [
+            s for s in keep
+            if s.tier in rules.off_target_tiers and primer_can_prime(s) and s.id not in used
+        ]  # fmt: skip
+        log.info("Partner scan next to %d unpaired off-target primer sites", len(anchors))
+        added = scanner.partners(sites, anchors)
+        if added:
+            keep.extend(added)
+            sites.extend(added)
+            priming, amplicons, used, amp_truncated = pair()
+        probes = scanner.probes([a for a in amplicons if a.tier in rules.off_target_tiers], sites)
+        if probes:
+            keep.extend(probes)
+            sites.extend(probes)
+            priming, amplicons, used, amp_truncated = pair()
+    n_primer_only = sum(1 for s in priming if primer_can_prime(s) and s.id not in used)
+
+    n_sites = {"critical": 0, "warning": 0, "minor": 0}
+    for s in sites:
+        n_sites[s.level] += 1
+
     for s in keep:
         if s.source == "blast_partial_worst_case":
             continue
         nM = cfg.reaction.probe_nM if s.role == "probe" else cfg.reaction.primer_nM
         s.tm_c, s.dg_kcal, s.delta_tm_c = estimate_duplex(s.oligo, s.s_aln, cond, nM)
-
-    # ---- products
-    priming = [s for s in keep if s.role == "probe" or primer_can_prime(s)]
-    amplicons, used, amp_truncated = predict_amplicons(priming, rules, assay)
-    n_primer_only = sum(1 for s in priming if primer_can_prime(s) and s.id not in used)
 
     saturated = [
         (r.tier, sat.label, sat.note)
@@ -191,6 +216,11 @@ def assess_specificity(
         amplicons_truncated=amp_truncated,
         rules=rules,
     )
+    score_floors = floors(outcome.searches, plan.queries, assessed, cfg.search)
+    findings.extend(floor_findings(score_floors, cfg.search.expect))
+    scan = scanner.state.summary if scanning else None
+    if scan is not None:
+        findings.extend(scan_findings(scan, rules.partner_scan_max_windows))
     verdict = verdict_of(findings)
     rationale = [f.message for f in findings if f.severity in ("FAIL", "INCOMPLETE", "WARN")]
     if not rationale:
@@ -221,6 +251,7 @@ def assess_specificity(
             "probe_site": rules.probe_site.model_dump(),
             "severity": rules.severity.model_dump(),
             "window_padding_nt": rules.window_padding_nt,
+            "partner_scan_max_windows": rules.partner_scan_max_windows,
             "max_amplicon_size": rules.max_amplicon_size,
             "min_identical_bases": min_identical,
             "blast": outcome.parameters,
@@ -230,7 +261,47 @@ def assess_specificity(
             ),
         },
         limitations=list(LIMITATIONS),
+        score_floors=score_floors,
+        partner_scan=scan,
     )
+
+
+def scan_findings(scan: PartnerScan, limit: int) -> list[Finding]:
+    """What the partner scan covered and added; INCOMPLETE when it could not cover every
+    off-target primer site that can prime."""
+    out = [
+        Finding(
+            severity="INFO",
+            message=(
+                f"Partner scan: {scan.windows} window(s) next to {scan.primer_sites} unpaired "
+                "off-target primer site(s) searched for partner primers, and the probes "
+                "re-aligned inside the products without probe signal "
+                f"({scan.product_windows} product(s) fetched); {scan.primer_sites_added} primer "
+                f"and {scan.probe_sites_added} probe site(s) BLAST had not reported were added."
+            ),
+            topic="amplicons",
+        )
+    ]
+    if scan.not_scanned or scan.windows_failed:
+        gaps = []
+        if scan.not_scanned:
+            gaps.append(
+                f"{scan.not_scanned} primer site(s) beyond the limit of {limit} windows "
+                "(specificity.partner_scan_max_windows) were not scanned"
+            )
+        if scan.windows_failed:
+            gaps.append(f"{scan.windows_failed} window(s) could not be fetched")
+        out.append(
+            Finding(
+                severity="INCOMPLETE",
+                message=(
+                    f"Partner scan incomplete: {'; '.join(gaps)}. A product whose second primer "
+                    "BLAST did not report can be missing there."
+                ),
+                topic="amplicons",
+            )
+        )
+    return out
 
 
 _RANK = {"FAIL": 0, "INCOMPLETE": 1, "WARN": 2, "INFO": 3}

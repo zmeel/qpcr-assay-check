@@ -216,6 +216,19 @@ verified NCBI facts) at the start of every session. Newest entry first.
   names the E-value; smoke-test step 11 (--expect-sweep) measures E 1e3/1e4/1e5 for NG-F. Next,
   after the user's run: choose EXPECT, then build the partner-primer scan, probe re-alignment
   in every product and a reference-fragment BLAST per off-target tier.
+- Smoke-test E-value sweep (user run, 2026-09-30, --quick --expect-sweep; all steps ok): NG-F
+  (17 nt) vs N. meningitidis, eff_space 8.1e8 (advisor assumed 2.6e10-9.6e11), lambda 1.374,
+  K 0.711 (confirmed). E 1e3: 638 hits, min score 10; 1e4: 3,554, min 8; 1e5: 4,999 (list nearly
+  full), min 7. ceil(ln(K*space/E)/lambda) predicts 10/8/7 exactly. Human tier not measured
+  (`sh scripts/run_smoke.sh --quick --expect-sweep --human`). Mycoplasma pneumoniae unresolved
+  is by design (step 03 checks the old name; the list uses Mycoplasmoides pneumoniae).
+- Built on the user's "Build 2 and 3": score floor per tier and oligo from the report's own
+  statistics (specificity/reach.py, "Reported down to" column, INFO finding, new limitation
+  text); partner scan for unpaired off-target primer sites plus probe re-alignment in every
+  off-target product without probe signal (specificity/scan.py, source `scanned`,
+  `specificity.partner_scan_max_windows` 1000, INCOMPLETE beyond). EXPECT stays 1000. Not
+  built: a reference-fragment BLAST per off-target tier (products of which BLAST reported
+  neither primer remain unfound; noted in the limitation).
 - Wet-lab comparison (user supplied Otwell et al. 2025 and its supplementary Tables 1-2): 132
   DNA templates graded with oligo/grade.py vs measured Ct. Before: detectable 26 (none >= +3 Ct),
   likely failure 52 (7 without shift, all 4 mismatches with 3 at the 5' end). Built on the

@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Score floor per search** (user decision 2026-09-30, after the smoke test's E-value sweep):
+  the BLAST parser reads NCBI's search statistics (`search.stat`: effective search space,
+  lambda, kappa); the specificity result gives, per tier and oligo, the smallest raw score the
+  search could report at the E-value cut-off and the most mismatches a full-length site can carry
+  and still always be reported (`score_floors`, a "Reported down to" column, one INFO finding per
+  tier). Checked against the sweep: predicted 10/8/7 at EXPECT 1e3/1e4/1e5, reported 10/8/7.
+  The first limitation line now points to these figures instead of a fixed worst case.
+- **Partner scan** (same decision): next to every off-target primer site of at least warning
+  level that forms no product, the sequence a product could span is fetched and the partner
+  primers are aligned in it end to end; probes are re-aligned inside every off-target product
+  without probe signal. Sites found this way have source `scanned`. At most
+  `specificity.partner_scan_max_windows` (1,000) primer sites per run; beyond that the
+  specificity result is INCOMPLETE. EXPECT stays 1000 (1e5 nearly filled the hit list).
+
 ### Changed
 - **Primer mismatch classes after a comparison with wet-lab data** (Otwell et al. 2025, Front
   Cell Infect Microbiol 15:1524025, 132 synthetic templates of 16 SARS-CoV-2 assays; user

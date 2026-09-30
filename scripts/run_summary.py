@@ -66,7 +66,16 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
         for row in (vs.get("fragments") or [])[:10]
     ]
     spec = data.get("specificity") or {}
-    out["specificity"] = {"verdict": spec.get("verdict"), "n_sites": spec.get("n_sites")}
+    out["specificity"] = {
+        "verdict": spec.get("verdict"),
+        "n_sites": spec.get("n_sites"),
+        "n_amplicons": len(spec.get("amplicons") or []),
+        "partner_scan": spec.get("partner_scan"),
+        "score_floors": [
+            [f["tier"], f["query"], f["min_score"], f["max_mismatches_reported"]]
+            for f in spec.get("score_floors") or []
+        ],
+    }
     excl = data.get("exclusivity") or {}
     out["exclusivity"] = {k: excl.get(k) for k in ("verdict", "tier_searched")}
     return out
