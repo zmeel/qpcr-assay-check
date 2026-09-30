@@ -257,3 +257,24 @@ def test_spec_overview_flags_perfect_sites_of_both_primers_without_a_product(tmp
     html = render_report(result.model_copy(update={"specificity": spec}), load_config())
     assert "Both primers have a perfect site in this tier" in html
     assert "Closest forward site:" in html and "Closest reverse site:" in html
+
+
+def test_perfect_primer_sites_with_a_product_do_not_say_no_product_is_predicted(tmp_path):
+    """Live Neisseria report (user, 2026-09-30): a predicted product on N. meningitidis, and
+    below it 'so no product is predicted'."""
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+
+    from .test_multi_copy import run_report_result
+
+    result = run_report_result(tmp_path)
+    spec = result.specificity.model_copy(update={
+        "sites": [site(1, r, "critical", tier="near_neighbours", site_id=f"S{i}")
+                  for i, r in enumerate(("forward", "reverse", "probe"))],
+        "amplicons": [product("A1", "near_neighbours", "X1.1", 1, "Neisseria x")],
+        "searches": [{"tier": "near_neighbours", "taxids": [1], "rid": None, "n_hits": {},
+                      "saturation": [], "restriction": None}],
+    })  # fmt: skip
+    html = render_report(result.model_copy(update={"specificity": spec}), load_config())
+    assert "1 predicted product" in html
+    assert "no product is predicted" not in html
