@@ -151,3 +151,80 @@ def test_every_context_chain_is_kept_so_min_context_applies_after_the_scan():
     (c,) = locate(genome, [REF_CTX])
     assert c.anchored == 0 and c.context_left == 16 and c.cut
     assert not is_copy(c) and is_copy(c, CopyRule(min_context=16))
+
+
+# ------------------------------------------------ fallback search (advisor subagent, 2026-09-30)
+def diverge(keep: list[int], every: int = 6) -> str:
+    """AMP with every 6th base changed, except 13-nt stretches starting at ``keep``, whose
+    neighbours are changed too: no 16-mer is left in common, each kept stretch holds a 12-mer
+    (live: EV-C105 copies at identity 0.82 share only 12-13 nt stretches with the fragment)."""
+    kept = {i for a in keep for i in range(a, a + 13)}
+    edges = {a - 1 for a in keep} | {a + 13 for a in keep}
+    swap = {"A": "C", "C": "G", "G": "T", "T": "A"}
+    return "".join(swap[b] if (i % every == every - 1 and i not in kept) or i in edges else b
+                   for i, b in enumerate(AMP))  # fmt: skip
+
+
+def test_a_copy_without_a_shared_16mer_is_found_by_the_fallback():
+    from qpcr_assay_check.variants.chain import copies_of
+
+    genome = {"c1": filler(2000, 1) + diverge([30, 80]) + filler(2000, 2)}
+    assert not locate(genome, [REF])  # no 16-mer in common
+    (c,) = copies_of(locate(genome, [REF], fallback_k=12))
+    assert c.fallback and c.fragment_blocks == 2 and c.identity >= 0.75 and c.start == 2000
+
+
+def test_a_single_12mer_block_is_no_copy_and_leaves_nothing_behind():
+    genome = {"c1": filler(2000, 1) + diverge([30]) + filler(2000, 2)}
+    assert locate(genome, [REF], fallback_k=12) == []  # failed fallback candidates are not kept
+
+
+def test_a_chance_16mer_does_not_block_the_fallback():
+    from qpcr_assay_check.variants.chain import copies_of
+
+    genome = {"c1": filler(2000, 1) + AMP[40:56] + filler(2000, 3) + diverge([30, 80])
+              + filler(500, 2)}  # fmt: skip
+    found = locate(genome, [REF], fallback_k=12)
+    assert any(not c.fallback and not is_copy(c) for c in found)  # the chance candidate
+    (c,) = copies_of(found)
+    assert c.fallback
+
+
+def test_no_fallback_where_a_copy_by_16mers_exists():
+    genome = {"c1": filler(2000, 1) + AMP + filler(2000, 3) + diverge([30, 80]) + filler(500, 2)}
+    assert [c.fallback for c in copies(genome, fallback_k=12)] == [False]
+
+
+def test_the_n_tolerant_search_keeps_16mer_seeds_with_the_fallback_on():
+    """At 12 bases a single N in a genome gave false 'hidden by N' copies (advisor)."""
+    one_n = filler(3000, 1)
+    one_n = one_n[:1500] + "N" + one_n[1501:]
+    assert copies({"c1": one_n}, fallback_k=12) == []
+    keep = range(P_AT, P_AT + 22)
+    hidden = "".join(b if i in keep or i % 2 == 0 else "N" for i, b in enumerate(AMP))
+    (c,) = copies({"c1": filler(2000, 1) + hidden + filler(2000, 2)}, fallback_k=12)
+    assert c.masked and not c.fallback
+
+
+def test_the_configured_rule_judges_a_fallback_candidate_after_the_scan():
+    """Code review 2026-09-30: the scan judged fallback candidates with the default rule and
+    dropped the rest, so a lower variants.min_copy_identity never reached them."""
+    from qpcr_assay_check.variants.chain import copies_of
+
+    genome = {"c1": filler(2000, 1) + diverge([30, 80], every=3) + filler(2000, 2)}
+    (c,) = locate(genome, [REF], fallback_k=12)  # stored with its evidence
+    assert c.fallback and 0.70 <= c.identity < 0.75
+    assert copies_of([c]) == [] and copies_of([c], CopyRule(min_identity=0.70)) == [c]
+
+
+def test_the_fallback_trigger_does_not_depend_on_the_copy_rule():
+    """Code review 2026-09-30: the trigger used the default rule. It is now the scan setting
+    shared with the N-tolerant search: no candidate with 32 anchored fragment bases."""
+    from qpcr_assay_check.variants.chain import copies_of
+
+    genome = {"c1": filler(2000, 1) + AMP[40:56] + filler(2000, 3) + diverge([30, 80])
+              + filler(500, 2)}  # fmt: skip
+    found = locate(genome, [REF], fallback_k=12, masked_below=32)  # the chance 16-mer: 16 < 32
+    assert [c.fallback for c in copies_of(found)] == [True]
+    found = locate(genome, [REF], fallback_k=12, masked_below=16)  # now it counts as strong
+    assert not [c for c in found if c.fallback]

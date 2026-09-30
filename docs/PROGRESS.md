@@ -173,6 +173,30 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Enterovirus example in the loci/channels format, with context_accession NC_001612.1
   (RefSeq Enterovirus A; checked live 2026-09-30 against the RefSeq complete genomes: best fit,
   68/74 anchored, identity 0.959; its flanks anchor 150-220 bases in species B, 16-40 in C/D).
+- Wiki pages written (user, 2026-09-30) in docs/wiki/ (Home, How it works, Finding the target in
+  a genome, Judging primer and probe sites, Specificity search, Data storage and cache, Limits
+  and validation, _Sidebar): the session's GitHub access does not reach the wiki repository, so
+  the user publishes them.
+- Enterovirus after several runs (user, report 2026-09-30T07:44Z): 12,000 of 13,109 records;
+  whole fragment 2023-2026 90.8% detectable (Review); region not found 1,089. Of 10 examples,
+  4 are CDS-only records (no 5' UTR: correctly not found) and 6 are EV-C105/C117/HEV-C with
+  the region at identity 0.78-0.82 but no 16-mer in common (reverse primer mismatches at
+  -4..-2: likely escapes, hidden as "not found").
+- Advisor (2026-09-30, measured): 12-base fallback where no copy under the rule, >= 2 blocks in
+  the fragment + rule (c); store only passing candidates; masked search stays at 16; classify
+  "present, not locatable" (flanks, no copy) with a worst-case inclusivity figure. Built
+  (store schema 4, ScanSettings.fallback_k 12 / fallback_min_blocks 2, Candidate.fallback,
+  coverage.found_by_fallback / not_located). An extra EV-C reference fragment would find the
+  same copies with 16-base seeds (advisor measured 36-72 anchored): the assay-level fix once
+  the fallback has shown the clade.
+- Code review of the fallback (3 findings, fixed with tests that fail on the old code): the scan
+  judged fallback candidates and the trigger with the default rule, not the configured one
+  (now: chains with >= 2 fragment blocks stored, rule (c) at assessment; trigger = no candidate
+  with masked_below anchored bases, a scan setting); a failed candidate at a fallback copy's
+  place counted as a related region beside it (now not, and fallback chains never).
+- Intermittent test failure found: tests/test_variants_exhaustive.py plasmid fixture seeded
+  chromosomes with hash(acc) % 1000 (per-process); seeds 11/12 recreate AMP's own spacer
+  (1 run in ~125). Fixed seeds.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

@@ -45,7 +45,7 @@ from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from ..verdict import STATUS_LABEL, Verdict
-from .chain import CopyRule, Reference, context_from, copies_of
+from .chain import CopyRule, Reference, context_from, copies_of, overlap
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .genomestore import (
     GenomeRecord,
@@ -161,22 +161,36 @@ def open_genome_store(
 
 def as_items(
     records: list[GenomeRecord], rule: CopyRule
-) -> tuple[list[StoredAssembly], list[str], list[str]]:
+) -> tuple[list[StoredAssembly], list[str], list[str], list[str]]:
     """The stored genomes as the assessment reads them, with the copy rule applied: the items,
-    the genomes with only related regions (no copy, but fragment bases anchored), and those
-    with related regions next to copies."""
+    the genomes with only related regions (no copy, but fragment bases anchored), those with
+    related regions next to copies, and those without a copy or a related region whose flanks
+    were found (``min_context`` bases on a side): the region is there, but the fragment could
+    not be located (advisor subagent, 2026-09-30)."""
     items: list[StoredAssembly] = []
     related: list[str] = []
     beside: list[str] = []
+    flanked: list[str] = []
     for rec in records:
         cands = [c.candidate() for c in rec.copies]
-        kept = {id(c) for c in copies_of(cands, rule)}
+        chosen = copies_of(cands, rule)
+        kept = {id(c) for c in chosen}
         copies = [sc for sc, c in zip(rec.copies, cands, strict=True) if id(c) in kept]
-        others = [c for c in rec.copies if c not in copies and c.anchored > 0]
+        # related regions: fragment bases anchored, not a copy, not at a copy's place (one
+        # region found twice is not two), and never a fallback chain (code review 2026-09-30)
+        others = [
+            sc for sc, c in zip(rec.copies, cands, strict=True)
+            if id(c) not in kept and c.anchored > 0 and not c.fallback
+            and not any(overlap(c, k) for k in chosen)
+        ]  # fmt: skip
         if not copies and others:
             related.append(rec.accession)
         elif copies and others:
             beside.append(rec.accession)
+        elif not copies and any(
+            max(c.context_left, c.context_right) >= rule.min_context for c in rec.copies
+        ):
+            flanked.append(rec.accession)
         copies.sort(key=lambda c: (-c.anchored, -(c.identity or 0.0)))
         items.append(StoredAssembly(
             accession=rec.accession, release_date=rec.release_date, organism=rec.organism,
@@ -186,7 +200,7 @@ def as_items(
             plasmid_contigs=len(rec.plasmids), plasmid_examples=rec.plasmids[:3],
             found_by=rec.found_by if copies else None, direct_checked=rec.direct_checked,
         ))  # fmt: skip
-    return items, related, beside
+    return items, related, beside, flanked
 
 
 def _as_locus(c: StoredCopy) -> StoredLocus:
@@ -199,6 +213,7 @@ def _as_locus(c: StoredCopy) -> StoredLocus:
         offset=c.start - r0, n_seeds=c.anchored, truncated=c.cut,
         on_plasmid=None if c.molecule is None else c.molecule == "Plasmid", ref=c.ref,
         identity=c.identity, anchors=[(f, s - r0, n) for f, s, n in c.anchors],
+        fallback=c.fallback,
     )  # fmt: skip
 
 
@@ -1385,7 +1400,7 @@ def run_exhaustive(
             f"There are no {what} for taxon {taxon} with the configured filters, so there is "
             "nothing to analyse exhaustively."
         )
-    items, related, related_ignored = as_items(latest(store.items), copy_rule(cfg))
+    items, related, related_ignored, flanked = as_items(latest(store.items), copy_rule(cfg))
     calls: list[GenomeCall] = []
     sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
@@ -1394,6 +1409,9 @@ def run_exhaustive(
     # detectable from parts and not counted as detected: undetermined in the whole-fragment outcome
     parts_undetermined = {a for a, o in outcomes.items() if o == GenomeOutcome.FROM_PARTS}
     not_found = [it for it in items if it.status == "not_found" and it.accession not in related]
+    not_located = set(flanked)
+    by_fallback = [it.accession for it in items if it.status == "found" and it.loci
+                   and all(lc.fallback for lc in it.loci)]  # fmt: skip
     found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
     known = [lc.on_plasmid for lc in found_loci if lc.on_plasmid is not None]
     on_plasmid = (sum(known) * 2 >= len(known)) if known else None
@@ -1445,6 +1463,10 @@ def run_exhaustive(
         related_only_examples=related[:20],
         related_ignored=len(related_ignored),
         min_copy_identity=v.min_copy_identity,
+        not_located=len(not_located),
+        not_located_examples=sorted(not_located)[:20],
+        found_by_fallback=len(by_fallback),
+        found_by_fallback_examples=by_fallback[:20],
     )  # fmt: skip
     coverage.copies.typical_copies = typical
     coverage.channel_results = channel_results(assay, items, calls, taxon, ancestors_of)
@@ -1470,6 +1492,18 @@ def run_exhaustive(
             + " "
             f"(see the Variant summary). Per year, '{col}' minus 'With region' is that gap."
         )
+    w = fragment_window(inclusivity.fragment_years, cfg.inclusivity.verdict_window_years)
+    if w is not None and w.percent is not None and not_located:
+        k = sum(1 for it in items if it.accession in not_located
+                and w.first <= int(it.release_date[:4]) <= w.last)  # fmt: skip
+        if k:
+            worst = 100.0 * w.detectable / (w.n + k)
+            inclusivity.rationale.append(
+                f"{k} {'record' if source != 'datasets' else 'genome'}(s) released "
+                f"{w.first}-{w.last} carry the sequence either side of the region but no "
+                "locatable copy of the fragment (not in the counts above): if all were escapes, "
+                f"{worst:.1f}% would be detectable instead of {w.percent:.1f}%."
+            )
     if coverage.target_on_plasmid and coverage.not_found_with_plasmid:
         inclusivity.rationale.append(
             f"{coverage.not_found_with_plasmid} assembl"

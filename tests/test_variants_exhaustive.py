@@ -253,7 +253,10 @@ PLASMID = "plasmid pCT, complete sequence"
 
 def plasmid_assemblies() -> list[FakeAssembly]:
     def asm(acc, date, plasmid_seq):
-        contigs = {f"{acc}_chr": filler(4000, hash(acc) % 1000)}
+        # a fixed seed per accession, away from the seeds AMP itself is built from (11, 12):
+        # hash(acc) varied per process and, 1 run in about 125, gave a chromosome that begins
+        # with 30 bases of the fragment (a real partial copy)
+        contigs = {f"{acc}_chr": filler(4000, 500 + int(acc[4:7]))}
         desc = {f"{acc}_chr": f"Chlamydia trachomatis {CHROM}"}
         if plasmid_seq is not None:
             contigs[f"{acc}_pl"] = plasmid_seq

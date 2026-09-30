@@ -32,7 +32,7 @@ from .datasets import AssemblyRecord, SequenceRole, is_plasmid
 
 log = logging.getLogger(__name__)
 
-SCHEMA = 3  # 3: every chain kept, N-tolerant candidates beside the others (review 2026-09-29)
+SCHEMA = 4  # 3: every chain kept (review 2026-09-29); 4: fallback copies (advisor 2026-09-30)
 GAP_MIN_N = 10  # an N-run of at least this length counts as an assembly gap
 UNAVAILABLE_AFTER = 2  # failed download attempts before a genome counts as unavailable
 _GAP_RE = re.compile(f"N{{{GAP_MIN_N},}}")
@@ -50,6 +50,14 @@ class ScanSettings(BaseModel):
         description="the N-tolerant search runs when no candidate has this many anchored "
         "fragment bases; a scan setting (in the store key), not the copy rule, so that "
         "variants.min_anchored_bases can change without a new scan",
+    )
+    fallback_k: int = Field(
+        default=12,
+        description="the seed length of a second search where no candidate reaches masked_below "
+        "anchored bases (advisor subagent, 2026-09-30: divergent EV-C copies share no 16-mer)",
+    )
+    fallback_min_blocks: int = Field(
+        default=2, description="exact blocks in the fragment a fallback copy needs"
     )
 
 
@@ -81,6 +89,7 @@ class StoredCopy(BaseModel):
     region: str
     region_start: int
     masked: bool = False
+    fallback: bool = Field(default=False, description="found by the fallback search")
     molecule: str | None = Field(
         default=None,
         description="Chromosome, Plasmid, ... (Datasets sequence report, else 'Plasmid' when "
@@ -254,7 +263,8 @@ def scan_genome(
     seqs = {name: seq for name, (_d, seq) in records.items()}
     found = locate(seqs, references, k=settings.k, step=settings.step,
                    max_indel=settings.max_indel, flank=settings.flank,
-                   masked_below=settings.masked_below)  # fmt: skip
+                   masked_below=settings.masked_below, fallback_k=settings.fallback_k,
+                   fallback_min_blocks=settings.fallback_min_blocks)  # fmt: skip
     n, total, total_n, gaps = sequence_stats(seqs)
     plasmids = [f"{name} {desc}"[:160] for name, (desc, _s) in records.items()
                 if _molecule(name, records, roles) == "Plasmid"]  # fmt: skip

@@ -339,10 +339,14 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                 [[y.year, y.listed, y.assessed] for y in c.years]
                 + [["Total", c.listed_total, c.assessed_total],
                    ["Region found (all 3 sites)", c.found, ""],
+                   ["  ...only by the fallback search (shorter seeds)", c.found_by_fallback,
+                    ", ".join(c.found_by_fallback_examples)],
                    ["Region cut by a record end" if c.source == "blast_partitioned"
                     else "Region cut by a contig end", c.contig_break, ""],
                    ["Region hidden by N", c.masked, ", ".join(c.masked_examples)],
                    ["Region not found", c.not_found, ", ".join(c.not_found_examples)],
+                   ["  ...flanks present, fragment not locatable (possible escapes)",
+                    c.not_located, ", ".join(c.not_located_examples)],
                    *([["  ...no sequence labelled as a plasmid", c.not_found_without_plasmid,
                        ""],
                       ["  ...plasmid sequence present, region missing (review)",

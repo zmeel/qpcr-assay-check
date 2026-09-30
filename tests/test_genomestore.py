@@ -61,7 +61,7 @@ def test_the_store_reloads_and_sets_aside_a_file_with_another_key(tmp_path):
     again = GenomeStore(path, k)
     assert REC.accession in again and again.items[REC.accession].copies[0].anchored > 0
     header = json.loads(path.read_text().splitlines()[0])
-    assert header["schema"] == 3 and header["key"] == k
+    assert header["schema"] == 4 and header["key"] == k
     other = key(step=4)  # a different method: a different key
     assert store_file(tmp_path, other) != path
     moved = GenomeStore(path, other)  # same file, other key (e.g. an edited header)
@@ -114,3 +114,45 @@ def test_sequence_roles_are_paged_and_keyed_by_both_accessions():
     assert roles["NZ_C4.1"].plasmid and roles["GB_NZ_C4.1"].plasmid
     assert not roles["NZ_C0.1"].plasmid and roles["NZ_C0.1"].role == "unplaced-scaffold"
     assert sum("sequence_reports" in c["url"] for c in fake.calls) == 3
+
+
+def test_the_fallback_settings_are_part_of_the_store_key():
+    assert key() != key(fallback_k=10) and key() != key(fallback_min_blocks=3)
+
+
+def test_a_record_with_the_flanks_but_no_locatable_fragment_is_told_apart(tmp_path):
+    """Advisor subagent, 2026-09-30: 'region present, fragment not locatable' versus absent."""
+    from qpcr_assay_check.variants.chain import DEFAULT_RULE
+    from qpcr_assay_check.variants.exhaustive import as_items
+
+    left, right = filler(300, 21), filler(300, 22)
+    refs = [Reference(AMP, left, right)]
+    present = {"c1": ("chromosome", filler(1000, 1) + left + filler(len(AMP), 23)
+                      + filler(1000, 2))}  # fmt: skip
+    absent = {"c1": ("chromosome", filler(3000, 3))}
+    recs = [
+        scan_genome(REC, present, refs, ScanSettings()),
+        scan_genome(AssemblyRecord("GCF_2.1", "2025-03-01", "Contig", 0, "x", 813), absent,
+                    refs, ScanSettings()),
+    ]  # fmt: skip
+    items, related, _beside, flanked = as_items(recs, DEFAULT_RULE)
+    assert [it.status for it in items] == ["not_found", "not_found"]
+    assert flanked == [REC.accession] and related == []
+
+
+def test_a_failed_candidate_at_a_copy_s_place_is_not_a_related_region():
+    """Code review 2026-09-30: a fallback copy stored next to the failed 16-mer candidate at the
+    same place counted that candidate as a related region beside the copy."""
+    from qpcr_assay_check.variants.chain import DEFAULT_RULE
+    from qpcr_assay_check.variants.exhaustive import as_items
+
+    rec = scan_genome(REC, records(), REFS, ScanSettings())
+    whole = next(c for c in rec.copies if c.contig == "c1")
+    weak = whole.model_copy(update={"anchored": 16, "identity": 0.5, "anchors": [(0, 2000, 16)]})
+    same_place = rec.model_copy(update={"copies": [whole, weak]})
+    elsewhere = rec.model_copy(update={"copies": [whole, weak.model_copy(
+        update={"start": 3000, "end": 3000 + len(AMP)})]})  # fmt: skip
+    _i, _r, beside, _f = as_items([same_place], DEFAULT_RULE)
+    assert beside == []
+    _i, _r, beside, _f = as_items([elsewhere], DEFAULT_RULE)
+    assert beside == [REC.accession]
