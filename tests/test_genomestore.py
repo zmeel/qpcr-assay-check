@@ -138,3 +138,21 @@ def test_a_record_with_the_flanks_but_no_locatable_fragment_is_told_apart(tmp_pa
     items, related, _beside, flanked = as_items(recs, DEFAULT_RULE)
     assert [it.status for it in items] == ["not_found", "not_found"]
     assert flanked == [REC.accession] and related == []
+
+
+def test_a_failed_candidate_at_a_copy_s_place_is_not_a_related_region():
+    """Code review 2026-09-30: a fallback copy stored next to the failed 16-mer candidate at the
+    same place counted that candidate as a related region beside the copy."""
+    from qpcr_assay_check.variants.chain import DEFAULT_RULE
+    from qpcr_assay_check.variants.exhaustive import as_items
+
+    rec = scan_genome(REC, records(), REFS, ScanSettings())
+    whole = next(c for c in rec.copies if c.contig == "c1")
+    weak = whole.model_copy(update={"anchored": 16, "identity": 0.5, "anchors": [(0, 2000, 16)]})
+    same_place = rec.model_copy(update={"copies": [whole, weak]})
+    elsewhere = rec.model_copy(update={"copies": [whole, weak.model_copy(
+        update={"start": 3000, "end": 3000 + len(AMP)})]})  # fmt: skip
+    _i, _r, beside, _f = as_items([same_place], DEFAULT_RULE)
+    assert beside == []
+    _i, _r, beside, _f = as_items([elsewhere], DEFAULT_RULE)
+    assert beside == [REC.accession]

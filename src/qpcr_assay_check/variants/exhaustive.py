@@ -45,7 +45,7 @@ from ..oligo.amplicon import find_sites
 from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from ..verdict import STATUS_LABEL, Verdict
-from .chain import CopyRule, Reference, context_from, copies_of
+from .chain import CopyRule, Reference, context_from, copies_of, overlap
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .genomestore import (
     GenomeRecord,
@@ -173,9 +173,16 @@ def as_items(
     flanked: list[str] = []
     for rec in records:
         cands = [c.candidate() for c in rec.copies]
-        kept = {id(c) for c in copies_of(cands, rule)}
+        chosen = copies_of(cands, rule)
+        kept = {id(c) for c in chosen}
         copies = [sc for sc, c in zip(rec.copies, cands, strict=True) if id(c) in kept]
-        others = [c for c in rec.copies if c not in copies and c.anchored > 0]
+        # related regions: fragment bases anchored, not a copy, not at a copy's place (one
+        # region found twice is not two), and never a fallback chain (code review 2026-09-30)
+        others = [
+            sc for sc, c in zip(rec.copies, cands, strict=True)
+            if id(c) not in kept and c.anchored > 0 and not c.fallback
+            and not any(overlap(c, k) for k in chosen)
+        ]  # fmt: skip
         if not copies and others:
             related.append(rec.accession)
         elif copies and others:

@@ -7,16 +7,19 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
-- **Fallback search for divergent copies** (advisor subagent, 2026-09-30, measured). Where a
-  genome has no copy under the copy rule, it is searched again with 12-base exact seeds; a
-  copy found this way needs at least two exact blocks in the fragment, identity >= 0.75 and 16
-  anchored bases. Live enterovirus run: EV-C105, EV-C117 and HEV-C records share no 16-mer
+- **Fallback search for divergent copies** (advisor subagent, 2026-09-30, measured). Where no
+  candidate has 32 anchored fragment bases (the trigger of the N-tolerant search, a scan
+  setting) and nothing is hidden by N, the genome is searched again with 12-base exact seeds;
+  chains with at least two exact blocks in the fragment are stored, and one counts as a copy
+  with identity >= 0.75 and 16 anchored bases (`variants.min_copy_identity`,
+  `min_identity_anchored_bases`, applied at assessment, so they change without a new scan). Live enterovirus run: EV-C105, EV-C117 and HEV-C records share no 16-mer
   with the fragment (identity 0.78-0.82) and were counted as "region not found" instead of
   being judged; the fallback finds them. Measured on shuffled decoys: 0 false copies in about
   73,500 virus-sized and 40 bacterial scans (chance chains with two blocks reached identity
   0.64, real copies 0.78 and up); about 5 ms per 7 kb record, 1.1 s instead of 0.9 s per
-  3.4 Mb genome. Only passing candidates are stored; the N-tolerant search keeps 16-base
-  seeds. The report counts copies found only this way.
+  3.4 Mb genome. Fallback chains are never counted as related regions, nor is a candidate at a
+  copy's place; the N-tolerant search keeps 16-base seeds. The report counts copies found
+  only this way.
 - **"Region present, fragment not locatable"**: genomes without a copy whose flanks were found
   are counted apart from "region not found", and the inclusivity rationale gives the figure if
   they were all escapes.

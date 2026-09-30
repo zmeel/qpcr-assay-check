@@ -189,6 +189,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   coverage.found_by_fallback / not_located). An extra EV-C reference fragment would find the
   same copies with 16-base seeds (advisor measured 36-72 anchored): the assay-level fix once
   the fallback has shown the clade.
+- Code review of the fallback (3 findings, fixed with tests that fail on the old code): the scan
+  judged fallback candidates and the trigger with the default rule, not the configured one
+  (now: chains with >= 2 fragment blocks stored, rule (c) at assessment; trigger = no candidate
+  with masked_below anchored bases, a scan setting); a failed candidate at a fallback copy's
+  place counted as a related region beside it (now not, and fallback chains never).
 - Intermittent test failure found: tests/test_variants_exhaustive.py plasmid fixture seeded
   chromosomes with hash(acc) % 1000 (per-process); seeds 11/12 recreate AMP's own spacer
   (1 run in ~125). Fixed seeds.

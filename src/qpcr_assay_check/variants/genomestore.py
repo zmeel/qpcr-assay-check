@@ -53,8 +53,8 @@ class ScanSettings(BaseModel):
     )
     fallback_k: int = Field(
         default=12,
-        description="where no candidate is a copy, the seed length of a second search; only its "
-        "copies are kept (advisor subagent, 2026-09-30: divergent EV-C copies share no 16-mer)",
+        description="the seed length of a second search where no candidate reaches masked_below "
+        "anchored bases (advisor subagent, 2026-09-30: divergent EV-C copies share no 16-mer)",
     )
     fallback_min_blocks: int = Field(
         default=2, description="exact blocks in the fragment a fallback copy needs"

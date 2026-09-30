@@ -206,24 +206,25 @@ def locate(
     anchored fragment bases; its candidates are kept beside the others (see
     :func:`copies_of`).
 
-    ``fallback_k``: when no candidate is a copy (default rule), search again with exact seeds
-    of this length and keep only the candidates that pass the fallback rule (see
-    :func:`is_copy`); none are kept otherwise, so a failed fallback leaves no trace that could
-    read as a related region (advisor subagent, 2026-09-30: EV-C105/C117 copies at identity
-    0.78-0.82 share no 16-mer with the fragment).
+    ``fallback_k``: under the same condition as the N-tolerant search (no candidate with
+    ``masked_below`` anchored fragment bases, a scan setting), and when that search found
+    nothing, search again with exact seeds of this length and keep the chains with at least
+    ``fallback_min_blocks`` blocks in the fragment (advisor subagent, 2026-09-30: EV-C105/C117
+    copies at identity 0.78-0.82 share no 16-mer with the fragment). Their identity and
+    anchored bases are judged at assessment with the configured rule (:func:`is_copy`), so the
+    rule can change without a new scan (code review 2026-09-30); a fallback candidate is
+    never counted as a related region.
     """
     found = _best_per_place(_search(contigs, references, k, step, max_indel, flank))
+    strong = any(c.anchored >= masked_below for c in found)
     # no copy by exact blocks (a chance 16-mer elsewhere does not count): look under the N
-    if not any(c.anchored >= masked_below for c in found) and any(
-        "N" in s.upper() for s in contigs.values()
-    ):
+    if not strong and any("N" in s.upper() for s in contigs.values()):
         found += _best_per_place(_masked(contigs, references, k, step, flank))
-    if fallback_k and fallback_k < k and not any(is_copy(c) for c in found):
-        rule = CopyRule(fallback_min_blocks=fallback_min_blocks)
+    if fallback_k and fallback_k < k and not strong and not any(c.masked for c in found):
         extra = [
             f for f in _search(contigs, references, fallback_k, step, max_indel, flank,
                                fallback=True)
-            if is_copy(f, rule)
+            if f.fragment_blocks >= fallback_min_blocks
         ]  # fmt: skip
         found += _best_per_place(extra)
     return found
@@ -314,11 +315,12 @@ def copies_of(candidates: Sequence[Candidate], rule: CopyRule = DEFAULT_RULE) ->
     copies = [c for c in candidates if is_copy(c, rule)]
     exact = [c for c in copies if not c.masked and not c.fallback]
     return exact + [
-        m for m in copies if (m.masked or m.fallback) and not any(_overlap(m, c) for c in exact)
+        m for m in copies if (m.masked or m.fallback) and not any(overlap(m, c) for c in exact)
     ]
 
 
-def _overlap(a: Candidate, b: Candidate) -> bool:
+def overlap(a: Candidate, b: Candidate) -> bool:
+    """Two candidates on the same place: same contig and strand, overlapping fragments."""
     return (
         a.contig == b.contig and a.strand == b.strand and min(a.end, b.end) > max(a.start, b.start)
     )
@@ -329,7 +331,7 @@ def _best_per_place(found: list[Candidate]) -> list[Candidate]:
     order = sorted(found, key=lambda c: (-c.anchored, -(c.identity or 0.0), c.ref))
     kept: list[Candidate] = []
     for c in order:
-        if not any(_overlap(k, c) for k in kept):
+        if not any(overlap(k, c) for k in kept):
             kept.append(c)
     return kept
 

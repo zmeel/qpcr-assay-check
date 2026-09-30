@@ -154,14 +154,14 @@ def test_every_context_chain_is_kept_so_min_context_applies_after_the_scan():
 
 
 # ------------------------------------------------ fallback search (advisor subagent, 2026-09-30)
-def diverge(keep: list[int]) -> str:
+def diverge(keep: list[int], every: int = 6) -> str:
     """AMP with every 6th base changed, except 13-nt stretches starting at ``keep``, whose
     neighbours are changed too: no 16-mer is left in common, each kept stretch holds a 12-mer
     (live: EV-C105 copies at identity 0.82 share only 12-13 nt stretches with the fragment)."""
     kept = {i for a in keep for i in range(a, a + 13)}
     edges = {a - 1 for a in keep} | {a + 13 for a in keep}
     swap = {"A": "C", "C": "G", "G": "T", "T": "A"}
-    return "".join(swap[b] if (i % 6 == 5 and i not in kept) or i in edges else b
+    return "".join(swap[b] if (i % every == every - 1 and i not in kept) or i in edges else b
                    for i, b in enumerate(AMP))  # fmt: skip
 
 
@@ -204,3 +204,27 @@ def test_the_n_tolerant_search_keeps_16mer_seeds_with_the_fallback_on():
     hidden = "".join(b if i in keep or i % 2 == 0 else "N" for i, b in enumerate(AMP))
     (c,) = copies({"c1": filler(2000, 1) + hidden + filler(2000, 2)}, fallback_k=12)
     assert c.masked and not c.fallback
+
+
+def test_the_configured_rule_judges_a_fallback_candidate_after_the_scan():
+    """Code review 2026-09-30: the scan judged fallback candidates with the default rule and
+    dropped the rest, so a lower variants.min_copy_identity never reached them."""
+    from qpcr_assay_check.variants.chain import copies_of
+
+    genome = {"c1": filler(2000, 1) + diverge([30, 80], every=3) + filler(2000, 2)}
+    (c,) = locate(genome, [REF], fallback_k=12)  # stored with its evidence
+    assert c.fallback and 0.70 <= c.identity < 0.75
+    assert copies_of([c]) == [] and copies_of([c], CopyRule(min_identity=0.70)) == [c]
+
+
+def test_the_fallback_trigger_does_not_depend_on_the_copy_rule():
+    """Code review 2026-09-30: the trigger used the default rule. It is now the scan setting
+    shared with the N-tolerant search: no candidate with 32 anchored fragment bases."""
+    from qpcr_assay_check.variants.chain import copies_of
+
+    genome = {"c1": filler(2000, 1) + AMP[40:56] + filler(2000, 3) + diverge([30, 80])
+              + filler(500, 2)}  # fmt: skip
+    found = locate(genome, [REF], fallback_k=12, masked_below=32)  # the chance 16-mer: 16 < 32
+    assert [c.fallback for c in copies_of(found)] == [True]
+    found = locate(genome, [REF], fallback_k=12, masked_below=16)  # now it counts as strong
+    assert not [c for c in found if c.fallback]
