@@ -173,6 +173,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Enterovirus example in the loci/channels format, with context_accession NC_001612.1
   (RefSeq Enterovirus A; checked live 2026-09-30 against the RefSeq complete genomes: best fit,
   68/74 anchored, identity 0.959; its flanks anchor 150-220 bases in species B, 16-40 in C/D).
+- Wiki pages written (user, 2026-09-30) in docs/wiki/ (Home, How it works, Finding the target in
+  a genome, Judging primer and probe sites, Specificity search, Data storage and cache, Limits
+  and validation, _Sidebar): the session's GitHub access does not reach the wiki repository, so
+  the user publishes them.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.
