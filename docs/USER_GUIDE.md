@@ -109,6 +109,13 @@ window (`efetch`, padded for gaps) and semi-globally re-aligns the *whole* oligo
 past BLAST's seed are not missed. Hits that provably cannot reach even a "warning" level (from
 BLAST's own scoring bound) are not fetched, to keep a background-tier run to a practical number of
 `efetch` calls; `scripts/validate_assessment.py` checks that bound against real NCBI hits.
+Because BLAST reports only alignments above a score set by the E-value cut-off and the size of
+the search, the report states per tier and oligo the smallest score reported and how many
+mismatches a site may carry and still always be found ("Reported down to"). Next to every
+off-target primer site that forms no product, the tool fetches the sequence a product could span
+and aligns the partner primers in it (the *partner scan*), and it re-aligns the probes inside
+every product without a reported probe site, so a partner or probe site that BLAST's cut-off
+hid is still found (`specificity.partner_scan_max_windows`, default 1,000; 0 switches it off).
 To skip the human background search (it takes about an hour), set `search.background_taxids: []`
 in a `--config` file. The search plan then warns, and the report's rationale states that
 off-target binding to human DNA was not evaluated.
@@ -186,7 +193,11 @@ contain the region at all (listed, to review), and how many carry more than one 
   amplicon against lists of 100 records at a time, so no search can fill its hit list. At most
   `variants.blast_max_records_per_run` (2,000) records per run; a target with millions of records
   is covered newest first over many runs, and the report says how far it got.
-- **Inclusivity** is built from the same genomes, per release year. When the exhaustive analysis
+- **Inclusivity** is built from the same genomes, per release year. A second table counts the
+  same genomes by the year their sample was collected (the date the submitter recorded;
+  "no usable date" apart, and "not read yet" for genomes stored before this version whose date
+  is read on a later listing). It is information only: the status uses the release year.
+  When the exhaustive analysis
   cannot run (e.g. NCBI Datasets unreachable), the report says inclusivity was not assessed and
   why; there is no sampled fallback (removed in the overhaul, 2026-09-29).
 - **Regions hidden by N** (low-coverage sequencing) are found with N-tolerant seeds and reported

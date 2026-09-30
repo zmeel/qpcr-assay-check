@@ -65,6 +65,7 @@ class World:
         self.missing: set[str] = set()  # accessions whose efetch fails
         self.taxonomy_names: dict[str, int] = {}  # organism name -> taxid, for name resolution
         self.dates: dict[str, str] = {}  # accession.version -> "YYYY/MM/DD", for ESummary
+        self.stat: dict | None = None  # search statistics echoed in every report, when set
 
     def name(self, organism_name: str, taxid: int) -> None:
         """Register an organism name that Entrez Taxonomy ESearch should resolve to ``taxid``."""
@@ -186,6 +187,7 @@ class World:
                                 "query_title": label,
                                 "query_len": len(payload["QUERY"].splitlines()[2 * i + 1]),
                                 "hits": [dict(h, num=n + 1) for n, h in enumerate(hits)],
+                                **({"stat": self.stat} if self.stat else {}),
                             }
                         },
                     }

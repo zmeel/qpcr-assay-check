@@ -19,6 +19,7 @@ from .oligo.qc import run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
 from .search.planner import HUMAN_TAXID
+from .specificity.duplex import site_duplex
 from .specificity.models import SiteResult, SpecificityResult
 from .specificity.variants import VariantSummary, build_variant_summary
 from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
@@ -121,7 +122,11 @@ def evaluate(
     if specificity is not None:
         if target_sites is not None:
             variant_summary = build_variant_summary(
-                target_sites, assay, release_dates=release_dates, coverage=variant_coverage
+                target_sites,
+                assay,
+                release_dates=release_dates,
+                coverage=variant_coverage,
+                duplex=site_duplex(cfg.reaction),
             )
         n = specificity.n_sites
         sections.append(

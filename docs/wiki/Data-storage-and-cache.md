@@ -15,6 +15,7 @@ answers, a **store** of the located regions, and the **evaluation records** of e
 └── genomes/
     ├── 444-3f9c…e1.jsonl                  the region store of one locus (see below)
     ├── 444-3f9c…e1.jsonl.failures.json    genomes whose download failed, with the reason
+    ├── 444-3f9c…e1.jsonl.dates.json       collection date per genome, read while listing
     └── context-8a1b….json                 the flanks taken from the context accession
 
 <results>/<assay>/<run id>/          one folder per run, never overwritten

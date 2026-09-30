@@ -34,6 +34,7 @@ from ..ncbi.parser import Hsp, parse_blast_json
 from ..ncbi.runner import BlastRunner
 from ..specificity.fetch import WindowFetcher
 from .chain import Candidate, Reference, locate
+from .collection import from_docsum
 from .datasets import AssemblyRecord, parse_fasta_records
 from .genomestore import (
     GenomeRecord,
@@ -81,6 +82,7 @@ def _record(uid: str, docsum: dict, year: int) -> AssemblyRecord | None:
         total_length=length,
         organism=str(docsum.get("organism") or ""),
         taxid=int(taxid) if str(taxid or "").isdigit() else None,
+        collection_date=from_docsum(docsum),
     )
 
 
@@ -121,6 +123,7 @@ def collect_partitioned(
                 start += UID_PAGE
                 new = [u for u in uids if u not in store.aliases]
                 recs: list[AssemblyRecord] = []
+                dates: dict[str, str] = {}
                 for i in range(0, len(new), ESUMMARY_BATCH):
                     chunk = new[i : i + ESUMMARY_BATCH]
                     docsums = eutils.esummary("nuccore", chunk)
@@ -129,10 +132,12 @@ def collect_partitioned(
                         if rec is None:
                             continue
                         store.aliases.add(uid)
+                        dates[rec.accession] = rec.collection_date
                         if not store.done(rec.accession):
                             recs.append(rec)
                     if processed + len(recs) >= budget:
                         break
+                store.note_dates(dates)
                 recs = recs[: budget - processed]
                 # small records (viral genomes, single genes) are fetched and scanned directly:
                 # complete, and independent of the BLAST database (live: the newest SARS-CoV-2

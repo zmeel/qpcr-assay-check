@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from urllib.parse import quote
 
 from ..ncbi.http import NcbiError, NcbiHttp
+from .collection import from_biosample
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class AssemblyRecord:
     total_length: int
     organism: str
     taxid: int | None
+    collection_date: str = ""  # as the submitter recorded it; '' when none is given
 
     @property
     def year(self) -> int:
@@ -68,6 +70,7 @@ def _record(report: dict) -> AssemblyRecord | None:
         total_length=length,
         organism=org.get("organism_name") or "",
         taxid=int(taxid) if isinstance(taxid, int | str) and str(taxid).isdigit() else None,
+        collection_date=from_biosample(report),
     )
 
 

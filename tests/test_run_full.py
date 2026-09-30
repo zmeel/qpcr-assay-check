@@ -153,7 +153,9 @@ def test_a_second_run_reuses_the_cache_and_sends_no_new_searches(env):
     first = invoke(env, "--yes")
     assert first.exit_code in (20, 30)
     puts, fetches = fake.n_put, len(fake.efetch_calls)
-    assert puts == 2 and fetches == 2  # a window, and the target record once for the context
+    # a re-alignment window, the partner-scan window next to the primer site, and the target
+    # record once for the context
+    assert puts == 2 and fetches == 3
     second = invoke(env, "--yes")
     assert second.exit_code == first.exit_code
     assert (
@@ -390,3 +392,23 @@ def test_a_full_run_can_use_partitioned_blast_for_the_variant_summary(env, monke
     assert vs["source"] == "blast_partitioned"
     assert (vs["coverage"]["assessed_total"], vs["coverage"]["found"]) == (2, 1)
     assert "Scope: every NCBI Nucleotide record" in (run_dir(env) / "report.html").read_text()
+
+
+def test_the_report_shows_the_score_floor_and_a_product_found_by_the_partner_scan(env):
+    """BLAST reported the forward primer only; the scan finds the reverse primer and the probe."""
+    w = world_with(f=[10], r=[5, 12], p=[8], hits="none")
+    w.hit(HUMAN, "forward", F, HUMAN_ACC, F_START, "+")
+    w.stat = {"eff_space": 811905916, "kappa": 0.710602795216363, "lambda": 1.37406312246009}
+    env.install(w)
+    r = invoke(env, "--yes")
+    assert r.exit_code == 20, r.output
+    d = run_dir(env)
+    spec = json.loads((d / "results.json").read_text())["specificity"]
+    (amp,) = spec["amplicons"]
+    assert amp["classification"] == "likely_detected"
+    assert spec["partner_scan"]["primer_sites_added"] == 1
+    assert spec["partner_scan"]["probe_sites_added"] == 1
+    floor = next(f for f in spec["score_floors"] if f["tier"] == "background")
+    assert (floor["min_score"], floor["max_mismatches_reported"]) == (10, 1)  # 20-nt primer
+    html = (d / "report.html").read_text()
+    assert "Reported down to" in html and "score 10" in html and "partner scan" in html

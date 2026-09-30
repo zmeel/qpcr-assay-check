@@ -25,6 +25,7 @@ class FakeAssembly:
     molecules: dict[str, str] = field(
         default_factory=dict
     )  # contig -> Plasmid (default Chromosome)
+    collection_date: str | None = None  # BioSample collection_date; None: no biosample
 
 
 class FakeResponse:
@@ -82,7 +83,15 @@ class FakeDatasets:
                 {
                     "accession": a.accession,
                     "organism": {"tax_id": a.taxid, "organism_name": a.organism},
-                    "assembly_info": {"release_date": a.release_date, "assembly_level": a.level},
+                    "assembly_info": {
+                        "release_date": a.release_date,
+                        "assembly_level": a.level,
+                        **(
+                            {"biosample": {"collection_date": a.collection_date}}
+                            if a.collection_date is not None
+                            else {}
+                        ),
+                    },
                     "assembly_stats": {
                         "total_sequence_length": str(sum(map(len, a.contigs.values())))
                     },

@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import re
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -64,6 +65,18 @@ class VariantRow(BaseModel):
     last_seen: str | None = Field(
         default=None, description="latest release date of an assembly with this variant"
     )
+    tm_c: float | None = Field(
+        default=None, description="duplex Tm with this template (nearest-neighbour estimate)"
+    )
+    delta_tm_c: float | None = Field(
+        default=None, description="duplex Tm minus the perfect-match Tm; information only"
+    )
+    dg_kcal: float | None = Field(default=None, description="duplex ΔG (kcal/mol)")
+
+
+Duplex = Callable[[SiteResult], tuple[float | None, float | None, float | None]]
+"""``(tm_c, dg_kcal, delta_tm_c)`` of a site, e.g. :func:`..specificity.duplex.estimate_duplex`
+under the reaction conditions."""
 
 
 class OligoVariants(BaseModel):
@@ -140,9 +153,17 @@ class VariantSummary(BaseModel):
 
 
 def _variant_row(
-    s: SiteResult, count: int, total: int, dates: list[str] | None = None
+    s: SiteResult,
+    count: int,
+    total: int,
+    dates: list[str] | None = None,
+    duplex: Duplex | None = None,
 ) -> VariantRow:
+    tm, dg, dtm = duplex(s) if duplex is not None else (None, None, None)
     return VariantRow(
+        tm_c=tm,
+        dg_kcal=dg,
+        delta_tm_c=dtm,
         first_seen=min(dates) if dates else None,
         last_seen=max(dates) if dates else None,
         q_aln=s.q_aln,
@@ -170,7 +191,11 @@ def _dates(members: list[SiteResult], release_dates: dict[str, str]) -> list[str
 
 
 def _oligo_variants(
-    target_sites: list[SiteResult], role: str, oligo: str, release_dates: dict[str, str]
+    target_sites: list[SiteResult],
+    role: str,
+    oligo: str,
+    release_dates: dict[str, str],
+    duplex: Duplex | None = None,
 ) -> OligoVariants:
     role_sites = [s for s in target_sites if s.role == role]
     measured = [s for s in role_sites if s.source in _MEASURED]
@@ -179,7 +204,7 @@ def _oligo_variants(
         groups[(s.q_aln, s.s_aln)].append(s)
     total = len(measured)
     rows = [
-        _variant_row(members[0], len(members), total, _dates(members, release_dates))
+        _variant_row(members[0], len(members), total, _dates(members, release_dates), duplex)
         for members in groups.values()
     ]
     rows.sort(key=lambda r: (-r.count, r.q_aln))
@@ -212,12 +237,16 @@ def build_variant_summary(
     *,
     release_dates: dict[str, str] | None = None,
     coverage: ExhaustiveCoverage | None = None,
+    duplex: Duplex | None = None,
 ) -> VariantSummary:
     """Build the per-oligo and whole-fragment variant tables from the target tier's own sites.
 
     A fragment is the forward, probe and reverse site found on the same record (one per oligo,
     as :func:`assess_target_sites` returns them), whether or not the primers could prime: a
     variant with a 3'-end mismatch is exactly what the table must show.
+
+    ``duplex``: when given, each variant row carries the duplex Tm, ΔTm and ΔG of its site
+    (information next to the class, which stays the judgement).
     """
     dates = release_dates or {}
     target_sites = [s for s in target_sites if s.tier == "target"]
@@ -226,7 +255,8 @@ def build_variant_summary(
     parts = set(copies.from_parts_accessions) if copies is not None else set()
     oligo_variants = [
         _oligo_variants(
-            target_sites, role, " / ".join(o.sequence for o in assay.by_role(role)), dates
+            target_sites, role, " / ".join(o.sequence for o in assay.by_role(role)), dates,
+            duplex,
         )
         for role in _ROLES
     ]  # fmt: skip
@@ -265,9 +295,9 @@ def build_variant_summary(
         level: Level = min((fwd.level, probe.level, rev.level), key=lambda lv: _RANK[lv])
         fragments.append(
             FragmentVariantRow(
-                forward=_variant_row(fwd, count, total_fragments, seen),
-                probe=_variant_row(probe, count, total_fragments, seen),
-                reverse=_variant_row(rev, count, total_fragments, seen),
+                forward=_variant_row(fwd, count, total_fragments, seen, duplex),
+                probe=_variant_row(probe, count, total_fragments, seen, duplex),
+                reverse=_variant_row(rev, count, total_fragments, seen, duplex),
                 count=count,
                 percent=100.0 * count / total_fragments if total_fragments else 0.0,
                 level=level,
@@ -278,7 +308,10 @@ def build_variant_summary(
         )
         reporter = {o.name: o.reporter or "unspecified" for o in assay.probe}
         fragments[-1].channels = [
-            (reporter.get(c.query, "unspecified"), _variant_row(c, count, total_fragments, seen))
+            (
+                reporter.get(c.query, "unspecified"),
+                _variant_row(c, count, total_fragments, seen, duplex),
+            )
             for c in probe.channel_sites
         ]
         if coverage is not None and coverage.source == "datasets":

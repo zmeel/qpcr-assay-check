@@ -169,3 +169,15 @@ def test_a_record_wholly_masked_by_n_is_reported_as_hidden_by_n(tmp_path):
     c = run().coverage
     assert (c.found, c.masked, c.not_found) == (4, 1, 1)
     assert c.masked_examples == ["OZ000006.1"] and c.not_found_examples == ["MZ000004.1"]
+
+
+def test_records_carry_the_collection_date_from_the_summary(tmp_path):
+    recs = records()
+    recs[0].collected = "2019-11-02"  # published 2026, collected 2019
+    recs[1].collected = "2026-04"
+    fake = FakeNuccore(recs)
+    res = setup(tmp_path, fake)()
+    ca = res.inclusivity.collection
+    assert ca.earlier.with_region == 1  # before the first release year shown
+    assert ca.undated.with_region == 2  # MZ3 and MZ5 carry no collection_date qualifier
+    assert {r.year: r.with_region for r in ca.years} == {2026: 1}

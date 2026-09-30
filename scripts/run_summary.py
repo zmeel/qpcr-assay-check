@@ -54,6 +54,15 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
     inc = data.get("inclusivity")
     if inc:
         out["inclusivity"] = {k: inc.get(k) for k in ("verdict", "rationale", "fragment_years")}
+        ca = inc.get("collection")
+        if ca:
+            out["inclusivity"]["collection"] = {
+                (r.get("label") or str(r["year"])): [r["with_region"], r["detectable"],
+                                                     r["at_risk"], r["likely_failure"],
+                                                     r["undetermined"]]
+                for r in [*ca["years"], ca["earlier"], ca["undated"], ca["not_read"]]
+                if r["with_region"]
+            }  # fmt: skip
     out["fragment_variants"] = [
         {
             **{k: row.get(k) for k in ("count", "percent", "level", "example_accession")},
@@ -66,7 +75,16 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
         for row in (vs.get("fragments") or [])[:10]
     ]
     spec = data.get("specificity") or {}
-    out["specificity"] = {"verdict": spec.get("verdict"), "n_sites": spec.get("n_sites")}
+    out["specificity"] = {
+        "verdict": spec.get("verdict"),
+        "n_sites": spec.get("n_sites"),
+        "n_amplicons": len(spec.get("amplicons") or []),
+        "partner_scan": spec.get("partner_scan"),
+        "score_floors": [
+            [f["tier"], f["query"], f["min_score"], f["max_mismatches_reported"]]
+            for f in spec.get("score_floors") or []
+        ],
+    }
     excl = data.get("exclusivity") or {}
     out["exclusivity"] = {k: excl.get(k) for k in ("verdict", "tier_searched")}
     return out

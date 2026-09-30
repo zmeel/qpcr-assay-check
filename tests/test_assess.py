@@ -45,6 +45,7 @@ def offtarget_genome(
 
 def run(world, tmp_path, cfg=None, assay=None, **cfg_changes):
     cfg = cfg or load_config()
+    cfg_changes.setdefault("specificity__partner_scan_max_windows", 0)  # scan: tests below
     for key, value in cfg_changes.items():
         obj, attr = key.split("__")
         setattr(getattr(cfg, obj), attr, value)
@@ -318,6 +319,7 @@ def test_windows_are_cached_so_a_second_run_needs_no_network_fetches(tmp_path):
     w.hit(NEAR, "forward", F, ACC, F_START, "+", trim3=5)
     fake = WorldFake(w)
     cfg = load_config()
+    cfg.specificity.partner_scan_max_windows = 0  # one re-alignment window, nothing else
     runner, store, fetcher = make_runner(cfg, tmp_path, fake)
     plan = plan_searches(make_assay(near_neighbour_taxids=[NEAR]), cfg)
     parsed: dict = {}

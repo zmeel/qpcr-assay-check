@@ -7,6 +7,64 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Collection date as a second axis** (user request 2026-09-30): genomes released in the
+  report's window are also counted by the year their sample was collected, with "collected
+  before the window", "no usable date" and "not read yet" apart, in a table under the
+  whole-fragment year table, the workbook and one rationale line. Sources checked live on
+  2026-09-30: `assembly_info.biosample.collection_date` in the Datasets report, and the
+  `collection_date` pair of the Nucleotide ESummary `subtype`/`subname` lists. Dates are read
+  while listing (every run lists) and kept beside the region store
+  (`<store>.jsonl.dates.json`), so stored genomes get theirs without a new download or scan.
+  Information only: the inclusivity status stays per release year.
+- **ΔTm and ΔG next to each variant's class** (user request 2026-09-30): every site variant in
+  the variant summary (per oligo, whole fragment, per channel) carries the duplex Tm, ΔTm against
+  the perfect match and ΔG, from the nearest-neighbour estimate the specificity assessment
+  already used (`specificity/duplex.py`, cached per distinct variant). Shown under the class in
+  the report and as columns in the workbook. Information only: the class stays the judgement;
+  modifications such as MGB are not modelled (stated in the report).
+- **Score floor per search** (user decision 2026-09-30, after the smoke test's E-value sweep):
+  the BLAST parser reads NCBI's search statistics (`search.stat`: effective search space,
+  lambda, kappa); the specificity result gives, per tier and oligo, the smallest raw score the
+  search could report at the E-value cut-off and the most mismatches a full-length site can carry
+  and still always be reported (`score_floors`, a "Reported down to" column, one INFO finding per
+  tier). Checked against the sweep: predicted 10/8/7 at EXPECT 1e3/1e4/1e5, reported 10/8/7.
+  The first limitation line now points to these figures instead of a fixed worst case.
+- **Partner scan** (same decision): next to every off-target primer site of at least warning
+  level that forms no product, the sequence a product could span is fetched and the partner
+  primers are aligned in it end to end; probes are re-aligned inside every off-target product
+  without probe signal. Sites found this way have source `scanned`. At most
+  `specificity.partner_scan_max_windows` (1,000) primer sites per run; beyond that the
+  specificity result is INCOMPLETE. EXPECT stays 1000 (1e5 nearly filled the hit list).
+
+### Fixed
+- Code review of the new specificity code (2026-09-30): the probe re-alignment added the best
+  alignment even when it could not bind (now only sites of at least warning level); the partner
+  scan's duplicate check ignored the search tier, so a record in two tiers lost its product in
+  the second; zero or invalid BLAST search statistics would have stopped the assessment (now
+  "no statistics"); product fetches were not counted against `partner_scan_max_windows`, a
+  tier whose product list was cut was scanned for nothing, and primer sites without accession
+  went uncounted; scanned sites had no source label in the report; the limitation text claimed
+  the scan ran when it was switched off; "always reported" now says "unless cut from the full
+  hit list" where the list was full; collection years after the window count as "no usable
+  date".
+
+### Changed
+- **More than 4 primer mismatches beyond -16 are at least `at_risk`** (R3b; code review and user
+  decision 2026-09-30): Otwell 2025 measured 3-4 of them only. No outcome of the Otwell
+  comparison changes.
+- **Primer mismatch classes after a comparison with wet-lab data** (Otwell et al. 2025, Front
+  Cell Infect Microbiol 15:1524025, 132 synthetic templates of 16 SARS-CoV-2 assays; user
+  decision 2026-09-30; docs/MISMATCH_CLASSES.md section 11):
+  - rules R3 and R8 count only mismatches within the 3'-most 16 nt, the region Lefever 2013
+    tested; mismatches beyond it are `tolerated` alone and give at least `at_risk` with one
+    within it (new rule R3b);
+  - 3 mismatches within that region with none in the last 5 nt: `likely_failure` (was
+    `at_risk`);
+  - the 4-adjacent exception does not apply with further mismatches beyond -16.
+  Before, 7 of 52 `likely_failure` templates showed no measurable shift; after, all 9 were
+  delayed by at least 3 Ct or undetected, and `detectable` still held.
+
+### Added
 - **Fallback search for divergent copies** (advisor subagent, 2026-09-30, measured). Where no
   candidate has 32 anchored fragment bases (the trigger of the N-tolerant search, a scan
   setting) and nothing is hidden by N, the genome is searched again with 12-base exact seeds;

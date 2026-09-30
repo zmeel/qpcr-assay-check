@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..config import Config
 from ..ncbi.jobs import Job, JobStore
-from ..ncbi.parser import ParsedSearch, QueryResult, parse_blast_json
+from ..ncbi.parser import ParsedSearch, QueryResult, SearchStat, parse_blast_json
 from ..ncbi.runner import BlastRunner
 from .assess import QuerySaturation, RestrictionSummary, assess_saturation, summarise_restriction
 from .planner import PlannedSearch, SearchPlan
@@ -45,6 +45,9 @@ class SearchRecord(BaseModel):
     perfect_full_length: dict[str, int] = Field(default_factory=dict)
     saturation: list[QuerySaturation]
     restriction: RestrictionSummary | None
+    stats: dict[str, SearchStat] = Field(
+        default_factory=dict, description="NCBI's search statistics per query, when reported"
+    )
 
 
 class SearchOutcome(BaseModel):
@@ -155,6 +158,7 @@ def run_search(
                     for q in results
                 ],
                 restriction=summarise_restriction(results, ps.taxids) if ps.taxids else None,
+                stats={q.label: q.stat for q in results if q.stat is not None},
             )
         )
         all_rows.extend(_rows(ps.tier, parsed))

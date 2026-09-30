@@ -216,6 +216,40 @@ verified NCBI facts) at the start of every session. Newest entry first.
   names the E-value; smoke-test step 11 (--expect-sweep) measures E 1e3/1e4/1e5 for NG-F. Next,
   after the user's run: choose EXPECT, then build the partner-primer scan, probe re-alignment
   in every product and a reference-fragment BLAST per off-target tier.
+- Smoke-test E-value sweep (user run, 2026-09-30, --quick --expect-sweep; all steps ok): NG-F
+  (17 nt) vs N. meningitidis, eff_space 8.1e8 (advisor assumed 2.6e10-9.6e11), lambda 1.374,
+  K 0.711 (confirmed). E 1e3: 638 hits, min score 10; 1e4: 3,554, min 8; 1e5: 4,999 (list nearly
+  full), min 7. ceil(ln(K*space/E)/lambda) predicts 10/8/7 exactly. Human tier not measured
+  (`sh scripts/run_smoke.sh --quick --expect-sweep --human`). Mycoplasma pneumoniae unresolved
+  is by design (step 03 checks the old name; the list uses Mycoplasmoides pneumoniae).
+- Built on the user's "Build 2 and 3": score floor per tier and oligo from the report's own
+  statistics (specificity/reach.py, "Reported down to" column, INFO finding, new limitation
+  text); partner scan for unpaired off-target primer sites plus probe re-alignment in every
+  off-target product without probe signal (specificity/scan.py, source `scanned`,
+  `specificity.partner_scan_max_windows` 1000, INCOMPLETE beyond). EXPECT stays 1000. Not
+  built: a reference-fragment BLAST per off-target tier (products of which BLAST reported
+  neither primer remain unfound; noted in the limitation).
+- User request (2026-09-30): ΔTm/ΔG next to each variant's class (built; information only,
+  specificity/duplex.site_duplex cached per variant) and collection date next to release year
+  (built; sources verified live 2026-09-30: Datasets assembly_info.biosample.collection_date,
+  e.g. GCF_022869645.1 "missing"; nuccore ESummary subtype/subname, e.g. LC951483.1 collected
+  2021-12-03, created 2026/09/26). Dates live in <store>.dates.json, filled while listing.
+  Next: user runs enterovirus, then Neisseria and Legionella, then the v2 release.
+- Code review of the 4 new commits (2026-09-30) and fixes on the user's "Make fixes as
+  proposed": probe re-alignment adds warning+ sites only; scan de-duplication per tier; invalid
+  search statistics -> none; one fetch budget for partner windows and products; cut tiers not
+  scanned; no-accession sites counted; 'scanned' label; limitation text per scan setting;
+  full-list caveat on the score floor; "no usable date"; R3b: 5+ mismatches beyond -16 at_risk
+  (Otwell comparison re-run: totals unchanged).
+- Wet-lab comparison (user supplied Otwell et al. 2025 and its supplementary Tables 1-2): 132
+  DNA templates graded with oligo/grade.py vs measured Ct. Before: detectable 26 (none >= +3 Ct),
+  likely failure 52 (7 without shift, all 4 mismatches with 3 at the 5' end). Built on the
+  user's decision: R3/R8 count within the 3'-most 16 nt; R3b for mismatches beyond (alone
+  tolerated, with one inside at least at risk); 3 inside, none in the last 5 -> likely failure;
+  the 4-adjacent exception only without further mismatches. After: detectable 35 (one undetected
+  at 50 copies, +1.1 Ct at high copies), likely failure 9 (all >= +3 Ct or undetected), at risk
+  88. Probe deletions stay R5 indeterminate. Analysis script and data stay out of the repo;
+  table in docs/MISMATCH_CLASSES.md section 11.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

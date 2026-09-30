@@ -10,6 +10,8 @@ even though it usually prevents extension. Priming is therefore judged from the 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from typing import Any
 
 from ..align import realign
 from ..oligo import iupac, thermo
@@ -34,3 +36,24 @@ def estimate_duplex(
         return None, None, None
     delta = actual.tm_c - perfect.tm_c if perfect.found and perfect.tm_c is not None else None
     return actual.tm_c, actual.dg_kcal, delta
+
+
+def site_duplex(
+    reaction: Any,
+) -> Callable[[Any], tuple[float | None, float | None, float | None]]:
+    """A duplex estimate per site under the reaction conditions (``cfg.reaction``), cached by
+    oligo and aligned template: thousands of genomes share few distinct site variants."""
+    cond = thermo.Conditions.from_reaction(reaction)
+    memo: dict[tuple[str, str, bool], tuple[float | None, float | None, float | None]] = {}
+
+    def estimate(site: Any) -> tuple[float | None, float | None, float | None]:
+        if site.source == "blast_partial_worst_case":
+            return None, None, None  # unobserved bases: no estimate
+        probe = site.role == "probe"
+        key = (site.oligo, site.s_aln, probe)
+        if key not in memo:
+            nM = reaction.probe_nM if probe else reaction.primer_nM
+            memo[key] = estimate_duplex(site.oligo, site.s_aln, cond, nM)
+        return memo[key]
+
+    return estimate

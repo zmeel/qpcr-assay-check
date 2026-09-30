@@ -91,14 +91,23 @@ lost at 20 molecules for 2 mismatches and at 20-2,000 for 3), so these classes c
 - 2 within the 3'-most 16 nt: at least `at_risk` (Lefever p. 1477: 2-mismatch combinations gave
   "more pronounced inhibition ... even when they were located near the 5' end"; Fig. 6, median
   about 7.7 dCq, read from the figure);
-- 3: `likely_failure` if any is in the last 5 nt, else `at_risk` (our encoding; Lefever: "less
-  pronounced and depended on the mismatch position", p. 1479; Fig. 6 median about 15 dCq, read
-  from the figure, so `at_risk` may understate);
+- **Counted within the 3'-most 16 nt** (since 2026-09-30, user decision after section 11): the
+  region Lefever tested (p. 1472). The counts below and R8 use only mismatches within it.
+  Mismatches beyond -16 (**R3b**): alone, up to 4 `tolerated` (Otwell 2025: 3-4 of them shifted
+  Ct by at most 2.2) and 5 or more `at_risk` (beyond the measured data; code review and user
+  decision 2026-09-30, no Otwell outcome changes); together with at least one within the region,
+  at least `at_risk` (Otwell 2025: one within plus 3 at -20..-22, mostly +3 to +6 Ct, never
+  undetected at 50 copies);
+- 3: `likely_failure` (since 2026-09-30; before, `at_risk` without one in the last 5 nt: Lefever
+  "less pronounced and depended on the mismatch position", p. 1479, but Fig. 6 median about 15
+  dCq, read from the figure; Otwell 2025: 3 within the region, none in the last 5, +6 to +7 Ct,
+  2 of 3 undetected at 50 copies);
 - 4: `likely_failure` (Lefever: blocked "almost completely"), except 4 internal adjacent
   mismatches, which the authors attribute to "their location near the primer's 5' end" (p. 1476,
   Fig. 5); the paper gives no size for this exception, `at_risk` is our choice. The code applies
   it to any 4 adjacent mismatches with none in the last 5 nt (e.g. -6 to -9), wider than the
-  paper's example near the 5' end.
+  paper's example near the 5' end, and only when there are no further mismatches beyond -16
+  (Otwell 2025: 4 adjacent at -13..-16 plus 3 at the 5' end, +13.6 Ct).
 - These counts come from DNA assays (Lefever: intercalating dye, 20-mers, no RT step);
   Stadhouders' multi-mismatch RNA constructs were all in the forward primer (p. 114). They are
   not relaxed for the reverse primer in one-step RT-PCR (untested).
@@ -158,7 +167,8 @@ its share of the pool.
 ## 5. The primer pair
 
 **R8** (Lefever p. 1478): 3 mismatches in one primer with >= 2 in the other, or 4 with >= 1 in the
-other, blocked amplification "almost completely": `likely_failure` for the pair, whatever the
+other (counted within the 3'-most 16 nt of each primer, see R3), blocked amplification "almost
+completely": `likely_failure` for the pair, whatever the
 single-site classes (the figure inset also shows 5 in total blocking almost completely). A pair's
 class is otherwise the worse of its two primer classes, flagged when the pair has >= 4 mismatches
 in total: 2/2, 1/3 and 1/4 already have medians of about 15-16 dCq in Fig. 6 (read from the
@@ -227,6 +237,39 @@ Still open:
 3. R7 (degenerate primers) is only a note; the pair flag at >= 4 mismatches in total is not shown
    yet.
 4. A live rerun of the NG and enterovirus assays to see the classes on real data.
+
+## 11. Comparison with wet-lab data (Otwell et al. 2025)
+
+Otwell T, Knight B, Coryell M, et al. Reality check: testing the in silico predictions of false
+negative results due to mutations in SARS-CoV-2 PCR assays using templates with mismatches in
+vitro. Front Cell Infect Microbiol 2025;15:1524025 (CC BY 4.0), supplementary Tables 1-2: 16
+assays, synthetic DNA templates at 50-50,000 copies, one set of permissive conditions for all
+(TaqPath 1-Step, annealing 55 C instead of 60, primers 900 nM, probes 250 nM ZEN/IBFQ, 50
+cycles). Every DNA template was graded with this module (probes as unmodified) and compared with
+its measured Ct shift at 50,000 copies against the positive control of its run, and detection at
+50 and 5,000 copies. One template (France_nCoV_IP2 FN5140) is left out: the reverse primer of
+supplementary Table 1 already carries 2 mismatches against that run's positive control.
+
+| Outcome (132 templates) | no relevant shift | +1.5-3 Ct | >= +3 Ct | undetected at 50 copies | undetected at >= 5,000 |
+|---|---|---|---|---|---|
+| before: detectable (26) | 22 | 4 | 0 | 0 | 0 |
+| before: at risk (54) | 27 | 4 | 8 | 10 | 5 |
+| before: likely failure (52) | 7 | 7 | 31 | 6 | 1 |
+| after: detectable (35) | 28 | 6 | 0 | 1 | 0 |
+| after: at risk (88) | 28 | 9 | 36 | 10 | 5 |
+| after: likely failure (9) | 0 | 0 | 3 | 5 | 1 |
+
+Read: `detectable` held in both versions (the one template undetected at 50 copies after the
+change, Chan-S FN4676, has 3 mismatches only beyond -16 and a +1.1 Ct shift at high copy
+numbers, next to a control at Ct 37.6 at 50 copies). Before the change all 7 `likely failure`
+templates without a measurable shift had 4 primer mismatches, 3 of them at the 5' end; after it,
+every `likely failure` template was delayed by at least 3 Ct or undetected. `at risk` now holds
+most delays of 3-6 Ct, as its definition says (a measurable delay, relevant near the limit of
+detection). The templates undetected even at >= 5,000 copies graded `at risk` are probe
+deletions (R5 stays `indeterminate`: a 6-7 nt probe deletion gave anything from +5 Ct to no
+signal) and one probe site with 3 mismatches and a deletion. Limits: SARS-CoV-2 assays only,
+one permissive set of conditions, one assay (China_N) dominates the 4-mismatch cases; not a
+validation of the software for a laboratory's own conditions.
 
 ## 10. Stadhouders Table 1 (p. 116), as the lookup to encode
 

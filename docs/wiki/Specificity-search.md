@@ -32,6 +32,20 @@ own query. Searches are submitted through NCBI's BLAST URL API with the tool's o
 search ID (RID) can be stored and a run that was interrupted resumes the same search instead of
 submitting it again.
 
+**What a search can miss.** BLAST reports an alignment only when its expected number of chance
+hits (E-value) is at most 1,000. The E-value grows with the size of the search, so the smallest
+reportable score does too. NCBI reports the statistics of every search (the effective search
+space, λ and K), and from them the tool computes, per tier and oligo, the smallest score the
+search could report, E = K · search space · e<sup>−λS</sup> ≤ 1000, and how many mismatches a
+full-length site may carry and still always be reported. Measured with the 17-nt *N. gonorrhoeae*
+primer against *N. meningitidis* (search space 8.1 × 10⁸): the formula gives scores 10, 8 and 7
+for E-values of 1,000, 10,000 and 100,000, and the lowest scores NCBI actually reported were 10,
+8 and 7. A site with one internal mismatch (score 13) is reported there; one with two (score 9)
+can be missing. A search space 1,000 times larger raises the floor by 5 points. Raising the
+E-value is no remedy: at 100,000 the same small search nearly filled its 5,000-hit list. The
+report shows the floor per tier and oligo ("Reported down to"); the partner scan below closes
+the gap where it matters most.
+
 **A full hit list is only a problem when it is still relevant.** When a query returns the maximum
 number of hits and even its weakest hit has at least 14 identical bases, relevant hits may have
 been cut off: the tier is marked *saturated* and the result *Incomplete*, with the advice to
@@ -65,8 +79,21 @@ channels whose probes bind inside them. For an RNA assay, a product on a genomic
 eukaryote (human by default) carries a note: it matters only if the specimen contains genomic
 DNA and no intron separates the primer sites.
 
-A primer site that forms no product (no facing partner in range) is reported as off-target
-priming, a lower concern than a product.
+**Partner scan.** A product needs two primer sites, but BLAST need not report both: the second
+may score below the search's floor. So for every off-target primer site of at least *warning*
+level that forms no product from the reported sites, the sequence a product could span (2,000
+bases in the direction the primer extends) is fetched, and every primer of the partner role is
+aligned in it end to end. A partner site of at least *warning* level that faces the first one is
+added (marked "scanned" and "not reported by BLAST"), in the same search tier as the first. Likewise,
+inside every product without a reported probe site, each probe is re-aligned end to end; a probe
+site of at least *warning* level is added, so a probe site hidden from BLAST still counts. At most
+`specificity.partner_scan_max_windows` (1,000) fetches are made per run, partner windows first
+(strongest primer sites first), then products; beyond that the result is *Incomplete*. A tier
+whose product list was cut at `max_amplicons` is not scanned. Windows are cached. The scan cannot
+find a product of which BLAST reported neither primer site.
+
+A primer site that forms no product (no facing partner in range, also after the scan) is
+reported as off-target priming, a lower concern than a product.
 
 ## Status
 

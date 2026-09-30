@@ -31,3 +31,29 @@ def test_the_summary_keeps_counts_and_cuts_accession_lists():
     assert out["channels"] == [{"name": "V"}]
     assert out["fragment_variants"][0]["forward"] == [1, "minor"]
     assert "ACGA" not in str(out) and "/secret" not in str(out)  # no sequences, no ncbi settings
+
+
+def test_the_summary_keeps_the_partner_scan_and_score_floors():
+    data = {
+        "overall": {"verdict": "FAIL"},
+        "sections": [],
+        "specificity": {
+            "verdict": "FAIL",
+            "n_sites": {"critical": 1},
+            "amplicons": [{"id": "A1"}],
+            "partner_scan": {"primer_sites": 3, "windows": 3, "primer_sites_added": 1},
+            "score_floors": [
+                {
+                    "tier": "background",
+                    "query": "F",
+                    "length": 17,
+                    "min_score": 15,
+                    "max_mismatches_reported": 0,
+                    "searches_without_statistics": 0,
+                },
+            ],  # fmt: skip
+        },
+    }
+    out = rs.summary(data)["specificity"]
+    assert out["n_amplicons"] == 1 and out["partner_scan"]["primer_sites_added"] == 1
+    assert out["score_floors"] == [["background", "F", 15, 0]]

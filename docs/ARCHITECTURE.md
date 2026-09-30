@@ -304,6 +304,16 @@ report and nothing else this project didn't already improve on.
   https://blast.ncbi.nlm.nih.gov/doc/blast-help/urlapi.html, read 2026-09-30). A site whose
   mismatches leave no exact 7-base stretch is invisible to the search: none with 1 mismatch,
   up to 7.4% of 2-mismatch and 15-33% of 3-mismatch placements for 17-19-nt oligos.
+- The E-value cut-off limits short oligos more than the word size. The JSON2 report carries
+  `search.stat` (`eff_space`, `kappa`, `lambda`) per query; `specificity/reach.py` computes the
+  smallest reportable raw score `ceil(ln(K * eff_space / EXPECT) / lambda)` per tier and oligo
+  (the tier's least sensitive search decides). Checked against the live sweep (smoke step 11,
+  2026-09-30, NG-F vs txid487, eff_space 8.1e8): predicted 10/8/7 for EXPECT 1e3/1e4/1e5,
+  reported minimum 10/8/7. EXPECT stays 1000: 1e5 nearly filled the 5,000-hit list.
+- Partner scan (`specificity/scan.py`): next to each unpaired off-target primer site of at least
+  warning level, `max_amplicon_size` bases in its extension direction are fetched and the
+  partner-role primers aligned semi-globally; probes are re-aligned inside every off-target
+  product without probe signal. Limit `specificity.partner_scan_max_windows` (INCOMPLETE beyond).
   Gap costs 5/2 are assumed to be valid for reward 1 / penalty -3; that is unverified, and the
   smoke test checks that the server accepts them.
 - One multi-FASTA submission per tier and batch (at most 1,000 bases), as NCBI recommends.

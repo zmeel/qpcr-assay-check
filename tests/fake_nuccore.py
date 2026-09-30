@@ -27,6 +27,7 @@ class FakeRecord:
     title: str = "Organism sequence"
     partial: bool = False  # BLAST reports only part of the amplicon
     in_blast_db: bool = True  # False: too new for the BLAST database (live finding, 2026-09-23)
+    collected: str | None = None  # collection_date source qualifier, in subtype/subname
 
 
 @dataclass
@@ -87,6 +88,9 @@ class FakeNuccore:
             r = by_uid[uid]
             result[uid] = {"uid": uid, "accessionversion": r.accession, "createdate": r.date,
                            "slen": len(r.seq), "title": r.title}  # fmt: skip
+            if r.collected is not None:  # the live layout (ESummary of LC951483.1, 2026-09-30)
+                result[uid]["subtype"] = "isolate|country|collection_date"
+                result[uid]["subname"] = f"iso{uid}|Japan|{r.collected}"
         return FakeResponse(200, json.dumps({"result": result}))
 
     def _efetch(self, p: dict) -> FakeResponse:

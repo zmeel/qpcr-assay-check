@@ -51,11 +51,15 @@ The main rules, in short:
   its *position*. A terminal A–A, A–G, G–A, G–G or C–C mismatch is *likely failure*; at positions
   −3 to −5 every type is *tolerated* with Taq on DNA.
 - **One primer mismatch further from the 3′ end** (Lefever et al. 2013): *tolerated*.
-- **Several mismatches in one primer** (Lefever 2013): two or more within the 3′-most 16 bases
-  are at least *at risk*; the terminal base plus another within the last 5 is *likely failure*;
-  four is *likely failure*.
+- **Several mismatches in one primer** (Lefever 2013), counted within the 3′-most 16 bases, the
+  region Lefever tested: two are at least *at risk*; the terminal base plus another within the
+  last 5 is *likely failure*; three or four are *likely failure*.
+- **Mismatches beyond the 3′-most 16 bases** (Otwell et al. 2025, wet-lab data): alone, up to 4
+  are *tolerated* (3–4 of them shifted Ct by at most 2.2) and 5 or more *at risk*, since no data
+  cover that many; together with one within the region at least *at risk* (mostly +3 to +6 Ct).
 - **The primer pair** (Lefever 2013): 3 mismatches in one primer with 2 or more in the other, or
-  4 with 1 or more, is *likely failure* for the pair, whatever each primer alone.
+  4 with 1 or more (within the 3′-most 16 bases), is *likely failure* for the pair, whatever each
+  primer alone.
 - **Homopolymer length differences** (a primer site that differs only in the length of a run of
   identical bases, e.g. seven A instead of eight): *at risk* for one base outside the last 3,
   otherwise *likely failure*. No PCR study measured these, and they are also a known sequencing
@@ -72,6 +76,21 @@ The main rules, in short:
 
 A site is **detectable** when its class is *perfect* or *tolerated*. Classes present published
 data; they are not predicted Ct values.
+
+**ΔTm next to the class** (information only). Each site variant in the report also shows the
+estimated change in duplex melting temperature against the perfect match (ΔTm, with Tm and ΔG on
+hover and in the workbook), from primer3's nearest-neighbour model under the configured reaction
+conditions. It helps where the class says little, such as an MGB probe with one mismatch
+(*indeterminate*): a mismatch that costs 1 °C and one that costs 8 °C are not the same risk. The
+model is for unmodified DNA: MGB, LNA and other modifications are not modelled, and a mismatch at
+the 3′-terminal base barely changes Tm although it usually blocks extension. The class remains
+the judgement; ΔTm never changes it.
+
+**Compared with wet-lab data.** The classes were compared with 132 synthetic templates of 16
+SARS-CoV-2 assays measured by Otwell et al. (2025) under one permissive set of conditions: no
+template graded *detectable* was delayed by 3 Ct or more, and every template graded *likely
+failure* was delayed by at least 3 Ct or not detected at 50 copies. Most delays of 3–6 Ct are
+*at risk*. Details and limits: `docs/MISMATCH_CLASSES.md`, section 11.
 
 ## 4. From sites to a copy, and from copies to a genome
 
