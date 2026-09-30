@@ -22,12 +22,16 @@ def describe(path: str) -> list[str]:
     name = os.path.basename(path)[:12]
     try:
         with gzip.open(path, "rt", encoding="utf-8") as fh:
-            doc = json.load(fh)
+            record = json.load(fh)
+        # the cache's envelope: {"created": ..., "text": <NCBI's answer as text>}
+        text = record.get("text") if isinstance(record, dict) else None
+        doc = json.loads(text) if isinstance(text, str) else record
     except (OSError, ValueError) as exc:
         return [f"{name} unreadable or not JSON: {exc}"]
     outputs = doc.get("BlastOutput2", []) if isinstance(doc, dict) else []
     outputs = outputs if isinstance(outputs, list) else [outputs]
-    lines = [f"{name} {len(outputs)} report(s), top-level keys {sorted(doc)[:6]}"]
+    keys = sorted(doc)[:6] if isinstance(doc, dict) else type(doc).__name__
+    lines = [f"{name} {len(outputs)} report(s), top-level keys {keys}"]
     for out in outputs[:3]:
         report = out.get("report", {})
         search = report.get("results", {}).get("search", {})
