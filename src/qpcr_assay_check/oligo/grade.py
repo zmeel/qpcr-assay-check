@@ -44,6 +44,13 @@ _COMPLEMENT = {"A": "T", "C": "G", "G": "C", "T": "A"}
 
 STADHOUDERS = "Stadhouders 2010, Table 1 (Taq on DNA)"
 LEFEVER = "Lefever 2013"
+OTWELL = "Otwell 2025"
+# Lefever 2013 tested mismatches in the 3'-most 16 nt of 20-mers (p. 1472); Otwell et al. 2025
+# (Front Cell Infect Microbiol 15:1524025, supplementary Table 2, 55 C annealing, 900 nM primers)
+# measured primers whose extra mismatches lay beyond that region: 3-4 of them alone shifted Ct by
+# at most 2.2, while 4 mismatches with 3 at the 5' end (-20..-22) and one within the region
+# shifted Ct by -0.1 to +6.4 (mostly +3 to +6), never undetected at 50 copies.
+TESTED_REGION = 16
 CAVEAT = (
     "Classes follow Stadhouders 2010 Table 1 for Taq polymerase on DNA and Lefever 2013; the "
     "size of a mismatch effect differs between master mixes, and in one-step RT-PCR a mismatch "
@@ -165,6 +172,24 @@ def _with_gap(by_mismatches: Grade, note: str) -> Grade:
 
 
 def _grade_primer_mm(mm: list[_Mismatch]) -> Grade:
+    """R1-R3 on the mismatches within the tested region (the 3'-most ``TESTED_REGION`` nt);
+    mismatches beyond it only raise the class to at risk, and alone leave it tolerated
+    (R3b, Otwell 2025; the user's decision after comparing the classes with its data)."""
+    inner = [m for m in mm if m.pos <= TESTED_REGION]
+    outer = [m for m in mm if m.pos > TESTED_REGION]
+    if outer and not inner:
+        return Grade(TOLERATED, "R3b", f"{len(outer)} mismatch(es) only beyond -{TESTED_REGION}, "
+                     f"outside the region {LEFEVER} tested; {OTWELL}: 3-4 such mismatches shifted "
+                     "Ct by at most 2.2 (one test setup, permissive conditions)")  # fmt: skip
+    g = _grade_inner(inner, adjacent_exception=not outer)
+    if not outer:
+        return g
+    return Grade(worst(g.cls, AT_RISK), g.rule, f"{g.note}; plus {len(outer)} mismatch(es) beyond "
+                 f"-{TESTED_REGION} ({OTWELL}: with one mismatch within the region, mostly +3 to "
+                 "+6 Ct)")  # fmt: skip
+
+
+def _grade_inner(mm: list[_Mismatch], adjacent_exception: bool = True) -> Grade:
     if not mm:
         return Grade(PERFECT, "", "")
     last5 = [m for m in mm if m.pos <= 5]
@@ -183,11 +208,16 @@ def _grade_primer_mm(mm: list[_Mismatch]) -> Grade:
     if len(mm) == 2:
         return Grade(worst(AT_RISK, *singles), "R3", f"2 mismatches ({LEFEVER}){low_input}")
     if len(mm) == 3:
-        cls = FAILURE if last5 else AT_RISK
-        return Grade(cls, "R3", f"3 mismatches ({LEFEVER}: depends on position){low_input}")
+        # none in the last 5 nt: at risk until 2026-09-30; Lefever Fig. 6 median about 15 dCq
+        # (read from the figure) and Otwell 2025 +6 to +7 Ct, 2 of 3 missed at 50 copies
+        return Grade(FAILURE, "R3", f"3 mismatches within the 3'-most {TESTED_REGION} nt "
+                     f"({LEFEVER}; {OTWELL}: +6 to +7 Ct without one in the last 5 nt)"
+                     f"{low_input}")  # fmt: skip
     positions = sorted(m.pos for m in mm)
     adjacent = positions[-1] - positions[0] == len(positions) - 1
-    if len(mm) == 4 and adjacent and not last5:
+    # Lefever's exception is 4 mismatches in all; with more beyond the tested region it does not
+    # apply (Otwell 2025: 4 adjacent at -13..-16 plus 3 at the 5' end, +13.6 Ct)
+    if len(mm) == 4 and adjacent and not last5 and adjacent_exception:
         return Grade(AT_RISK, "R3", f"4 adjacent mismatches away from the 3' end ({LEFEVER} "
                      f"exception, seen near the 5' end; class ours){low_input}")  # fmt: skip
     return Grade(FAILURE, "R3", f"{len(mm)} mismatches ({LEFEVER}: blocked almost completely)")
@@ -286,9 +316,18 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
     return _with_ambiguity(by_mismatches, mm, amb)
 
 
+def tested_mismatches(site: Any) -> int:
+    """Mismatches of a primer site within the 3'-most ``TESTED_REGION`` nt, the region the pair
+    rule was measured on (a site without alignment strings: all its mismatches)."""
+    q, s = getattr(site, "q_aln", None), getattr(site, "s_aln", None)
+    if not q or not s:
+        return int(site.n_mismatch)
+    return sum(1 for m in _mismatches(q, s)[0] if m.pos <= TESTED_REGION)
+
+
 def pair_fails(n_forward: int, n_reverse: int) -> bool:
     """R8 (Lefever 2013 p. 1478): 3 mismatches with >= 2 in the other primer, or 4 with >= 1,
-    blocked amplification almost completely."""
+    blocked amplification almost completely; counted within the 3'-most 16 nt."""
     lo, hi = sorted((n_forward, n_reverse))
     return (hi >= 3 and lo >= 2) or (hi >= 4 and lo >= 1)
 
@@ -316,7 +355,7 @@ def combination_outcome(forward: Any, probe: Any, reverse: Any,
     sites = (forward, probe, reverse)
     if any(s.grade is None for s in sites):
         return "", False
-    pair = pair_fails(forward.n_mismatch, reverse.n_mismatch)
+    pair = pair_fails(tested_mismatches(forward), tested_mismatches(reverse))
 
     def state(s: Any) -> str:
         if bulges and s.note and s.n_mismatch == 0:  # run-length variant, lenient setting

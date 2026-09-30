@@ -630,7 +630,7 @@ def roles_state(chosen: dict[str, SiteResult], bulges: bool = False) -> dict[str
     state = {r: site_state(s, bulges) for r, s in chosen.items()}
     fwd, rev = chosen.get("forward"), chosen.get("reverse")
     graded = fwd is not None and rev is not None and fwd.grade is not None
-    if graded and grade.pair_fails(fwd.n_mismatch, rev.n_mismatch):  # type: ignore[union-attr]
+    if graded and grade.pair_fails(grade.tested_mismatches(fwd), grade.tested_mismatches(rev)):
         state["forward"] = state["reverse"] = "fail"
     return state
 

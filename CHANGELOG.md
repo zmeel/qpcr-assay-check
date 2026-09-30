@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Primer mismatch classes after a comparison with wet-lab data** (Otwell et al. 2025, Front
+  Cell Infect Microbiol 15:1524025, 132 synthetic templates of 16 SARS-CoV-2 assays; user
+  decision 2026-09-30; docs/MISMATCH_CLASSES.md section 11):
+  - rules R3 and R8 count only mismatches within the 3'-most 16 nt, the region Lefever 2013
+    tested; mismatches beyond it are `tolerated` alone and give at least `at_risk` with one
+    within it (new rule R3b);
+  - 3 mismatches within that region with none in the last 5 nt: `likely_failure` (was
+    `at_risk`);
+  - the 4-adjacent exception does not apply with further mismatches beyond -16.
+  Before, 7 of 52 `likely_failure` templates showed no measurable shift; after, all 9 were
+  delayed by at least 3 Ct or undetected, and `detectable` still held.
+
 ### Added
 - **Fallback search for divergent copies** (advisor subagent, 2026-09-30, measured). Where no
   candidate has 32 anchored fragment bases (the trigger of the N-tolerant search, a scan

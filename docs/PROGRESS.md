@@ -216,6 +216,15 @@ verified NCBI facts) at the start of every session. Newest entry first.
   names the E-value; smoke-test step 11 (--expect-sweep) measures E 1e3/1e4/1e5 for NG-F. Next,
   after the user's run: choose EXPECT, then build the partner-primer scan, probe re-alignment
   in every product and a reference-fragment BLAST per off-target tier.
+- Wet-lab comparison (user supplied Otwell et al. 2025 and its supplementary Tables 1-2): 132
+  DNA templates graded with oligo/grade.py vs measured Ct. Before: detectable 26 (none >= +3 Ct),
+  likely failure 52 (7 without shift, all 4 mismatches with 3 at the 5' end). Built on the
+  user's decision: R3/R8 count within the 3'-most 16 nt; R3b for mismatches beyond (alone
+  tolerated, with one inside at least at risk); 3 inside, none in the last 5 -> likely failure;
+  the 4-adjacent exception only without further mismatches. After: detectable 35 (one undetected
+  at 50 copies, +1.1 Ct at high copies), likely failure 9 (all >= +3 Ct or undetected), at risk
+  88. Probe deletions stay R5 indeterminate. Analysis script and data stay out of the repo;
+  table in docs/MISMATCH_CLASSES.md section 11.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

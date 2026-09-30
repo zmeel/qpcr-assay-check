@@ -64,7 +64,9 @@ def test_single_mismatch_beyond_5_is_tolerated_per_lefever():
 def test_several_mismatches():
     assert g.grade_primer(PRIMER, mutated(1, 4)).cls == g.FAILURE  # terminal + another
     assert g.grade_primer(PRIMER, mutated(8, 12)).cls == g.AT_RISK  # 2, none in the last 5
-    assert g.grade_primer(PRIMER, mutated(7, 10, 14)).cls == g.AT_RISK  # 3, none in the last 5
+    # 3 within the 3'-most 16 nt, none in the last 5: likely failure since 2026-09-30 (Lefever
+    # Fig. 6 median about 15 dCq; Otwell 2025 +6 to +7 Ct, missed at 50 copies)
+    assert g.grade_primer(PRIMER, mutated(7, 10, 14)).cls == g.FAILURE
     assert g.grade_primer(PRIMER, mutated(3, 10, 14)).cls == g.FAILURE  # 3, one in the last 5
     assert g.grade_primer(PRIMER, mutated(7, 9, 12, 15)).cls == g.FAILURE  # 4 spread
     assert g.grade_primer(PRIMER, mutated(16, 17, 18, 19)).cls == g.AT_RISK  # 4 adjacent, 5' end
@@ -171,3 +173,35 @@ def test_an_oligo_end_without_a_partner_base_is_a_mismatch_not_a_gap():
     # a 3'-terminal base without a partner is a terminal mismatch: likely failure
     three = g.grade_primer("ACGTACGTACGTACGTACGT", "ACGTACGTACGTACGTACG-")
     assert three.cls == g.FAILURE and three.rule == "R1"
+
+
+def test_mismatches_beyond_the_tested_region_count_less():
+    """Otwell et al. 2025 (supplementary Table 2): 3-4 primer mismatches only beyond -16 shifted
+    Ct by at most 2.2; with one more within the 3'-most 16 nt mostly +3 to +6, never a miss at
+    50 copies. Lefever 2013 tested the 3'-most 16 nt only."""
+    only_outer = g.grade_primer(PRIMER, mutated(19, 20, 21))
+    assert (only_outer.cls, only_outer.rule) == (g.TOLERATED, "R3b")
+    assert g.grade_primer(PRIMER, mutated(17, 18, 19, 20)).cls == g.TOLERATED
+    assert g.grade_primer(PRIMER, mutated(9, 19, 20, 21)).cls == g.AT_RISK  # was likely failure
+    assert g.grade_primer(PRIMER, mutated(1, 4, 20)).cls == g.FAILURE  # the inner rule stands
+    # Lefever's 4-adjacent exception holds for 4 mismatches in all, not with more beyond -16
+    # (Otwell 2025, China_N FN5780: -13..-16 plus 3 at the 5' end, +13.6 Ct)
+    assert g.grade_primer(PRIMER, mutated(12, 13, 14, 15)).cls == g.AT_RISK
+    assert g.grade_primer(PRIMER, mutated(12, 13, 14, 15, 20)).cls == g.FAILURE
+
+
+def test_the_pair_rule_counts_mismatches_within_the_tested_region():
+    from types import SimpleNamespace as NS
+
+    def primer(site: str) -> NS:
+        gr = g.grade_primer(PRIMER, site)
+        mm = g._mismatches(PRIMER, site)[0]
+        return NS(grade=gr.cls, grade_rule=gr.rule, n_mismatch=len(mm), note="",
+                  q_aln=PRIMER, s_aln=site)  # fmt: skip
+
+    probe = NS(grade=g.PERFECT, grade_rule="", n_mismatch=0, note="")
+    # 3 + 2 mismatches, but 2 of the first primer's lie beyond -16: 1 + 2 counted, no pair rule
+    outcome, by_pair = g.combination_outcome(primer(mutated(9, 19, 20)), probe,
+                                             primer(mutated(8, 12)))  # fmt: skip
+    assert not by_pair and outcome == "at risk"
+    assert g.pair_fails(g.tested_mismatches(primer(mutated(7, 9, 12))), 2)
