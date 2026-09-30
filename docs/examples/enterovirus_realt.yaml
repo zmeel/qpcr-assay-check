@@ -39,6 +39,19 @@
 #   * BLAST honours 'NOT' in ENTREZ_QUERY (live, this fragment against core_nt: 0 of 5,000
 #     hits in an excluded taxon).
 #
+# LOCI AND CHANNELS (format of the 2026-09-29 overhaul; converted 2026-09-30, content unchanged)
+#   One amplified region (5' UTR) with both forward primers as alternatives, the degenerate
+#   reverse primer and the probe; one FAM channel whose target is the assay target (12059,
+#   minus the taxa below).
+#   context_accession NC_001612.1 (RefSeq, Enterovirus A, complete genome, 7,413 nt; 5' UTR
+#   1-750): checked live 2026-09-30 against the 24 RefSeq complete genomes of genus 12059.
+#   The fragment lies at 534-607 there, 68 of 74 bases in exact blocks, identity 0.959, the
+#   best fit of the human species A-D references tried (B NC_001472.1 0.932, poliovirus
+#   NC_002058.3 0.892, D NC_001430.1 0.919, EV-D68 NC_038308.1 0.851). Flanks: 533 nt before
+#   (5' UTR), 1,000 after (end of the 5' UTR, then VP4/VP2). Their anchoring in other species:
+#   150-220 flank bases in species B genomes, 16-40 in poliovirus and species D, so the flanks
+#   help mostly for species A and B; elsewhere the fragment itself decides.
+#
 # The rhinoviruses are NOT skipped: every oligo is searched against them as near neighbours
 # (off-target, must not detect), with parechovirus in the exclusivity tier. The non-human
 # enteroviruses are out of scope (2026-09-25, after the second run: the assay amplifies them,
@@ -100,8 +113,15 @@ target:
     - {taxid: 442856, role: out_of_scope, reason: "animal host by NCBI name: Simian enterovirus SV26"}
     - {taxid: 442854, role: out_of_scope, reason: "animal host by NCBI name: Simian enterovirus BA13"}
     - {taxid: 106968, role: out_of_scope, reason: "animal host by NCBI name: Sheep enterovirus"}
-reference_amplicons:
-  - {name: EV-fragment, sequence: TCTGCAGCGGAACCGACTACTTTGGGTGTCCGTGTTTCCTTTTATTCTCATGTTGGCTGCTTATGGTGACAATT}
+loci:
+  - name: 5' UTR
+    primers: [realT-Entero-F1, realT-Entero-F2, realT-Entero-DHU-R]
+    probes: [Entero-P]
+    references:
+      - {name: EV-fragment, sequence: TCTGCAGCGGAACCGACTACTTTGGGTGTCCGTGTTTCCTTTTATTCTCATGTTGGCTGCTTATGGTGACAATT}
+    context_accession: NC_001612.1   # the sequence either side of the fragment (see above)
+channels:
+  - {name: Enterovirus, probes: [Entero-P]}   # reporter FAM (from the probe); target 12059
 exclusivity_organisms:
   - Parechovirus
 oligo_source: In-house assay supplied by the user; source publication not stated.
