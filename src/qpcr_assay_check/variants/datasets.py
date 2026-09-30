@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import zipfile
 import zlib
 from collections.abc import Iterator
@@ -229,6 +230,12 @@ def parse_fasta_records(text: str) -> dict[str, tuple[str, str]]:
     return out
 
 
+_PLASMID = re.compile(r"\bplasmid\b", re.I)
+
+
 def is_plasmid(description: str) -> bool:
-    """Does a FASTA header description name a plasmid? (INSDC definition lines say "plasmid")."""
-    return "plasmid" in description.lower()
+    """Does a FASTA header description name a plasmid? (INSDC definition lines say "plasmid",
+    e.g. "... plasmid pLPP, complete sequence"). The word itself, not "plasmids": patent
+    records titled "... mutant RNAs, and plasmids" are not plasmids (live enterovirus run,
+    2026-09-30)."""
+    return bool(_PLASMID.search(description))

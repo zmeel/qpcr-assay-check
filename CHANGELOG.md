@@ -37,6 +37,11 @@ All notable changes to this project are documented here. The format follows
   specificity result is INCOMPLETE. EXPECT stays 1000 (1e5 nearly filled the hit list).
 
 ### Fixed
+- A virus assay's report said "Target on a plasmid: yes": patent Nucleotide records titled
+  "... mutant RNAs, and plasmids" were taken for plasmids (substring match), and for
+  Nucleotide records only such titles gave a molecule, so they decided the majority (live
+  enterovirus run, 2026-09-30). The word must be "plasmid" itself, and plasmid logic applies
+  to genome assemblies only.
 - The score floors all read "not known" in the live enterovirus run: NCBI reports the search
   space as 0 for each query of a multi-query search (checked in the user's cache,
   2026-09-30). The space is now derived from the reported alignments (E = K x space x

@@ -181,3 +181,18 @@ def test_records_carry_the_collection_date_from_the_summary(tmp_path):
     assert ca.earlier.with_region == 1  # before the first release year shown
     assert ca.undated.with_region == 2  # MZ3 and MZ5 carry no collection_date qualifier
     assert {r.year: r.with_region for r in ca.years} == {2026: 1}
+
+
+def test_a_title_with_plasmids_is_no_plasmid_and_records_have_no_plasmid_logic(tmp_path):
+    """Live enterovirus run (2026-09-30): patent records titled "... mutant RNAs, and
+    plasmids" made the report say the target lies on a plasmid."""
+    from qpcr_assay_check.variants.datasets import is_plasmid
+
+    assert not is_plasmid("Defective interfering particles, mutant RNAs, and plasmids")
+    assert is_plasmid("Legionella pneumophila strain X plasmid pLPP, complete sequence")
+    recs = records()
+    recs[0].title = "Defective poliovirus RNAs, and plasmid constructs"
+    res = setup(tmp_path, FakeNuccore(recs))()
+    c = res.coverage
+    assert c.target_on_plasmid is None and c.plasmid_header_examples == []
+    assert (c.not_found_with_plasmid, c.not_found_without_plasmid) == (0, 0)

@@ -111,6 +111,15 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (enterovirus, Legionella) has stat with eff_space 0 and hsp_len 0, kappa/lambda/db_len
   given. Fixed: the space is derived from the reported alignments (from_hits), or query length
   x db_len (upper_bound). A rerun re-parses the cached results: no new BLAST searches needed.
+- Enterovirus complete (user, 2026-09-30, max_sites_per_query 6000): 13,109 of 13,109
+  records; whole fragment 2023-2026 91.6% detectable, 98.6% with at risk (Review);
+  specificity Exceeds limit: 4 predicted rhinovirus products the probe would detect (e.g.
+  76 bp on PV178561.1, RV-A102: forward 3-4 mismatches in the 5' half with 12 clean 3' nt,
+  probe perfect, reverse 1 mismatch + 1 gap; checked by hand against the record: real, no N);
+  the probe's hit list in the rhinovirus tier is still full. max_taxids_per_search 1 split
+  every tier (36 out-of-scope searches, one queued over 2 h at NCBI): removed from the example;
+  a per-tier split is the proper fix (not built). Bug fixed: "Target on a plasmid: yes" for
+  a virus (patent records titled "... and plasmids").
 - Not done yet: the user's live runs with this code (enterovirus, then Neisseria and
   Legionella), then the v2 release. Everything above is pushed (PR #47).
 
