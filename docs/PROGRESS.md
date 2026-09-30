@@ -141,6 +141,21 @@ verified NCBI facts) at the start of every session. Newest entry first.
   following the config at scan time (every chain kept; ScanSettings.masked_below fixed at 32),
   and a gene name over 60 characters breaking the default locus. Store SCHEMA 3: the
   Neisseria run started on schema 2 has to start again.
+- Step 8, first live run: Neisseria (user, report 2026-09-29T19:16Z, schema 3 code):
+  - 51,583 assemblies listed (2024 alone 41,117); 20,000 scanned in this run (2026 and 2025
+    complete, 2024 partly, 20 from 2023 because 20 failed downloads do not use the budget).
+  - Region found 19,970, cut 23, related regions only 7, not found 0, hidden by N 0; 19,691
+    genomes with more than one copy (median 9 in complete genomes, at most 10).
+  - Inclusivity 2023-2026: 91.9% detectable of 16,906 (3,064 undetermined, 1,623 of them
+    copies possibly unassembled): Review (< 95%), Incomplete until every genome is scanned.
+    By level: Complete 96.2% (6 escapes of 160), Contig 91.8%.
+  - Driver: NG-R's poly-A 7 run; homopolymer length variants in 12,863 genomes, copies
+    disagree in 11,457 (sequencing/assembly error likely); strict 77.8% vs 93.0% tolerated
+    (genomes with a detectable copy).
+  - Specificity: one predicted 76-bp product on CP171264.1 (N. meningitidis), both primers and
+    NG-P1 perfect: worth checking that record's identity.
+  - Report fixes from it: the "no product is predicted" sentence under a tier with a product;
+    the set-aside count (nearly all genomes since schema 3) no longer shown.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

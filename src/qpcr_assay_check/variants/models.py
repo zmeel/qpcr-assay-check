@@ -251,8 +251,9 @@ class ExhaustiveCoverage(BaseModel):
     related_only_examples: list[str] = Field(default_factory=list)
     related_ignored: int = Field(
         default=0,
-        description="genomes with real copies where regions below min_copy_identity were set "
-        "aside (never picked as the best copy)",
+        description="genomes with copies and also candidates that are not copies (never picked "
+        "as the best copy); not shown in the report: since every chain is kept (schema 3) "
+        "nearly every genome has one",
     )
     min_copy_identity: float | None = Field(
         default=None, description="the identity threshold used; None: stored before it existed"
