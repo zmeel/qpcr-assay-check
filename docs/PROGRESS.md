@@ -107,6 +107,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   site (1,506-bp product); fixed (unobserved bases are mismatches in the scan). Score floors
   all "not known": no search statistics were read from this run's BLAST results although the
   smoke test's (same runner, JSON2_S) had them; the user checks the cached results.
+- Cache check (user, scripts/check_blast_stats.sh, 2026-09-30): every multi-query search
+  (enterovirus, Legionella) has stat with eff_space 0 and hsp_len 0, kappa/lambda/db_len
+  given. Fixed: the space is derived from the reported alignments (from_hits), or query length
+  x db_len (upper_bound). A rerun re-parses the cached results: no new BLAST searches needed.
 - Not done yet: the user's live runs with this code (enterovirus, then Neisseria and
   Legionella), then the v2 release. Everything above is pushed (PR #47).
 

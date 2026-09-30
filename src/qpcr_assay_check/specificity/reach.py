@@ -46,6 +46,9 @@ def always_reported(length: int, floor: int, reward: int, penalty: int, word_siz
     return best
 
 
+_SOURCES = ["reported", "from_hits", "upper_bound"]  # most to least direct
+
+
 def floors(
     records: list[SearchRecord], oligos: dict[str, str], tiers: list[str], s: SearchSettings
 ) -> list[ScoreFloor]:
@@ -54,6 +57,7 @@ def floors(
     worst: dict[tuple[str, str], int] = {}
     unknown: dict[tuple[str, str], int] = defaultdict(int)
     full: set[tuple[str, str]] = set()
+    source: dict[tuple[str, str], str] = {}
     for r in records:
         if r.tier not in tiers:
             continue
@@ -66,6 +70,8 @@ def floors(
                 continue
             f = score_floor(st.eff_space, st.kappa, st.lambda_, s.expect)
             worst[key] = max(worst.get(key, f), f)
+            if _SOURCES.index(st.space_source) > _SOURCES.index(source.get(key, "reported")):
+                source[key] = st.space_source
     out: list[ScoreFloor] = []
     for tier, label in sorted({*worst, *unknown}, key=lambda k: (tiers.index(k[0]), k[1])):
         f = worst.get((tier, label))
@@ -83,9 +89,16 @@ def floors(
                 ),
                 searches_without_statistics=unknown.get((tier, label), 0),
                 list_full=(tier, label) in full,
+                space_source=source.get((tier, label), "reported"),
             )
         )
     return out
+
+
+_SOURCE_NOTE = {
+    "from_hits": " (search space derived from the reported alignments)",
+    "upper_bound": " (search space bounded from above: no alignment to derive it from)",
+}
 
 
 def floor_findings(entries: list[ScoreFloor], expect: float) -> list[Finding]:
@@ -109,6 +122,7 @@ def floor_findings(entries: list[ScoreFloor], expect: float) -> list[Finding]:
                     f"{e.query} ({e.length} nt): score >= {e.min_score}, sites with up to "
                     f"{e.max_mismatches_reported} mismatch(es) always reported"
                     + (" unless cut from the full hit list" if e.list_full else "")
+                    + _SOURCE_NOTE.get(e.space_source, "")
                 )
         out.append(
             Finding(

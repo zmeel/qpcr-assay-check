@@ -129,6 +129,11 @@ class ScoreFloor(BaseModel):
     list_full: bool = Field(
         default=False, description="a search of this tier filled its hit list for this oligo"
     )
+    space_source: str = Field(
+        default="reported",
+        description="how the search space was known: reported, from_hits or upper_bound "
+        "(the least direct one among the tier's searches)",
+    )
 
 
 class PartnerScan(BaseModel):

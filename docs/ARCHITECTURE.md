@@ -310,6 +310,12 @@ report and nothing else this project didn't already improve on.
   (the tier's least sensitive search decides). Checked against the live sweep (smoke step 11,
   2026-09-30, NG-F vs txid487, eff_space 8.1e8): predicted 10/8/7 for EXPECT 1e3/1e4/1e5,
   reported minimum 10/8/7. EXPECT stays 1000: 1e5 nearly filled the 5,000-hit list.
+  For each query of a multi-query search NCBI reports `eff_space` 0 and `hsp_len` 0 (kappa,
+  lambda, db_len and db_num are given; the user's cache, 2026-09-30, enterovirus and
+  Legionella searches). The space is then derived from the reported alignments,
+  `evalue / (K * exp(-lambda * score))`, largest over the alignments (checked: the sweep's
+  E 621.94 at score 10 gives 8.12e8, reported 811,905,916); without alignments,
+  query length x db_len bounds it from above. The report says which was used.
 - Partner scan (`specificity/scan.py`): next to each unpaired off-target primer site of at least
   warning level, `max_amplicon_size` bases in its extension direction are fetched and the
   partner-role primers aligned semi-globally; probes are re-aligned inside every off-target

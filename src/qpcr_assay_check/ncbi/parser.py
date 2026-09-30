@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import math
 import re
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -84,9 +84,15 @@ class SearchStat(BaseModel):
     ``E = kappa * eff_space * exp(-lambda * S)``.
     """
 
-    eff_space: float
+    eff_space: float = Field(description="the search space the E-values were computed with")
     kappa: float
     lambda_: float = Field(description="'lambda' in the report")
+    space_source: Literal["reported", "from_hits", "upper_bound"] = Field(
+        default="reported",
+        description="reported: NCBI's eff_space; from_hits: derived from the reported "
+        "alignments (NCBI reports eff_space 0 for multi-query searches, live 2026-09-30); "
+        "upper_bound: query length x database length (no hits to derive it from)",
+    )
 
 
 class QueryResult(BaseModel):
@@ -154,17 +160,42 @@ def _description(raw: dict[str, Any]) -> HitDescription:
     )
 
 
-def _stat(raw: Any) -> SearchStat | None:
-    """The search statistics, or None when the report lacks them (they are optional here)."""
+def _stat(raw: Any, hits: list[Hit], query_len: int | None) -> SearchStat | None:
+    """The search statistics, or None when the report lacks usable ones (they are optional).
+
+    NCBI reports ``eff_space`` 0 (and ``hsp_len`` 0) for each query of a multi-query search
+    (live cache check, 2026-09-30), while kappa and lambda are given. The space it used is then
+    derived from the reported alignments, ``E = kappa * space * exp(-lambda * score)``, taking
+    the largest value over the alignments (the cautious one: a larger space means a higher
+    score floor). Checked on the single-query E-value sweep: the largest E-value, 621.94 at
+    score 10, gives 8.12e8 against the reported 811,905,916. Without hits, query length x
+    database length bounds the space from above.
+    """
     if not isinstance(raw, dict):
         return None
     try:
-        values = (float(raw["eff_space"]), float(raw["kappa"]), float(raw["lambda"]))
+        kappa, lam = float(raw["kappa"]), float(raw["lambda"])
+        space = float(raw.get("eff_space") or 0)
+        db_len = float(raw.get("db_len") or 0)
     except (KeyError, TypeError, ValueError):
         return None
-    if not all(math.isfinite(v) and v > 0 for v in values):
-        return None  # e.g. an empty search space: no usable statistics, not an error
-    return SearchStat(eff_space=values[0], kappa=values[1], lambda_=values[2])
+    if not all(math.isfinite(v) and v > 0 for v in (kappa, lam)):
+        return None
+    if math.isfinite(space) and space > 0:
+        return SearchStat(eff_space=space, kappa=kappa, lambda_=lam)
+    derived = [
+        h.evalue / (kappa * math.exp(-lam * h.score))
+        for hit in hits
+        for h in hit.hsps
+        if h.score is not None and h.evalue > 0 and math.isfinite(h.evalue)
+    ]
+    if derived:
+        return SearchStat(eff_space=max(derived), kappa=kappa, lambda_=lam,
+                          space_source="from_hits")  # fmt: skip
+    if query_len and math.isfinite(db_len) and db_len > 0:
+        return SearchStat(eff_space=query_len * db_len, kappa=kappa, lambda_=lam,
+                          space_source="upper_bound")  # fmt: skip
+    return None
 
 
 def _label_for(title: str, query_id: str, labels: list[str]) -> str:
@@ -225,7 +256,11 @@ def parse_blast_json(text: str, labels: list[str]) -> ParsedSearch:
             query_len=int(search["query_len"]) if "query_len" in search else None,
             hits=hits,
             message=search.get("message"),
-            stat=_stat(search.get("stat")),
+            stat=_stat(
+                search.get("stat"),
+                hits,
+                int(search["query_len"]) if "query_len" in search else None,
+            ),
         )
     missing = [x for x in labels if x not in queries]
     if missing:
