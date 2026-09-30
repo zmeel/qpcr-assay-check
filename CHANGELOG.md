@@ -7,6 +7,12 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **ΔTm and ΔG next to each variant's class** (user request 2026-09-30): every site variant in
+  the variant summary (per oligo, whole fragment, per channel) carries the duplex Tm, ΔTm against
+  the perfect match and ΔG, from the nearest-neighbour estimate the specificity assessment
+  already used (`specificity/duplex.py`, cached per distinct variant). Shown under the class in
+  the report and as columns in the workbook. Information only: the class stays the judgement;
+  modifications such as MGB are not modelled (stated in the report).
 - **Score floor per search** (user decision 2026-09-30, after the smoke test's E-value sweep):
   the BLAST parser reads NCBI's search statistics (`search.stat`: effective search space,
   lambda, kappa); the specificity result gives, per tier and oligo, the smallest raw score the

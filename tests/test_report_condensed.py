@@ -278,3 +278,29 @@ def test_perfect_primer_sites_with_a_product_do_not_say_no_product_is_predicted(
     html = render_report(result.model_copy(update={"specificity": spec}), load_config())
     assert "1 predicted product" in html
     assert "no product is predicted" not in html
+
+
+def test_the_delta_tm_is_shown_next_to_the_class_but_not_for_perfect_sites(tmp_path):
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+
+    from .test_multi_copy import run_report_result
+
+    result, cfg = run_report_result(tmp_path), load_config()
+    vs = result.variant_summary
+    fwd = vs.oligos[0]
+    base = fwd.rows[0]
+    extra = [
+        base.model_copy(update={"grade": "indeterminate", "count": 5, "tm_c": 61.2,
+                                "delta_tm_c": -4.3, "dg_kcal": -15.1,
+                                "example_accession": "DTM1.1"}),
+        base.model_copy(update={"grade": "perfect", "tm_c": 65.5, "delta_tm_c": 0.0,
+                                "dg_kcal": -19.0, "example_accession": "DTM2.1"}),
+    ]  # fmt: skip
+    oligos = [fwd.model_copy(update={"rows": [*fwd.rows, *extra]}), *vs.oligos[1:]]
+    result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
+    html = render_report(result, cfg)
+    i = html.index("<h3>Variants per oligo")
+    per_oligo = html[i : html.index("<h2>", i)]
+    assert "ΔTm -4.3 °C" in per_oligo and "ΔTm +0.0" not in per_oligo
+    assert "information only, the class is the judgement" in per_oligo

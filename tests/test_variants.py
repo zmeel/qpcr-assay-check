@@ -200,3 +200,44 @@ def test_the_report_and_workbook_show_off_target_variants_not_every_site(tmp_pat
     write_workbook(result, tmp_path / "r.xlsx")
     wb = load_workbook(tmp_path / "r.xlsx")
     assert wb["Off-target variants"].max_row == 2 and wb["Off-target sites"].max_row == 31
+
+
+def test_variant_rows_carry_the_duplex_estimate_once_per_distinct_variant():
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.specificity.duplex import site_duplex
+
+    probe = "ACCCCGCATTACGTTTGGTGGACC"  # 24 nt
+    one_mm = probe[:10] + "T" + probe[11:]
+    sites = [
+        mk_site("probe", q_aln=probe, s_aln=probe, midline="|" * 24),
+        mk_site("probe", q_aln=probe, s_aln=one_mm, midline="|" * 10 + " " + "|" * 13, mm=1),
+        mk_site("probe", q_aln=probe, s_aln=one_mm, midline="|" * 10 + " " + "|" * 13, mm=1),
+    ]
+    calls = []
+    real = site_duplex(load_config().reaction)
+
+    def counting(s):
+        calls.append(s.id)
+        return real(s)
+
+    summary = build_variant_summary(sites, ASSAY, duplex=counting)
+    rows = {r.n_mismatch: r for r in next(o for o in summary.oligos if o.role == "probe").rows}
+    assert rows[0].delta_tm_c == 0 and rows[0].tm_c is not None
+    assert rows[1].delta_tm_c < -1 and rows[1].dg_kcal > rows[0].dg_kcal  # less stable
+    assert len(calls) == 2  # one estimate per distinct variant row
+    # without an estimator the columns stay empty
+    plain = build_variant_summary(sites, ASSAY)
+    assert all(r.tm_c is None for o in plain.oligos for r in o.rows)
+
+
+def test_the_duplex_estimate_is_cached_and_skips_unobserved_sites():
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.specificity.duplex import site_duplex
+
+    est = site_duplex(load_config().reaction)
+    probe = "ACCCCGCATTACGTTTGGTGGACC"
+    a = mk_site("probe", q_aln=probe, s_aln=probe, midline="|" * 24)
+    b = mk_site("probe", q_aln=probe, s_aln=probe, midline="|" * 24, acc="Y.1")
+    assert est(a) is est(b)
+    worst = mk_site("probe", q_aln=probe, s_aln=probe, source="blast_partial_worst_case")
+    assert est(worst) == (None, None, None)

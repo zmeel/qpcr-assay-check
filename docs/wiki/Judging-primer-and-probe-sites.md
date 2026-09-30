@@ -77,6 +77,15 @@ The main rules, in short:
 A site is **detectable** when its class is *perfect* or *tolerated*. Classes present published
 data; they are not predicted Ct values.
 
+**ΔTm next to the class** (information only). Each site variant in the report also shows the
+estimated change in duplex melting temperature against the perfect match (ΔTm, with Tm and ΔG on
+hover and in the workbook), from primer3's nearest-neighbour model under the configured reaction
+conditions. It helps where the class says little, such as an MGB probe with one mismatch
+(*indeterminate*): a mismatch that costs 1 °C and one that costs 8 °C are not the same risk. The
+model is for unmodified DNA: MGB, LNA and other modifications are not modelled, and a mismatch at
+the 3′-terminal base barely changes Tm although it usually blocks extension. The class remains
+the judgement; ΔTm never changes it.
+
 **Compared with wet-lab data.** The classes were compared with 132 synthetic templates of 16
 SARS-CoV-2 assays measured by Otwell et al. (2025) under one permissive set of conditions: no
 template graded *detectable* was delayed by 3 Ct or more, and every template graded *likely

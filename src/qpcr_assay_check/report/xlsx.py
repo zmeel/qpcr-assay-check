@@ -33,6 +33,11 @@ _FILL = {
 }
 
 
+def _r1(x: float | None) -> float | None:
+    """One decimal, or empty."""
+    return None if x is None else round(x, 1)
+
+
 def _sheet(
     wb: Workbook, title: str, header: list[str], rows: list[list[object]], status_col: int | None
 ) -> None:
@@ -291,12 +296,14 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb,
             "Oligo variants",
             ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Mismatches",
-             "Gaps", "Matching 3' nt", "Class", "Class rule", "Example accession",
-             "Example organism", "First release", "Last release"],
+             "Gaps", "Matching 3' nt", "Class", "Class rule", "Duplex Tm (°C)", "ΔTm (°C)",
+             "ΔG (kcal/mol)", "Example accession", "Example organism", "First release",
+             "Last release"],
             [
                 [o.role if row.oligo_name in ("", o.role) else f"{o.role} {row.oligo_name}",
                  row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
-                 row.clean_3prime_nt, row.grade or "", row.grade_note,
+                 row.clean_3prime_nt, row.grade or "", row.grade_note, _r1(row.tm_c),
+                 _r1(row.delta_tm_c), _r1(row.dg_kcal),
                  row.example_accession, row.example_organism or "",
                  row.first_seen or "", row.last_seen or ""]
                 for o in vs.oligos
@@ -309,7 +316,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb,
             "Fragment variants",
             ["Outcome", "Pair rule", "Forward", "Probe", "Reverse", "Classes (F/P/R)", "Count",
-             "Fraction (%)", "Mismatches (F/P/R)", "Probe per channel", "Types", "Assembly levels",
+             "Fraction (%)", "Mismatches (F/P/R)", "ΔTm °C (F/P/R)", "Probe per channel", "Types",
+             "Assembly levels",
              "Possibly unassembled", "Example accession",
              "Example organism", "First release", "Last release"],
             [
@@ -318,6 +326,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                  f.count, round(f.percent, 2),
                  f"{f.forward.n_mismatch + f.forward.n_gap}/{f.probe.n_mismatch + f.probe.n_gap}/"
                  f"{f.reverse.n_mismatch + f.reverse.n_gap}",
+                 "/".join("" if v.delta_tm_c is None else f"{v.delta_tm_c:+.1f}"
+                          for v in (f.forward, f.probe, f.reverse)),
                  "; ".join(f"{rep} {v.oligo_name}: {v.s_aln} ({v.grade or ''})"
                            for rep, v in f.channels),
                  "; ".join(f"{n} {c}" for n, c in f.organisms),
