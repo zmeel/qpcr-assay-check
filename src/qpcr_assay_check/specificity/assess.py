@@ -32,8 +32,13 @@ from .sites import (
 log = logging.getLogger(__name__)
 
 LIMITATIONS = [
-    "BLAST is a heuristic seeded by exact 7-base matches: a site with widely spaced mismatches "
-    "can be missed, so an absent hit is not proof of absent binding.",
+    "BLAST reports a site only when it contains an exact 7-base match (the smallest word size "
+    "NCBI's remote BLAST allows for blastn) and its alignment scores high enough for the E-value "
+    "cut-off (1000). A short oligo with few mismatches can fall below that score: a 17-nt oligo "
+    "with one internal mismatch scores 13 (+1 per match, -3 per mismatch), about the smallest "
+    "score reported. For oligos of 17-21 nt, sites with 1-3 mismatches can therefore be missing "
+    "from the search, more often the shorter the oligo; an absent hit is not proof of absent "
+    "binding.",
     "Partial BLAST hits that were not re-aligned are assessed with the most risk-conservative "
     "assumption compatible with BLAST's scoring; they are marked as worst case.",
     "Duplex Tm and ΔG are nearest-neighbour estimates of stability. A mismatch at the 3'-terminal "

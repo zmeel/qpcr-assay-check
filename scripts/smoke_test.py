@@ -16,6 +16,8 @@ WHAT IT SENDS TO NCBI
     * the three CDC 2019-nCoV N1 oligo sequences (published sequences, not proprietary)
     * a few E-utilities queries, including every name in the packaged clinical organism list
       (unless --quick); up to six BLAST searches (use --quick for two)
+    * with --expect-sweep: the 17-nt forward primer NG-F of the N. gonorrhoeae example assay
+      (docs/examples), in three more BLAST searches (six with --human)
     Your NCBI_EMAIL is sent to NCBI as NCBI requires. Neither it nor NCBI_API_KEY is written to
     any output file.
 
@@ -28,6 +30,9 @@ HOW TO RUN (from the repository root, after `pip install -e .`)
 
     Options:
       --quick               only the core searches (SARS-CoV-2 control + a restriction check)
+      --expect-sweep        step 11: E-value 1000 / 10000 / 100000 for a 17-nt primer against
+                            N. meningitidis (and human with --human): is the specificity search
+                            limited by the E-value cut-off? (advisor, 2026-09-30)
       --max-wait-minutes N  give up on one search after N minutes (default 30); it stays
                             resumable, and the next step still runs
       --human               also run the human-background search with the default settings
@@ -333,6 +338,12 @@ def main() -> int:
     ap.add_argument(
         "--max-wait-minutes", type=float, default=30.0, help="per-search wait limit (default 30)"
     )
+    ap.add_argument(
+        "--expect-sweep",
+        action="store_true",
+        help="step 11: E-value 1000 / 10000 / 100000 for a 17-nt oligo (3 searches; 3 more in "
+        "the human tier with --human)",
+    )
     args = ap.parse_args()
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S", stream=sys.stdout
@@ -369,6 +380,7 @@ def main() -> int:
                 "human": args.human,
                 "probe_databases": args.probe_databases,
                 "max_wait_minutes": args.max_wait_minutes,
+                "expect_sweep": args.expect_sweep,
             },
             "findings": rep.findings,
             "steps": rep.steps,
@@ -767,6 +779,44 @@ def main() -> int:
             rep.findings["database_probe_results"] = {k: v["ok"] for k, v in found.items()}
             return {"databases": found}
 
+    if args.expect_sweep:
+
+        @rep.step("11_blast_expect_sweep_short_oligo")
+        def _sweep() -> dict[str, Any]:
+            """Is the specificity search limited by the E-value cut-off rather than the word
+            size (advisor subagent, 2026-09-30)? One 17-nt oligo (NG-F of the N. gonorrhoeae
+            example assay) against N. meningitidis (txid487; live runs found near-perfect sites
+            there) and, with --human, the human background, at three E-values: is each E-value
+            accepted, how many hits come back, does the list fill, how long it takes, the
+            lowest raw score reported, and NCBI's own search statistics (search space)."""
+            tiers = [("meningitidis", 487)] + ([("human", HUMAN)] if args.human else [])
+            found: dict[str, Any] = {}
+            for name, taxid in tiers:
+                for expect in (1000, 10000, 100000):
+                    fasta = blast.build_query_fasta({SWEEP_LABEL: SWEEP_OLIGO})
+                    entrez = f"txid{taxid}[ORGN]"
+                    params = blast.build_put_params(cfg, fasta, entrez)
+                    params["EXPECT"] = str(expect)
+                    t0 = time.monotonic()
+                    key = f"{name}_E{expect}"
+                    try:
+                        job, raw = run_blast(runner, store, "sweep", f"smoke sweep {key}",
+                                             [taxid], entrez, params, [SWEEP_LABEL])  # fmt: skip
+                    except NcbiError as exc:
+                        found[key] = {"accepted": False, "error": str(exc)[:400],
+                                      "seconds": round(time.monotonic() - t0)}  # fmt: skip
+                        continue
+                    save_raw(out, f"t11_{key}", raw)
+                    found[key] = {"accepted": True, "rid": job.rid,
+                                  "seconds": round(time.monotonic() - t0),
+                                  **sweep_summary(raw, cfg)}  # fmt: skip
+            rep.findings["expect_sweep"] = {
+                k: {x: v.get(x) for x in ("accepted", "n_hits", "list_full", "min_raw_score",
+                                          "eff_space", "seconds")}
+                for k, v in found.items()
+            }  # fmt: skip
+            return {"oligo": SWEEP_OLIGO, "results": found}
+
     write_report(True)
     failed = [n for n, st in rep.steps.items() if not st.get("ok")]
     sys.stdout.write(
@@ -774,6 +824,38 @@ def main() -> int:
         f"Steps failed: {failed or 'none'}\nPaste the contents of smoke_report.json back.\n"
     )
     return 1 if failed else 0
+
+
+SWEEP_LABEL = "NG-F"
+SWEEP_OLIGO = "GTTGAAACACCGCCCGG"  # 17 nt; docs/examples/neisseria_gonorrhoeae_two_probes.yaml
+
+
+def sweep_summary(raw: str, cfg: Any) -> dict[str, Any]:
+    """Hits, list fill, the raw-score distribution of each hit's best HSP, and the report's own
+    search statistics (kept verbatim: the parser does not read them)."""
+    parsed = parse_blast_json(raw, [SWEEP_LABEL])
+    q = parsed.queries[SWEEP_LABEL]
+    best = [max((s.score or 0) for s in h.hsps) for h in q.hits if h.hsps]
+    by_score: dict[int, int] = {}
+    for s in best:
+        by_score[int(s)] = by_score.get(int(s), 0) + 1
+    stat: Any = None
+    try:
+        doc = json.loads(raw)
+        out = doc["BlastOutput2"]
+        search = (out[0] if isinstance(out, list) else out)["report"]["results"]["search"]
+        stat = search.get("stat")
+    except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+        pass
+    return {
+        "n_hits": len(q.hits),
+        "list_full": len(q.hits) >= cfg.search.hitlist_size,
+        "min_raw_score": min(best, default=None),
+        "hits_by_best_raw_score": dict(sorted(by_score.items())),
+        "max_evalue": max((s.evalue for h in q.hits for s in h.hsps), default=None),
+        "stat": stat,
+        "eff_space": (stat or {}).get("eff_space") if isinstance(stat, dict) else None,
+    }
 
 
 def ps_fasta(plan: Any) -> str:
