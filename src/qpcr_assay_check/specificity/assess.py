@@ -38,10 +38,7 @@ LIMITATIONS = [
     "the smallest NCBI's remote BLAST allows for blastn) and its alignment scores high enough for "
     "the E-value cut-off. The smallest reportable score depends on the size of each search and "
     "is given per tier and oligo under 'search' (computed from NCBI's own search statistics); a "
-    "site scoring less can be missing, so an absent hit is not proof of absent binding. The "
-    "partner scan closes this gap for the second primer and the probe of a product once BLAST "
-    "has reported one primer site; a product of which BLAST reported neither primer site is "
-    "not found.",
+    "site scoring less can be missing, so an absent hit is not proof of absent binding.",
     "Partial BLAST hits that were not re-aligned are assessed with the most risk-conservative "
     "assumption compatible with BLAST's scoring; they are marked as worst case.",
     "Duplex Tm and ΔG are nearest-neighbour estimates of stability. A mismatch at the 3'-terminal "
@@ -55,6 +52,17 @@ LIMITATIONS = [
     "Only the tiers named in the scope statement were searched; a passing result says nothing "
     "about organisms outside them. Primer-BLAST remains a useful manual cross-check.",
 ]
+
+
+SCAN_LIMITATION = (
+    "The partner scan narrows that gap for the second primer and the probe of a product once "
+    "BLAST has reported one primer site; a product of which BLAST reported neither primer site "
+    "is not found."
+)
+NO_SCAN_LIMITATION = (
+    "The partner scan was switched off (specificity.partner_scan_max_windows: 0): a product "
+    "whose second primer site or probe site BLAST did not report is not found."
+)
 
 
 def assess_specificity(
@@ -151,7 +159,7 @@ def assess_specificity(
     keep.sort(key=lambda s: int(s.id[1:]))
 
     # ---- products; then the partner scan: partner primers next to off-target primer sites
-    # that form no product yet, and probes re-aligned inside products without probe signal
+    # that form no product yet, and probes re-aligned inside products without a probe site
     def pair() -> tuple[list[SiteResult], list, set[str], set[str]]:
         priming = [s for s in keep if s.role == "probe" or primer_can_prime(s)]
         return priming, *predict_amplicons(priming, rules, assay)
@@ -160,9 +168,14 @@ def assess_specificity(
     scanning = rules.partner_scan_max_windows > 0
     scanner = PartnerScanner(assay, plan.queries, rules, scoring, fetcher, ids)
     if scanning:
+        # a tier whose product list was cut pairs no further sites: scanning there is wasted
         anchors = [
-            s for s in keep
-            if s.tier in rules.off_target_tiers and primer_can_prime(s) and s.id not in used
+            s
+            for s in keep
+            if s.tier in rules.off_target_tiers
+            and s.tier not in amp_truncated
+            and primer_can_prime(s)
+            and s.id not in used
         ]  # fmt: skip
         log.info("Partner scan next to %d unpaired off-target primer sites", len(anchors))
         added = scanner.partners(sites, anchors)
@@ -260,7 +273,11 @@ def assess_specificity(
                 {r.blast_version for r in outcome.searches if r.blast_version}
             ),
         },
-        limitations=list(LIMITATIONS),
+        limitations=[
+            LIMITATIONS[0],
+            SCAN_LIMITATION if scanning else NO_SCAN_LIMITATION,
+            *LIMITATIONS[1:],
+        ],
         score_floors=score_floors,
         partner_scan=scan,
     )
@@ -268,35 +285,58 @@ def assess_specificity(
 
 def scan_findings(scan: PartnerScan, limit: int) -> list[Finding]:
     """What the partner scan covered and added; INCOMPLETE when it could not cover every
-    off-target primer site that can prime."""
+    off-target primer site that can prime, or every product without a probe site."""
     out = [
         Finding(
             severity="INFO",
             message=(
                 f"Partner scan: {scan.windows} window(s) next to {scan.primer_sites} unpaired "
                 "off-target primer site(s) searched for partner primers, and the probes "
-                "re-aligned inside the products without probe signal "
+                "re-aligned inside the products without a reported probe site "
                 f"({scan.product_windows} product(s) fetched); {scan.primer_sites_added} primer "
-                f"and {scan.probe_sites_added} probe site(s) BLAST had not reported were added."
+                f"and {scan.probe_sites_added} probe site(s) of at least warning level that "
+                "BLAST had not reported were added."
             ),
             topic="amplicons",
         )
     ]
-    if scan.not_scanned or scan.windows_failed:
-        gaps = []
-        if scan.not_scanned:
-            gaps.append(
-                f"{scan.not_scanned} primer site(s) beyond the limit of {limit} windows "
-                "(specificity.partner_scan_max_windows) were not scanned"
-            )
-        if scan.windows_failed:
-            gaps.append(f"{scan.windows_failed} window(s) could not be fetched")
+    primer_gaps = []
+    if scan.not_scanned:
+        primer_gaps.append(
+            f"{scan.not_scanned} primer site(s) beyond the limit of {limit} fetches "
+            "(specificity.partner_scan_max_windows) were not scanned"
+        )
+    if scan.windows_failed:
+        primer_gaps.append(f"{scan.windows_failed} window(s) could not be fetched")
+    if scan.no_accession:
+        primer_gaps.append(f"{scan.no_accession} primer site(s) lie on a record without accession")
+    if primer_gaps:
         out.append(
             Finding(
                 severity="INCOMPLETE",
                 message=(
-                    f"Partner scan incomplete: {'; '.join(gaps)}. A product whose second primer "
-                    "BLAST did not report can be missing there."
+                    f"Partner scan incomplete: {'; '.join(primer_gaps)}. A product whose second "
+                    "primer BLAST did not report can be missing there."
+                ),
+                topic="amplicons",
+            )
+        )
+    probe_gaps = []
+    if scan.products_not_scanned:
+        probe_gaps.append(
+            f"{scan.products_not_scanned} product(s) beyond the limit of {limit} fetches were "
+            "not searched"
+        )
+    if scan.product_windows_failed:
+        probe_gaps.append(f"{scan.product_windows_failed} product(s) could not be fetched")
+    if probe_gaps:
+        out.append(
+            Finding(
+                severity="INCOMPLETE",
+                message=(
+                    f"Probe re-alignment incomplete: {'; '.join(probe_gaps)}. A probe site BLAST "
+                    "did not report can be missing there, so such a product may be detected "
+                    "although it is listed as not detected."
                 ),
                 topic="amplicons",
             )

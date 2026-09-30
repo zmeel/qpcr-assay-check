@@ -54,9 +54,9 @@ The main rules, in short:
 - **Several mismatches in one primer** (Lefever 2013), counted within the 3′-most 16 bases, the
   region Lefever tested: two are at least *at risk*; the terminal base plus another within the
   last 5 is *likely failure*; three or four are *likely failure*.
-- **Mismatches beyond the 3′-most 16 bases** (Otwell et al. 2025, wet-lab data): alone
-  *tolerated* (3–4 of them shifted Ct by at most 2.2); together with one within the region at
-  least *at risk* (mostly +3 to +6 Ct).
+- **Mismatches beyond the 3′-most 16 bases** (Otwell et al. 2025, wet-lab data): alone, up to 4
+  are *tolerated* (3–4 of them shifted Ct by at most 2.2) and 5 or more *at risk*, since no data
+  cover that many; together with one within the region at least *at risk* (mostly +3 to +6 Ct).
 - **The primer pair** (Lefever 2013): 3 mismatches in one primer with 2 or more in the other, or
   4 with 1 or more (within the 3′-most 16 bases), is *likely failure* for the pair, whatever each
   primer alone.

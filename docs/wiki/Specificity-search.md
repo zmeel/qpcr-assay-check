@@ -84,12 +84,13 @@ may score below the search's floor. So for every off-target primer site of at le
 level that forms no product from the reported sites, the sequence a product could span (2,000
 bases in the direction the primer extends) is fetched, and every primer of the partner role is
 aligned in it end to end. A partner site of at least *warning* level that faces the first one is
-added (marked "scanned" and "not reported by BLAST"). Likewise, inside every product without a
-reported probe site that gives signal, each probe is re-aligned end to end, so a probe site
-hidden from BLAST still makes the product *likely detected*. At most
-`specificity.partner_scan_max_windows` (1,000) primer sites are scanned per run, strongest first;
-beyond that the result is *Incomplete*. Windows are cached. The scan cannot find a product of
-which BLAST reported neither primer site.
+added (marked "scanned" and "not reported by BLAST"), in the same search tier as the first. Likewise,
+inside every product without a reported probe site, each probe is re-aligned end to end; a probe
+site of at least *warning* level is added, so a probe site hidden from BLAST still counts. At most
+`specificity.partner_scan_max_windows` (1,000) fetches are made per run, partner windows first
+(strongest primer sites first), then products; beyond that the result is *Incomplete*. A tier
+whose product list was cut at `max_amplicons` is not scanned. Windows are cached. The scan cannot
+find a product of which BLAST reported neither primer site.
 
 A primer site that forms no product (no facing partner in range, also after the scan) is
 reported as off-target priming, a lower concern than a product.

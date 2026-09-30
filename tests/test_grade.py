@@ -205,3 +205,15 @@ def test_the_pair_rule_counts_mismatches_within_the_tested_region():
                                              primer(mutated(8, 12)))  # fmt: skip
     assert not by_pair and outcome == "at risk"
     assert g.pair_fails(g.tested_mismatches(primer(mutated(7, 9, 12))), 2)
+
+
+def test_more_mismatches_beyond_the_tested_region_than_were_measured_are_at_risk():
+    """Otwell 2025 measured 3-4 mismatches beyond -16 only (code review 2026-09-30)."""
+    four = g.grade_primer(PRIMER, mutated(17, 18, 19, 20))
+    assert four.cls == g.TOLERATED and "outside the measured data" not in four.note
+    five = g.grade_primer(PRIMER, mutated(17, 18, 19, 20, 21))
+    assert (five.cls, five.rule) == (g.AT_RISK, "R3b")
+    assert "outside the measured data" in five.note
+    both = g.grade_primer(PRIMER, mutated(9, 17, 18, 19, 20, 21))
+    assert both.cls == g.AT_RISK and both.rule == "R2+R3b"
+    assert "outside the measured data" in both.note

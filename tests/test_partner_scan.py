@@ -8,7 +8,17 @@ from qpcr_assay_check.verdict import Verdict
 from .conftest import CDC_N1_F as F
 from .conftest import CDC_N1_P as P
 from .conftest import CDC_N1_R as R
-from .test_assess import ACC, F_START, NEAR, P_START, R_START, add_all, offtarget_genome, run
+from .test_assess import (
+    ACC,
+    F_START,
+    HUMAN,
+    NEAR,
+    P_START,
+    R_START,
+    add_all,
+    offtarget_genome,
+    run,
+)
 
 SCAN = {"specificity__partner_scan_max_windows": 1000}
 
@@ -90,3 +100,63 @@ def test_the_window_faces_the_way_the_primer_extends():
     assert facing_window(plus, 2000) == (100, 2099)
     assert facing_window(minus, 2000) == (1, 119)
     assert facing_window(minus, 50) == (70, 119)
+
+
+def test_a_probe_too_poor_to_bind_is_not_added(tmp_path):
+    """Code review 2026-09-30: only probe sites of at least warning level are added."""
+    w = offtarget_genome(f=[10], r=[5], p=[1, 3, 5, 7, 9, 11, 13, 15, 17, 19])
+    w.hit(NEAR, "forward", F, ACC, F_START, "+")
+    w.hit(NEAR, "reverse", R, ACC, R_START, "-")
+    res, _, _ = run(w, tmp_path, **SCAN)
+    (amp,) = res.amplicons
+    assert amp.classification == "amplified_not_detected" and amp.probe_site is None
+    assert res.partner_scan.probe_sites_added == 0 and res.partner_scan.product_windows == 1
+    assert not [s for s in res.sites if s.source == "scanned"]
+
+
+def test_the_same_record_in_two_tiers_gets_its_partner_in_each(tmp_path):
+    """Code review 2026-09-30: products are paired per tier, so de-duplication is too."""
+    w = offtarget_genome(f=[10], r=[5, 12], p=[8])
+    w.hit(NEAR, "forward", F, ACC, F_START, "+")
+    w.hit(HUMAN, "forward", F, ACC, F_START, "+")  # the same record found in the background tier
+    w.hit(NEAR, "probe", P, ACC, P_START, "+")
+    w.hit(HUMAN, "probe", P, ACC, P_START, "+")
+    res, _, _ = run(w, tmp_path, **SCAN)
+    assert sorted(a.tier for a in res.amplicons) == ["background", "near_neighbours"]
+    assert res.partner_scan.primer_sites_added == 2
+
+
+def test_product_fetches_count_against_the_limit(tmp_path):
+    w = offtarget_genome(f=[10], r=[5, 12])
+    w.hit(NEAR, "forward", F, ACC, F_START, "+")  # the scan finds the reverse primer: 1 fetch
+    offtarget_genome(f=[10], r=[5], acc="OT000002.1", world=w)
+    w.hit(NEAR, "forward", F, "OT000002.1", F_START, "+")
+    w.hit(NEAR, "reverse", R, "OT000002.1", R_START, "-")  # a product without a probe site
+    res, _, _ = run(w, tmp_path, specificity__partner_scan_max_windows=1)
+    scan = res.partner_scan
+    assert (scan.windows, scan.product_windows, scan.products_not_scanned) == (1, 0, 1)
+    assert any(
+        f.severity == "INCOMPLETE" and f.message.startswith("Probe re-alignment incomplete")
+        for f in res.findings
+    )
+
+
+def test_a_tier_whose_product_list_was_cut_is_not_scanned(tmp_path):
+    w = offtarget_genome(f=[10], r=[5], p=[8])
+    for acc in ("OT000002.1", "OT000003.1"):
+        offtarget_genome(f=[10], r=[5], p=[8], acc=acc, world=w)
+    for acc in (ACC, "OT000002.1"):
+        w.hit(NEAR, "forward", F, acc, F_START, "+")
+        w.hit(NEAR, "reverse", R, acc, R_START, "-")
+    w.hit(NEAR, "forward", F, "OT000003.1", F_START, "+")  # unpaired, in the cut tier
+    res, _, _ = run(w, tmp_path, specificity__max_amplicons=1, **SCAN)
+    assert res.partner_scan.primer_sites == 0 and res.partner_scan.windows == 0
+
+
+def test_the_limitations_say_whether_the_scan_ran(tmp_path):
+    w = offtarget_genome(f=[10], r=[5], p=[8])
+    add_all(w)
+    on, _, _ = run(w, tmp_path / "on", **SCAN)
+    off, _, _ = run(w, tmp_path / "off")
+    assert any("partner scan narrows that gap" in x for x in on.limitations)
+    assert any("partner scan was switched off" in x for x in off.limitations)

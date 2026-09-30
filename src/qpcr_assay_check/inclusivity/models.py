@@ -82,7 +82,10 @@ class CollectionAxis(BaseModel):
         default_factory=list, description="collection years inside the window, oldest first"
     )
     earlier: FragmentYear = Field(description="collected before the window's first year")
-    undated: FragmentYear = Field(description="no collection date given (or no year in it)")
+    undated: FragmentYear = Field(
+        description="no usable collection date: none given, no year in it, or a year after the "
+        "window"
+    )
     not_read: FragmentYear = Field(
         description="collection date not read yet (stored before it was read, and not listed "
         "again since)"

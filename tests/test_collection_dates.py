@@ -82,7 +82,7 @@ def test_genomes_are_counted_by_collection_year_with_undated_ones_apart(tmp_path
     assert (ca.earlier.with_region, ca.undated.with_region, ca.not_read.with_region) == (1, 1, 0)
     assert ca.earlier.label.startswith("before ")
     line = next(x for x in res.inclusivity.rationale if x.startswith("By collection date"))
-    assert "1 were collected before" in line and "1 carry no collection date" in line
+    assert "1 were collected before" in line and "1 carry no usable collection date" in line
     # the verdict and the per-release-year table are unchanged by the second axis
     assert {f.year for f in res.inclusivity.fragment_years} >= {2024, 2025, 2026}
 
@@ -109,4 +109,4 @@ def test_the_report_shows_the_collection_axis(tmp_path):
     )  # fmt: skip
     html = render_report(result, cfg)
     assert "by collection year</strong> (information only)" in html
-    assert "no date given" in html and "BioSample collection_date" in html
+    assert "no usable date" in html and "BioSample collection_date" in html

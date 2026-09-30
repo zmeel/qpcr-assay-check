@@ -9,7 +9,7 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - **Collection date as a second axis** (user request 2026-09-30): genomes released in the
   report's window are also counted by the year their sample was collected, with "collected
-  before the window", "no date given" and "not read yet" apart, in a table under the
+  before the window", "no usable date" and "not read yet" apart, in a table under the
   whole-fragment year table, the workbook and one rationale line. Sources checked live on
   2026-09-30: `assembly_info.biosample.collection_date` in the Datasets report, and the
   `collection_date` pair of the Nucleotide ESummary `subtype`/`subname` lists. Dates are read
@@ -36,7 +36,22 @@ All notable changes to this project are documented here. The format follows
   `specificity.partner_scan_max_windows` (1,000) primer sites per run; beyond that the
   specificity result is INCOMPLETE. EXPECT stays 1000 (1e5 nearly filled the hit list).
 
+### Fixed
+- Code review of the new specificity code (2026-09-30): the probe re-alignment added the best
+  alignment even when it could not bind (now only sites of at least warning level); the partner
+  scan's duplicate check ignored the search tier, so a record in two tiers lost its product in
+  the second; zero or invalid BLAST search statistics would have stopped the assessment (now
+  "no statistics"); product fetches were not counted against `partner_scan_max_windows`, a
+  tier whose product list was cut was scanned for nothing, and primer sites without accession
+  went uncounted; scanned sites had no source label in the report; the limitation text claimed
+  the scan ran when it was switched off; "always reported" now says "unless cut from the full
+  hit list" where the list was full; collection years after the window count as "no usable
+  date".
+
 ### Changed
+- **More than 4 primer mismatches beyond -16 are at least `at_risk`** (R3b; code review and user
+  decision 2026-09-30): Otwell 2025 measured 3-4 of them only. No outcome of the Otwell
+  comparison changes.
 - **Primer mismatch classes after a comparison with wet-lab data** (Otwell et al. 2025, Front
   Cell Infect Microbiol 15:1524025, 132 synthetic templates of 16 SARS-CoV-2 assays; user
   decision 2026-09-30; docs/MISMATCH_CLASSES.md section 11):

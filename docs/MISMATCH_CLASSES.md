@@ -93,9 +93,11 @@ lost at 20 molecules for 2 mismatches and at 20-2,000 for 3), so these classes c
   about 7.7 dCq, read from the figure);
 - **Counted within the 3'-most 16 nt** (since 2026-09-30, user decision after section 11): the
   region Lefever tested (p. 1472). The counts below and R8 use only mismatches within it.
-  Mismatches beyond -16 (**R3b**): alone `tolerated` (Otwell 2025: 3-4 of them shifted Ct by at
-  most 2.2); together with at least one within the region, at least `at_risk` (Otwell 2025: one
-  within plus 3 at -20..-22, mostly +3 to +6 Ct, never undetected at 50 copies);
+  Mismatches beyond -16 (**R3b**): alone, up to 4 `tolerated` (Otwell 2025: 3-4 of them shifted
+  Ct by at most 2.2) and 5 or more `at_risk` (beyond the measured data; code review and user
+  decision 2026-09-30, no Otwell outcome changes); together with at least one within the region,
+  at least `at_risk` (Otwell 2025: one within plus 3 at -20..-22, mostly +3 to +6 Ct, never
+  undetected at 50 copies);
 - 3: `likely_failure` (since 2026-09-30; before, `at_risk` without one in the last 5 nt: Lefever
   "less pronounced and depended on the mismatch position", p. 1479, but Fig. 6 median about 15
   dCq, read from the figure; Otwell 2025: 3 within the region, none in the last 5, +6 to +7 Ct,

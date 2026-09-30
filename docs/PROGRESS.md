@@ -235,6 +235,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   e.g. GCF_022869645.1 "missing"; nuccore ESummary subtype/subname, e.g. LC951483.1 collected
   2021-12-03, created 2026/09/26). Dates live in <store>.dates.json, filled while listing.
   Next: user runs enterovirus, then Neisseria and Legionella, then the v2 release.
+- Code review of the 4 new commits (2026-09-30) and fixes on the user's "Make fixes as
+  proposed": probe re-alignment adds warning+ sites only; scan de-duplication per tier; invalid
+  search statistics -> none; one fetch budget for partner windows and products; cut tiers not
+  scanned; no-accession sites counted; 'scanned' label; limitation text per scan setting;
+  full-list caveat on the score floor; "no usable date"; R3b: 5+ mismatches beyond -16 at_risk
+  (Otwell comparison re-run: totals unchanged).
 - Wet-lab comparison (user supplied Otwell et al. 2025 and its supplementary Tables 1-2): 132
   DNA templates graded with oligo/grade.py vs measured Ct. Before: detectable 26 (none >= +3 Ct),
   likely failure 52 (7 without shift, all 4 mismatches with 3 at the 5' end). Built on the

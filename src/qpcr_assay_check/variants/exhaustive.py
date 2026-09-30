@@ -1053,7 +1053,7 @@ def collection_axis(
     keys = [*range(first, last + 1), _EARLIER, _UNDATED, _NOT_READ]
     rows = {r.year: r for r in _fragment_years(sites, bucket, {}, keys, bulges, unassembled,
                                                 from_parts)}  # fmt: skip
-    for key, label in ((_EARLIER, f"before {first}"), (_UNDATED, "no date given"),
+    for key, label in ((_EARLIER, f"before {first}"), (_UNDATED, "no usable date"),
                        (_NOT_READ, "not read yet")):  # fmt: skip
         rows[key].label = label
     return CollectionAxis(
@@ -1075,7 +1075,7 @@ def _collection_line(axis: CollectionAxis | None, unit: str) -> list[str]:
         f"By collection date (information only; the status uses the release year): of {total} "
         f"{unit} released {axis.first_year}-{axis.last_year} with the region, "
         f"{axis.earlier.with_region} were collected before {axis.first_year} and "
-        f"{axis.undated.with_region} carry no collection date"
+        f"{axis.undated.with_region} carry no usable collection date"
     )
     if axis.not_read.with_region:
         line += f"; for {axis.not_read.with_region} it was not read yet"

@@ -126,6 +126,9 @@ class ScoreFloor(BaseModel):
         description="mismatches (no gap) a full-length site may have and still always be reported"
     )
     searches_without_statistics: int = 0
+    list_full: bool = Field(
+        default=False, description="a search of this tier filled its hit list for this oligo"
+    )
 
 
 class PartnerScan(BaseModel):
@@ -142,6 +145,13 @@ class PartnerScan(BaseModel):
     )
     windows_failed: int = 0
     not_scanned: int = Field(default=0, description="primer sites beyond the window limit")
+    no_accession: int = Field(
+        default=0, description="primer sites on a record without accession: not scannable"
+    )
+    product_windows_failed: int = 0
+    products_not_scanned: int = Field(
+        default=0, description="products without a probe site beyond the window limit"
+    )
     primer_sites_added: int = 0
     probe_sites_added: int = 0
 

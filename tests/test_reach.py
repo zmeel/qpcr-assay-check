@@ -96,3 +96,26 @@ def test_searches_without_statistics_are_said_so():
                  ["background"], s)  # fmt: skip
     assert out[0].min_score is None and out[0].searches_without_statistics == 1
     assert "not known" in floor_findings(out, s.expect)[0].message
+
+
+@pytest.mark.parametrize("bad", [0, -1, "nan", "inf"])
+def test_unusable_statistics_count_as_none_instead_of_failing(bad):
+    """Code review 2026-09-30: an empty search space must not abort the assessment."""
+    stat = dict(STAT, eff_space=bad)
+    doc = {"BlastOutput2": [{"report": {"results": {"search": {
+        "query_id": "Q_1", "query_title": "forward", "stat": stat}}}}]}  # fmt: skip
+    assert parse_blast_json(json.dumps(doc), ["forward"]).queries["forward"].stat is None
+
+
+def test_a_full_hit_list_qualifies_always_reported():
+    from qpcr_assay_check.search.assess import QuerySaturation
+
+    s = load_config().search
+    rec = _record("background", 8e8)
+    rec.saturation = [QuerySaturation(label="forward", n_hits=5000, hitlist_size=5000,
+                                      list_full=True, weakest_identity=16,
+                                      min_relevant_identity=14, saturated=True,
+                                      note="")]  # fmt: skip
+    out = floors([rec], {"forward": "GTTGAAACACCGCCCGG"}, ["background"], s)
+    assert out[0].list_full
+    assert "unless cut from the full hit list" in floor_findings(out, s.expect)[0].message

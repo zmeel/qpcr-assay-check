@@ -51,6 +51,7 @@ OTWELL = "Otwell 2025"
 # at most 2.2, while 4 mismatches with 3 at the 5' end (-20..-22) and one within the region
 # shifted Ct by -0.1 to +6.4 (mostly +3 to +6), never undetected at 50 copies.
 TESTED_REGION = 16
+OUTER_MEASURED = 4  # Otwell 2025 measured 3-4 mismatches beyond -16; more: at least at risk
 CAVEAT = (
     "Classes follow Stadhouders 2010 Table 1 for Taq polymerase on DNA and Lefever 2013; the "
     "size of a mismatch effect differs between master mixes, and in one-step RT-PCR a mismatch "
@@ -177,16 +178,25 @@ def _grade_primer_mm(mm: list[_Mismatch]) -> Grade:
     (R3b, Otwell 2025; the user's decision after comparing the classes with its data)."""
     inner = [m for m in mm if m.pos <= TESTED_REGION]
     outer = [m for m in mm if m.pos > TESTED_REGION]
+    beyond_data = len(outer) > OUTER_MEASURED
+    unmeasured = (
+        f"; more than {OUTER_MEASURED} beyond -{TESTED_REGION} lies outside the measured data"
+        if beyond_data else ""
+    )  # fmt: skip
     if outer and not inner:
-        return Grade(TOLERATED, "R3b", f"{len(outer)} mismatch(es) only beyond -{TESTED_REGION}, "
+        cls = AT_RISK if beyond_data else TOLERATED
+        return Grade(cls, "R3b", f"{len(outer)} mismatch(es) only beyond -{TESTED_REGION}, "
                      f"outside the region {LEFEVER} tested; {OTWELL}: 3-4 such mismatches shifted "
-                     "Ct by at most 2.2 (one test setup, permissive conditions)")  # fmt: skip
+                     "Ct by at most 2.2 (one test setup, permissive conditions)"
+                     + unmeasured)  # fmt: skip
     g = _grade_inner(inner, adjacent_exception=not outer)
     if not outer:
         return g
-    return Grade(worst(g.cls, AT_RISK), g.rule, f"{g.note}; plus {len(outer)} mismatch(es) beyond "
-                 f"-{TESTED_REGION} ({OTWELL}: with one mismatch within the region, mostly +3 to "
-                 "+6 Ct)")  # fmt: skip
+    note = (
+        f"{g.note}; plus {len(outer)} mismatch(es) beyond -{TESTED_REGION} ({OTWELL}: with one "
+        "mismatch within the region, mostly +3 to +6 Ct)" + unmeasured
+    )
+    return Grade(worst(g.cls, AT_RISK), f"{g.rule}+R3b" if g.rule else "R3b", note)
 
 
 def _grade_inner(mm: list[_Mismatch], adjacent_exception: bool = True) -> Grade:

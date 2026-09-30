@@ -126,10 +126,12 @@ specificity:
     amplicon_likely_detected: FAIL
     amplicon_not_detected: WARN
   eukaryote_taxids: [9606]         # organisms for which genomic-DNA hits matter to RNA assays
-  # Partner scan: next to every off-target primer site that can prime, the sequence a product
-  # could span (max_amplicon_size) is fetched and the partner primers and probes are aligned in
-  # it, so a partner or probe site BLAST did not report (score below the E-value cut-off) is
-  # still found. At most this many windows per run (cached); 0 switches the scan off.
+  # Partner scan: next to every off-target primer site that can prime and forms no product, the
+  # sequence a product could span (max_amplicon_size) is fetched and the partner primers are
+  # aligned in it; probes are re-aligned inside products without a probe site. A partner or
+  # probe site BLAST did not report (score below the E-value cut-off) is still found. At most
+  # this many fetches per run, partner windows first, then products (cached; beyond: the
+  # result is INCOMPLETE); 0 switches the scan off.
   partner_scan_max_windows: 1000
 
 organisms:

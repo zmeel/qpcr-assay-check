@@ -8,6 +8,7 @@ output; the smoke test captures real responses for that. The parser therefore fa
 from __future__ import annotations
 
 import json
+import math
 import re
 from typing import Any
 
@@ -158,13 +159,12 @@ def _stat(raw: Any) -> SearchStat | None:
     if not isinstance(raw, dict):
         return None
     try:
-        return SearchStat(
-            eff_space=float(raw["eff_space"]),
-            kappa=float(raw["kappa"]),
-            lambda_=float(raw["lambda"]),
-        )
+        values = (float(raw["eff_space"]), float(raw["kappa"]), float(raw["lambda"]))
     except (KeyError, TypeError, ValueError):
         return None
+    if not all(math.isfinite(v) and v > 0 for v in values):
+        return None  # e.g. an empty search space: no usable statistics, not an error
+    return SearchStat(eff_space=values[0], kappa=values[1], lambda_=values[2])
 
 
 def _label_for(title: str, query_id: str, labels: list[str]) -> str:

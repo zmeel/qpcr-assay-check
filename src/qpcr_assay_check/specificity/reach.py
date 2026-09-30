@@ -53,9 +53,11 @@ def floors(
     sensitive one decides what is guaranteed) and the searches without statistics."""
     worst: dict[tuple[str, str], int] = {}
     unknown: dict[tuple[str, str], int] = defaultdict(int)
+    full: set[tuple[str, str]] = set()
     for r in records:
         if r.tier not in tiers:
             continue
+        full |= {(r.tier, q.label) for q in r.saturation if q.list_full}
         for label in r.n_hits:
             key = (r.tier, label)
             st = r.stats.get(label)
@@ -80,6 +82,7 @@ def floors(
                     else None
                 ),
                 searches_without_statistics=unknown.get((tier, label), 0),
+                list_full=(tier, label) in full,
             )
         )
     return out
@@ -105,6 +108,7 @@ def floor_findings(entries: list[ScoreFloor], expect: float) -> list[Finding]:
                 parts.append(
                     f"{e.query} ({e.length} nt): score >= {e.min_score}, sites with up to "
                     f"{e.max_mismatches_reported} mismatch(es) always reported"
+                    + (" unless cut from the full hit list" if e.list_full else "")
                 )
         out.append(
             Finding(
