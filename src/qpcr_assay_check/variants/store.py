@@ -33,6 +33,7 @@ class StoredLocus(BaseModel):
         description="(fragment position, region index, length) of each exact block; oligo "
         "sites are placed through the nearest one",
     )
+    fallback: bool = Field(default=False, description="found by the fallback search")
 
     def offset_at(self, pos: int) -> int:
         """Region index minus fragment position at fragment position ``pos``, through the

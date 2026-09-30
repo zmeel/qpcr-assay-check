@@ -249,6 +249,18 @@ class ExhaustiveCoverage(BaseModel):
         "resemble the target but are not a copy of it (not in the tables)",
     )
     related_only_examples: list[str] = Field(default_factory=list)
+    not_located: int = Field(
+        default=0,
+        description="of not_found: the region's flanks were found (min_context bases on a "
+        "side) but no copy of the fragment: present, not locatable (advisor, 2026-09-30)",
+    )
+    not_located_examples: list[str] = Field(default_factory=list)
+    found_by_fallback: int = Field(
+        default=0,
+        description="genomes whose only copies were found by the fallback search (shorter "
+        "seeds, rule (c) with two blocks in the fragment)",
+    )
+    found_by_fallback_examples: list[str] = Field(default_factory=list)
     related_ignored: int = Field(
         default=0,
         description="genomes with copies and also candidates that are not copies (never picked "

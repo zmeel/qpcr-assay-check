@@ -123,6 +123,35 @@ this way is reported as **hidden by N**. It is never judged: an `N` is neither a
 variant. Where exact and N-tolerant candidates overlap, an exact copy wins; an N-tolerant copy
 is kept only where no exact *copy* lies.
 
+## Step 6: a second search for divergent copies
+
+Some real copies share no stretch of 16 identical bases with the fragment at all. In the
+enterovirus run, EV-C105 and EV-C117 records carry the region at 78–82% identity, but their
+longest exact stretches in common with the fragment are 12–13 bases, so steps 1–5 find nothing.
+
+When a genome has no copy under the copy rule, it is searched again with **12-base seeds**. A
+candidate from this search counts as a copy only when it has **at least two separate exact
+blocks in the fragment**, at least 16 anchored bases and identity **≥ 0.75**; rules (a) and (b),
+measured with 16-base blocks, do not apply to it. Only candidates that pass are stored. Measured
+on shuffled decoy fragments (about 73,500 virus-sized and 40 bacterial scans): chance chains
+with two blocks reached identity 0.64 at most, real divergent copies 0.78 and more; a single
+chance block can reach 0.77, which is why two blocks are required. The search for regions hidden
+by N keeps 16-base seeds (at 12 bases a single `N` produced false "hidden by N" copies). The
+report counts the genomes whose copies were found only this way.
+
+A limitation remains: the second search only runs where no copy was found, so a divergent second
+copy in a genome that already has a copy is not searched for. For a known divergent clade, a
+second reference fragment from that clade in the assay file is the better fix.
+
+## Records where the region is there but cannot be located
+
+A genome without a copy is split in two: when the sequence on one side of the region (the flank)
+was found, the region is there but the fragment could not be located (**present, not
+locatable**; possibly an escape); otherwise the region is absent from the record, for example a
+record of the coding sequence only. The inclusivity rationale says what the detectable
+percentage would be if every "present, not locatable" genome were an escape, so these genomes do
+not silently leave the denominator.
+
 ## Several references, one place
 
 A locus may have several reference fragments (e.g. one per probe variant or lineage). Each is

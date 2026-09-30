@@ -47,7 +47,8 @@ It is one text file per locus, in *JSON Lines* format (one JSON object per line)
 
 - **Line 1, the header**: the store's format version and its **key**: the reference fragments
   with their flanks, the scan settings (seed length, seed step, largest insertion or deletion,
-  flank length, the threshold for the N-tolerant search), the taxon, the source (assemblies or
+  flank length, the threshold for the N-tolerant search, the seed length and block count of
+  the fallback search), the taxon, the source (assemblies or
   Nucleotide records) and the excluded taxa. The file name contains a hash of this key.
 - **Every further line: one genome.** Its accession, release date, organism, taxonomy ID,
   assembly level, number of sequences, total length, number of `N` and of assembly gaps (runs of

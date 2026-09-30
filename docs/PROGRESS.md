@@ -177,6 +177,21 @@ verified NCBI facts) at the start of every session. Newest entry first.
   a genome, Judging primer and probe sites, Specificity search, Data storage and cache, Limits
   and validation, _Sidebar): the session's GitHub access does not reach the wiki repository, so
   the user publishes them.
+- Enterovirus after several runs (user, report 2026-09-30T07:44Z): 12,000 of 13,109 records;
+  whole fragment 2023-2026 90.8% detectable (Review); region not found 1,089. Of 10 examples,
+  4 are CDS-only records (no 5' UTR: correctly not found) and 6 are EV-C105/C117/HEV-C with
+  the region at identity 0.78-0.82 but no 16-mer in common (reverse primer mismatches at
+  -4..-2: likely escapes, hidden as "not found").
+- Advisor (2026-09-30, measured): 12-base fallback where no copy under the rule, >= 2 blocks in
+  the fragment + rule (c); store only passing candidates; masked search stays at 16; classify
+  "present, not locatable" (flanks, no copy) with a worst-case inclusivity figure. Built
+  (store schema 4, ScanSettings.fallback_k 12 / fallback_min_blocks 2, Candidate.fallback,
+  coverage.found_by_fallback / not_located). An extra EV-C reference fragment would find the
+  same copies with 16-base seeds (advisor measured 36-72 anchored): the assay-level fix once
+  the fallback has shown the clade.
+- Intermittent test failure found: tests/test_variants_exhaustive.py plasmid fixture seeded
+  chromosomes with hash(acc) % 1000 (per-process); seeds 11/12 recreate AMP's own spacer
+  (1 run in ~125). Fixed seeds.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

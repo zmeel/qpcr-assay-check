@@ -220,3 +220,63 @@ def test_the_summary_names_the_channel_when_only_a_channel_makes_inclusivity_rev
     assert result.inclusivity.verdict is Verdict.WARN
     row = next(r for r in summary_rows(result, cfg, []) if r.check.startswith("Target detection"))
     assert row.reason.startswith("Channel species: a signal") and "release year" not in row.reason
+
+
+def test_a_copy_found_only_by_the_fallback_is_assessed_and_reported(tmp_path):
+    """Live enterovirus run (2026-09-30): EV-C105 copies share no 16-mer with the fragment and
+    were counted as 'region not found' instead of being judged."""
+    from openpyxl import load_workbook
+
+    from qpcr_assay_check.pipeline import evaluate
+    from qpcr_assay_check.report.html import render_report
+    from qpcr_assay_check.report.xlsx import write_workbook
+
+    from .test_variants_exhaustive import _empty_specificity
+
+    swap = {"A": "C", "C": "G", "G": "T", "T": "A"}
+    kept = set(range(30, 43)) | set(range(60, 73))
+    edges = {29, 43, 59, 73}
+    divergent = "".join(swap[b] if (i % 6 == 5 and i not in kept) or i in edges else b
+                        for i, b in enumerate(AMP))  # fmt: skip
+    fake = FakeDatasets([
+        FakeAssembly("GCF_000000001.1", "2025-01-01",
+                     {"c1": filler(900, 1) + AMP + filler(900, 2)}),
+        FakeAssembly("GCF_000000002.1", "2025-02-01",
+                     {"c2": filler(900, 3) + divergent + filler(900, 4)}),
+    ])  # fmt: skip
+    cfg, _f, client, assay = setup(tmp_path, fake=fake)
+    res = run(tmp_path, cfg, client, assay)
+    c = res.coverage
+    assert (c.found, c.not_found, c.found_by_fallback) == (2, 0, 1)
+    assert c.found_by_fallback_examples == ["GCF_000000002.1"]
+    assert c.copies.escapes == 1  # judged (its oligo sites carry the mutations), not dropped
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=c,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    assert "only by the fallback search" in render_report(result, cfg)
+    write_workbook(result, tmp_path / "r.xlsx", cfg)
+    rows = list(load_workbook(tmp_path / "r.xlsx")["Variant coverage"].iter_rows(values_only=True))
+    assert any(str(r[0]).strip().startswith("...only by the fallback") and r[1] == 1 for r in rows)
+
+
+def test_records_with_the_flanks_but_no_locatable_fragment_get_a_worst_case_figure(tmp_path):
+    """Advisor subagent, 2026-09-30: records that stay unlocatable are counted apart and the
+    rationale says what inclusivity would be if they were all escapes."""
+    left, right = filler(300, 41), filler(300, 42)
+    fake = FakeDatasets([
+        FakeAssembly("GCF_000000001.1", "2025-01-01", {"c1": filler(900, 1) + left + AMP + right
+                                                       + filler(900, 2)}),
+        FakeAssembly("GCF_000000002.1", "2025-02-01",  # left flank, then no fragment at all
+                     {"c2": filler(900, 3) + left + filler(900, 4)}),
+    ])  # fmt: skip
+    cfg, _f, client, _a = setup(tmp_path, fake=fake)
+    assay = make_assay(reference_amplicon=AMP, target={"taxid": 813, "accession": "NC_000001.1"})
+    context = ">NC_000001.1 context\n" + filler(200, 5) + left + AMP + right + filler(200, 6)
+    res = run_exhaustive(assay, cfg, client, tmp_path / "cache", lambda acc: context, now=NOW)
+    c = res.coverage
+    assert (c.found, c.not_found, c.not_located) == (1, 1, 1)
+    assert c.not_located_examples == ["GCF_000000002.1"]
+    assert any("if all were escapes, 50.0% would be detectable instead of 100.0%" in line
+               for line in res.inclusivity.rationale)  # fmt: skip
