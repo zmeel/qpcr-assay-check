@@ -300,6 +300,10 @@ report and nothing else this project didn't already improve on.
 ### Implemented in v0.2.0 on the basis of the above
 
 - Short-oligo parameters: word size 7, E-value 1000, `FILTER=F`, reward 1 / penalty -3, `core_nt`.
+  Word size 7 is the smallest the URL API allows for blastn (documented values 7, 11, 15;
+  https://blast.ncbi.nlm.nih.gov/doc/blast-help/urlapi.html, read 2026-09-30). A site whose
+  mismatches leave no exact 7-base stretch is invisible to the search: none with 1 mismatch,
+  up to 7.4% of 2-mismatch and 15-33% of 3-mismatch placements for 17-19-nt oligos.
   Gap costs 5/2 are assumed to be valid for reward 1 / penalty -3; that is unverified, and the
   smoke test checks that the server accepts them.
 - One multi-FASTA submission per tier and batch (at most 1,000 bases), as NCBI recommends.

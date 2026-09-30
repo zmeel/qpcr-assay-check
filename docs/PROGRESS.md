@@ -197,6 +197,25 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - Intermittent test failure found: tests/test_variants_exhaustive.py plasmid fixture seeded
   chromosomes with hash(acc) % 1000 (per-process); seeds 11/12 recreate AMP's own spacer
   (1 run in ~125). Fixed seeds.
+- Comparison with SymbioSeas/assayval (user, 2026-09-30): local BLAST per genome with word
+  size 4, count thresholds, gapless hits only; its blind-spot figures for word size 7 reproduced
+  exactly (17-mer 2 mm: 10/136; 13-mer 1 mm: 1/13). Word-size check: NCBI's URL API documents
+  blastn WORD_SIZE 7, 11, 15 only (https://blast.ncbi.nlm.nih.gov/doc/blast-help/urlapi.html,
+  read 2026-09-30), so the remote search cannot go below 7. Blind spot for the user's oligos at
+  word 7 (uniform placements, sites with the last 5 nt clean): 1 mismatch never missed; 2
+  mismatches up to 7.4% (17-mers NG-F, Entero-P); 3 mismatches 15-33% for 17-19-mers, 1-6% for
+  21-24-mers, 0 for LEGpneu (35 nt). Affects only the specificity search (off-target sites);
+  the genome scan does not use BLAST. Proposed mitigation (not built): re-align the partner
+  primer and the probe inside a window around every relevant primer site, so a site hidden
+  from BLAST is still found when the other primer's site is visible.
+- Advisor on the fix (2026-09-30): from real fixtures, lambda 1.374 / K 0.711 (+1/-3), search
+  space 2.6e10-9.6e11: at E 1000 a raw score of 13-15 is needed, so the E-value, not the word
+  size, limits short oligos (model: 17-nt with 1 internal mismatch hidden in the larger-space
+  tiers). Contradicted in part by the live Neisseria run (a 17-nt NG-F site on N. meningitidis
+  with 1 mismatch and 9 clean 3' nt, best score 13, was reported). Done: the limitation text now
+  names the E-value; smoke-test step 11 (--expect-sweep) measures E 1e3/1e4/1e5 for NG-F. Next,
+  after the user's run: choose EXPECT, then build the partner-primer scan, probe re-alignment
+  in every product and a reference-fragment BLAST per off-target tier.
 - Not done yet: step 8 (live re-downloads with store v2 for Legionella, Neisseria and a virus;
   settle rule (b)'s threshold from legionella4; choose defaults; release). Step 7 commits are
   local until the user approves the push.

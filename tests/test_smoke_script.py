@@ -265,3 +265,25 @@ def test_restriction_leak_is_detected_by_the_lineage_check(tmp_path, monkeypatch
     assert f["entrez_query_restriction_effective"] is False
     assert f["sars2_search_restriction_effective"] is False
     assert f["entrez_query_restriction_fraction_inside"] == 0.0
+
+
+def test_the_expect_sweep_runs_three_e_values_and_records_scores(tmp_path, monkeypatch):
+    """Step 11 (advisor subagent, 2026-09-30): is the specificity search limited by the E-value
+    cut-off? Opt-in with --expect-sweep; three searches without --human."""
+    fake = SmokeFake(result_for)
+    fake.report_path = tmp_path / "smoke_out" / "smoke_report.json"
+    monkeypatch.setattr("qpcr_assay_check.ncbi.http.requests.Session", lambda: fake)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    monkeypatch.setenv("NCBI_EMAIL", "lab@example.org")
+    out = tmp_path / "smoke_out"
+    monkeypatch.setattr(sys, "argv", ["smoke_test.py", "--out", str(out), "--quick",
+                                      "--expect-sweep"])  # fmt: skip
+    script = load_script()
+    fake.clock = None
+    assert script.main() == 0
+    report = json.loads((out / "smoke_report.json").read_text())
+    sweep = report["findings"]["expect_sweep"]
+    assert list(sweep) == ["meningitidis_E1000", "meningitidis_E10000", "meningitidis_E100000"]
+    assert all(v["accepted"] and v["n_hits"] == 3 for v in sweep.values())
+    assert all(v["min_raw_score"] is not None for v in sweep.values())
+    assert fake.n_put == 2 + 3
