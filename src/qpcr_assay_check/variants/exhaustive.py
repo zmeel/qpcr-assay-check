@@ -32,6 +32,7 @@ from ..config import Config, SiteRules
 from ..errors import InputError
 from ..inclusivity.aggregate import _stats
 from ..inclusivity.models import (
+    CollectionAxis,
     FragmentYear,
     InclusivityOligoResult,
     InclusivityResult,
@@ -46,6 +47,7 @@ from ..specificity.models import SiteResult
 from ..specificity.sites import _result_fields
 from ..verdict import STATUS_LABEL, Verdict
 from .chain import CopyRule, Reference, context_from, copies_of, overlap
+from .collection import collection_year
 from .datasets import AssemblyRecord, DatasetsClient, parse_fasta, parse_fasta_records
 from .genomestore import (
     GenomeRecord,
@@ -160,13 +162,15 @@ def open_genome_store(
 
 
 def as_items(
-    records: list[GenomeRecord], rule: CopyRule
+    records: list[GenomeRecord], rule: CopyRule, dates: dict[str, str] | None = None
 ) -> tuple[list[StoredAssembly], list[str], list[str], list[str]]:
     """The stored genomes as the assessment reads them, with the copy rule applied: the items,
     the genomes with only related regions (no copy, but fragment bases anchored), those with
     related regions next to copies, and those without a copy or a related region whose flanks
     were found (``min_context`` bases on a side): the region is there, but the fragment could
-    not be located (advisor subagent, 2026-09-30)."""
+    not be located (advisor subagent, 2026-09-30). ``dates``: collection dates by accession
+    (the store's side file); a genome without an entry has none read yet."""
+    dates = dates or {}
     items: list[StoredAssembly] = []
     related: list[str] = []
     beside: list[str] = []
@@ -199,6 +203,7 @@ def as_items(
             loci=[_as_locus(c) for c in copies], n_contigs=rec.n_sequences,
             plasmid_contigs=len(rec.plasmids), plasmid_examples=rec.plasmids[:3],
             found_by=rec.found_by if copies else None, direct_checked=rec.direct_checked,
+            collection_date=dates.get(rec.accession),
         ))  # fmt: skip
     return items, related, beside, flanked
 
@@ -280,12 +285,15 @@ def collect(
             listed += n_year
             pending: list[AssemblyRecord] = []
             if processed < budget:
+                dates: dict[str, str] = {}
                 for rec in client.year(taxon, year, **flt):
+                    dates[rec.accession] = rec.collection_date
                     if store.done(rec.accession):
                         continue
                     pending.append(rec)
                     if processed + len(pending) >= budget:
                         break
+                store.note_dates(dates)
                 stored = sum(1 for r in store.items.values() if r.year == year)
                 log.info(
                     "%d: %d assemblies listed, %d already stored, %d to scan in this run%s",
@@ -1021,6 +1029,59 @@ def _fragment_years(
     return [out[y] for y in shown]
 
 
+_EARLIER, _UNDATED, _NOT_READ = -1, -2, -3  # collection-axis rows that are not a year
+
+
+def collection_axis(
+    sites: list[SiteResult], items: list[StoredAssembly], shown: list[int], bulges: bool,
+    unassembled: set[str] | None = None, from_parts: set[str] | None = None,
+) -> CollectionAxis | None:  # fmt: skip
+    """The genomes released in the window ``shown``, by collection year (user, 2026-09-30: a
+    batch of old samples uploaded late must not make an old lineage look new)."""
+    if not shown:
+        return None
+    first, last = min(shown), max(shown)
+    bucket: dict[str, int] = {}
+    for it in items:
+        if not first <= it.year <= last:
+            continue
+        if it.collection_date is None:
+            bucket[it.accession] = _NOT_READ
+            continue
+        y = collection_year(it.collection_date, latest=last)
+        bucket[it.accession] = _UNDATED if y is None else (_EARLIER if y < first else y)
+    keys = [*range(first, last + 1), _EARLIER, _UNDATED, _NOT_READ]
+    rows = {r.year: r for r in _fragment_years(sites, bucket, {}, keys, bulges, unassembled,
+                                                from_parts)}  # fmt: skip
+    for key, label in ((_EARLIER, f"before {first}"), (_UNDATED, "no date given"),
+                       (_NOT_READ, "not read yet")):  # fmt: skip
+        rows[key].label = label
+    return CollectionAxis(
+        first_year=first, last_year=last,
+        years=[rows[y] for y in range(first, last + 1) if rows[y].with_region],
+        earlier=rows[_EARLIER], undated=rows[_UNDATED], not_read=rows[_NOT_READ],
+    )  # fmt: skip
+
+
+def _collection_line(axis: CollectionAxis | None, unit: str) -> list[str]:
+    """One rationale line when the collection dates tell a different story (information)."""
+    if axis is None:
+        return []
+    total = sum(r.with_region for r in axis.years) + axis.earlier.with_region
+    total += axis.undated.with_region + axis.not_read.with_region
+    if not total or not (axis.earlier.with_region or axis.undated.with_region):
+        return []
+    line = (
+        f"By collection date (information only; the status uses the release year): of {total} "
+        f"{unit} released {axis.first_year}-{axis.last_year} with the region, "
+        f"{axis.earlier.with_region} were collected before {axis.first_year} and "
+        f"{axis.undated.with_region} carry no collection date"
+    )
+    if axis.not_read.with_region:
+        line += f"; for {axis.not_read.with_region} it was not read yet"
+    return [line + "."]
+
+
 def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, list[str]]:
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
@@ -1109,6 +1170,11 @@ def exhaustive_inclusivity(
         unassembled or set(), from_parts or set(),
     )  # fmt: skip
     verdict, rationale = fragment_verdict(fragment_years, cfg.inclusivity)
+    collection = collection_axis(
+        sites, items, shown, cfg.variants.homopolymer_bulges_detectable,
+        unassembled or set(), from_parts or set(),
+    )  # fmt: skip
+    rationale += _collection_line(collection, "assemblies" if source == "datasets" else "records")
     rationale += [
         f"{y.year}: {y.listed} "
         + (
@@ -1133,6 +1199,7 @@ def exhaustive_inclusivity(
         target_taxid=assay.target.taxid,
         oligos=oligos,
         fragment_years=fragment_years,
+        collection=collection,
         sample_scheme=(
             (
                 "Every genome assembly of the target in NCBI Datasets (current versions, one copy "
@@ -1156,13 +1223,15 @@ def exhaustive_inclusivity(
         rationale=rationale,
         limitations=(
             [
-                "Assemblies are grouped by NCBI release year, not by sample collection date.",
+                "Assemblies are grouped by NCBI release year; the collection date recorded with "
+                "the sample is shown as a second axis (information only).",
                 "Only genome assemblies are covered; sequences submitted without an assembly "
                 "(single genes, amplicons) are not part of NCBI Datasets' genome collection.",
             ]
             if source == "datasets"
             else [
-                "Records are grouped by NCBI publication year, not by sample collection date.",
+                "Records are grouped by NCBI publication year; the collection date recorded with "
+                "the sequence is shown as a second axis (information only).",
                 "Records that do not contain the target region (other genes, partial sequences) "
                 "are counted as 'not found' and are not part of the per-year counts.",
             ]
@@ -1400,7 +1469,9 @@ def run_exhaustive(
             f"There are no {what} for taxon {taxon} with the configured filters, so there is "
             "nothing to analyse exhaustively."
         )
-    items, related, related_ignored, flanked = as_items(latest(store.items), copy_rule(cfg))
+    items, related, related_ignored, flanked = as_items(
+        latest(store.items), copy_rule(cfg), store.dates
+    )
     calls: list[GenomeCall] = []
     sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None

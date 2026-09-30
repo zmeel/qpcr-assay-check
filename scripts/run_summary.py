@@ -54,6 +54,15 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
     inc = data.get("inclusivity")
     if inc:
         out["inclusivity"] = {k: inc.get(k) for k in ("verdict", "rationale", "fragment_years")}
+        ca = inc.get("collection")
+        if ca:
+            out["inclusivity"]["collection"] = {
+                (r.get("label") or str(r["year"])): [r["with_region"], r["detectable"],
+                                                     r["at_risk"], r["likely_failure"],
+                                                     r["undetermined"]]
+                for r in [*ca["years"], ca["earlier"], ca["undated"], ca["not_read"]]
+                if r["with_region"]
+            }  # fmt: skip
     out["fragment_variants"] = [
         {
             **{k: row.get(k) for k in ("count", "percent", "level", "example_accession")},

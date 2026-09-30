@@ -490,6 +490,19 @@ table.frag td.types { min-width: 9rem; max-width: 15rem; }
   <tr class="group"><th scope="row">All years shown</th><td></td><td class="num">{{ fy | sum(attribute='with_region') }}</td>{{ frag_cells(fy | sum(attribute='detectable'), fy | sum(attribute='at_risk'), fy | sum(attribute='likely_failure'), fy | sum(attribute='undetermined'), fy | sum(attribute='with_region'), 0, fy | sum(attribute='unassembled'), fy | sum(attribute='from_parts')) }}</tr>
   </tbody>
 </table></div>
+{% set ca = r.inclusivity.collection %}
+{% if ca %}{% set extra = [ca.earlier, ca.undated, ca.not_read] | selectattr('with_region') | list %}{% set n_all = (ca.years | sum(attribute='with_region')) + (extra | sum(attribute='with_region')) %}
+<details class="qc"{% if ca.earlier.with_region or ca.undated.with_region %} open{% endif %}><summary><strong>The same {{ 'records' if nuc else 'genomes' }} by collection year</strong> (information only): of {{ n_all }} released {{ ca.first_year }}&ndash;{{ ca.last_year }}, {{ ca.earlier.with_region }} collected before {{ ca.first_year }}, {{ ca.undated.with_region }} without a collection date{% if ca.not_read.with_region %}, {{ ca.not_read.with_region }} not read yet{% endif %}</summary>
+<p class="meta">NCBI groups sequences by when they were released; a batch of old samples uploaded late then looks new. Here the {{ 'records' if nuc else 'genomes' }} of the release years above are grouped by the collection date their submitters recorded ({{ 'the collection_date source qualifier, from ESummary' if nuc else 'the BioSample collection_date, from the NCBI Datasets report' }}); for a date range, its start. {{ 'Records' if nuc else 'Genomes' }} without a year in that field are counted as "no date given"; "not read yet" are stored {{ 'records' if nuc else 'genomes' }} whose date is read on a later run's listing. The status above uses the release year; this table does not change it.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Collected</th><th>With region</th><th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Undetermined</th></tr></thead>
+  <tbody>
+  {% for f in ca.years + extra %}
+  <tr{% if f.label %} class="group"{% endif %}><td class="num">{{ f.label or f.year }}</td><td class="num">{{ f.with_region }}</td>{{ frag_cells(f.detectable, f.at_risk, f.likely_failure, f.undetermined, f.with_region, f.by_pair_rule, f.unassembled, f.from_parts) }}</tr>
+  {% endfor %}
+  </tbody>
+</table></div></details>
+{% endif %}
 {% endif %}
 {% for o in r.inclusivity.oligos %}
 <h3>{{ o.role | capitalize }}</h3>

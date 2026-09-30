@@ -467,6 +467,15 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                  f.population_size if f.population_size is not None else "", f.with_region,
                  "", "", "", "", "", f.detectable, f.at_risk, f.likely_failure, f.undetermined]
                 for f in incl.fragment_years
+            ]
+            + [
+                ["whole fragment, by collection year", f.label or f.year, "", f.with_region,
+                 "", "", "", "", "", f.detectable, f.at_risk, f.likely_failure, f.undetermined]
+                for f in (
+                    [*incl.collection.years, incl.collection.earlier, incl.collection.undated,
+                     incl.collection.not_read]
+                    if incl.collection is not None else []
+                )
             ],
             None,
         )  # fmt: skip

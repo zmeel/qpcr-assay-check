@@ -172,6 +172,10 @@ class GenomeStore:
         self.aliases: set[str] = set()  # Nucleotide UIDs already looked up in this run
         self.failures_path = self.path.with_name(self.path.name + ".failures.json")
         self.failures: dict[str, dict[str, Any]] = {}
+        # collection dates per accession, read while listing (every run lists): kept beside the
+        # store so genomes stored before dates were read get theirs without a new download
+        self.dates_path = self.path.with_name(self.path.name + ".dates.json")
+        self.dates: dict[str, str] = {}
         if self.path.exists() and not self._load():
             old = self.path.with_suffix(".old")
             self.path.replace(old)
@@ -190,6 +194,11 @@ class GenomeStore:
                 self.failures = json.loads(self.failures_path.read_text("utf-8"))
             except ValueError:
                 log.warning("Ignoring unreadable %s", self.failures_path)
+        if self.dates_path.exists():
+            try:
+                self.dates = json.loads(self.dates_path.read_text("utf-8"))
+            except ValueError:
+                log.warning("Ignoring unreadable %s (read again while listing)", self.dates_path)
 
     def _load(self) -> bool:
         """Read the records; False when the header is missing or its key differs."""
@@ -225,6 +234,16 @@ class GenomeStore:
         self.items[rec.accession] = rec
         self.failures.pop(rec.accession, None)
         return rec
+
+    def note_dates(self, dates: dict[str, str]) -> None:
+        """Remember collection dates ('' = none given) and save them when anything changed."""
+        changed = {a: d for a, d in dates.items() if self.dates.get(a) != d}
+        if not changed:
+            return
+        self.dates.update(changed)
+        tmp = self.dates_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.dates, separators=(",", ":")), encoding="utf-8")
+        tmp.replace(self.dates_path)
 
     def record_failure(self, accession: str, reason: str) -> None:
         """Count a failed download, with its reason (tried again on the next run)."""

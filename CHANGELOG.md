@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Collection date as a second axis** (user request 2026-09-30): genomes released in the
+  report's window are also counted by the year their sample was collected, with "collected
+  before the window", "no date given" and "not read yet" apart, in a table under the
+  whole-fragment year table, the workbook and one rationale line. Sources checked live on
+  2026-09-30: `assembly_info.biosample.collection_date` in the Datasets report, and the
+  `collection_date` pair of the Nucleotide ESummary `subtype`/`subname` lists. Dates are read
+  while listing (every run lists) and kept beside the region store
+  (`<store>.jsonl.dates.json`), so stored genomes get theirs without a new download or scan.
+  Information only: the inclusivity status stays per release year.
 - **ΔTm and ΔG next to each variant's class** (user request 2026-09-30): every site variant in
   the variant summary (per oligo, whole fragment, per channel) carries the duplex Tm, ΔTm against
   the perfect match and ΔG, from the nearest-neighbour estimate the specificity assessment

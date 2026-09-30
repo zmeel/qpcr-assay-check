@@ -193,7 +193,11 @@ contain the region at all (listed, to review), and how many carry more than one 
   amplicon against lists of 100 records at a time, so no search can fill its hit list. At most
   `variants.blast_max_records_per_run` (2,000) records per run; a target with millions of records
   is covered newest first over many runs, and the report says how far it got.
-- **Inclusivity** is built from the same genomes, per release year. When the exhaustive analysis
+- **Inclusivity** is built from the same genomes, per release year. A second table counts the
+  same genomes by the year their sample was collected (the date the submitter recorded;
+  "no date given" apart, and "not read yet" for genomes stored before this version whose date
+  is read on a later listing). It is information only: the status uses the release year.
+  When the exhaustive analysis
   cannot run (e.g. NCBI Datasets unreachable), the report says inclusivity was not assessed and
   why; there is no sampled fallback (removed in the overhaul, 2026-09-29).
 - **Regions hidden by N** (low-coverage sequencing) are found with N-tolerant seeds and reported

@@ -229,6 +229,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   `specificity.partner_scan_max_windows` 1000, INCOMPLETE beyond). EXPECT stays 1000. Not
   built: a reference-fragment BLAST per off-target tier (products of which BLAST reported
   neither primer remain unfound; noted in the limitation).
+- User request (2026-09-30): ΔTm/ΔG next to each variant's class (built; information only,
+  specificity/duplex.site_duplex cached per variant) and collection date next to release year
+  (built; sources verified live 2026-09-30: Datasets assembly_info.biosample.collection_date,
+  e.g. GCF_022869645.1 "missing"; nuccore ESummary subtype/subname, e.g. LC951483.1 collected
+  2021-12-03, created 2026/09/26). Dates live in <store>.dates.json, filled while listing.
+  Next: user runs enterovirus, then Neisseria and Legionella, then the v2 release.
 - Wet-lab comparison (user supplied Otwell et al. 2025 and its supplementary Tables 1-2): 132
   DNA templates graded with oligo/grade.py vs measured Ct. Before: detectable 26 (none >= +3 Ct),
   likely failure 52 (7 without shift, all 4 mismatches with 3 at the 5' end). Built on the

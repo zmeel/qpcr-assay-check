@@ -69,6 +69,24 @@ class FragmentYear(BaseModel):
     from_parts: int = Field(
         default=0, description="of the undetermined: genomes detectable from parts (cut copies)"
     )
+    label: str = Field(default="", description="row name when not a year (collection axis)")
+
+
+class CollectionAxis(BaseModel):
+    """The genomes of the release-year window again, by the year their sample was collected
+    (as the submitter recorded it). Information only: the verdict stays per release year."""
+
+    first_year: int = Field(description="first release year of the window")
+    last_year: int
+    years: list[FragmentYear] = Field(
+        default_factory=list, description="collection years inside the window, oldest first"
+    )
+    earlier: FragmentYear = Field(description="collected before the window's first year")
+    undated: FragmentYear = Field(description="no collection date given (or no year in it)")
+    not_read: FragmentYear = Field(
+        description="collection date not read yet (stored before it was read, and not listed "
+        "again since)"
+    )
 
 
 @dataclass(frozen=True)
@@ -130,6 +148,9 @@ class InclusivityResult(BaseModel):
     oligos: list[InclusivityOligoResult] = Field(default_factory=list)
     fragment_years: list[FragmentYear] = Field(
         default_factory=list, description="whole-fragment outcome per year (exhaustive only)"
+    )
+    collection: CollectionAxis | None = Field(
+        default=None, description="the same genomes by collection year (exhaustive analysis)"
     )
     sample_scheme: str = ""
     verdict: Verdict

@@ -60,6 +60,10 @@ class StoredAssembly(BaseModel):
     plasmid_contigs: int | None = None
     plasmid_examples: list[str] = Field(default_factory=list)
     found_by: Literal["scan", "blast", "direct_scan"] | None = None
+    collection_date: str | None = Field(
+        default=None,
+        description="as the submitter recorded it; '' none given; None not read yet",
+    )
     direct_checked: bool | None = Field(
         default=None,
         description="Nucleotide records: False when BLAST found nothing and the record was too "

@@ -82,7 +82,11 @@ This is the core of the tool and the part that uses every genome:
    only one copy it can amplify. See [Judging primer and probe sites](Judging-primer-and-probe-sites).
 4. **Count** per release year and per channel: detectable, at risk, likely failure,
    undetermined, and the genomes in which the region is missing, cut by a contig end or hidden
-   by unknown bases (N).
+   by unknown bases (N). The same genomes are counted again by the year their sample was
+   **collected**, as the submitter recorded it (BioSample `collection_date` for assemblies, the
+   `collection_date` source qualifier for Nucleotide records), with genomes without a date
+   apart: a batch of old samples released late would otherwise make an old lineage look new.
+   This second axis is information only; the status uses the release year.
 
 A run processes at most a set number of new genomes (20,000 assemblies or 2,000 Nucleotide
 records by default); the next run continues where it stopped, and the report says how far it
