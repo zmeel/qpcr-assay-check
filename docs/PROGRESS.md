@@ -99,6 +99,14 @@ verified NCBI facts) at the start of every session. Newest entry first.
   scanned; no-accession sites counted; 'scanned' label; limitation text per scan setting;
   full-list caveat on the score floor; "no usable date"; R3b: 5+ mismatches beyond -16 at_risk
   (Otwell comparison re-run: totals unchanged).
+- Enterovirus live run 2 with the new code (user, 2026-09-30; 4,000 of 13,109 records):
+  whole fragment 2023-2026 90.0% detectable (Review); fallback found 38 records (EV-C105/C109,
+  mostly not detected); collection axis: 276 of 3,538 collected before 2017, the 2025 release
+  year's at-risk bulk (222) was collected in 2022; probe 1-mismatch variant ΔTm -9.0 °C.
+  Bug found: the partner scan took a 21-N stretch of PX731700.1 for a perfect reverse primer
+  site (1,506-bp product); fixed (unobserved bases are mismatches in the scan). Score floors
+  all "not known": no search statistics were read from this run's BLAST results although the
+  smoke test's (same runner, JSON2_S) had them; the user checks the cached results.
 - Not done yet: the user's live runs with this code (enterovirus, then Neisseria and
   Legionella), then the v2 release. Everything above is pushed (PR #47).
 

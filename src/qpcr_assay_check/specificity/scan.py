@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal
 
 from ..align import realign
@@ -93,7 +93,8 @@ class PartnerScanner:
         self.assay = assay
         self.queries = queries
         self.rules = rules
-        self.scoring = scoring
+        # an unknown template base is no evidence of binding: score it as a mismatch
+        self.scoring = replace(scoring, unobserved_matches=False)
         self.fetcher = fetcher
         self.ids = ids
         self.state = ScanState()

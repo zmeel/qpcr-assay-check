@@ -86,7 +86,9 @@ bases in the direction the primer extends) is fetched, and every primer of the p
 aligned in it end to end. A partner site of at least *warning* level that faces the first one is
 added (marked "scanned" and "not reported by BLAST"), in the same search tier as the first. Likewise,
 inside every product without a reported probe site, each probe is re-aligned end to end; a probe
-site of at least *warning* level is added, so a probe site hidden from BLAST still counts. At most
+site of at least *warning* level is added, so a probe site hidden from BLAST still counts. In the
+scan an unknown template base (N or another ambiguity code) counts as a mismatch: a run of N is
+not evidence of a binding site. At most
 `specificity.partner_scan_max_windows` (1,000) fetches are made per run, partner windows first
 (strongest primer sites first), then products; beyond that the result is *Incomplete*. A tier
 whose product list was cut at `max_amplicons` is not scanned. Windows are cached. The scan cannot
