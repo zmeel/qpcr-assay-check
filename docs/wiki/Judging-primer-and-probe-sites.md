@@ -159,8 +159,12 @@ strains circulating now rather than historical collections:
 - a single year in the window with at least 30 genomes below 80%: *Review*, even when the pooled
   figure has no flags;
 - the percentage leaves out the undetermined, possibly-unassembled and from-parts genomes, and
-  says how many they are.
+  says how many they are, together with the two extremes they allow: the percentage if every
+  undetermined genome were an escape, and if every one were detected;
+- more than **25%** of the genomes with the region undetermined: *Incomplete*, whatever the
+  percentage (`inclusivity.max_undetermined_percent`; added after the theory reviews of
+  2026-10-01, so a headline figure is never carried by a minority of the genomes).
 
-Each channel gets its own status by the same limits, and a signal outside its target makes a
-channel *Review*. The inclusivity status is the worst of the whole-fragment status and every
+Each channel gets its own status by the same limits (the undetermined limit over all its target
+genomes), and a signal outside its target makes a channel *Review*. The inclusivity status is the worst of the whole-fragment status and every
 channel's status, never better.

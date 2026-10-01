@@ -12,6 +12,11 @@ All notable changes to this project are documented here. The format follows
 - **Probe-site deletions graded from measured data** (rule R5c, Otwell et al. 2025): 1-5 deleted
   bases `at_risk`, 6 or more `likely_failure` (the assays disagree at 6; the worse is taken), a
   deletion with three or more mismatches `likely_failure`; insertions stay `indeterminate`.
+- **Undetermined genomes bracketed and limited** (theory reviews 2026-10-01): the whole-fragment
+  and channel statuses give the percentage if every undetermined genome were an escape and if
+  every one were detected; above `inclusivity.max_undetermined_percent` (25) undetermined, the
+  status is INCOMPLETE instead of a percentage verdict. The live Legionella genus channel (7,444
+  undetermined against 4,337 judged on 2026-09-30) would be INCOMPLETE.
 - **"Tm ≤ annealing" flag** next to the class for unmodified oligos whose predicted duplex Tm is
   at or below the annealing temperature (information only), and **"ΔTm not applicable"** for
   oligos with MGB, LNA or similar modifications (report and workbook).

@@ -120,6 +120,21 @@ verified NCBI facts) at the start of every session. Newest entry first.
   every tier (36 out-of-scope searches, one queued over 2 h at NCBI): removed from the example;
   a per-tier split is the proper fix (not built). Bug fixed: "Target on a plasmid: yes" for
   a virus (patent records titled "... and plasmids").
+- Theory reviews (user, 2026-10-01): a senior theoretical molecular biologist and the methods
+  advisor reviewed independently against the literature and GitHub; kept verbatim in
+  docs/reviews/ with a comparison (README.md). Both: sound and novel method, probe rules the
+  weakest, terminal mismatch types on one source, Tm should weigh more, redundancy inflates
+  percentages. Built for v2 on the user's "add all the small points": R5c probe-site deletions
+  from Otwell (re-run: 7 templates at risk -> likely failure, all >= +3 Ct or undetected; FN5446,
+  6 nt in C4 ORF8, detected with a delay but graded likely failure because 6 nt failed in Yale
+  69/70 del); section 11 called calibration; detection-not-quantification caveat; "Tm <=
+  annealing" flag and "ΔTm not applicable" for modified oligos (the FDA 2023 attribution could
+  not be verified: fda.gov blocks automated reads); bracketing percentages and
+  inclusivity.max_undetermined_percent 25. Deferred (changes results; user decides):
+  position-aware MGB rule, third source for terminal types, deduplicated figure, collection date
+  as status axis, every locus scanned, unified off-target rules, independent validation.
+  Note: Neisseria rerun on 2026-09-30 rescanned because store schema 4 (fallback) changed the
+  key, not because of the YAML.
 - Not done yet: the user's live runs with this code (enterovirus, then Neisseria and
   Legionella), then the v2 release. Everything above is pushed (PR #47).
 

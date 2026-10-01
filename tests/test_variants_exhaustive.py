@@ -854,3 +854,36 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
     contigs = {"C": _related_region(81) + filler(300, 5) + masked_amp + filler(300, 6)}
     found = locate(contigs, [Reference(AMP)])
     assert [c.masked for c in found if is_copy(c)] == [True]  # the chance region is no copy
+
+
+def test_the_verdict_brackets_undetermined_genomes_and_refuses_when_they_dominate():
+    """Theory reviews 2026-10-01: print the two extremes the undetermined genomes allow, and give
+    no percentage status when they exceed inclusivity.max_undetermined_percent."""
+    from qpcr_assay_check.inclusivity.models import FragmentYear
+    from qpcr_assay_check.variants.exhaustive import fragment_verdict
+
+    rules = load_config().inclusivity
+    few = [FragmentYear(year=2026, with_region=200, detectable=185, at_risk=5,
+                        likely_failure=0, undetermined=10)]  # fmt: skip
+    verdict, lines = fragment_verdict(few, rules)
+    assert verdict is Verdict.PASS
+    assert any("92.5% detectable if all of them were escapes, 97.5% if all" in x for x in lines)
+    many = [FragmentYear(year=2026, with_region=200, detectable=140, at_risk=0,
+                         likely_failure=0, undetermined=60)]  # fmt: skip
+    verdict, lines = fragment_verdict(many, rules)
+    assert verdict is Verdict.INCOMPLETE and "30.0% of the genomes" in lines[0]
+    rules.max_undetermined_percent = 40
+    assert fragment_verdict(many, rules)[0] is Verdict.PASS
+
+
+def test_a_channel_with_mostly_undetermined_genomes_is_incomplete():
+    from qpcr_assay_check.variants.exhaustive import channel_verdict
+    from qpcr_assay_check.variants.models import ChannelResult
+
+    rules = load_config().inclusivity
+    # the live Legionella genus channel (2026-09-30): 4,337 judged, 7,444 undetermined
+    r = ChannelResult(name="Legionella", reporter="VIC", probes=["P"], target_taxid=444,
+                      target_genomes=11911, detected=4155, not_detected=182,
+                      undetermined=7444, no_locus=130)  # fmt: skip
+    verdict, why = channel_verdict(r, rules)
+    assert verdict is Verdict.INCOMPLETE and "undetermined" in why and "if all were" in why
