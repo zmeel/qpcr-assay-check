@@ -397,6 +397,9 @@ class InclusivitySettings(_Strict):
     verdict_window_years: int = 3
     min_genomes_for_verdict: int = 100
     min_genomes_per_year: int = 30
+    # theory reviews 2026-10-01: undetermined genomes leave the denominator; when they are more
+    # than this share of the genomes with the region, the percentage is not a status
+    max_undetermined_percent: float = 25.0
 
     @model_validator(mode="after")
     def _sane(self) -> InclusivitySettings:
@@ -404,6 +407,8 @@ class InclusivitySettings(_Strict):
             raise ValueError("lookback_years must be >= 1")
         if self.verdict_window_years < 0 or self.min_genomes_for_verdict < 1:
             raise ValueError("verdict_window_years must be >= 0, min_genomes_for_verdict >= 1")
+        if not 0 <= self.max_undetermined_percent <= 100:
+            raise ValueError("max_undetermined_percent must be between 0 and 100")
         if not (0 <= self.fail_below_percent <= self.warn_below_percent <= 100):
             raise ValueError("require 0 <= fail_below_percent <= warn_below_percent <= 100")
         return self

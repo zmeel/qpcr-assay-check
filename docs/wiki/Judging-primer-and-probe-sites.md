@@ -65,9 +65,14 @@ The main rules, in short:
   otherwise *likely failure*. No PCR study measured these, and they are also a known sequencing
   and assembly error, so the report shows the result under both a strict and a lenient setting
   (`variants.homopolymer_bulges_detectable`).
-- **Probes** (no published quantitative data; expert judgement, stated as such): an MGB probe
-  with one mismatch is *indeterminate*, with two or more *likely failure*; an unmodified probe
-  with one mismatch outside its last 5 bases is *tolerated*, otherwise *at risk*.
+- **Probe mismatches** (no quantitative data used yet; expert judgement, stated as such): an MGB
+  probe with one mismatch is *indeterminate*, with two or more *likely failure*; an unmodified
+  probe with one mismatch outside its last 5 bases is *tolerated*, otherwise *at risk*. Both
+  theory reviews (`docs/reviews/`) call these the weakest rules and name data not yet used.
+- **Deletions in the probe site** (Otwell et al. 2025, wet-lab data): 1–5 deleted bases *at
+  risk*; 6 or more *likely failure* (6 bases was tolerated in one assay and fatal in another;
+  the worse is taken); a deletion with three or more mismatches *likely failure*. Insertions
+  were not tested and stay *indeterminate*.
 - **Ambiguity codes in the genome** (R, Y, …): a code that could pair counts as a match beyond the
   last 5 bases; within them the site is graded both ways, and only when that decides between
   detectable and not is the site *indeterminate*.
@@ -77,20 +82,34 @@ The main rules, in short:
 A site is **detectable** when its class is *perfect* or *tolerated*. Classes present published
 data; they are not predicted Ct values.
 
+**Detection, not quantification.** The classes say whether a site is expected to be detected,
+not whether a quantity measured through it is right. A single internal mismatch the classes
+call *tolerated* can still distort a copy number considerably (Bru et al. 2008 measured up to
+1000-fold underestimation). For an assay used to quantify, such as a viral load, a *tolerated*
+variant is a reason to check the quantification in the laboratory.
+
 **ΔTm next to the class** (information only). Each site variant in the report also shows the
 estimated change in duplex melting temperature against the perfect match (ΔTm, with Tm and ΔG on
 hover and in the workbook), from primer3's nearest-neighbour model under the configured reaction
-conditions. It helps where the class says little, such as an MGB probe with one mismatch
-(*indeterminate*): a mismatch that costs 1 °C and one that costs 8 °C are not the same risk. The
-model is for unmodified DNA: MGB, LNA and other modifications are not modelled, and a mismatch at
-the 3′-terminal base barely changes Tm although it usually blocks extension. The class remains
-the judgement; ΔTm never changes it.
+conditions. The model is for unmodified DNA, and a mismatch at the 3′-terminal base barely
+changes Tm although it usually blocks extension. For oligos with MGB, LNA or similar
+modifications the model does not apply, so the report shows "ΔTm not applicable" there (the
+computed value only on hover), as the theory reviews of 2026-10-01 advised.
 
-**Compared with wet-lab data.** The classes were compared with 132 synthetic templates of 16
-SARS-CoV-2 assays measured by Otwell et al. (2025) under one permissive set of conditions: no
-template graded *detectable* was delayed by 3 Ct or more, and every template graded *likely
-failure* was delayed by at least 3 Ct or not detected at 50 copies. Most delays of 3–6 Ct are
-*at risk*. Details and limits: `docs/MISMATCH_CLASSES.md`, section 11.
+**Tm at or below the annealing temperature.** For unmodified oligos, a site whose predicted
+duplex Tm is at or below the configured annealing temperature is marked "Tm ≤ annealing". The
+methods advisor's review attributes this criterion to the FDA's 2023 policy on the impact of
+viral mutations on COVID-19 tests; that document could not be read from here, so the attribution
+is the reviewer's, not verified. Both figures are information only: the class remains the
+judgement and is never changed by them.
+
+**Calibrated against wet-lab data, not yet validated.** The classes were compared with 132
+synthetic templates of 16 SARS-CoV-2 assays measured by Otwell et al. (2025) under one
+permissive set of conditions: no template graded *detectable* was delayed by 3 Ct or more, and
+every template graded *likely failure* was delayed by at least 3 Ct or not detected. Most delays
+of 3–6 Ct are *at risk*. Because rules were adjusted after seeing these outcomes, this is a
+calibration, an in-sample fit; independent data are still needed. Details and limits:
+`docs/MISMATCH_CLASSES.md`, section 11.
 
 ## 4. From sites to a copy, and from copies to a genome
 
@@ -140,8 +159,12 @@ strains circulating now rather than historical collections:
 - a single year in the window with at least 30 genomes below 80%: *Review*, even when the pooled
   figure has no flags;
 - the percentage leaves out the undetermined, possibly-unassembled and from-parts genomes, and
-  says how many they are.
+  says how many they are, together with the two extremes they allow: the percentage if every
+  undetermined genome were an escape, and if every one were detected;
+- more than **25%** of the genomes with the region undetermined: *Incomplete*, whatever the
+  percentage (`inclusivity.max_undetermined_percent`; added after the theory reviews of
+  2026-10-01, so a headline figure is never carried by a minority of the genomes).
 
-Each channel gets its own status by the same limits, and a signal outside its target makes a
-channel *Review*. The inclusivity status is the worst of the whole-fragment status and every
+Each channel gets its own status by the same limits (the undetermined limit over all its target
+genomes), and a signal outside its target makes a channel *Review*. The inclusivity status is the worst of the whole-fragment status and every
 channel's status, never better.

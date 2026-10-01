@@ -167,6 +167,11 @@ inclusivity:
                                     # fail_below_percent inside the window gives WARN when the
                                     # pooled figure passes ("release year <year> on its own");
                                     # smaller years are marked "few records" and only shown
+  max_undetermined_percent: 25     # more undetermined genomes than this share of those with the
+                                    # region (whole fragment over the window; a channel over all
+                                    # genomes): INCOMPLETE, not a percentage status. The report
+                                    # also gives the figure if all undetermined were escapes and
+                                    # if all were detected. Your laboratory's choice.
 
 variants:
   # Exhaustive variant analysis of the intended target: the variant summary and inclusivity are

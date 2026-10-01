@@ -1082,6 +1082,15 @@ def _collection_line(axis: CollectionAxis | None, unit: str) -> list[str]:
     return [line + "."]
 
 
+def _bracket(detected: int, undetermined: int, total: int, unit: str) -> str:
+    """The two extremes the undetermined genomes allow (theory reviews 2026-10-01)."""
+    low, high = 100.0 * detected / total, 100.0 * (detected + undetermined) / total
+    return (
+        f"With the {undetermined:,} undetermined {unit} counted: {low:.1f}% detectable if all "
+        f"of them were escapes, {high:.1f}% if all were detected."
+    )
+
+
 def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, list[str]]:
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
@@ -1103,6 +1112,8 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
             "inclusivity.min_genomes_for_verdict)."
         ]
     pct = 100.0 * det / n
+    total = n + undet
+    share = 100.0 * undet / total if total else 0.0
     lines = [
         f"Whole fragment, genomes released {span}: {pct:.1f}% detectable (perfect or "
         f"tolerated), {100.0 * (det + risk) / n:.1f}% including at risk, "
@@ -1113,7 +1124,18 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
         + "). The per-oligo and per-year figures are "
         "diagnostics; the status uses the whole fragment over this window."
     ]
-    if pct < rules.fail_below_percent:
+    if undet:
+        lines.append(_bracket(det, undet, total, "genomes"))
+    if share > rules.max_undetermined_percent:
+        verdict, why = (
+            Verdict.INCOMPLETE,
+            (
+                f" ({share:.1f}% of the genomes with the region are undetermined, more than "
+                f"{rules.max_undetermined_percent:g}%: setting "
+                "inclusivity.max_undetermined_percent)"
+            ),
+        )
+    elif pct < rules.fail_below_percent:
         verdict, why = Verdict.FAIL, f" (below {rules.fail_below_percent:g}%)"
     elif pct < rules.warn_below_percent:
         verdict, why = Verdict.WARN, f" (below {rules.warn_below_percent:g}%)"
@@ -1340,17 +1362,32 @@ def channel_verdict(r: ChannelResult, rules: Any) -> tuple[Verdict, str]:
                + (f" ({r.membership_unknown:,} genomes without a known lineage)"
                   if r.membership_unknown else ""))  # fmt: skip
         return Verdict.INCOMPLETE, why
+    judged = r.detected + r.not_detected
+    total = judged + r.undetermined
+    bracket = (
+        f" ({_bracket(r.detected, r.undetermined, total, 'genomes')[:-1]})"
+        if r.undetermined and total
+        else ""
+    )
+    share = 100.0 * r.undetermined / total if total else 0.0
+    if share > rules.max_undetermined_percent:
+        return (
+            Verdict.INCOMPLETE,
+            f"{pct:.1f}% detected of {judged:,} judged, but {share:.1f}% of its target genomes "
+            f"with the region are undetermined, more than {rules.max_undetermined_percent:g}%"
+            f"{bracket}",
+        )
     if pct < rules.fail_below_percent:
         return (
             Verdict.FAIL,
-            f"{pct:.1f}% detected, below your limit of {rules.fail_below_percent:g}%",
+            f"{pct:.1f}% detected, below your limit of {rules.fail_below_percent:g}%{bracket}",
         )
     reasons = []
     level = Verdict.PASS
     if pct < rules.warn_below_percent:
         level = Verdict.WARN
         reasons.append(f"{pct:.1f}% detected, below your review limit of "
-                       f"{rules.warn_below_percent:g}%")  # fmt: skip
+                       f"{rules.warn_below_percent:g}%{bracket}")  # fmt: skip
     if r.signal:
         level = Verdict.WARN
         reasons.append(f"a signal in {r.signal:,} of {r.nontarget_genomes:,} genomes outside "

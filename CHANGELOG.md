@@ -7,6 +7,19 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Two independent reviews of the theoretical background** (2026-10-01), kept verbatim in
+  `docs/reviews/` with a comparison and the list of what was taken up.
+- **Probe-site deletions graded from measured data** (rule R5c, Otwell et al. 2025): 1-5 deleted
+  bases `at_risk`, 6 or more `likely_failure` (the assays disagree at 6; the worse is taken), a
+  deletion with three or more mismatches `likely_failure`; insertions stay `indeterminate`.
+- **Undetermined genomes bracketed and limited** (theory reviews 2026-10-01): the whole-fragment
+  and channel statuses give the percentage if every undetermined genome were an escape and if
+  every one were detected; above `inclusivity.max_undetermined_percent` (25) undetermined, the
+  status is INCOMPLETE instead of a percentage verdict. The live Legionella genus channel (7,444
+  undetermined against 4,337 judged on 2026-09-30) would be INCOMPLETE.
+- **"Tm ≤ annealing" flag** next to the class for unmodified oligos whose predicted duplex Tm is
+  at or below the annealing temperature (information only), and **"ΔTm not applicable"** for
+  oligos with MGB, LNA or similar modifications (report and workbook).
 - **Collection date as a second axis** (user request 2026-09-30): genomes released in the
   report's window are also counted by the year their sample was collected, with "collected
   before the window", "no usable date" and "not read yet" apart, in a table under the
@@ -65,6 +78,9 @@ All notable changes to this project are documented here. The format follows
   date".
 
 ### Changed
+- The Otwell comparison (MISMATCH_CLASSES section 11, wiki) is called a calibration, not a
+  validation: the rules were adjusted after seeing it. The report and wiki say the classes
+  concern detection, not quantification (Bru et al. 2008).
 - **More than 4 primer mismatches beyond -16 are at least `at_risk`** (R3b; code review and user
   decision 2026-09-30): Otwell 2025 measured 3-4 of them only. No outcome of the Otwell
   comparison changes.

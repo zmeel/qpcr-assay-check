@@ -297,13 +297,14 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             "Oligo variants",
             ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Mismatches",
              "Gaps", "Matching 3' nt", "Class", "Class rule", "Duplex Tm (°C)", "ΔTm (°C)",
-             "ΔG (kcal/mol)", "Example accession", "Example organism", "First release",
-             "Last release"],
+             "ΔG (kcal/mol)", "Tm model not applicable (modifications)", "Tm <= annealing",
+             "Example accession", "Example organism", "First release", "Last release"],
             [
                 [o.role if row.oligo_name in ("", o.role) else f"{o.role} {row.oligo_name}",
                  row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
                  row.clean_3prime_nt, row.grade or "", row.grade_note, _r1(row.tm_c),
-                 _r1(row.delta_tm_c), _r1(row.dg_kcal),
+                 _r1(row.delta_tm_c), _r1(row.dg_kcal), ", ".join(row.tm_not_modelled),
+                 {True: "yes", False: "no"}.get(row.tm_at_or_below_annealing, ""),
                  row.example_accession, row.example_organism or "",
                  row.first_seen or "", row.last_seen or ""]
                 for o in vs.oligos

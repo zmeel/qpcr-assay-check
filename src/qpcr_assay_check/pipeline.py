@@ -15,13 +15,13 @@ from . import __version__
 from .config import Config
 from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
-from .oligo.qc import run_oligo_qc
+from .oligo.qc import TM_UNRELIABLE_TOKENS, run_oligo_qc
 from .results import OverallResult, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
 from .search.planner import HUMAN_TAXID
 from .specificity.duplex import site_duplex
 from .specificity.models import SiteResult, SpecificityResult
-from .specificity.variants import VariantSummary, build_variant_summary
+from .specificity.variants import TmContext, VariantSummary, build_variant_summary
 from .taxonomy.exclusivity import ExclusivityResult, build_exclusivity
 from .taxonomy.plan import OrganismListResolution
 from .taxonomy.rollup import TaxonCount
@@ -127,6 +127,14 @@ def evaluate(
                 release_dates=release_dates,
                 coverage=variant_coverage,
                 duplex=site_duplex(cfg.reaction),
+                tm=TmContext(
+                    annealing_c=cfg.reaction.annealing_temp_C,
+                    not_modelled={
+                        o.name: o.declared_modifications(TM_UNRELIABLE_TOKENS)
+                        for o in assay.oligo_list
+                        if o.declared_modifications(TM_UNRELIABLE_TOKENS)
+                    },
+                ),
             )
         n = specificity.n_sites
         sections.append(

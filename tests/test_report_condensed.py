@@ -304,3 +304,31 @@ def test_the_delta_tm_is_shown_next_to_the_class_but_not_for_perfect_sites(tmp_p
     per_oligo = html[i : html.index("<h2>", i)]
     assert "ΔTm -4.3 °C" in per_oligo and "ΔTm +0.0" not in per_oligo
     assert "information only, the class is the judgement" in per_oligo
+
+
+def test_the_report_withholds_delta_tm_for_mgb_and_marks_a_low_tm(tmp_path):
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+
+    from .test_multi_copy import run_report_result
+
+    result, cfg = run_report_result(tmp_path), load_config()
+    vs = result.variant_summary
+    fwd = vs.oligos[0]
+    base = fwd.rows[0]
+    extra = [
+        base.model_copy(update={"grade": "indeterminate", "count": 5, "tm_c": 61.2,
+                                "delta_tm_c": -9.0, "dg_kcal": -15.1, "tm_not_modelled": ["MGB"],
+                                "example_accession": "MGB1.1"}),
+        base.model_copy(update={"grade": "at_risk", "count": 5, "tm_c": 55.0,
+                                "delta_tm_c": -8.0, "dg_kcal": -12.0,
+                                "tm_at_or_below_annealing": True,
+                                "example_accession": "LOW1.1"}),
+    ]  # fmt: skip
+    oligos = [fwd.model_copy(update={"rows": [*fwd.rows, *extra]}), *vs.oligos[1:]]
+    result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
+    html = render_report(result, cfg)
+    i = html.index("<h3>Variants per oligo")
+    per_oligo = html[i : html.index("<h2>", i)]
+    assert "ΔTm not applicable (MGB)" in per_oligo and "ΔTm -9.0 °C</span>" not in per_oligo
+    assert "Tm ≤ annealing" in per_oligo and "ΔTm -8.0 °C" in per_oligo

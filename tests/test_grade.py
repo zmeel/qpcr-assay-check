@@ -157,11 +157,11 @@ def test_a_gap_never_hides_mismatches_that_already_fail():
     probe = "CCCTTCAACATCAGTGAAA"
     many = "GCCTTCA--ATCTGTAAAC"  # SYNTHETIC: several mismatches plus a 2-base gap
     assert g.grade_probe(probe, many, mgb=True).cls == g.FAILURE
-    assert "plus a gap" in g.grade_probe(probe, many, mgb=True).note
-    assert g.grade_probe(probe, many, mgb=False).cls == g.AT_RISK
+    assert "deleted" in g.grade_probe(probe, many, mgb=True).note
+    assert g.grade_probe(probe, many, mgb=False).cls == g.FAILURE  # R5c: deletion + 3+ mismatches
     assert g.grade_primer(PRIMER[:-1] + "-", mutated(1, 2, 3)[:-1] + "A").cls == g.FAILURE
-    # a gap alone (no mismatches) stays indeterminate
-    assert g.grade_probe(probe, "CCCTTCA-CATCAGTGAAA", mgb=True).rule == "R5"
+    # an insertion in the template within the probe site (not measured) stays indeterminate
+    assert g.grade_probe("CCCTTCA-ACATCAGTGAAA", "CCCTTCATACATCAGTGAAA", mgb=True).rule == "R5"
 
 
 def test_an_oligo_end_without_a_partner_base_is_a_mismatch_not_a_gap():
@@ -217,3 +217,29 @@ def test_more_mismatches_beyond_the_tested_region_than_were_measured_are_at_risk
     both = g.grade_primer(PRIMER, mutated(9, 17, 18, 19, 20, 21))
     assert both.cls == g.AT_RISK and both.rule == "R2+R3b"
     assert "outside the measured data" in both.note
+
+
+def test_deletions_in_the_probe_site_follow_otwell_2025():
+    """Otwell et al. 2025, probe-site deletions: C4 ORF8 <= 6 nt detected with Ct shifts <= 5,
+    7 nt Ct > 40 at 50 copies, 8 nt not detected; ncov_n_gene 3 nt about +3 Ct; Young-S 3 nt
+    plus three mismatches not detected; Yale 69/70 del 6 nt not detected (the worse is taken).
+    SYNTHETIC alignments of a 26-nt probe site."""
+    probe = "ACGTTGCAACGTTGCAACGTTGCAAC"  # 26 nt, SYNTHETIC
+
+    def deleted(n, at=10):
+        return probe[:at] + "-" * n + probe[at + n :]
+
+    for n in (1, 3, 5):
+        d = g.grade_probe(probe, deleted(n), mgb=False)
+        assert (d.cls, d.rule) == (g.AT_RISK, "R5c") and "Otwell" in d.note
+    for n in (6, 7, 8):
+        assert g.grade_probe(probe, deleted(n), mgb=False).cls == g.FAILURE
+    # a deletion with three mismatches: not detected (Young-S)
+    three = deleted(3)[:20] + "".join("T" if c != "T" else "A" for c in deleted(3)[20:23])
+    three += deleted(3)[23:]
+    assert g.grade_probe(probe, three, mgb=False).cls == g.FAILURE
+    # with one mismatch: at risk, and the note says the combination was not measured
+    one = deleted(3)[:20] + ("T" if deleted(3)[20] != "T" else "A") + deleted(3)[21:]
+    assert "not measured" in g.grade_probe(probe, one, mgb=False).note
+    # an MGB probe whose mismatches already fail keeps failing
+    assert g.grade_probe(probe, three, mgb=True).cls == g.FAILURE

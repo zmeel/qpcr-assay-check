@@ -165,6 +165,7 @@ settings:                                  # only what differs from the defaults
 #   verdict_window_years: 3        # exhaustive: whole-fragment verdict over the last 3 years + now
 #   min_genomes_for_verdict: 100   # fewer in the window: INCOMPLETE
 #   min_genomes_per_year: 30       # one window year this large below the FAIL limit: review
+#   max_undetermined_percent: 25   # more undetermined than this share: INCOMPLETE
 # variants:                        # the exhaustive variant analysis
 #   source: datasets               # datasets | blast_partitioned
 #   current_assemblies_only: true
