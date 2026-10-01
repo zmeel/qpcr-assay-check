@@ -186,6 +186,6 @@ settings:                                  # only what differs from the defaults
 #   min_copy_identity: 0.75        # copy rule (c): identity to the reference fragment ...
 #   min_identity_anchored_bases: 16  #   ... with at least this many fragment bases anchored
 #   max_indel: 150                 # largest length difference to the reference within one copy
-#   judge_from_parts: undetermined  # detectable | off: copies cut by a contig end, judged from their sites
+#   judge_from_parts: detectable    # undetermined | off: copies cut by a contig end, judged from their sites
 #   multicopy_unassembled: auto    # off: a draft genome with far fewer copies than complete/chromosome-level genomes counts as an escape
 # --- settings reference end ---

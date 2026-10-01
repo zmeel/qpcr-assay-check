@@ -443,7 +443,7 @@ class VariantsSettings(_Strict):
     # a genome whose copies are all cut by a contig end (or whose best whole copy fails) but has
     # a detectable site of every role on the cut copies: undetermined (its own class, left out
     # of the percentages), detectable, or off (cut by a contig end / judged by the whole copy)
-    judge_from_parts: Literal["undetermined", "detectable", "off"] = "undetermined"
+    judge_from_parts: Literal["undetermined", "detectable", "off"] = "detectable"
     # a located region counts as a copy of the target only at this identity to the reference
     # amplicon (over the part it covers); 0 = every located region counts
     min_copy_identity: float = 0.75

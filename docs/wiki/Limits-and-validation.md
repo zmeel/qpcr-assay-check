@@ -16,7 +16,8 @@
   copies (rRNA operons, opa genes) unassembled, collapsed or cut at contig ends. The tool reports
   these genomes separately (*cut by a contig end*, *detectable from parts*, *possibly
   unassembled*) instead of counting them as escapes, which can also hide a real loss of copies;
-  the lists are in the workbook.
+  the lists are in the workbook. Cut genomes count as undetermined, so many of them can make a
+  result INCOMPLETE; genomes detectable from parts count as detected by default.
 - **Sequencing errors look like variants.** Homopolymer length differences in particular are a
   known error of some sequencing platforms; the report shows where the copies of one genome
   disagree and how the variants spread over assembly levels.

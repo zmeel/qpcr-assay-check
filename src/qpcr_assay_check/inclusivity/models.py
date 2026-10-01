@@ -69,6 +69,11 @@ class FragmentYear(BaseModel):
     from_parts: int = Field(
         default=0, description="of the undetermined: genomes detectable from parts (cut copies)"
     )
+    unjudged: int = Field(
+        default=0,
+        description="of the undetermined: region there, but cut by a contig end or hidden by N, "
+        "so no site could be judged",
+    )
     label: str = Field(default="", description="row name when not a year (collection axis)")
 
 
@@ -107,6 +112,7 @@ class FragmentWindow:
     likely_failure: int
     unassembled: int = 0  # of the undetermined: copies possibly unassembled
     from_parts: int = 0  # of the undetermined: detectable from parts
+    unjudged: int = 0  # of the undetermined: region cut by a contig end or hidden by N
 
     @property
     def n(self) -> int:
@@ -136,6 +142,7 @@ def fragment_window(years: list[FragmentYear], window_years: int) -> FragmentWin
         likely_failure=sum(y.likely_failure for y in window),
         unassembled=sum(y.unassembled for y in window),
         from_parts=sum(y.from_parts for y in window),
+        unjudged=sum(y.unjudged for y in window),
     )
 
 
