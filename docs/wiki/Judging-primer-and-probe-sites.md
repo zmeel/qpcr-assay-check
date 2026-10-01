@@ -97,7 +97,11 @@ modifications the model does not apply, so the report shows "ΔTm not applicable
 computed value only on hover), as the theory reviews of 2026-10-01 advised.
 
 **Tm at or below the annealing temperature.** For unmodified oligos, a site whose predicted
-duplex Tm is at or below the configured annealing temperature is marked "Tm ≤ annealing". The
+duplex Tm drops to or below the configured annealing temperature, while the perfect match melts
+above it, is marked "Tm ≤ annealing". Primers are often designed with their Tm at the annealing
+temperature; when the perfect match itself is at or below it in this model, any variant would
+cross the line and the flag would say nothing, so there is none (live Legionella run,
+2026-10-01: primers at 59.8 and 60.0 °C, annealing 60 °C). The
 methods advisor's review attributes this criterion to the FDA's 2023 policy on the impact of
 viral mutations on COVID-19 tests; that document could not be read from here, so the attribution
 is the reviewer's, not verified. Both figures are information only: the class remains the

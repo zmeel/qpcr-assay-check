@@ -248,8 +248,8 @@ def test_tm_is_not_applicable_to_modified_oligos_and_flags_low_tm_otherwise():
     at or below the annealing temperature is flagged (information only)."""
     from qpcr_assay_check.specificity.variants import TmContext
 
-    def fixed(tm):
-        return lambda s: (tm, -10.0, tm - 65.0)
+    def fixed(tm, perfect=65.0):
+        return lambda s: (tm, -10.0, tm - perfect)
 
     fwd = mk_site("forward", q_aln="ACGT", s_aln="ACGA", midline="||| ", mm=1)
     probe = mk_site("probe", q_aln="ACGT", s_aln="ACTT", midline="|| |", mm=1)
@@ -263,4 +263,17 @@ def test_tm_is_not_applicable_to_modified_oligos_and_flags_low_tm_otherwise():
     assert (
         next(o for o in high.oligos if o.role == "forward").rows[0].tm_at_or_below_annealing
         is False
+    )
+
+
+def test_no_tm_flag_when_the_perfect_match_itself_melts_at_the_annealing_temperature():
+    """Live Legionella run (2026-10-01): primers with a perfect-match Tm of 59.8-60.0 °C at
+    60 °C annealing flagged every tolerated variant; the flag needs a drop across the line."""
+    from qpcr_assay_check.specificity.variants import TmContext
+
+    fwd = mk_site("forward", q_aln="ACGT", s_aln="ACGA", midline="||| ", mm=1)
+    ctx = TmContext(annealing_c=60.0)
+    out = build_variant_summary([fwd], ASSAY, duplex=lambda s: (57.0, -9.0, -2.8), tm=ctx)
+    assert (
+        next(o for o in out.oligos if o.role == "forward").rows[0].tm_at_or_below_annealing is None
     )

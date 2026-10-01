@@ -80,8 +80,9 @@ class VariantRow(BaseModel):
     )
     tm_at_or_below_annealing: bool | None = Field(
         default=None,
-        description="information: the predicted duplex Tm is at or below the annealing "
-        "temperature (unmodified oligos only; None when not computed or not applicable)",
+        description="information: the predicted duplex Tm drops to or below the annealing "
+        "temperature while the perfect match melts above it (unmodified oligos only; None when "
+        "not computed, not applicable, or the perfect match is itself at or below it)",
     )
 
 
@@ -182,11 +183,16 @@ def _variant_row(
     tm_c, dg, dtm = duplex(s) if duplex is not None else (None, None, None)
     ctx = tm or TmContext()
     mods = ctx.not_modelled.get(_DEGENERATE.sub("", s.query), [])
+    # only a drop across the annealing temperature says something about the variant: where the
+    # perfect match itself melts at or below it in this model (primers are often designed with
+    # their Tm at the annealing temperature; live Legionella run, 2026-10-01), no flag
+    perfect = tm_c - dtm if tm_c is not None and dtm is not None else None
     low = (
         tm_c <= ctx.annealing_c
-        if tm_c is not None and ctx.annealing_c is not None and not mods
+        if perfect is not None and ctx.annealing_c is not None and not mods
+        and perfect > ctx.annealing_c
         else None
-    )
+    )  # fmt: skip
     return VariantRow(
         tm_c=tm_c,
         dg_kcal=dg,
