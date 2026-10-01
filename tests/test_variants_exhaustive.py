@@ -324,8 +324,14 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
 def test_exhaustive_inclusivity_explains_assemblies_without_the_region(tmp_path):
     cfg, fake, client, assay = setup(tmp_path)
     res = run(tmp_path, cfg, client, assay)
+    # not found (GCA_4) stays out of the counts; cut by a contig end (GCA_5) is undetermined,
+    # in the whole fragment as in the channels (user, 2026-10-01)
     assert any(
-        "2 of 5 assessed assemblies are not in the counts above" in r
+        "1 of 5 assessed assemblies are not in the counts above" in r
+        for r in res.inclusivity.rationale
+    )
+    assert any(
+        "carry the region but no site could be judged (cut by a contig end in 1" in r
         for r in res.inclusivity.rationale
     )
     result = evaluate(
@@ -413,7 +419,9 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
     )
     cc = res.coverage.copies
     assert sum(f.detectable for f in years) == cc.with_detectable_copy
-    assert sum(f.undetermined for f in years) == cc.undetermined
+    # plus the genomes with the region but no judged site (cut, or hidden by N)
+    assert sum(f.undetermined for f in years) == cc.undetermined + sum(f.unjudged for f in years)
+    assert sum(f.unjudged for f in years) == res.coverage.contig_break + res.coverage.masked
     result = evaluate(
         assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=res.coverage,
         release_dates=res.release_dates, inclusivity=res.inclusivity,
@@ -721,6 +729,7 @@ def test_a_fragment_split_over_contigs_is_judged_from_its_parts(tmp_path):
     from qpcr_assay_check.report.grouping import fragment_view
 
     cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    cfg.variants.judge_from_parts = "undetermined"  # the default is "detectable" since 2026-10-01
     res = run(tmp_path, cfg, client, assay)
     cc, split = res.coverage.copies, "GCA_000000007.1"
     assert cc.from_parts_accessions == [split] and not cc.from_parts_counted
@@ -816,6 +825,7 @@ def test_review_fixes_for_parts_and_the_copy_threshold(tmp_path):
 
     # 1. detectable from parts (undetermined): out of the per-oligo and channel counts as well
     cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    cfg.variants.judge_from_parts = "undetermined"  # the default is "detectable" since 2026-10-01
     res = run(tmp_path, cfg, client, assay)
     cc = res.coverage.copies
     assert cc.from_parts == 1 and cc.with_detectable_copy == 2
@@ -887,3 +897,14 @@ def test_a_channel_with_mostly_undetermined_genomes_is_incomplete():
                       undetermined=7444, no_locus=130)  # fmt: skip
     verdict, why = channel_verdict(r, rules)
     assert verdict is Verdict.INCOMPLETE and "undetermined" in why and "if all were" in why
+
+
+def test_by_default_a_genome_detectable_from_parts_counts_as_detected(tmp_path):
+    """User, 2026-10-01: every site was seen whole on the cut copies, for every assay."""
+    cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    assert cfg.variants.judge_from_parts == "detectable"
+    res = run(tmp_path, cfg, client, assay)
+    cc = res.coverage.copies
+    assert cc.from_parts_counted and cc.with_detectable_copy == 3
+    years = res.inclusivity.fragment_years
+    assert sum(y.from_parts for y in years) == 0  # not undetermined any more

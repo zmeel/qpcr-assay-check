@@ -97,7 +97,11 @@ modifications the model does not apply, so the report shows "ΔTm not applicable
 computed value only on hover), as the theory reviews of 2026-10-01 advised.
 
 **Tm at or below the annealing temperature.** For unmodified oligos, a site whose predicted
-duplex Tm is at or below the configured annealing temperature is marked "Tm ≤ annealing". The
+duplex Tm drops to or below the configured annealing temperature, while the perfect match melts
+above it, is marked "Tm ≤ annealing". Primers are often designed with their Tm at the annealing
+temperature; when the perfect match itself is at or below it in this model, any variant would
+cross the line and the flag would say nothing, so there is none (live Legionella run,
+2026-10-01: primers at 59.8 and 60.0 °C, annealing 60 °C). The
 methods advisor's review attributes this criterion to the FDA's 2023 policy on the impact of
 viral mutations on COVID-19 tests; that document could not be read from here, so the attribution
 is the reviewer's, not verified. Both figures are information only: the class remains the
@@ -122,15 +126,17 @@ Every genome ends in exactly one **outcome**, decided in one place in this order
 
 | Outcome | When |
 |---|---|
-| **detectable from parts** | every copy is cut by a contig end, but every role has a detectable site on some cut copy; the sites may come from different copies, so by default this is *not* counted as detected (`variants.judge_from_parts`) |
+| **detectable from parts** | every copy is cut by a contig end, but every role has a detectable site on some cut copy; the sites may come from different copies; by default this counts as detected (`variants.judge_from_parts: detectable`; `undetermined` counts it as undetermined) |
 | **detected** | at least one detectable copy |
 | **undetermined** | no detectable copy, and the only problem has no published basis (a single MGB probe mismatch, a deciding ambiguity code) |
 | **possibly unassembled** | a draft genome whose best copy fails but that carries fewer than half the copies typical of the complete genomes in the run: near-identical repeats are often left unassembled, so the copy judged may not be the one the PCR would amplify |
 | **not detected** (an escape) | the region is there, no copy is detectable |
 
-Genomes without a judgeable copy are counted apart: **region not found**, **hidden by N**,
-**cut by a contig end** and **related regions only**. The report shows each number, so the gap
-between "genomes listed" and "genomes judged" is always explained.
+Genomes that carry the region but have no judgeable site, because it is **cut by a contig end**
+or **hidden by N**, count as **undetermined**, in the whole-fragment table as in the channels.
+Genomes without the region (**region not found**, **related regions only**) are counted apart.
+The report shows each number, so the gap between "genomes listed" and "genomes judged" is always
+explained.
 
 ## 5. Channels
 

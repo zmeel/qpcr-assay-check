@@ -225,13 +225,15 @@ variants:
                                    #   0.80) ...
   min_identity_anchored_bases: 16  #   ... with at least this many fragment bases anchored
   max_indel: 150                   # largest length difference to the reference within one copy
-  judge_from_parts: undetermined   # genomes whose copies are cut by a contig end (e.g. rRNA
+  judge_from_parts: detectable     # genomes whose copies are cut by a contig end (e.g. rRNA
                                    #   operons in draft assemblies) but that carry a detectable
                                    #   site of every role on the cut copies (2+ exact seeds each):
-                                   #   undetermined = its own class "detectable from parts", left
-                                   #   out of the percentages; detectable = counted as detected;
-                                   #   off = "cut by a contig end". The sites may come from
-                                   #   different copies, so this is never proof of one amplicon
+                                   #   detectable = counted as detected (default since 2026-10-01,
+                                   #   user: every site was seen whole); undetermined = its own
+                                   #   class "detectable from parts", counted as undetermined;
+                                   #   off = "cut by a contig end" (undetermined). The sites may
+                                   #   come from different copies, so this is never proof of one
+                                   #   amplicon
                                    #   off = counted as an escape
 
 report:

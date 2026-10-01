@@ -477,6 +477,7 @@ def assess(
     cfg: Config,
     *,
     calls: list[GenomeCall] | None = None,
+    cut: list[str] | None = None,
 ) -> tuple[list[SiteResult], int, list[str]]:
     """One site per role per genome, from the copy of the region the assay binds best.
 
@@ -523,6 +524,8 @@ def assess(
                 parts = None  # only a detectable judgement from parts replaces anything
         if not copies and parts is None:
             contig_break += 1
+            if cut is not None:
+                cut.append(it.accession)
             continue
         chosen, all_sites = parts if parts is not None else copies[best_i]
         if any("N" in s.s_aln.upper() for s in chosen.values()):
@@ -995,7 +998,7 @@ def _site(it: StoredAssembly, locus: StoredLocus, o: Oligo, strand: str, lo: int
 def _fragment_years(
     sites: list[SiteResult], year_of: dict[str, int | None], listed: dict[int, int],
     shown: list[int], bulges: bool, unassembled: set[str] | None = None,
-    from_parts: set[str] | None = None,
+    from_parts: set[str] | None = None, unjudged: set[str] | None = None,
 ) -> list[FragmentYear]:  # fmt: skip
     """Per year, each genome's outcome from its three best-copy sites together, as in the
     whole-fragment table (user, 2026-09-25: one summary next to the per-oligo tables)."""
@@ -1026,6 +1029,12 @@ def _fragment_years(
             row.by_pair_rule += by_pair
         elif outcome == "undetermined":
             row.undetermined += 1
+    for acc in unjudged or ():  # region there, no site judged (cut, or hidden by N)
+        row = out.get(year_of.get(acc))  # type: ignore[arg-type]
+        if row is not None:
+            row.with_region += 1
+            row.undetermined += 1
+            row.unjudged += 1
     return [out[y] for y in shown]
 
 
@@ -1035,6 +1044,7 @@ _EARLIER, _UNDATED, _NOT_READ = -1, -2, -3  # collection-axis rows that are not 
 def collection_axis(
     sites: list[SiteResult], items: list[StoredAssembly], shown: list[int], bulges: bool,
     unassembled: set[str] | None = None, from_parts: set[str] | None = None,
+    unjudged: set[str] | None = None,
 ) -> CollectionAxis | None:  # fmt: skip
     """The genomes released in the window ``shown``, by collection year (user, 2026-09-30: a
     batch of old samples uploaded late must not make an old lineage look new)."""
@@ -1052,7 +1062,7 @@ def collection_axis(
         bucket[it.accession] = _UNDATED if y is None else (_EARLIER if y < first else y)
     keys = [*range(first, last + 1), _EARLIER, _UNDATED, _NOT_READ]
     rows = {r.year: r for r in _fragment_years(sites, bucket, {}, keys, bulges, unassembled,
-                                                from_parts)}  # fmt: skip
+                                                from_parts, unjudged)}  # fmt: skip
     for key, label in ((_EARLIER, f"before {first}"), (_UNDATED, "no usable date"),
                        (_NOT_READ, "not read yet")):  # fmt: skip
         rows[key].label = label
@@ -1121,6 +1131,7 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
         f"(undetermined, not counted: {undet}"
         + (f", of which {w.unassembled} with copies possibly unassembled" if w.unassembled else "")
         + (f", {w.from_parts} detectable from parts" if w.from_parts else "")
+        + (f", {w.unjudged} with the region cut or hidden by N" if w.unjudged else "")
         + "). The per-oligo and per-year figures are "
         "diagnostics; the status uses the whole fragment over this window."
     ]
@@ -1168,10 +1179,13 @@ def exhaustive_inclusivity(
     source: str = "datasets",
     unassembled: set[str] | None = None,
     from_parts: set[str] | None = None,
+    unjudged: set[str] | None = None,
 ) -> InclusivityResult:
     """Per-release-year inclusivity over every assessed assembly (not a sample).
     ``unassembled``: genomes whose copies are possibly unassembled (:func:`mark_unassembled`),
-    counted as undetermined in the whole-fragment outcome."""
+    counted as undetermined in the whole-fragment outcome. ``unjudged``: genomes with the
+    region but no judged site (cut by a contig end, or hidden by N), counted as undetermined
+    too, as in the channels."""
     year_of = {it.accession: it.year for it in items}
     listed = {y.year: y.listed for y in years}
     lookback = cfg.inclusivity.lookback_years
@@ -1189,12 +1203,12 @@ def exhaustive_inclusivity(
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
     fragment_years = _fragment_years(
         sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable,
-        unassembled or set(), from_parts or set(),
+        unassembled or set(), from_parts or set(), unjudged or set(),
     )  # fmt: skip
     verdict, rationale = fragment_verdict(fragment_years, cfg.inclusivity)
     collection = collection_axis(
         sites, items, shown, cfg.variants.homopolymer_bulges_detectable,
-        unassembled or set(), from_parts or set(),
+        unassembled or set(), from_parts or set(), unjudged or set(),
     )  # fmt: skip
     rationale += _collection_line(collection, "assemblies" if source == "datasets" else "records")
     rationale += [
@@ -1235,11 +1249,11 @@ def exhaustive_inclusivity(
             )
         )
         + (
-            " and 'With region' the number in which the target region was found and assessed. "
-            "Not a sample: the gap between the two is explained below (region not found, hidden "
-            "by N, cut by a "
+            " and 'With region' the number in which the target region was found; those with the "
+            "region cut by a "
             + ("contig" if source == "datasets" else "record")
-            + " end, or not processed yet)."
+            + " end or hidden by N are counted as undetermined. Not a sample: the gap between "
+            "the two is explained below (region not found, or not processed yet)."
         ),
         verdict=verdict,
         rationale=rationale,
@@ -1510,7 +1524,13 @@ def run_exhaustive(
         latest(store.items), copy_rule(cfg), store.dates
     )
     calls: list[GenomeCall] = []
-    sites, contig_break, masked_site = assess(items, assay, amplicon, placed, cfg, calls=calls)
+    cut: list[str] = []
+    sites, contig_break, masked_site = assess(
+        items, assay, amplicon, placed, cfg, calls=calls, cut=cut
+    )
+    # the region is there but no site could be judged: undetermined in the whole fragment, as
+    # in the channels (user, 2026-10-01: "both")
+    unjudged = set(cut) | set(masked_site)
     typical = mark_unassembled(calls, v.multicopy_unassembled) if source == "datasets" else None
     outcomes = {c.accession: genome_outcome(c) for c in calls}
     unassembled = {a for a, o in outcomes.items() if o == GenomeOutcome.UNASSEMBLED}
@@ -1588,9 +1608,18 @@ def run_exhaustive(
     coverage.channel_results = channel_results(assay, items, calls, taxon, ancestors_of)
     inclusivity = exhaustive_inclusivity(
         sites, items, years, assay, cfg, source=source,
-        unassembled=unassembled, from_parts=parts_undetermined,
+        unassembled=unassembled, from_parts=parts_undetermined, unjudged=unjudged,
     )  # fmt: skip
-    missing = coverage.not_found + coverage.contig_break + coverage.masked + coverage.related_only
+    missing = coverage.not_found + coverage.related_only
+    if coverage.contig_break or coverage.masked:
+        end_word = "contig" if source == "datasets" else "record"
+        unit_word = "assemblies" if source == "datasets" else "records"
+        inclusivity.rationale.append(
+            f"{coverage.contig_break + coverage.masked} {unit_word} "
+            f"carry the region but no site could be judged (cut by a {end_word} end in "
+            f"{coverage.contig_break}, hidden by N in {coverage.masked}): they are counted as "
+            "undetermined, in the whole fragment as in the channels."
+        )
     if missing:
         unit, end, col = (
             ("assemblies", "contig", "Assemblies") if source == "datasets"
@@ -1598,8 +1627,7 @@ def run_exhaustive(
         )  # fmt: skip
         inclusivity.rationale.append(
             f"{missing} of {len(items)} assessed {unit} are not in the counts above: "
-            f"the target region was not found in {coverage.not_found}, was hidden by N in "
-            f"{coverage.masked}, was cut by a {end} end in {coverage.contig_break}"
+            f"the target region was not found in {coverage.not_found}"
             + (
                 f" and only resembled by related regions in {coverage.related_only}"
                 if coverage.related_only

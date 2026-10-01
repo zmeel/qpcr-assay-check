@@ -79,10 +79,13 @@ def test_genomes_are_counted_by_collection_year_with_undated_ones_apart(tmp_path
     by_year = {r.year: r.with_region for r in ca.years}
     # with the region: GCF_1 (collected 2024), GCF_2 (2012, released 2025), GCA_3 ('missing')
     assert by_year == {2024: 1}
-    assert (ca.earlier.with_region, ca.undated.with_region, ca.not_read.with_region) == (1, 1, 0)
+    # undated: GCA_3 ('missing') and GCA_5, cut by a contig end and counted as undetermined
+    # (user, 2026-10-01), with no BioSample
+    assert (ca.earlier.with_region, ca.undated.with_region, ca.not_read.with_region) == (1, 2, 0)
+    assert ca.undated.unjudged == 1
     assert ca.earlier.label.startswith("before ")
     line = next(x for x in res.inclusivity.rationale if x.startswith("By collection date"))
-    assert "1 were collected before" in line and "1 carry no usable collection date" in line
+    assert "1 were collected before" in line and "2 carry no usable collection date" in line
     # the verdict and the per-release-year table are unchanged by the second axis
     assert {f.year for f in res.inclusivity.fragment_years} >= {2024, 2025, 2026}
 

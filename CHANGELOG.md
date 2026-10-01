@@ -78,6 +78,13 @@ All notable changes to this project are documented here. The format follows
   date".
 
 ### Changed
+- **Genomes detectable from parts count as detected by default** (user decision 2026-10-01):
+  `variants.judge_from_parts` now defaults to `detectable`; `undetermined` restores the old
+  behaviour.
+- **Genomes whose region is cut by a contig end or hidden by N count as undetermined in the
+  whole-fragment table and the collection axis**, as they already did in the channels (user
+  decision 2026-10-01): the two figures no longer disagree, and the undetermined limit applies
+  to both.
 - The Otwell comparison (MISMATCH_CLASSES section 11, wiki) is called a calibration, not a
   validation: the rules were adjusted after seeing it. The report and wiki say the classes
   concern detection, not quantification (Bru et al. 2008).

@@ -135,8 +135,19 @@ verified NCBI facts) at the start of every session. Newest entry first.
   as status axis, every locus scanned, unified off-target rules, independent validation.
   Note: Neisseria rerun on 2026-09-30 rescanned because store schema 4 (fallback) changed the
   key, not because of the YAML.
-- Not done yet: the user's live runs with this code (enterovirus, then Neisseria and
-  Legionella), then the v2 release. Everything above is pushed (PR #47).
+- Legionella with the v2 code (user, 2026-10-01): inclusivity INCOMPLETE (41.1% of the
+  window undetermined, mostly 1,852 detectable from parts); the channels were 63-64%
+  undetermined because they counted the 4,440 cut genomes and the fragment table did not.
+  The "Tm <= annealing" flag fired 88 times because the primers' perfect Tm (59.8/60.0 °C)
+  sits at the 60 °C annealing: it now needs a drop across the line. Exclusivity WARN (85
+  Coxiella sites); specificity INCOMPLETE (human hit list full).
+- User decisions (2026-10-01): "detectable from parts" counts as detected for every assay
+  (`variants.judge_from_parts` default `detectable`); genomes whose region is cut by a contig
+  end or hidden by N count as undetermined in both the whole-fragment table (and collection
+  axis) and the channels. Expected for Legionella: the from-parts genomes move to detected,
+  but the cut genomes stay undetermined, so the fragment status will likely still be
+  INCOMPLETE.
+- Not done yet: Legionella and Neisseria re-runs with this code, then the v2 release.
 
 ## 2026-09-29 — Overhaul round 2: a generic assay model (advisor); user decisions
 
