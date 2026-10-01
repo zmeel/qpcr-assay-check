@@ -91,11 +91,17 @@ variant is a reason to check the quantification in the laboratory.
 **ΔTm next to the class** (information only). Each site variant in the report also shows the
 estimated change in duplex melting temperature against the perfect match (ΔTm, with Tm and ΔG on
 hover and in the workbook), from primer3's nearest-neighbour model under the configured reaction
-conditions. It helps where the class says little, such as an MGB probe with one mismatch
-(*indeterminate*): a mismatch that costs 1 °C and one that costs 8 °C are not the same risk. The
-model is for unmodified DNA: MGB, LNA and other modifications are not modelled, and a mismatch at
-the 3′-terminal base barely changes Tm although it usually blocks extension. The class remains
-the judgement; ΔTm never changes it.
+conditions. The model is for unmodified DNA, and a mismatch at the 3′-terminal base barely
+changes Tm although it usually blocks extension. For oligos with MGB, LNA or similar
+modifications the model does not apply, so the report shows "ΔTm not applicable" there (the
+computed value only on hover), as the theory reviews of 2026-10-01 advised.
+
+**Tm at or below the annealing temperature.** For unmodified oligos, a site whose predicted
+duplex Tm is at or below the configured annealing temperature is marked "Tm ≤ annealing". The
+methods advisor's review attributes this criterion to the FDA's 2023 policy on the impact of
+viral mutations on COVID-19 tests; that document could not be read from here, so the attribution
+is the reviewer's, not verified. Both figures are information only: the class remains the
+judgement and is never changed by them.
 
 **Calibrated against wet-lab data, not yet validated.** The classes were compared with 132
 synthetic templates of 16 SARS-CoV-2 assays measured by Otwell et al. (2025) under one
