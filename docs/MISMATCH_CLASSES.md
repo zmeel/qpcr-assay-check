@@ -125,10 +125,23 @@ of the caveat the report prints.
 only make a site worse, so when the site's mismatches alone already give `at_risk` or
 `likely_failure`, that class stands, noted "plus a gap" (user, 2026-09-26: a probe variant with 7
 mismatches and a gap was reported indeterminate). Applies to probes and to primer gaps that are
-not a homopolymer length difference (R5b). An oligo base at either end without a partner base in
+not a homopolymer length difference (R5b), except deletions in a probe site (R5c). An oligo base at either end without a partner base in
 the genome (the alignment starts or ends with a genome gap) is read as a mismatch at that
 position, not as a gap: at the 5' end an overhang, at the 3' end a terminal mismatch (user,
 2026-09-26).
+
+**R5c. Deletions in a probe site** (built 2026-10-01, from the two theory reviews in
+`docs/reviews/`): probe bases without a template partner, not at the probe's ends, graded from the
+deletions Otwell et al. 2025 measured in probe sites. C4 ORF8 (26-nt probe site): deletions of up
+to 6 nt gave Ct shifts of at most 5 and no failed detection, also at 50 copies; 7 nt gave a mean
+Ct above 40 at 50 copies; 8 nt was not detected at any level. ncov_n_gene, 3 nt: about +3 Ct,
+detected. Young-S, 3 nt plus three mismatches: not detected at any level. Yale 69/70 del, 6 nt: not
+detected at any level. Encoded: 1-5 nt `at_risk`; 6 nt or more `likely_failure` (at 6 nt the
+assays disagree and the worse is taken); a deletion with three or more mismatches
+`likely_failure`; with one or two mismatches `at_risk`, noted as a combination not measured.
+Insertions in the template within a probe site were not tested and stay R5. One study, SARS-CoV-2
+assays, unmodified ZEN/IBFQ probes under permissive conditions; whether MGB probes behave alike is
+not known.
 
 **R5b. Homopolymer length differences in a primer site** (built 2026-09-26, advisor subagent; the
 class is ours): a single gap block that only changes the length of a run of at least 3 identical
@@ -186,6 +199,14 @@ subagent, 2026-09-25; user decision the same day):
   milder than a single mismatch.
 - Unmodified probe: 1 mismatch outside the last 5 nt `tolerated`, otherwise `at_risk` (longer
   probes are less mismatch-discriminating).
+- Deletions in the template within the probe site: R5c (section 4), the one probe rule with a
+  measured basis.
+
+Both theory reviews of 2026-10-01 (`docs/reviews/`) rank these probe rules as the weakest part of
+the classes and name data not yet used: Kutyavin et al. 2000 (MGB discrimination is greatest when
+the mismatch lies under the MGB, at the probe's 3' end), Süß et al. 2009 and Klungthong et al.
+2010 (one probe mismatch caused clinical false negatives). A position-aware MGB rule is deferred
+until the user decides; it changes results.
 
 ## 7. What changes in the reports
 
@@ -238,7 +259,13 @@ Still open:
    yet.
 4. A live rerun of the NG and enterovirus assays to see the classes on real data.
 
-## 11. Comparison with wet-lab data (Otwell et al. 2025)
+## 11. Calibration against wet-lab data (Otwell et al. 2025)
+
+**This is a calibration set, not a validation.** The rules were changed after seeing these
+outcomes (R3/R3b/R8 on 2026-09-30, R5c on 2026-10-01), so the agreement below is in-sample fit.
+Independent data are still needed: e.g. Knight et al. 2025 (Sci Rep 15:16184), the 90 templates
+behind GoPrime (Howson et al. 2020, Pathogens 9:303) or the laboratory's own tests (the methods
+advisor's review, `docs/reviews/`).
 
 Otwell T, Knight B, Coryell M, et al. Reality check: testing the in silico predictions of false
 negative results due to mutations in SARS-CoV-2 PCR assays using templates with mismatches in
@@ -258,6 +285,9 @@ supplementary Table 1 already carries 2 mismatches against that run's positive c
 | after: detectable (35) | 28 | 6 | 0 | 1 | 0 |
 | after: at risk (88) | 28 | 9 | 36 | 10 | 5 |
 | after: likely failure (9) | 0 | 0 | 3 | 5 | 1 |
+| after R5c: detectable (35) | 28 | 6 | 0 | 1 | 0 |
+| after R5c: at risk (81) | 28 | 9 | 34 | 10 | 0 |
+| after R5c: likely failure (16) | 0 | 0 | 5 | 5 | 6 |
 
 Read: `detectable` held in both versions (the one template undetected at 50 copies after the
 change, Chan-S FN4676, has 3 mismatches only beyond -16 and a +1.1 Ct shift at high copy
@@ -265,9 +295,11 @@ numbers, next to a control at Ct 37.6 at 50 copies). Before the change all 7 `li
 templates without a measurable shift had 4 primer mismatches, 3 of them at the 5' end; after it,
 every `likely failure` template was delayed by at least 3 Ct or undetected. `at risk` now holds
 most delays of 3-6 Ct, as its definition says (a measurable delay, relevant near the limit of
-detection). The templates undetected even at >= 5,000 copies graded `at risk` are probe
-deletions (R5 stays `indeterminate`: a 6-7 nt probe deletion gave anything from +5 Ct to no
-signal) and one probe site with 3 mismatches and a deletion. Limits: SARS-CoV-2 assays only,
+detection). Before R5c the templates undetected even at >= 5,000 copies graded `at risk` were
+probe deletions and one probe site with 3 mismatches and a deletion; with R5c (2026-10-01) all six
+are `likely_failure`, as are two C4 ORF8 templates delayed by 3 Ct or more. One of those, FN5446
+(6 nt deleted in C4 ORF8), was detected with a delay: R5c takes the worse outcome at 6 nt because
+the same deletion length failed completely in the Yale 69/70 del assay. Limits: SARS-CoV-2 assays only,
 one permissive set of conditions, one assay (China_N) dominates the 4-mismatch cases; not a
 validation of the software for a laboratory's own conditions.
 

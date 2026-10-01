@@ -322,8 +322,50 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
                      "judgement, no quantitative source")  # fmt: skip
 
     if gap:
+        deleted, inserted = _probe_gap_bases(q_aln, s_aln)
+        if deleted and not inserted:
+            return _probe_deletion(deleted, mm, _with_ambiguity(by_mismatches, mm, amb))
         return _with_gap(_with_ambiguity(by_mismatches, mm, amb), "gap or bulge in the probe site")
     return _with_ambiguity(by_mismatches, mm, amb)
+
+
+def _probe_gap_bases(q_aln: str, s_aln: str) -> tuple[int, int]:
+    """Probe bases without a template partner (a deletion in the template, not at the probe's
+    ends) and template bases without a probe partner (an insertion in the template)."""
+    ends = _terminal_gap_columns(q_aln, s_aln)
+    deleted = sum(1 for i, (q, s) in enumerate(zip(q_aln, s_aln, strict=True))
+                  if s == "-" and q != "-" and i not in ends)  # fmt: skip
+    inserted = sum(1 for q in q_aln if q == "-")
+    return deleted, inserted
+
+
+def _probe_deletion(deleted: int, mm: list[_Mismatch], by_mismatches: Grade) -> Grade:
+    """R5c: a deletion in the template within the probe site (probe bases without a partner),
+    graded from the deletions Otwell et al. 2025 measured in probe sites (section "mismatches in
+    probe binding region"): C4 ORF8 (26-nt probe site) <= 6 nt deleted: Ct shift <= 5, no
+    failed detection even at 50 copies; 7 nt: mean Ct > 40 at 50 copies; 8 nt: not detected at
+    any level. ncov_n_gene, 3 nt: about +3 Ct, detected. Young-S, 3 nt plus three mismatches:
+    not detected at any level. Yale 69/70 del, 6 nt: not detected at any level. Where the
+    assays disagree (6 nt) the worse outcome is taken. Insertions in the template were not
+    tested and stay R5 indeterminate."""
+    where = f"{deleted} base(s) of the probe site deleted in the template"
+    if by_mismatches.cls == FAILURE:
+        return Grade(FAILURE, by_mismatches.rule, f"{by_mismatches.note}; plus {where}")
+    if deleted >= 6:
+        return Grade(FAILURE, "R5c", f"{where}: {OTWELL} measured 6 nt not detected (Yale 69/70 "
+                     "del; tolerated in C4 ORF8, the worse is taken), 7 nt Ct > 40 at 50 "
+                     "copies and 8 nt not detected (C4 ORF8)")  # fmt: skip
+    if len(mm) >= 3:
+        return Grade(FAILURE, "R5c", f"{where} and {len(mm)} mismatches: {OTWELL} measured "
+                     "a 3-nt deletion with three mismatches not detected at any level "
+                     "(Young-S)")  # fmt: skip
+    note = (
+        f"{where}: {OTWELL} measured Ct shifts of about 3 (3 nt, ncov_n_gene) to at most 5 "
+        "(<= 6 nt, C4 ORF8), detected at 50 copies"
+    )
+    if mm:
+        note += f"; with {len(mm)} mismatch(es) as well, a combination not measured"
+    return Grade(AT_RISK, "R5c", note)
 
 
 def tested_mismatches(site: Any) -> int:
