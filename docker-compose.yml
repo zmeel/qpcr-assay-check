@@ -2,12 +2,13 @@
 # this port from the internet. Run from the folder that contains work/ (as scripts/run_assay.sh).
 #
 #   echo "QAC_UID=$(id -u)" >> .env; echo "QAC_GID=$(id -g)" >> .env   # once: run as you
+#   echo "QAC_PORT=8880" >> .env   # optional: another port when 8080 is taken on the NAS
 #   docker compose build
 #   docker compose run --rm gui gui set-password --work /work
 #   docker compose up -d
 #
 # (Not UID/GID: those are read-only in some shells, e.g. the Synology shell.)
-# Then open http://<nas-address>:8080. NCBI_EMAIL / NCBI_API_KEY come from .env (gitignored).
+# Then open http://<nas-address>:8080 (or QAC_PORT). NCBI_EMAIL / NCBI_API_KEY come from .env (gitignored).
 services:
   gui:
     build: .
@@ -22,5 +23,5 @@ services:
       - ./work:/work
       - ./docs/examples:/examples:ro   # offered for copying on the Assays page
     ports:
-      - "8080:8080"
+      - "${QAC_PORT:-8080}:8080"   # port on the NAS (QAC_PORT in .env); 8080 inside
     restart: unless-stopped
