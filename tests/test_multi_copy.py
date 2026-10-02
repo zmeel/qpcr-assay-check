@@ -270,3 +270,51 @@ def test_the_report_lists_lab_evidence_and_flags_an_entry_that_matches_nothing(t
     html = render_report(result, load_config())
     assert "Laboratory evidence" in html and "applied to 1 record in this run" in html
     assert "matched no site in this run" in html
+
+
+def test_each_escape_says_why_its_best_copy_fails(tmp_path):
+    # user request 2026-10-02 (Neisseria: most escapes were poly-T length variants at NG-R)
+    longer_run = F.replace("AAAA", "AAAAA", 1)  # forward site: poly-A 4 -> 5 only
+    both_bad = AMP.replace(RC_R, mutate(RC_R, [1]))  # reverse: a mismatch at the 3' end
+    res = run(tmp_path, [
+        FakeAssembly("GCA_000000121.1", "2026-02-01", copies(21, AMP.replace(F, longer_run))),
+        FakeAssembly("GCA_000000122.1", "2026-03-01", copies(22, both_bad)),
+        FakeAssembly("GCA_000000123.1", "2026-04-01", copies(23, AMP)),
+    ])  # fmt: skip
+    c = res.coverage.copies
+    assert c.escapes == 2
+    rows = {r.accession: r for r in c.escape_rows}
+    assert set(rows) == {"GCA_000000121.1", "GCA_000000122.1"}
+    run_len, mism = rows["GCA_000000121.1"], rows["GCA_000000122.1"]
+    assert run_len.kind == "run_length" and "forward" in run_len.detail
+    assert "poly-A run 4→5" in run_len.detail
+    assert mism.kind == "mismatch" and "reverse" in mism.detail
+    assert "1 mismatch(es)" in mism.detail and "in the last 5 nt" in mism.detail
+    assert {r.kind: r.genomes for r in c.escape_reasons} == {"run_length": 1, "mismatch": 1}
+    assert all(r.label and r.examples for r in c.escape_reasons)
+    # tolerated bulges (same stored genomes): the run-length escape is detected, the other stays
+    tolerant = run(tmp_path, [
+        FakeAssembly("GCA_000000121.1", "2026-02-01", copies(21, AMP.replace(F, longer_run))),
+    ], variants={"homopolymer_bulges_detectable": True}).coverage.copies  # fmt: skip
+    assert [(r.accession, r.kind) for r in tolerant.escape_rows] == [("GCA_000000122.1",
+                                                                      "mismatch")]  # fmt: skip
+
+
+def test_escape_reasons_in_report_and_workbook(tmp_path):
+    from openpyxl import load_workbook
+
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+    from qpcr_assay_check.report.xlsx import write_workbook
+
+    result, cfg = run_report_result(tmp_path), load_config()
+    cc = result.variant_summary.coverage.copies
+    assert cc.escapes  # the report fixture has escapes
+    html = render_report(result, cfg)
+    assert 'sheet "Escapes"' in html
+    assert cc.escape_reasons[0].label in html
+    write_workbook(result, tmp_path / "r.xlsx")
+    ws = load_workbook(tmp_path / "r.xlsx")["Escapes"]
+    assert [c.value for c in ws[1]][:3] == ["Accession", "Reason",
+                                           "Failing site(s) of the best copy"]  # fmt: skip
+    assert ws.max_row == cc.escapes + 1

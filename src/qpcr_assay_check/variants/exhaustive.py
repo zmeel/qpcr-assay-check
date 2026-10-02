@@ -33,10 +33,12 @@ from ..errors import InputError
 from ..inclusivity.aggregate import _stats
 from ..inclusivity.models import (
     CollectionAxis,
+    DistinctPatterns,
     FragmentYear,
     InclusivityOligoResult,
     InclusivityResult,
     fragment_window,
+    status_years,
 )
 from ..models import Assay, Channel, Oligo
 from ..ncbi.cache import content_key
@@ -62,6 +64,8 @@ from .models import (
     ChannelCoverageRow,
     ChannelResult,
     CopyCoverage,
+    EscapeReason,
+    EscapeRow,
     ExhaustiveCoverage,
     LevelCoverage,
     OligoCoverageRow,
@@ -395,6 +399,8 @@ class GenomeCall:
     unassembled: bool = False  # see mark_unassembled
     from_parts: bool = False  # judged from sites on copies cut by a contig end (_assess_parts)
     channel_state: dict[str, str] = field(default_factory=dict)  # channel -> ok|undetermined|fail
+    escape_kind: str = ""  # why the best copy fails, when it does (see escape_reason)
+    escape_detail: str = ""
 
     @property
     def undetermined(self) -> bool:
@@ -574,7 +580,70 @@ def assess(
                     ),
                 )
             )
+            call = calls[-1]
+            call.escape_kind, call.escape_detail = escape_reason(
+                chosen, call.role_state, bulges,
+                rescued_by_bulges=not bulges and call.n_detectable_other_rule > 0,
+            )  # fmt: skip
     return sites, contig_break, masked_site
+
+
+ESCAPE_KINDS = {
+    "run_length": "single-base run length only: detectable if homopolymer bulges are tolerated",
+    "gap": "a gap in a site's alignment (an insertion or deletion; near a 3' end often how the "
+    "aligner writes two mismatches)",
+    "mismatch": "mismatches",
+    "pair": "mismatches in both primers together (rule R8)",
+}
+
+
+def _site_reason(role: str, s: SiteResult) -> tuple[str, str]:
+    cls = (s.grade or "not detectable").replace("_", " ")
+    who = role if s.query == role else f"{role} {s.query}"
+    if s.note and s.n_mismatch == 0:
+        return "run_length", f"{who}: {cls}, {s.note}"
+    parts = [f"{s.n_mismatch} mismatch(es)"]
+    if s.n_gap:
+        parts.append(f"{s.n_gap} gap(s)")
+    if s.mismatches_last5:
+        parts.append(f"{s.mismatches_last5} change(s) in the last 5 nt")
+    return ("gap" if s.n_gap else "mismatch"), f"{who}: {cls} ({', '.join(parts)})"
+
+
+def escape_reason(
+    chosen: dict[str, SiteResult],
+    state: dict[str, str],
+    bulges: bool = False,
+    rescued_by_bulges: bool = False,
+) -> tuple[str, str]:
+    """Why a genome's best copy fails (user request 2026-10-02): the kind and the failing sites.
+
+    ``rescued_by_bulges``: some copy would be detectable if homopolymer bulges counted, so the
+    genome fails only by the length of a single-base run (rule R5b, the strict setting). Other
+    kinds, most telling first: an insertion or deletion, mismatches, then a primer pair that
+    fails only together (rule R8: each primer alone would be detectable). ('', '') when no role
+    fails."""
+    kinds: list[str] = []
+    details: list[str] = []
+    for role in ROLES:
+        if state.get(role) != "fail" or role not in chosen:
+            continue
+        s = chosen[role]
+        if site_state(s, bulges) == "ok":  # detectable alone: failed with the other primer
+            kinds.append("pair")
+            who = role if s.query == role else f"{role} {s.query}"
+            details.append(f"{who}: detectable alone, fails with the other primer (R8)")
+            continue
+        kind, detail = _site_reason(role, s)
+        kinds.append(kind)
+        details.append(detail)
+    if not kinds:
+        return "", ""
+    if rescued_by_bulges:
+        kind = "run_length"
+    else:
+        kind = next(k for k in ("gap", "mismatch", "pair", "run_length") if k in kinds)
+    return kind, "; ".join(details)
 
 
 def _channel_sites(assay: Assay, every: dict[str, SiteResult]) -> list[SiteResult]:
@@ -919,6 +988,19 @@ def copy_coverage(
     out.from_parts, out.from_parts_accessions = len(parts), parts
     out.from_parts_counted = any(c.from_parts and c.n_detectable > 0 for c in calls)
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
+    by_acc = {c.accession: c for c in calls}
+    out.escape_rows = [
+        EscapeRow(accession=acc, kind=by_acc[acc].escape_kind or "mismatch",
+                  detail=by_acc[acc].escape_detail, assembly_level=by_acc[acc].assembly_level,
+                  copies=by_acc[acc].n_copies)
+        for acc in escapes
+    ]  # fmt: skip
+    kinds = Counter(r.kind for r in out.escape_rows)
+    out.escape_reasons = [
+        EscapeReason(kind=k, label=ESCAPE_KINDS.get(k, k), genomes=n,
+                     examples=[r.accession for r in out.escape_rows if r.kind == k][:10])
+        for k, n in kinds.most_common()
+    ]  # fmt: skip
     unassembled = having(GenomeOutcome.UNASSEMBLED)
     out.unassembled, out.unassembled_accessions = len(unassembled), unassembled
     undet = having(GenomeOutcome.UNDETERMINED)
@@ -1038,7 +1120,95 @@ def _fragment_years(
     return [out[y] for y in shown]
 
 
+def distinct_patterns(
+    sites: list[SiteResult], year_of: dict[str, int], first: int, last: int, bulges: bool,
+    unassembled: set[str] | None = None, from_parts: set[str] | None = None,
+    axis: str = "release",
+) -> DistinctPatterns | None:  # fmt: skip
+    """The judged genomes of the window ``first``-``last`` (by ``year_of``), with genomes whose
+    three best-copy sites are identical (oligo and aligned genome bases) counted once (theory
+    reviews 2026-10-01, user 2026-10-02). Undetermined genomes are left out, as in the status.
+    Identical sites give the same outcome, so each pattern has one."""
+    by_genome: dict[str, dict[str, SiteResult]] = defaultdict(dict)
+    for s in sites:
+        if first <= year_of.get(s.accession, _NOT_READ) <= last:
+            by_genome[s.accession][s.role] = s
+    outcome_of: dict[tuple, str] = {}
+    carriers: Counter[tuple] = Counter()
+    for acc, roles in by_genome.items():
+        if len(roles) < len(ROLES) or acc in (from_parts or ()):
+            continue
+        outcome, _ = grade.combination_outcome(
+            roles["forward"], roles["probe"], roles["reverse"], bulges
+        )
+        if outcome == "undetermined" or (outcome != "detectable" and acc in (unassembled or ())):
+            continue
+        key = tuple((r, roles[r].query, roles[r].s_aln.upper()) for r in ROLES)
+        outcome_of[key] = outcome
+        carriers[key] += 1
+    if not carriers:
+        return None
+    by_outcome = Counter(outcome_of.values())
+    return DistinctPatterns(
+        first=first, last=last, axis=axis, genomes=sum(carriers.values()),
+        patterns=len(carriers), detectable=by_outcome["detectable"],
+        at_risk=by_outcome["at risk"], likely_failure=by_outcome["likely failure"],
+        largest=max(carriers.values()),
+        likely_failure_genomes=sum(n for k, n in carriers.items()
+                                   if outcome_of[k] == "likely failure"),
+    )  # fmt: skip
+
+
+def _distinct_line(d: DistinctPatterns | None, genome_percent: float | None) -> list[str]:
+    """One rationale line: the window with identical site patterns counted once (information)."""
+    if d is None or d.percent is None:
+        return []
+    done = "collected" if d.axis == "collection" else "released"
+    line = (
+        f"Distinct site patterns (information only; the status counts genomes): the "
+        f"{d.genomes:,} judged genomes {done} {d.first}-{d.last} carry {d.patterns:,} "
+        f"different combinations of the three sites; counted once each, {d.percent:.1f}% "
+        f"of the patterns are detectable"
+    )
+    if genome_percent is not None:
+        line += f" (against {genome_percent:.1f}% of the genomes)"
+    line += (
+        f", {100.0 * d.at_risk / d.patterns:.1f}% at risk and "
+        f"{100.0 * d.likely_failure / d.patterns:.1f}% likely failure"
+    )
+    if d.likely_failure:
+        line += (
+            f" ({d.likely_failure:,} failing pattern{'s' if d.likely_failure != 1 else ''} "
+            f"in {d.likely_failure_genomes:,} genomes)"
+        )
+    line += (
+        f". The most common pattern is carried by {d.largest:,} genomes "
+        f"({100.0 * d.largest / d.genomes:.1f}%). A large gap between the two figures means "
+        "a few lineages dominate the database; neither figure is the share of strains in "
+        "circulation."
+    )
+    return [line]
+
+
 _EARLIER, _UNDATED, _NOT_READ = -1, -2, -3  # collection-axis rows that are not a year
+
+
+def collection_bucket(items: list[StoredAssembly], shown: list[int]) -> dict[str, int]:
+    """Each genome released in the window ``shown``: its collection year, or a row that is not
+    a year (collected earlier, no usable date, not read yet)."""
+    if not shown:
+        return {}
+    first, last = min(shown), max(shown)
+    bucket: dict[str, int] = {}
+    for it in items:
+        if not first <= it.year <= last:
+            continue
+        if it.collection_date is None:
+            bucket[it.accession] = _NOT_READ
+            continue
+        y = collection_year(it.collection_date, latest=last)
+        bucket[it.accession] = _UNDATED if y is None else (_EARLIER if y < first else y)
+    return bucket
 
 
 def collection_axis(
@@ -1051,15 +1221,7 @@ def collection_axis(
     if not shown:
         return None
     first, last = min(shown), max(shown)
-    bucket: dict[str, int] = {}
-    for it in items:
-        if not first <= it.year <= last:
-            continue
-        if it.collection_date is None:
-            bucket[it.accession] = _NOT_READ
-            continue
-        y = collection_year(it.collection_date, latest=last)
-        bucket[it.accession] = _UNDATED if y is None else (_EARLIER if y < first else y)
+    bucket = collection_bucket(items, shown)
     keys = [*range(first, last + 1), _EARLIER, _UNDATED, _NOT_READ]
     rows = {r.year: r for r in _fragment_years(sites, bucket, {}, keys, bulges, unassembled,
                                                 from_parts, unjudged)}  # fmt: skip
@@ -1073,12 +1235,27 @@ def collection_axis(
     )  # fmt: skip
 
 
-def _collection_line(axis: CollectionAxis | None, unit: str) -> list[str]:
-    """One rationale line when the collection dates tell a different story (information)."""
+def _collection_line(
+    axis: CollectionAxis | None, unit: str, status_axis: str = "release"
+) -> list[str]:
+    """One rationale line when the collection dates tell a different story (information), or,
+    with the status by collection year, what that status leaves out."""
     if axis is None:
         return []
     total = sum(r.with_region for r in axis.years) + axis.earlier.with_region
     total += axis.undated.with_region + axis.not_read.with_region
+    if status_axis == "collection":
+        apart = axis.undated.with_region + axis.not_read.with_region
+        if not apart:
+            return []
+        return [
+            f"Left out of the status by collection year: {apart} of {total} {unit} released "
+            f"{axis.first_year}-{axis.last_year} with the region "
+            f"({100.0 * apart / total:.1f}%) have no collection year to place them by "
+            f"({axis.undated.with_region} without a usable date"
+            + (f", {axis.not_read.with_region} not read yet" if axis.not_read.with_region else "")
+            + "); they are in the table by collection year and in the figures by release year."
+        ]
     if not total or not (axis.earlier.with_region or axis.undated.with_region):
         return []
     line = (
@@ -1101,15 +1278,20 @@ def _bracket(detected: int, undetermined: int, total: int, unit: str) -> str:
     )
 
 
-def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, list[str]]:
+def fragment_verdict(
+    years: list[FragmentYear], rules: Any, axis: str = "release"
+) -> tuple[Verdict, list[str]]:
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
     current one, undetermined genomes left out of the denominator, at risk counted as not
     detected; too few genomes in the window is INCOMPLETE; when the pooled figure passes, a
     single window year with at least ``min_genomes_per_year`` genomes below
     ``fail_below_percent`` gives WARN (years outside the window never decide). The
-    per-oligo figures are diagnostics only."""
+    per-oligo figures are diagnostics only. ``axis``: whether ``years`` are release years or
+    collection years (``inclusivity.status_axis``); the window counts that year."""
     w = fragment_window(years, rules.verdict_window_years)
+    by_collection = axis == "collection"
+    done, year_word = ("collected", "Collection") if by_collection else ("released", "Release")
     if w is None:
         return Verdict.INCOMPLETE, ["No genome with the target region in the years shown."]
     n, undet = w.n, w.undetermined
@@ -1117,7 +1299,7 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
     span = f"{w.first}-{w.last}"
     if n < rules.min_genomes_for_verdict:
         return Verdict.INCOMPLETE, [
-            f"Too few recent genomes to judge: {n} with the target region released {span} "
+            f"Too few recent genomes to judge: {n} with the target region {done} {span} "
             f"(at least {rules.min_genomes_for_verdict} needed; setting "
             "inclusivity.min_genomes_for_verdict)."
         ]
@@ -1125,7 +1307,7 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
     total = n + undet
     share = 100.0 * undet / total if total else 0.0
     lines = [
-        f"Whole fragment, genomes released {span}: {pct:.1f}% detectable (perfect or "
+        f"Whole fragment, genomes {done} {span}: {pct:.1f}% detectable (perfect or "
         f"tolerated), {100.0 * (det + risk) / n:.1f}% including at risk, "
         f"{100.0 * fail / n:.1f}% likely failure, of {n} genomes with the target region "
         f"(undetermined, not counted: {undet}"
@@ -1159,11 +1341,14 @@ def fragment_verdict(years: list[FragmentYear], rules: Any) -> tuple[Verdict, li
                 p_y = 100.0 * y.detectable / n_y
                 if p_y < rules.fail_below_percent:
                     lines.append(
-                        f"Release year {y.year} on its own: {p_y:.1f}% detectable of {n_y} "
+                        f"{year_word} year {y.year} on its own: {p_y:.1f}% detectable of {n_y} "
                         f"genomes, below the limit of {rules.fail_below_percent:g}% "
                         "(fail_below_percent)."
                     )
-                    verdict, why = Verdict.WARN, " (a single release year below the limit)"
+                    verdict, why = (
+                        Verdict.WARN,
+                        f" (a single {year_word.lower()} year below the limit)",
+                    )
     # written last, so the sentence always names the status the section ends with
     lines[0] += f" Status: {STATUS_LABEL[verdict]}{why}."
     return verdict, lines
@@ -1201,16 +1386,37 @@ def exhaustive_inclusivity(
         ]  # fmt: skip
         oligo = " / ".join(o.sequence for o in assay.by_role(role))
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
+    bulges = cfg.variants.homopolymer_bulges_detectable
     fragment_years = _fragment_years(
-        sites, year_of, listed, shown, cfg.variants.homopolymer_bulges_detectable,
+        sites, year_of, listed, shown, bulges,
         unassembled or set(), from_parts or set(), unjudged or set(),
     )  # fmt: skip
-    verdict, rationale = fragment_verdict(fragment_years, cfg.inclusivity)
     collection = collection_axis(
-        sites, items, shown, cfg.variants.homopolymer_bulges_detectable,
-        unassembled or set(), from_parts or set(), unjudged or set(),
-    )  # fmt: skip
-    rationale += _collection_line(collection, "assemblies" if source == "datasets" else "records")
+        sites, items, shown, bulges, unassembled or set(), from_parts or set(), unjudged or set()
+    )
+    axis = cfg.inclusivity.status_axis
+    by_collection = axis == "collection"
+    status_rows = (collection.years if collection else []) if by_collection else fragment_years
+    verdict, rationale = fragment_verdict(status_rows, cfg.inclusivity, axis)
+    unit = "assemblies" if source == "datasets" else "records"
+    if by_collection:
+        rw = fragment_window(fragment_years, cfg.inclusivity.verdict_window_years)
+        if rw is not None and rw.percent is not None:
+            rationale.append(
+                f"By release year (information only; the status uses the collection year): "
+                f"{rw.percent:.1f}% detectable of {rw.n} {unit} released {rw.first}-{rw.last} "
+                f"(undetermined, not counted: {rw.undetermined})."
+            )
+    rationale += _collection_line(collection, unit, axis)
+    w = fragment_window(status_rows, cfg.inclusivity.verdict_window_years)
+    distinct = None
+    if w is not None:
+        axis_year = collection_bucket(items, shown) if by_collection else year_of
+        distinct = distinct_patterns(
+            sites, axis_year, w.first, w.last, bulges, unassembled or set(), from_parts or set(),
+            axis,
+        )  # fmt: skip
+        rationale += _distinct_line(distinct, w.percent)
     rationale += [
         f"{y.year}: {y.listed} "
         + (
@@ -1236,6 +1442,8 @@ def exhaustive_inclusivity(
         oligos=oligos,
         fragment_years=fragment_years,
         collection=collection,
+        status_axis=axis,
+        distinct=distinct,
         sample_scheme=(
             (
                 "Every genome assembly of the target in NCBI Datasets (current versions, one copy "
@@ -1259,15 +1467,27 @@ def exhaustive_inclusivity(
         rationale=rationale,
         limitations=(
             [
-                "Assemblies are grouped by NCBI release year; the collection date recorded with "
-                "the sample is shown as a second axis (information only).",
+                (
+                    "The status window counts the collection year the submitter recorded; "
+                    "assemblies without a usable one are left out of it and counted. The NCBI "
+                    "release year is shown as the first table."
+                    if by_collection
+                    else "Assemblies are grouped by NCBI release year; the collection date "
+                    "recorded with the sample is shown as a second axis (information only)."
+                ),
                 "Only genome assemblies are covered; sequences submitted without an assembly "
                 "(single genes, amplicons) are not part of NCBI Datasets' genome collection.",
             ]
             if source == "datasets"
             else [
-                "Records are grouped by NCBI publication year; the collection date recorded with "
-                "the sequence is shown as a second axis (information only).",
+                (
+                    "The status window counts the collection year the submitter recorded; "
+                    "records without a usable one are left out of it and counted. The NCBI "
+                    "publication year is shown as the first table."
+                    if by_collection
+                    else "Records are grouped by NCBI publication year; the collection date "
+                    "recorded with the sequence is shown as a second axis (information only)."
+                ),
                 "Records that do not contain the target region (other genes, partial sequences) "
                 "are counted as 'not found' and are not part of the per-year counts.",
             ]
@@ -1636,14 +1856,20 @@ def run_exhaustive(
             + " "
             f"(see the Variant summary). Per year, '{col}' minus 'With region' is that gap."
         )
-    w = fragment_window(inclusivity.fragment_years, cfg.inclusivity.verdict_window_years)
+    w = fragment_window(status_years(inclusivity), cfg.inclusivity.verdict_window_years)
     if w is not None and w.percent is not None and not_located:
-        k = sum(1 for it in items if it.accession in not_located
-                and w.first <= int(it.release_date[:4]) <= w.last)  # fmt: skip
+        by_collection = inclusivity.status_axis == "collection"
+        if by_collection:
+            shown = [f.year for f in inclusivity.fragment_years]
+            year_of = collection_bucket(items, shown)
+        else:
+            year_of = {it.accession: int(it.release_date[:4]) for it in items}
+        k = sum(1 for acc in not_located if w.first <= year_of.get(acc, _NOT_READ) <= w.last)
         if k:
             worst = 100.0 * w.detectable / (w.n + k)
             inclusivity.rationale.append(
-                f"{k} {'record' if source != 'datasets' else 'genome'}(s) released "
+                f"{k} {'record' if source != 'datasets' else 'genome'}(s) "
+                f"{'collected' if by_collection else 'released'} "
                 f"{w.first}-{w.last} carry the sequence either side of the region but no "
                 "locatable copy of the fragment (not in the counts above): if all were escapes, "
                 f"{worst:.1f}% would be detectable instead of {w.percent:.1f}%."

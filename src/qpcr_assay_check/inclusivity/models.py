@@ -97,6 +97,27 @@ class CollectionAxis(BaseModel):
     )
 
 
+class DistinctPatterns(BaseModel):
+    """The status window again, with genomes of identical sites counted once (theory reviews
+    2026-10-01, user 2026-10-02): a clonal outbreak sequenced a thousand times is one pattern.
+    Information only, next to the genome count; the status uses the genome count."""
+
+    first: int
+    last: int
+    axis: str = Field(default="release", description="release or collection year")
+    genomes: int = Field(description="judged genomes in the window (undetermined left out)")
+    patterns: int = Field(description="distinct best-copy site patterns among them")
+    detectable: int = 0
+    at_risk: int = 0
+    likely_failure: int = 0
+    largest: int = Field(default=0, description="genomes carrying the most common pattern")
+    likely_failure_genomes: int = 0
+
+    @property
+    def percent(self) -> float | None:
+        return 100.0 * self.detectable / self.patterns if self.patterns else None
+
+
 @dataclass(frozen=True)
 class FragmentWindow:
     """The whole-fragment outcome pooled over the verdict window: the last ``window_years``
@@ -162,7 +183,22 @@ class InclusivityResult(BaseModel):
     collection: CollectionAxis | None = Field(
         default=None, description="the same genomes by collection year (exhaustive analysis)"
     )
+    status_axis: str = Field(
+        default="release",
+        description="release: the status window counts release years; collection: collection "
+        "years (genomes without a usable date left out)",
+    )
+    distinct: DistinctPatterns | None = Field(
+        default=None, description="the status window with identical site patterns counted once"
+    )
     sample_scheme: str = ""
     verdict: Verdict
     rationale: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+
+
+def status_years(inc: InclusivityResult) -> list[FragmentYear]:
+    """The rows the status window is pooled from: release years, or collection years."""
+    if inc.status_axis == "collection":
+        return inc.collection.years if inc.collection is not None else []
+    return inc.fragment_years

@@ -400,6 +400,9 @@ class InclusivitySettings(_Strict):
     # theory reviews 2026-10-01: undetermined genomes leave the denominator; when they are more
     # than this share of the genomes with the region, the percentage is not a status
     max_undetermined_percent: float = 25.0
+    # theory reviews 2026-10-01, user 2026-10-02: which year decides the status window. The
+    # other axis is reported as information next to it.
+    status_axis: Literal["release", "collection"] = "release"
 
     @model_validator(mode="after")
     def _sane(self) -> InclusivitySettings:

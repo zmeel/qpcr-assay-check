@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Why each escape fails** (user request 2026-10-02, after checking GCF_001025995.1 by hand in
+  the Neisseria run: its 3 assembled copies all read A8/A9 at NG-R's poly-A 7): every escape now
+  carries the failing site(s) of its best copy and a kind: *single-base run length only*
+  (detectable if homopolymer bulges were tolerated), *a gap in a site's alignment*,
+  *mismatches*, or *mismatches in both primers together* (rule R8). The report's escape row
+  counts them per kind with examples; the workbook has a sheet "Escapes" with every escape, its
+  kind, the failing sites, the assembly level and the number of copies; results.json has
+  `escape_reasons` and `escape_rows`. Nothing about which genomes count as escapes changes.
+- **Distinct site patterns** (theory reviews 2026-10-01, item 3; user go-ahead 2026-10-02):
+  next to the genome count, the status window again with genomes whose three best-copy sites
+  are identical (oligo and aligned genome bases) counted once: how many patterns, the share
+  detectable, at risk and likely failure, how many genomes carry the failing patterns and the
+  most common one. A clonal outbreak sequenced a thousand times weighs once here. Information
+  only: the status still counts genomes. In the rationale, the summary row, the report under
+  the whole-fragment table and results.json (`inclusivity.distinct`).
+- **Status by collection year** (theory reviews 2026-10-01, item 4; user go-ahead 2026-10-02):
+  new setting `inclusivity.status_axis: release | collection`, default `release` (unchanged
+  results). With `collection`, the status window counts the year the sample was collected (the
+  table by collection year), genomes without a usable collection date are left out of it and
+  counted in a rationale line with their share, and the release-year figure is given as
+  information. The channel statuses are over all assessed genomes and do not change.
+
 ## [2.1.0] - 2026-10-02
 
 A browser interface for one user, behind a password, for a LAN or VPN (steps G1-G5 below):

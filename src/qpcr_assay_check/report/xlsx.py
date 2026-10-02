@@ -411,6 +411,14 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                     None,
                 )  # fmt: skip
     cov_all = result.variant_summary.coverage if result.variant_summary else None
+    if cov_all is not None and cov_all.copies and cov_all.copies.escape_rows:
+        _sheet(
+            wb, "Escapes", ["Accession", "Reason", "Failing site(s) of the best copy",
+                            "Assembly level", "Copies assessed"],
+            [[e.accession, e.kind, e.detail, e.assembly_level, e.copies]
+             for e in cov_all.copies.escape_rows],
+            None,
+        )  # fmt: skip
     if cov_all is not None and cov_all.copies and cov_all.copies.unassembled_accessions:
         _sheet(
             wb, "Unassembled", ["Accession", "Note"],

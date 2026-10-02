@@ -48,12 +48,20 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
         out["coverage"] = _scalars(cov)
         out["coverage"]["years"] = cov.get("years")
         out["copies"] = _scalars(copies)
-        for key in ("oligos", "role_none", "role_undetermined", "channels", "by_level"):
+        for key in (
+            "oligos",
+            "role_none",
+            "role_undetermined",
+            "channels",
+            "by_level",
+            "escape_reasons",
+        ):
             out["copies"][key] = copies.get(key)
         out["channels"] = cov.get("channel_results")
     inc = data.get("inclusivity")
     if inc:
-        out["inclusivity"] = {k: inc.get(k) for k in ("verdict", "rationale", "fragment_years")}
+        keys = ("verdict", "rationale", "fragment_years", "status_axis", "distinct")
+        out["inclusivity"] = {k: inc.get(k) for k in keys}
         ca = inc.get("collection")
         if ca:
             out["inclusivity"]["collection"] = {

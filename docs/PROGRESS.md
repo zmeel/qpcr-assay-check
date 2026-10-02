@@ -3,7 +3,38 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
-## 2026-10-02 — GUI step G1
+## 2026-10-02 — Theory-review items 3 and 4
+
+- User: "Start with 3 and 4" (of the deferred review items).
+- Item 3, distinct site patterns: `distinct_patterns()` in variants/exhaustive.py groups the
+  judged genomes of the status window by their three best-copy sites (role, oligo label,
+  aligned genome bases), each pattern counted once; `DistinctPatterns` in
+  inclusivity/models.py, `InclusivityResult.distinct`; a rationale line, the summary row's
+  result, a paragraph under the whole-fragment table. Information only.
+- Item 4, `inclusivity.status_axis: release | collection` (default release). With collection,
+  `fragment_verdict` gets the collection-year rows (`status_years()`), undated genomes are
+  counted in a "Left out of the status by collection year" line, the release-year figure is
+  information; the summary row, the not-located line and the report follow the axis. Channel
+  statuses are over all genomes and unchanged.
+- Open for the user: with `collection`, should a large share without a usable date make the
+  status Incomplete (as max_undetermined_percent does for undetermined genomes)? Now it is only
+  reported. Run Neisseria/Legionella with both axes to compare.
+- tests/test_status_axis.py (6 tests).
+
+## 2026-10-02 — Browser interface G1-G5; v2.1.0 released
+
+- Neisseria escapes checked with the user (2026-10-02): GCF_001025995.1 (first escape example)
+  has 3 assembled copies of the region (2 whole on the reverse strand with A8 and A9 at NG-R's
+  poly-A 7, 1 cut at the end of contig 275 with T9 = A9); no copy with A7. The tool found every
+  copy; the escape comes from the strict homopolymer rule (best copy A8, at risk, R5b), not
+  the contig end. Not "possibly unassembled" (3 copies vs median 9) because complete genomes
+  fail with the same three sites. Most of the 1,889 escapes are this kind (933 reverse A8 only,
+  713 with a tolerated forward mismatch as well); 92.8% if bulges were tolerated. Whether NG-R
+  primes over T8/T9 is a wet-lab question.
+- Added (user: "Add escape reason per genome"): escape_reason() in variants/exhaustive.py,
+  CopyCoverage.escape_reasons / escape_rows, the report's escape row by kind, workbook sheet
+  "Escapes", run_summary includes escape_reasons. Tests in test_genome_outcome.py and
+  test_multi_copy.py. No change to who counts as an escape.
 
 - v2.0.0 tag pushed by the user (verified: annotated, on c5ef505, the merge of PR #56).
 - GUI decisions (user, 2026-10-02): one user with a password, LAN/VPN only, 8 hours idle
@@ -56,11 +87,25 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (sha256 of the signing key) checked on every request, so a new password, also from the CLI,
   ends other sessions without a restart; wiki page Browser-interface.md, README section,
   USER_GUIDE section. tests/test_gui_settings.py (6 tests).
-- Release v2.1.0 prepared (version 2.1.0, CHANGELOG section). Tag v2.1.0 on main once the PR
-  is merged; the user pushes the tag (this session cannot push tags). Docker: rebuild at the
-  tag.
-- Not done yet: the live checks of the GUI on the NAS (a full run with NCBI from the browser);
-  the Neisseria runs to finish the 2024 genomes; Legionella with the v2 code.
+- PRs merged by the user: #57 (G1), #58 (QAC_UID/QAC_GID), #59 (G2), #60 (QAC_PORT), #61 (G3),
+  #62 (G4), #63 (G5 + release).
+- v2.1.0 released: version 2.1.0, CHANGELOG [2.1.0]; annotated tag v2.1.0 pushed by the user on
+  5a4db38 (the merge of PR #63), verified on the remote. This session cannot push tags (403):
+  the user pushes them. Docker on the NAS: `git checkout v2.1.0`, `docker compose build`,
+  `docker compose up -d`; the GUI container runs the image's code, so every update needs a
+  rebuild (run_assay.sh mounts src/ and does not).
+- NAS setup as used: `.env` holds NCBI_EMAIL, NCBI_API_KEY, QAC_UID, QAC_GID and QAC_PORT=8880
+  (8080 is taken on the NAS); `docker-compose.yml` needs no local edits.
+- Not done yet:
+  - live check of the GUI on the NAS: a full run with NCBI started from the browser (only
+    QC-only runs went through the queue here; this session cannot reach NCBI);
+  - Neisseria: about 29,600 of 51,583 genomes left (two runs at 20,000), now possible from the
+    browser;
+  - Legionella with the v2 code;
+  - publishing docs/wiki/ (the new Browser-interface page included) to the GitHub wiki (user);
+  - theory-review items deferred to the user: position-aware MGB rule, a third source for
+    terminal mismatch types, a deduplicated inclusivity figure, collection date as the status
+    axis, scanning every locus, one rule set for off-target sites, independent validation.
 
 ## 2026-10-02 — v2.0.0 release
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..config import Config
-from ..inclusivity.models import fragment_window
+from ..inclusivity.models import fragment_window, status_years
 from ..results import RunResult
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL, Verdict
@@ -167,7 +167,7 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
     if inc is None or not inc.tier_searched:
         return _row("Target detection", "–", section.note, None, "", "inclusivity")
     rules = cfg.inclusivity
-    w = fragment_window(inc.fragment_years, rules.verdict_window_years)
+    w = fragment_window(status_years(inc), rules.verdict_window_years)
     if not inc.exhaustive or w is None or w.percent is None:
         res = inc.rationale[0] if inc.rationale else section.note
         return _row(
@@ -186,15 +186,21 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
         f"{pct:.1f}% detectable, {100.0 * (w.detectable + w.at_risk) / w.n:.1f}% including at "
         f"risk, {100.0 * w.likely_failure / w.n:.1f}% likely failure"
     )
+    d = inc.distinct
+    if d is not None and d.percent is not None:
+        res += f" ({d.percent:.1f}% of {d.patterns:,} distinct site patterns, information)"
+    by_collection = inc.status_axis == "collection"
+    done = "collected" if by_collection else "released"
     scope = (
-        f"whole fragment, {w.n:,} {what} released {w.first}–{w.last} "
+        f"whole fragment, {w.n:,} {what} {done} {w.first}–{w.last} "
         f"({w.undetermined:,} undetermined, not counted"
         + (f", of which {w.unassembled:,} copies possibly unassembled" if w.unassembled else "")
         + (f", {w.from_parts:,} detectable from parts" if w.from_parts else "")
         + ")"
     )
     # the whole fragment's own status; a worse section status comes from a channel
-    year_below = any(line.startswith("Release year ") for line in inc.rationale)
+    year_word = "collection" if by_collection else "release"
+    year_below = any(line.startswith(f"{year_word.capitalize()} year ") for line in inc.rationale)
     if pct < rules.fail_below_percent:
         own = Verdict.FAIL
     elif pct < rules.warn_below_percent or year_below:
@@ -210,7 +216,7 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
         reason = (
             f"below your review limit of {rules.warn_below_percent:g}% detectable"
             if pct < rules.warn_below_percent
-            else f"a single release year below {rules.fail_below_percent:g}%"
+            else f"a single {year_word} year below {rules.fail_below_percent:g}%"
         )
     elif inc.verdict is Verdict.INCOMPLETE:
         reason = inc.rationale[0] if inc.rationale else ""
