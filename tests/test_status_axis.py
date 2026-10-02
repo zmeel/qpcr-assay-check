@@ -110,4 +110,9 @@ def test_report_and_summary_follow_the_axis(tmp_path):
             assert "complete collection years" in html
         else:
             assert "genomes released 2024–2026" in row.scope
+            # the cut genome GCA_5 is named among the undetermined, as in the rationale
+            assert (
+                "(1 undetermined, not counted, of which 1 with the region cut or hidden by N)"
+                in row.scope
+            )
             assert "by collection year</strong> (information only)" in html
