@@ -3,6 +3,20 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-10-02 — GUI step G1
+
+- v2.0.0 tag pushed by the user (verified: annotated, on c5ef505, the merge of PR #56).
+- GUI decisions (user, 2026-10-02): one user with a password, LAN/VPN only, 8 hours idle
+  sign-out, mockup first (approved: https://claude.ai/artifact/S8iW1kmSFw65wYQJuDULmx).
+  Phases G1-G5 in SPEC (amendment 2026-10-02).
+- G1 built: `qpcr_assay_check/gui/` (auth.py: scrypt hash, LoginThrottle; records.py: record
+  index cached by mtime; app.py: sessions, form tokens, CSP, login/logout/dashboard; templates
+  and static with vendored IBM Plex 5.3.0 from @fontsource, OFL texts beside them), CLI
+  `gui set-password` / `gui serve`, extra `gui`, Dockerfile installs it, docker-compose.yml,
+  `work/` gitignored, CI installs `.[dev,gui]`. tests/test_gui.py (17 tests). Checked in
+  Chromium (light, dark, 390 px wide) against two sample records.
+- Next: G2 (assays: form and YAML editor, live validation, QC only), after the user's go-ahead.
+
 ## 2026-10-02 — v2.0.0 release
 
 - User go-ahead for v2 (2026-10-02) after the enterovirus, Legionella and Neisseria runs with

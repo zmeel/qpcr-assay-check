@@ -1,0 +1,22 @@
+# The browser interface on a NAS or server (GUI phase G1). LAN or VPN only: do not forward
+# this port from the internet. Run from the folder that contains work/ (as scripts/run_assay.sh).
+#
+#   docker compose build
+#   UID=$(id -u) GID=$(id -g) docker compose run --rm gui gui set-password --work /work
+#   UID=$(id -u) GID=$(id -g) docker compose up -d
+#
+# Then open http://<nas-address>:8080. NCBI_EMAIL / NCBI_API_KEY come from .env (gitignored).
+services:
+  gui:
+    build: .
+    image: qpcr-assay-check
+    command: ["gui", "serve", "--host", "0.0.0.0", "--port", "8080", "--work", "/work"]
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:  # read from .env in this folder (Compose substitutes them)
+      NCBI_EMAIL: ${NCBI_EMAIL:-}
+      NCBI_API_KEY: ${NCBI_API_KEY:-}
+    volumes:
+      - ./work:/work
+    ports:
+      - "8080:8080"
+    restart: unless-stopped

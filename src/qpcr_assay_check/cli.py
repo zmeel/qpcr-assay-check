@@ -479,3 +479,68 @@ def search(
         typer.echo(f"WARNING: {w}")
     typer.echo(f"Results written to {search_dir}")
     raise typer.Exit(EXIT_CODES[Verdict.WARN] if outcome.saturated else 0)
+
+
+gui_app = typer.Typer(
+    help="Browser interface for one user (needs the 'gui' extra). LAN or VPN only.",
+    no_args_is_help=True,
+)
+app.add_typer(gui_app, name="gui")
+
+WorkDir = Annotated[
+    Path,
+    typer.Option(
+        "--work",
+        help="Folder with results/ and runs/; the GUI keeps its password in <work>/gui/.",
+    ),
+]
+
+
+@gui_app.command("set-password")
+def gui_set_password(work: WorkDir = Path(".")) -> None:
+    """Set the GUI password (asked twice, never echoed). Ends every open session."""
+    from .gui.auth import AuthStore, check_new_password
+
+    password = typer.prompt("New password", hide_input=True, confirmation_prompt=True)
+    problem = check_new_password(password)
+    if problem:
+        _fail(f"Password not set: {problem}.")
+    AuthStore(work).set_password(password)
+    typer.echo(f"Password set in {AuthStore(work).path}. Restart the GUI if it is running.")
+
+
+@gui_app.command("serve")
+def gui_serve(
+    work: WorkDir = Path("."),
+    host: Annotated[
+        str, typer.Option(help="Address to listen on (0.0.0.0 inside Docker).")
+    ] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="Port to listen on.")] = 8080,
+    idle_hours: Annotated[
+        float, typer.Option(help="Sign out after this many hours without activity.")
+    ] = 8.0,
+    secure_cookie: Annotated[
+        bool, typer.Option(help="Send the session cookie over HTTPS only (behind a TLS proxy).")
+    ] = False,
+    verbose: Annotated[int, typer.Option("-v", count=True, help="More logging.")] = 1,
+) -> None:
+    """Start the browser interface."""
+    _setup_logging(verbose)
+    try:
+        import uvicorn
+
+        from .gui.app import GuiSettings, create_app
+    except ImportError as exc:
+        _fail(f"The GUI needs its extra dependencies: pip install 'qpcr-assay-check[gui]' ({exc}).")
+        return
+    if idle_hours <= 0:
+        _fail("--idle-hours must be positive.")
+    try:
+        web = create_app(
+            GuiSettings(work_dir=work, idle_hours=idle_hours, secure_cookie=secure_cookie)
+        )
+    except RuntimeError as exc:
+        _fail(str(exc))
+        return
+    log.info("GUI on http://%s:%d (work folder %s)", host, port, work.resolve())
+    uvicorn.run(web, host=host, port=port, log_level="info" if verbose else "warning")

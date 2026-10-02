@@ -10,7 +10,7 @@ FROM python:3.12-slim AS build
 WORKDIR /src
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir --no-compile .
+RUN pip install --no-cache-dir --no-compile ".[gui]"
 
 FROM python:3.12-slim
 
@@ -22,6 +22,8 @@ COPY LICENSE /LICENSE
 RUN useradd --create-home --uid 1000 qpcr
 USER qpcr
 WORKDIR /work
+# the browser interface (qpcr-assay-check gui serve --host 0.0.0.0); see docker-compose.yml
+EXPOSE 8080
 
 ENTRYPOINT ["qpcr-assay-check"]
 CMD ["--help"]

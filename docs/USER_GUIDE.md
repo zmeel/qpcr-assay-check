@@ -70,6 +70,38 @@ full run also found and led to fixing a real bug (the exclusivity tier had no ex
 assay's own target taxid — see Limitations below and `docs/ARCHITECTURE.md`), then confirmed fixed
 on a second live run.
 
+### Browser interface (G1, after v2.0.0)
+
+A browser interface for one person runs in the same image. It is meant for the local network
+or a VPN: do not forward its port from the internet. This first step has the sign-in and the
+dashboard (the latest record per assay and the recent records under `work/results`); editing
+assays, starting runs, following them and reading reports in the browser follow in later steps.
+
+```bash
+docker compose build
+# set the password once (asked twice; at least 10 characters). Only a salted scrypt hash is kept,
+# with the session key, in work/gui/auth.json (mode 0600; work/ is not in git)
+UID=$(id -u) GID=$(id -g) docker compose run --rm gui gui set-password --work /work
+UID=$(id -u) GID=$(id -g) docker compose up -d
+# open http://<nas-address>:8080
+```
+
+Without Docker: `pip install 'qpcr-assay-check[gui]'`, then
+`qpcr-assay-check gui set-password --work work` and `qpcr-assay-check gui serve --work work`
+(listens on 127.0.0.1:8080 unless `--host`/`--port` say otherwise).
+
+- **Sign-in:** password only (one user). After three wrong attempts in a row, each further
+  attempt from the same address waits 2, 4, 8, ... seconds (at most 5 minutes); failures are
+  logged.
+- **Sessions:** a signed cookie that page scripts cannot read and browsers do not send from other
+  sites; it ends after 8 hours without activity (`--idle-hours`). Setting a new password ends
+  every session (restart the GUI after `set-password`). Behind an HTTPS reverse proxy, add
+  `--secure-cookie`.
+- **No outside requests:** fonts (IBM Plex, SIL Open Font License), styles and the one small
+  script ship with the package; the pages forbid loading anything from elsewhere.
+- The NCBI email and API key still come only from the environment (`.env`); the GUI never shows
+  or stores them.
+
 ## Quick start
 
 ```bash
