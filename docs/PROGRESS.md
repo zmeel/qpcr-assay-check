@@ -3,6 +3,15 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-10-02 — v2.0.0 release
+
+- User go-ahead for v2 (2026-10-02) after the enterovirus, Legionella and Neisseria runs with
+  the v2 code. Version 2.0.0 in pyproject.toml; CHANGELOG section with the breaking changes.
+  Tag v2.0.0 on main once the release PR is merged (as for 1.x). Docker: rebuild the image at
+  the tag (`docker build -t qpcr-assay-check .`) so the tool version in reports reads 2.0.0;
+  run_assay.sh mounts src/ and so already ran the v2 code.
+- Next phase (user, 2026-10-02): a browser GUI, after the release.
+
 ## 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
 
 - Step 8, Legionella (user, 2026-09-29 22:24 to 2026-09-30 08:54, 11,911 assemblies in one run, about 3.2 s each):

@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-02
+
+A generic assay model and an exhaustive, genome-by-genome analysis replace the sampled
+inclusivity of 1.x. **Breaking:** assay files gain `loci:` and `channels:` (1.x files without
+them still load as one locus and one channel); the `panel` command, the run history,
+`variants.source: blast_hits` and `inclusivity.sample_per_window` are gone; the region store
+changed format, so every genome is scanned again once. Results of 1.x and 2.0 are not
+comparable. Highlights: chain locator for every copy of a multi-copy target, one documented
+outcome per genome, per-channel detection, mismatch classes calibrated on wet-lab data
+(Otwell 2025), BLAST score floors and a partner scan for specificity, ΔTm/ΔG per variant,
+collection date as a second axis, and bracketed undetermined counts. Live checks on three
+assays (enterovirus, *N. gonorrhoeae*, *Legionella*) are summarised in docs/PROGRESS.md.
+
 ### Added
 - **Two independent reviews of the theoretical background** (2026-10-01), kept verbatim in
   `docs/reviews/` with a comparison and the list of what was taken up.
