@@ -77,3 +77,25 @@ def test_a_fragment_missing_from_the_assembly_and_a_copy_not_cut():
         "not_assembled", CUT_KINDS["not_assembled"]
     )  # fmt: skip
     assert cut_kind(item(locus(False, 40)), *args)[0] == "other"
+
+
+def test_a_fragment_not_in_the_assembly_counts_as_not_found():
+    from qpcr_assay_check.variants.exhaustive import fragment_not_assembled
+
+    def locus(truncated: bool, seeds: int) -> StoredLocus:
+        return StoredLocus(contig="c", strand="+", start=1, end=40, region="A" * 40,
+                           offset=30, n_seeds=seeds, truncated=truncated)  # fmt: skip
+
+    def item(acc, *loci):
+        return StoredAssembly(accession=acc, release_date="2026-01-01", status="found",
+                              n_loci=len(loci), loci=list(loci))  # fmt: skip
+
+    items = [
+        item("FLANK.1", locus(True, 0), locus(True, 0)),  # only flanks at contig ends
+        item("PART.1", locus(True, 0), locus(True, 20)),  # part of the fragment assembled
+        item("WHOLE.1", locus(False, 60)),
+    ]
+    out, moved = fragment_not_assembled(items)
+    assert moved == ["FLANK.1"]
+    assert [(it.status, it.n_loci) for it in out] == [("not_found", 0), ("found", 2),
+                                                      ("found", 1)]  # fmt: skip

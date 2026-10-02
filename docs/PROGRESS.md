@@ -30,8 +30,15 @@ verified NCBI facts) at the start of every session. Newest entry first.
 - 25% undated limit pushed (user: "Push and make break down"). Breakdown of the cut genomes
   built: `cut_kind()` and `CUT_KINDS` in variants/exhaustive.py, `CutReason` and
   `ExhaustiveCoverage.cut_reasons`, report coverage row, workbook coverage sheet, run_summary.
-  No count changes. tests/test_cut_reasons.py. Next: the user reruns Legionella and decides
-  whether a kind (e.g. "fragment not in the assembly") should leave the denominator.
+  No count changes. tests/test_cut_reasons.py.
+- Legionella breakdown (user, run 2026-10-02T12:47Z): of 4,441 cut, 4,174 have one or two sites
+  cut off with the whole ones detectable (2,632 probe cut off, both primers whole: the contig
+  ends fall inside the probe, likely the rRNA-operon repeat), 161 fragment not in the assembly,
+  104 a site cut off and a whole one failing, 2 every site whole but not all detectable.
+- User decision ("Go with 1 and 2"): keep the cut genomes undetermined (Legionella stays
+  Incomplete, with the bracket); count "fragment not in the assembly" as region not found:
+  `fragment_not_assembled()` in variants/exhaustive.py before the assessment,
+  `ExhaustiveCoverage.not_assembled`, report and workbook rows. Test in test_cut_reasons.py.
 
 ## 2026-10-02 — Browser interface G1-G5; v2.1.0 released
 
