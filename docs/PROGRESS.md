@@ -55,8 +55,12 @@ verified NCBI facts) at the start of every session. Newest entry first.
   NCBI env set/not set; storage measured on request with a 5 s limit), session generation
   (sha256 of the signing key) checked on every request, so a new password, also from the CLI,
   ends other sessions without a restart; wiki page Browser-interface.md, README section,
-  USER_GUIDE section. tests/test_gui_settings.py (7 tests).
-- Next: release v2.1.0 (version, CHANGELOG, tag after merge by the user).
+  USER_GUIDE section. tests/test_gui_settings.py (6 tests).
+- Release v2.1.0 prepared (version 2.1.0, CHANGELOG section). Tag v2.1.0 on main once the PR
+  is merged; the user pushes the tag (this session cannot push tags). Docker: rebuild at the
+  tag.
+- Not done yet: the live checks of the GUI on the NAS (a full run with NCBI from the browser);
+  the Neisseria runs to finish the 2024 genomes; Legionella with the v2 code.
 
 ## 2026-10-02 — v2.0.0 release
 

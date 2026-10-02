@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-02
+
+A browser interface for one user, behind a password, for a LAN or VPN (steps G1-G5 below):
+edit assay files with live checks, see the search plan and confirm it, run one assay at a time
+and follow its log, read the reports and download the records, and change the password and the
+configuration. It runs the command line itself and writes the same records; the analysis is
+unchanged from 2.0.0. Install the optional `gui` extra or use `docker-compose.yml`.
+
 ### Added
 - **Browser interface, step G5: Settings and documentation** (user go-ahead 2026-10-02): change
   the password (the current one asked, with the same brake as sign-in); every session carries
