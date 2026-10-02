@@ -3,6 +3,24 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-10-02 — Theory-review items 3 and 4
+
+- User: "Start with 3 and 4" (of the deferred review items).
+- Item 3, distinct site patterns: `distinct_patterns()` in variants/exhaustive.py groups the
+  judged genomes of the status window by their three best-copy sites (role, oligo label,
+  aligned genome bases), each pattern counted once; `DistinctPatterns` in
+  inclusivity/models.py, `InclusivityResult.distinct`; a rationale line, the summary row's
+  result, a paragraph under the whole-fragment table. Information only.
+- Item 4, `inclusivity.status_axis: release | collection` (default release). With collection,
+  `fragment_verdict` gets the collection-year rows (`status_years()`), undated genomes are
+  counted in a "Left out of the status by collection year" line, the release-year figure is
+  information; the summary row, the not-located line and the report follow the axis. Channel
+  statuses are over all genomes and unchanged.
+- Open for the user: with `collection`, should a large share without a usable date make the
+  status Incomplete (as max_undetermined_percent does for undetermined genomes)? Now it is only
+  reported. Run Neisseria/Legionella with both axes to compare.
+- tests/test_status_axis.py (6 tests).
+
 ## 2026-10-02 — Browser interface G1-G5; v2.1.0 released
 
 - Neisseria escapes checked with the user (2026-10-02): GCF_001025995.1 (first escape example)

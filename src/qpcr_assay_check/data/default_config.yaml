@@ -172,6 +172,11 @@ inclusivity:
                                     # genomes): INCOMPLETE, not a percentage status. The report
                                     # also gives the figure if all undetermined were escapes and
                                     # if all were detected. Your laboratory's choice.
+  status_axis: release             # which year groups the genomes for the status window:
+                                    # release (NCBI release year) or collection (the year the
+                                    # sample was collected, as its submitter recorded it). The
+                                    # other axis is shown as information; with collection,
+                                    # genomes without a usable date are left out and counted.
 
 variants:
   # Exhaustive variant analysis of the intended target: the variant summary and inclusivity are

@@ -60,7 +60,8 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
         out["channels"] = cov.get("channel_results")
     inc = data.get("inclusivity")
     if inc:
-        out["inclusivity"] = {k: inc.get(k) for k in ("verdict", "rationale", "fragment_years")}
+        keys = ("verdict", "rationale", "fragment_years", "status_axis", "distinct")
+        out["inclusivity"] = {k: inc.get(k) for k in keys}
         ca = inc.get("collection")
         if ca:
             out["inclusivity"]["collection"] = {

@@ -171,6 +171,18 @@ strains circulating now rather than historical collections:
   percentage (`inclusivity.max_undetermined_percent`; added after the theory reviews of
   2026-10-01, so a headline figure is never carried by a minority of the genomes).
 
+The window counts release years by default. `inclusivity.status_axis: collection` counts the
+year the sample was collected instead (as its submitter recorded it), so a batch of old samples
+uploaded late does not make an old lineage look current; genomes without a usable collection
+date are then left out of the window and counted, and the release-year figure is shown as
+information. Many genomes carry no usable date, so check that count before relying on it.
+
+Next to the genome count, the report gives the same window with **distinct site patterns**:
+genomes whose three sites are identical counted once. A database dominated by one outbreak
+lineage gives a genome figure that mostly describes that lineage; the pattern figure shows how
+much of the known sequence diversity the assay covers. Neither is the share of strains in
+circulation, and the status uses the genome count.
+
 Each channel gets its own status by the same limits (the undetermined limit over all its target
 genomes), and a signal outside its target makes a channel *Review*. The inclusivity status is the worst of the whole-fragment status and every
 channel's status, never better.
