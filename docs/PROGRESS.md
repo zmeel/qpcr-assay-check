@@ -3,7 +3,7 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
-## 2026-10-02 — GUI step G1
+## 2026-10-02 — Browser interface G1-G5; v2.1.0 released
 
 - v2.0.0 tag pushed by the user (verified: annotated, on c5ef505, the merge of PR #56).
 - GUI decisions (user, 2026-10-02): one user with a password, LAN/VPN only, 8 hours idle
@@ -56,11 +56,25 @@ verified NCBI facts) at the start of every session. Newest entry first.
   (sha256 of the signing key) checked on every request, so a new password, also from the CLI,
   ends other sessions without a restart; wiki page Browser-interface.md, README section,
   USER_GUIDE section. tests/test_gui_settings.py (6 tests).
-- Release v2.1.0 prepared (version 2.1.0, CHANGELOG section). Tag v2.1.0 on main once the PR
-  is merged; the user pushes the tag (this session cannot push tags). Docker: rebuild at the
-  tag.
-- Not done yet: the live checks of the GUI on the NAS (a full run with NCBI from the browser);
-  the Neisseria runs to finish the 2024 genomes; Legionella with the v2 code.
+- PRs merged by the user: #57 (G1), #58 (QAC_UID/QAC_GID), #59 (G2), #60 (QAC_PORT), #61 (G3),
+  #62 (G4), #63 (G5 + release).
+- v2.1.0 released: version 2.1.0, CHANGELOG [2.1.0]; annotated tag v2.1.0 pushed by the user on
+  5a4db38 (the merge of PR #63), verified on the remote. This session cannot push tags (403):
+  the user pushes them. Docker on the NAS: `git checkout v2.1.0`, `docker compose build`,
+  `docker compose up -d`; the GUI container runs the image's code, so every update needs a
+  rebuild (run_assay.sh mounts src/ and does not).
+- NAS setup as used: `.env` holds NCBI_EMAIL, NCBI_API_KEY, QAC_UID, QAC_GID and QAC_PORT=8880
+  (8080 is taken on the NAS); `docker-compose.yml` needs no local edits.
+- Not done yet:
+  - live check of the GUI on the NAS: a full run with NCBI started from the browser (only
+    QC-only runs went through the queue here; this session cannot reach NCBI);
+  - Neisseria: about 29,600 of 51,583 genomes left (two runs at 20,000), now possible from the
+    browser;
+  - Legionella with the v2 code;
+  - publishing docs/wiki/ (the new Browser-interface page included) to the GitHub wiki (user);
+  - theory-review items deferred to the user: position-aware MGB rule, a third source for
+    terminal mismatch types, a deduplicated inclusivity figure, collection date as the status
+    axis, scanning every locus, one rule set for off-target sites, independent validation.
 
 ## 2026-10-02 — v2.0.0 release
 
