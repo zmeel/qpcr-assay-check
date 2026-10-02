@@ -1,6 +1,6 @@
 // Light/dark choice (remembered in this browser only; the default follows the system),
-// live validation of the YAML editor, a warning before leaving unsaved edits, and the live log
-// of a run.
+// live validation of the YAML editor, a warning before leaving unsaved edits, the live log of a
+// run, and measuring the work folder on the Settings page.
 (function () {
   "use strict";
   var root = document.documentElement;
@@ -112,10 +112,27 @@
     setTimeout(poll, 1500);
   }
 
+  function storage() {
+    var box = document.querySelector("[data-storage-url]");
+    if (!box) return;
+    var button = box.querySelector("[data-storage-measure]");
+    var target = box.querySelector("[data-storage-target]");
+    button.addEventListener("click", function () {
+      button.disabled = true;
+      target.textContent = "Counting…";
+      fetch(box.getAttribute("data-storage-url"), { credentials: "same-origin" })
+        .then(function (r) { return r.ok && !r.redirected ? r.text() : Promise.reject(r.status); })
+        .then(function (html) { target.innerHTML = html; })  // rendered and escaped by the server
+        .catch(function () { target.textContent = "Could not measure (signed out?)."; })
+        .then(function () { button.disabled = false; });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     themeToggle();
     dirtyGuard();
     liveValidation();
     runStatus();
+    storage();
   });
 })();

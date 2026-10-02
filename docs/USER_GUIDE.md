@@ -70,7 +70,7 @@ full run also found and led to fixing a real bug (the exclusivity tier had no ex
 assay's own target taxid — see Limitations below and `docs/ARCHITECTURE.md`), then confirmed fixed
 on a second live run.
 
-### Browser interface (G1, after v2.0.0)
+### Browser interface (v2.1.0)
 
 A browser interface for one person runs in the same image. It is meant for the local network
 or a VPN: do not forward its port from the internet. It has the sign-in, the dashboard (the latest
@@ -147,6 +147,14 @@ status, inclusivity status and how many listed genomes the record had assessed. 
 shows its checks, its `report.html` inside the page (unchanged on disk; shown in a locked frame
 that runs no scripts, with links to NCBI opening in a new tab) and its files to download
 (report.html, results.json, results.xlsx, hits.tsv). Nothing else in a record folder is served.
+
+**Settings (G5).** Change the password (the current one is asked; every other session ends at
+once, also when the password is set with `gui set-password` while the GUI runs). Edit the
+configuration file runs use (`--config`, by default `work/config.yaml`; when it does not exist
+yet, the packaged defaults are shown): it is checked as a run loads it before it is saved, and the
+previous version is kept in `work/gui/history/`. See whether `NCBI_EMAIL` and `NCBI_API_KEY` are
+set (never their values). Measure the NCBI cache, the records, the run logs and the assay files
+(counting stops after 5 seconds) and the free disk space; nothing is deleted from the browser.
 
 ## Quick start
 

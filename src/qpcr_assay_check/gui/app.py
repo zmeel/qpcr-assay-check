@@ -1,5 +1,6 @@
-"""The FastAPI application: login, logout, dashboard; the Assays, run and Results pages are
-added from :mod:`.assay_routes`, :mod:`.run_routes` and :mod:`.results_routes`.
+"""The FastAPI application: login, logout, dashboard; the Assays, run, Results and Settings
+pages are added from :mod:`.assay_routes`, :mod:`.run_routes`, :mod:`.results_routes` and
+:mod:`.settings_routes`.
 
 Sessions are signed cookies (Starlette's SessionMiddleware, itsdangerous) that scripts cannot
 read and browsers do not send from other sites; they end after ``idle_hours`` without a request.
@@ -34,6 +35,7 @@ from .records import RecordIndex
 from .results_routes import register_results_routes
 from .run_routes import register_run_routes
 from .runs import JobStore, Runner, progress_of, read_tail
+from .settings_routes import register_settings_routes
 
 log = logging.getLogger(__name__)
 
@@ -148,6 +150,9 @@ def create_app(settings: GuiSettings) -> FastAPI:
     def _require_login(request: Request) -> str:
         if request.session.get("user") != USER:
             raise LoginRequired()
+        if request.session.get("gen") != store.generation:  # the password changed meanwhile
+            request.session.clear()
+            raise LoginRequired()
         now = time.time()
         if now - float(request.session.get("last_seen", 0)) > idle_seconds:
             request.session.clear()
@@ -192,7 +197,9 @@ def create_app(settings: GuiSettings) -> FastAPI:
             return _page(request, "login.html", 401, error="Wrong password.", **page)
         throttle.succeeded(client)
         request.session.clear()
-        request.session.update(user=USER, last_seen=now, csrf=secrets.token_urlsafe(32))
+        request.session.update(
+            user=USER, last_seen=now, csrf=secrets.token_urlsafe(32), gen=store.generation
+        )
         log.info("GUI: signed in from %s", client)
         return RedirectResponse("/", status_code=303)
 
@@ -220,6 +227,10 @@ def create_app(settings: GuiSettings) -> FastAPI:
         app, settings=settings, page=_page, require_login=_require_login, csrf_ok=_csrf_ok
     )
     register_results_routes(app, records=records, page=_page, require_login=_require_login)
+    register_settings_routes(
+        app, settings=settings, store=store, throttle=throttle, records=records,
+        runner=runner, page=_page, require_login=_require_login, csrf_ok=_csrf_ok,
+    )  # fmt: skip
     register_run_routes(
         app, settings=settings, runner=runner, page=_page, require_login=_require_login,
         csrf_ok=_csrf_ok,

@@ -102,6 +102,22 @@ anything; `run --qc-only` uses no network at all.
 
 **The oligo sequences are sent to NCBI's public servers.** This matters for proprietary assays.
 
+## Browser interface
+
+The same tool, in a browser, for one person on a LAN or VPN: edit assay files with live checks,
+see the search plan and confirm it, follow runs, read reports and download records. It runs in
+the same Docker image behind a password:
+
+```bash
+echo "QAC_UID=$(id -u)" >> .env; echo "QAC_GID=$(id -g)" >> .env
+docker compose build
+docker compose run --rm gui gui set-password --work /work
+docker compose up -d        # http://<host>:8080 (QAC_PORT in .env for another port)
+```
+
+Details: [docs/USER_GUIDE.md](docs/USER_GUIDE.md#browser-interface-v210) and the wiki page
+*Browser interface*. Do not forward its port from the internet.
+
 ## What the report contains
 
 - **Summary of this year's check**: a table with each thing checked, its result in numbers and a
@@ -210,7 +226,7 @@ The complete list: [docs/USER_GUIDE.md](docs/USER_GUIDE.md#limitations).
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,gui]"
 ruff check . && pytest -m "not live"   # live NCBI tests are never run in CI
 ```
 

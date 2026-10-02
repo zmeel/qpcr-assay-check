@@ -7,5 +7,6 @@
 - [Specificity search](Specificity-search)
 - [Data storage and cache](Data-storage-and-cache)
 - [Limits and validation](Limits-and-validation)
+- [Browser interface](Browser-interface)
 
 In silico analysis does not replace experimental validation.

@@ -1,0 +1,9 @@
+{% macro human(n) %}{% if n >= 1024 ** 3 %}{{ "%.1f" | format(n / 1024 ** 3) }} GB{% elif n >= 1024 ** 2 %}{{ "%.1f" | format(n / 1024 ** 2) }} MB{% else %}{{ (n / 1024) | round(0) | int }} kB{% endif %}{% endmacro %}
+<dl class="facts">
+  {% for r in rows %}
+  <dt>{{ r.label }}</dt>
+  <dd>{% if not r.exists %}<span class="muted">not created yet</span>{% else %}{% if not r.complete %}at least {% endif %}{{ human(r.size) }} in {{ "{:,}".format(r.files) }} file{{ "" if r.files == 1 else "s" }}{% if not r.complete %} (stopped counting after 5 s){% endif %}{% endif %}<br><span class="mono small muted">{{ r.path }}</span></dd>
+  {% endfor %}
+  {% if free is not none %}<dt>Free on the disk</dt><dd>{{ human(free) }}</dd>{% endif %}
+</dl>
+<p class="small muted">Nothing here is deleted from the browser. The cache lets later runs reuse searches and stored genomes; delete it on the NAS only when you mean to start over.</p>

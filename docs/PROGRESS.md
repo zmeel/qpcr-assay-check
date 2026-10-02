@@ -50,7 +50,17 @@ verified NCBI facts) at the start of every session. Newest entry first.
   page; the global middleware now lets a route set its own CSP and frame option.
   tests/test_gui_results.py (10 tests, on a real QC-only record). Checked in Chromium: the
   report renders in the frame.
-- Next: G5 (settings page, documentation, release v2.1.0), after the user's go-ahead.
+- G5 built (user: "Start G5"): gui/settings_routes.py (password change with the login
+  brake; config editor checked by load_config on a temporary copy, history in work/gui/history;
+  NCBI env set/not set; storage measured on request with a 5 s limit), session generation
+  (sha256 of the signing key) checked on every request, so a new password, also from the CLI,
+  ends other sessions without a restart; wiki page Browser-interface.md, README section,
+  USER_GUIDE section. tests/test_gui_settings.py (6 tests).
+- Release v2.1.0 prepared (version 2.1.0, CHANGELOG section). Tag v2.1.0 on main once the PR
+  is merged; the user pushes the tag (this session cannot push tags). Docker: rebuild at the
+  tag.
+- Not done yet: the live checks of the GUI on the NAS (a full run with NCBI from the browser);
+  the Neisseria runs to finish the 2024 genomes; Legionella with the v2 code.
 
 ## 2026-10-02 — v2.0.0 release
 
