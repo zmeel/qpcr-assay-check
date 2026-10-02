@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Browser interface, step G3: runs** (user go-ahead 2026-10-02): New run (valid assay files,
+  QC only, `--resubmit`), the search plan shown before anything is sent (oligo sequences and
+  planned searches per tier, as `--dry-run`), Confirm and queue (the assay file is copied as
+  confirmed; a file changed after planning must be planned again). One run at a time from a
+  queue kept in `work/gui/jobs/`; each run is `qpcr-assay-check run ... --yes -v` in its own
+  process with its log in `work/runs/`, like `scripts/run_assay.sh`. Run page with stages and
+  the latest count read from the log, the log as it grows, cancel (Ctrl-C first) and start
+  again; runs left running when the GUI stopped are marked interrupted. The dashboard shows the
+  run in progress and the queue.
 - **Browser interface, step G2: Assays** (user go-ahead 2026-10-02): the assay files in
   `work/assays/`, a new one from the commented template, a copy of an example (`--examples`,
   mounted from `docs/examples` by `docker-compose.yml`). Editor with a Form tab (name, target,

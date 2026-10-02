@@ -28,8 +28,21 @@ verified NCBI facts) at the start of every session. Newest entry first.
   unsaved-changes guard. Decision: YAML stays the source of truth; the form covers the common
   fields, loci/channels/references/settings are edited as YAML (comments with provenance must
   survive). tests/test_gui_assays.py (20 tests). Checked in Chromium.
-- Next: G3 (runs: queue, search plan confirmed in the browser, live log and progress, cancel),
-  after the user's go-ahead.
+- NAS: port 8080 taken; the user edited the compose file, which blocked `git pull`. Fixed in
+  PR #60 (QAC_PORT in .env).
+- G3 built (user: "Start G3"): gui/runs.py (Job, JobStore in work/gui/jobs/<id>/ with the
+  confirmed assay copy, Runner: one subprocess at a time running the CLI itself with --yes,
+  own process group; cancel sends SIGINT, SIGTERM after 30 s, SIGKILL after 60 s; exit codes
+  0/10/20/30 done, 64/70 failed with a message; jobs left running at start-up marked
+  interrupted; progress read from the log's INFO lines), gui/run_routes.py (new, plan via
+  plan_searches as --dry-run, confirm with a SHA-256 of the planned file, list, detail,
+  status JSON polled every 2 s, cancel, again), templates, CSS, JS polling. Decision: the GUI
+  confirms the dry-run plan (the exclusivity tier resolves at run time, as on the command
+  line); the per-run genome budget stays a config/assay setting (an override would be beaten
+  by an assay's own settings). tests/test_gui_runs.py (10 tests, one a real QC-only run through
+  the queue). Checked in Chromium.
+- Next: G4 (results: report in the page, downloads, runs per assay), after the user's
+  go-ahead.
 
 ## 2026-10-02 — v2.0.0 release
 

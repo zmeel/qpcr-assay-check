@@ -1,0 +1,58 @@
+{% extends "app_shell.html" %}
+{% block title %}Confirm run · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <a class="back" href="/runs/new?assay={{ name }}">← New run</a>
+    <h1>{{ check.assay.assay_name }}</h1>
+    <span class="mono small muted">{{ name }}{% if qc_only %} · QC only{% endif %}{% if resubmit %} · resubmit unfinished searches{% endif %}</span>
+  </div>
+</header>
+
+{% if qc_only %}
+<section class="card stack-12">
+  <h2>QC only</h2>
+  <p class="muted">Oligo QC of the mix; nothing is sent to NCBI. The record covers oligo design alone.</p>
+</section>
+{% else %}
+<section class="card stack-12">
+  <h2>Sent to NCBI's public servers when you confirm</h2>
+  <p class="small muted">The oligo sequences below go to NCBI BLAST (database core_nt). This matters for proprietary assays.</p>
+  <dl class="facts mono-values">
+    {% for label, seq in plan.queries.items() %}<dt>{{ label }}</dt><dd class="mono">{{ seq }}</dd>{% endfor %}
+  </dl>
+</section>
+
+<section class="card table-card">
+  <h2 class="table-title">Planned searches: {{ plan.searches | length }}{% for tier, n in plan.tiers.items() %}<span class="chip chip-sm chip-incomplete chip-gap">{{ tier }} {{ n }}</span>{% endfor %}</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Tier</th><th scope="col">Search</th><th scope="col">Restricted to</th><th scope="col">Oligos</th></tr></thead>
+      <tbody>
+        {% for s in plan.searches %}
+        <tr><td class="nowrap">{{ s.tier }}</td><td>{{ s.title }}</td><td class="small mono wrap">{{ s.where }}</td><td>{{ s.n_queries }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="table-note small muted stack-4">
+    <span>Searches already in the cache, or still waiting at NCBI from an earlier run, are not sent again. The exclusivity tier's organism names are resolved to taxa when the run starts, as with <code>--dry-run</code>.</span>
+    {% for n in plan.notes %}<span>Note: {{ n }}</span>{% endfor %}
+  </div>
+</section>
+{% if plan.warnings %}
+<section class="notice notice-error stack-4" role="alert">{% for w in plan.warnings %}<span>{{ w }}</span>{% endfor %}</section>
+{% endif %}
+{% endif %}
+
+<form class="row-form" method="post" action="/runs">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="assay" value="{{ name }}">
+  <input type="hidden" name="digest" value="{{ digest }}">
+  {% if qc_only %}<input type="hidden" name="qc_only" value="1">{% endif %}
+  {% if resubmit %}<input type="hidden" name="resubmit" value="1">{% endif %}
+  <button class="btn btn-primary" type="submit">{% if qc_only %}Queue the QC run{% else %}Confirm and queue{% endif %}</button>
+  <a class="btn" href="/runs/new?assay={{ name }}">Cancel</a>
+  {% if current %}<span class="small muted">Starts after {{ queued | length + 1 }} run(s) ahead of it.</span>{% endif %}
+</form>
+{% endblock %}

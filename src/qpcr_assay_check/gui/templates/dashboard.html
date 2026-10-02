@@ -8,10 +8,7 @@
   </div>
 </header>
 
-<section class="card stack-12" aria-labelledby="running-title">
-  <h2 id="running-title">Running now</h2>
-  <p class="muted">No run in progress. Starting runs from the browser comes in a later step; runs started with <code>scripts/run_assay.sh</code> appear here as results when they end.</p>
-</section>
+{% include "_run_card.html" %}
 
 {% if latest %}
 <section class="stack-12" aria-labelledby="assays-title">
