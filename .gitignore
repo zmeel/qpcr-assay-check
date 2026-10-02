@@ -5,6 +5,8 @@
 
 # Tool output (evaluation records live outside version control by default)
 results/
+# working folder of scripts/run_assay.sh and the GUI (records, logs, cache, GUI password)
+work/
 smoke_out/
 probe_out/
 validation_out/

@@ -1,0 +1,65 @@
+{% extends "app_shell.html" %}
+{% block title %}Dashboard · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <h1>Dashboard</h1>
+    <p class="muted">Latest result per assay, the run in progress and the queue.</p>
+  </div>
+</header>
+
+<section class="card stack-12" aria-labelledby="running-title">
+  <h2 id="running-title">Running now</h2>
+  <p class="muted">No run in progress. Starting runs from the browser comes in a later step; runs started with <code>scripts/run_assay.sh</code> appear here as results when they end.</p>
+</section>
+
+{% if latest %}
+<section class="stack-12" aria-labelledby="assays-title">
+  <h2 id="assays-title">Assays</h2>
+  <div class="card-grid">
+    {% for r in latest %}
+    <article class="card stack-12">
+      <div class="stack-4">
+        <h3>{{ r.assay_name }}</h3>
+        <span class="small muted">Last run {{ r.date }} · {{ r.mode }} · version {{ r.tool_version }}</span>
+      </div>
+      <span class="chip chip-{{ r.css }}">{{ r.status }}</span>
+      {% if r.checks %}
+      <ul class="checks">
+        {% for c in r.checks %}
+        <li><span>{{ c.title }}</span><span class="chip chip-sm chip-{{ c.css }}">{{ c.status }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if r.inclusivity_line %}<p class="small muted clamp-3">{{ r.inclusivity_line }}</p>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card table-card" aria-labelledby="recent-title">
+  <h2 id="recent-title" class="table-title">Recent records <span class="muted small">({{ recent | length }} of {{ n_records }})</span></h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Date</th><th scope="col">Assay</th><th scope="col">Mode</th><th scope="col">Status</th><th scope="col">Record</th></tr></thead>
+      <tbody>
+        {% for r in recent %}
+        <tr>
+          <td class="nowrap">{{ r.generated_at[:16] | replace("T", " ") }}</td>
+          <td>{{ r.assay_name }}</td>
+          <td>{{ r.mode }}</td>
+          <td><span class="chip chip-sm chip-{{ r.css }}">{{ r.status }}</span></td>
+          <td class="mono small">{{ r.run_id }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% else %}
+<section class="card empty">
+  <h2>No evaluation records yet</h2>
+  <p class="muted">Records appear here once a run has written them to <code>{{ results_dir }}</code>.</p>
+</section>
+{% endif %}
+{% endblock %}

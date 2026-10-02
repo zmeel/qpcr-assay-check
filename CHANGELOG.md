@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Browser interface, step G1** (user decision 2026-10-02; design from the approved mockup):
+  `qpcr-assay-check gui serve` and `gui set-password` (optional extra `gui`: FastAPI, uvicorn,
+  python-multipart, itsdangerous). One password, stored only as a salted scrypt hash with the
+  session key in `<work>/gui/auth.json` (mode 0600); the GUI does not start without it.
+  Signed session cookies (HttpOnly, SameSite=Strict, optional Secure), signed out after 8 hours
+  without activity, a form token on every POST, a growing wait after three failed sign-ins,
+  strict Content-Security-Policy. Dashboard with the latest record per assay (status per
+  check, the inclusivity headline) and the recent records under `work/results`. Light and dark
+  theme, works at phone width; IBM Plex fonts ship with the package (SIL OFL 1.1).
+  `docker-compose.yml` for a NAS (port 8080, LAN or VPN only); the image installs the extra.
+  `work/` is now in `.gitignore`.
+
 ## [2.0.0] - 2026-10-02
 
 A generic assay model and an exhaustive, genome-by-genome analysis replace the sampled
