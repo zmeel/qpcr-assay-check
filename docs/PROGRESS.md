@@ -41,8 +41,16 @@ verified NCBI facts) at the start of every session. Newest entry first.
   line); the per-run genome budget stays a config/assay setting (an override would be beaten
   by an assay's own settings). tests/test_gui_runs.py (10 tests, one a real QC-only run through
   the queue). Checked in Chromium.
-- Next: G4 (results: report in the page, downloads, runs per assay), after the user's
-  go-ahead.
+- G4 built (user: "Start G4"): gui/results_routes.py (/results, /results/<slug>,
+  /results/<slug>/<run>, /records/<slug>/<run>/<file> for four allowed file names; report
+  served with CSP default-src 'none', style-src 'unsafe-inline', frame-ancestors 'self',
+  X-Frame-Options SAMEORIGIN, a <base target="_blank"> added in the response only; iframe
+  sandbox allow-popups), RecordIndex.record_dir/get/of_assay (segments checked and resolved
+  inside results/), coverage and inclusivity status per record, links from dashboard and run
+  page; the global middleware now lets a route set its own CSP and frame option.
+  tests/test_gui_results.py (10 tests, on a real QC-only record). Checked in Chromium: the
+  report renders in the frame.
+- Next: G5 (settings page, documentation, release v2.1.0), after the user's go-ahead.
 
 ## 2026-10-02 — v2.0.0 release
 

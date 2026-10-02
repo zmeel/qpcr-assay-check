@@ -74,7 +74,7 @@ on a second live run.
 
 A browser interface for one person runs in the same image. It is meant for the local network
 or a VPN: do not forward its port from the internet. It has the sign-in, the dashboard (the latest
-record per assay and the recent records under `work/results`) and the Assays page and the run pages; reading reports in the browser follows in a later step.
+record per assay and the recent records under `work/results`) and the Assays page, the run pages and the Results pages; a Settings page follows.
 
 ```bash
 # once: let the container run as the owner of work/ (not UID/GID: read-only in some shells)
@@ -140,6 +140,13 @@ same confirmed file, and a stopped or interrupted run then continues where it wa
 genomes and finished searches are reused, unfinished searches resume. If the GUI stops during
 a run, the run is marked interrupted. Exit codes 0, 10, 20 and 30 are finished runs (the review
 status); 64 (assay or configuration refused) and 70 (NCBI problem) are failed runs.
+
+**Results (G4).** Every evaluation record under `work/results`, from the GUI and from the command
+line, grouped per assay; per assay all its records, newest first, with mode, tool version, review
+status, inclusivity status and how many listed genomes the record had assessed. A record's page
+shows its checks, its `report.html` inside the page (unchanged on disk; shown in a locked frame
+that runs no scripts, with links to NCBI opening in a new tab) and its files to download
+(report.html, results.json, results.xlsx, hits.tsv). Nothing else in a record folder is served.
 
 ## Quick start
 

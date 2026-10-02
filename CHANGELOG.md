@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Browser interface, step G4: results** (user go-ahead 2026-10-02): every record under
+  `work/results` per assay (mode, version, review and inclusivity status, genomes assessed),
+  a record page with its checks, the record's `report.html` shown in the page and its files to
+  download (report.html, results.json, results.xlsx, hits.tsv only). The report is served with
+  its own policy (no scripts, nothing loaded from elsewhere, framed by the GUI only, links in
+  a new tab) in a sandboxed frame; the file on disk is unchanged. The dashboard and finished
+  runs link to their record.
 - **Browser interface, step G3: runs** (user go-ahead 2026-10-02): New run (valid assay files,
   QC only, `--resubmit`), the search plan shown before anything is sent (oligo sequences and
   planned searches per tier, as `--dry-run`), Confirm and queue (the assay file is copied as

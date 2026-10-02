@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from ..verdict import STATUS_LABEL, Verdict
 
 log = logging.getLogger(__name__)
 
+SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$")
 STATUS_CLASS = {
     Verdict.PASS: "ok",
     Verdict.WARN: "review",
@@ -49,10 +51,19 @@ class RunRecord:
     css: str
     checks: list[Check] = field(default_factory=list)
     inclusivity_line: str = ""
+    inclusivity_status: str = ""
+    inclusivity_css: str = ""
+    assessed: int | None = None  # genomes or records assessed so far (exhaustive analysis)
+    listed: int | None = None
 
     @property
     def date(self) -> str:
         return self.generated_at[:10]
+
+    @property
+    def run(self) -> str:
+        """The record's folder name (``<work>/results/<assay_slug>/<run>``)."""
+        return self.path.parent.name
 
 
 def _status(verdict: str | None) -> tuple[str, str]:
@@ -77,6 +88,8 @@ def read_record(path: Path) -> RunRecord | None:
         ]
         inc = data.get("inclusivity") or {}
         rationale = inc.get("rationale") or []
+        coverage = (data.get("variant_summary") or {}).get("coverage") or {}
+        inc_status, inc_css = _status(inc.get("verdict")) if inc else ("", "")
         return RunRecord(
             path=path,
             run_id=str(data["run_id"]),
@@ -89,6 +102,10 @@ def read_record(path: Path) -> RunRecord | None:
             css=css,
             checks=checks,
             inclusivity_line=str(rationale[0]) if rationale else "",
+            inclusivity_status=inc_status,
+            inclusivity_css=inc_css,
+            assessed=coverage.get("assessed_total"),
+            listed=coverage.get("listed_total"),
         )
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         log.warning("GUI: cannot read %s: %s", path, exc)
@@ -120,6 +137,25 @@ class RecordIndex:
         for gone in set(self._cache) - seen:
             del self._cache[gone]
         return sorted(out, key=lambda r: r.generated_at, reverse=True)
+
+    def record_dir(self, slug: str, run: str) -> Path:
+        """The folder of one record, checked to lie inside the results folder."""
+        if not (SEGMENT.match(slug) and SEGMENT.match(run)):
+            raise KeyError(f"{slug}/{run}")
+        folder = (self.results_dir / slug / run).resolve()
+        if folder.parent.parent != self.results_dir.resolve() or not folder.is_dir():
+            raise KeyError(f"{slug}/{run}")
+        return folder
+
+    def get(self, slug: str, run: str) -> RunRecord:
+        path = self.record_dir(slug, run) / "results.json"
+        found = next((r for r in self.all() if r.path.resolve() == path), None)
+        if found is None:
+            raise KeyError(f"{slug}/{run}")
+        return found
+
+    def of_assay(self, slug: str) -> list[RunRecord]:
+        return [r for r in self.all() if r.assay_slug == slug]
 
     def latest_per_assay(self) -> list[RunRecord]:
         """The newest record of each assay (newest assay first)."""

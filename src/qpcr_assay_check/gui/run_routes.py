@@ -158,7 +158,12 @@ def register_run_routes(
             offset = path.stat().st_size
         except OSError:
             offset = 0
+        record_link = ""
+        if job.record:
+            rec = Path(job.record)
+            record_link = f"/results/{rec.parent.name}/{rec.name}"
         return page(request, "run_detail.html", active="run", job=job, log_text="\n".join(lines),
+                    record_link=record_link,
                     offset=offset, progress=progress_of(text), stages=STAGES,
                     queue_position=_position(job))  # fmt: skip
 

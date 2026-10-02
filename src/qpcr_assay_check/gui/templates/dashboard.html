@@ -29,6 +29,7 @@
       </ul>
       {% endif %}
       {% if r.inclusivity_line %}<p class="small muted clamp-3">{{ r.inclusivity_line }}</p>{% endif %}
+      <div class="card-links"><a href="/results/{{ r.assay_slug }}/{{ r.run }}">Open the report</a><a href="/results/{{ r.assay_slug }}">All runs</a></div>
     </article>
     {% endfor %}
   </div>
@@ -46,7 +47,7 @@
           <td>{{ r.assay_name }}</td>
           <td>{{ r.mode }}</td>
           <td><span class="chip chip-sm chip-{{ r.css }}">{{ r.status }}</span></td>
-          <td class="mono small">{{ r.run_id }}</td>
+          <td class="mono small"><a href="/results/{{ r.assay_slug }}/{{ r.run }}">{{ r.run_id }}</a></td>
         </tr>
         {% endfor %}
       </tbody>
