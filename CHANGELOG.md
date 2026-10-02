@@ -29,7 +29,8 @@ All notable changes to this project are documented here. The format follows
   `docker-compose.yml` for a NAS (port 8080, LAN or VPN only); the image installs the extra.
   `work/` is now in `.gitignore`. The container user comes from `QAC_UID`/`QAC_GID` in `.env`
   (`UID` is read-only in the Synology shell, first try on the NAS 2026-10-02), and
-  `gui set-password` explains a folder it may not write instead of a traceback.
+  `gui set-password` explains a folder it may not write instead of a traceback. The port on the
+  host is `QAC_PORT` in `.env` (default 8080), so the compose file needs no local edits.
 
 ## [2.0.0] - 2026-10-02
 

@@ -80,12 +80,14 @@ runs, following them and reading reports in the browser follow in later steps.
 ```bash
 # once: let the container run as the owner of work/ (not UID/GID: read-only in some shells)
 echo "QAC_UID=$(id -u)" >> .env; echo "QAC_GID=$(id -g)" >> .env
+# optional: another port on the NAS when 8080 is taken (the GUI is then at :8880)
+echo "QAC_PORT=8880" >> .env
 docker compose build
 # set the password once (asked twice; at least 10 characters). Only a salted scrypt hash is kept,
 # with the session key, in work/gui/auth.json (mode 0600; work/ is not in git)
 docker compose run --rm gui gui set-password --work /work
 docker compose up -d
-# open http://<nas-address>:8080
+# open http://<nas-address>:8080 (or the QAC_PORT you chose)
 ```
 
 Without Docker: `pip install 'qpcr-assay-check[gui]'`, then
