@@ -1,0 +1,44 @@
+{% extends "app_shell.html" %}
+{% block title %}New run · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <h1>New run</h1>
+    <p class="muted">One run at a time; later runs wait in the queue. Nothing is sent to NCBI before you confirm the search plan.</p>
+  </div>
+</header>
+
+{% if error %}<p class="notice notice-error" role="alert">{{ error }}</p>{% endif %}
+
+{% set valid = assays | selectattr("valid") | list %}
+{% if valid %}
+<form class="stack-20 narrow" method="post" action="/runs/plan">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <fieldset class="card stack-12">
+    <legend>Assay</legend>
+    {% for a in valid %}
+    <label class="choice">
+      <input type="radio" name="assay" value="{{ a.name }}" required{% if a.name == chosen or (not chosen and loop.first) %} checked{% endif %}>
+      <span class="stack-2"><span class="strong">{{ a.assay_name }}</span><span class="mono small muted">{{ a.name }}</span></span>
+    </label>
+    {% endfor %}
+    {% set invalid = assays | rejectattr("valid") | list %}
+    {% if invalid %}<p class="small muted">Not offered until fixed on the Assays page: {{ invalid | map(attribute="name") | join(", ") }}.</p>{% endif %}
+  </fieldset>
+  <fieldset class="card stack-12">
+    <legend>Options</legend>
+    <label class="choice"><input type="checkbox" name="qc_only" value="1"><span>QC only (seconds; nothing is sent to NCBI)</span></label>
+    <label class="choice"><input type="checkbox" name="resubmit" value="1"><span>Submit unfinished BLAST searches anew instead of resuming them (<code>--resubmit</code>)</span></label>
+    <p class="small muted">How many genomes one run scans is set in <code>work/config.yaml</code> or the assay's <code>settings:</code> (<code>variants.max_assemblies_per_run</code>).</p>
+  </fieldset>
+  <div><button class="btn btn-primary" type="submit">Plan the searches</button></div>
+</form>
+{% else %}
+<section class="card empty">
+  <h2>No valid assay file yet</h2>
+  <p class="muted">Create or fix one on the <a href="/assays">Assays page</a> first.</p>
+</section>
+{% endif %}
+
+{% if current or queued %}{% include "_run_card.html" %}{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "app_shell.html" %}
+{% block title %}Runs · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <h1>Runs</h1>
+    <p class="muted">Runs started here, one at a time. Logs are in <code>work/runs/</code>, records in <code>work/results/</code>.</p>
+  </div>
+  <a class="btn btn-primary" href="/runs/new">New run</a>
+</header>
+
+{% include "_run_card.html" %}
+
+<section class="card table-card" aria-labelledby="done-title">
+  <h2 id="done-title" class="table-title">Finished</h2>
+  {% if finished %}
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Started (UTC)</th><th scope="col">Assay</th><th scope="col">Run</th><th scope="col">Result</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+      <tbody>
+        {% for j in finished %}
+        <tr>
+          <td class="nowrap">{{ (j.started or j.created)[:16] | replace("T", " ") }}</td>
+          <td>{{ j.assay_name }}{% if j.qc_only %} <span class="muted small">(QC only)</span>{% endif %}</td>
+          <td>{% include "_job_state.html" %}</td>
+          <td>{% if j.review_status %}{{ j.review_status }}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="right"><a class="btn btn-sm" href="/runs/{{ j.id }}">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="table-note muted">No finished runs yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

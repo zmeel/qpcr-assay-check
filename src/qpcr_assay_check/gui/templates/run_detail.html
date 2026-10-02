@@ -1,0 +1,57 @@
+{% extends "app_shell.html" %}
+{% block title %}{{ job.assay_name }} · Runs · qPCR Assay Check{% endblock %}
+{% block main %}
+{% set j = job %}
+<header class="page-head">
+  <div class="stack-4">
+    <a class="back" href="/runs">← Runs</a>
+    <h1>{{ job.assay_name }}</h1>
+    <span class="small muted">Run <span class="mono">{{ job.id }}</span> · {{ job.assay }}{% if job.qc_only %} · QC only{% endif %}{% if job.started %} · started {{ job.started[:16] | replace("T", " ") }} UTC{% endif %}{% if job.ended %} · ended {{ job.ended[:16] | replace("T", " ") }}{% endif %}</span>
+  </div>
+  <div class="actions">
+    {% include "_job_state.html" %}
+    {% if job.state in ("queued", "running") %}
+    <form method="post" action="/runs/{{ job.id }}/cancel">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn btn-danger-outline" type="submit">{% if job.state == "running" %}Cancel run{% else %}Remove from queue{% endif %}</button>
+    </form>
+    {% elif job.finished %}
+    <form method="post" action="/runs/{{ job.id }}/again">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn" type="submit">Start again</button>
+    </form>
+    {% endif %}
+  </div>
+</header>
+
+{% if job.message %}<p class="notice{% if job.state == 'failed' %} notice-error{% endif %}" role="status">{{ job.message }}</p>{% endif %}
+{% if job.state == "queued" and queue_position %}<p class="notice" role="status">Waiting in the queue: number {{ queue_position }}.</p>{% endif %}
+{% if job.state == "done" %}
+<p class="notice notice-ok" role="status">Finished{% if job.review_status %} · review status: {{ job.review_status }}{% endif %}.{% if job.record %} Record: <code>{{ job.record }}</code>{% endif %}</p>
+{% endif %}
+
+<div class="run-layout" data-run-status data-url="/runs/{{ job.id }}/status" data-offset="{{ offset }}" data-finished="{{ 1 if job.finished else 0 }}">
+  <section class="card stages" aria-labelledby="stages-title">
+    <h2 id="stages-title">Stages</h2>
+    <ol class="stage-list">
+      {% for s in stages %}
+      {% if not job.qc_only or loop.index0 in (0, 4) %}
+      {% set state = "done" if (progress.stage > loop.index0 or (job.state == "done" and progress.stage >= loop.index0)) else ("active" if progress.stage == loop.index0 and job.state == "running" else "todo") %}
+      <li class="stage stage-{{ state }}" data-stage="{{ loop.index0 }}"><span class="stage-dot" aria-hidden="true">{{ "✓" if state == "done" else loop.index }}</span><span>{{ s }}</span></li>
+      {% endif %}
+      {% endfor %}
+    </ol>
+    <p class="small muted">Read from the log{% if job.qc_only %}; a QC-only run has these two stages only{% endif %}.</p>
+  </section>
+  <div class="stack-20 run-main">
+    <section class="card stack-12"{% if job.finished %} hidden{% endif %}>
+      <div class="row-between"><h2>Progress</h2><span class="mono small muted" data-detail>{{ progress.detail or ("waiting for the first count" if job.state == "running" else "waiting in the queue") }}</span></div>
+      <progress class="bar" max="100" value="{{ progress.percent or 0 }}" data-percent{% if progress.percent is none %} hidden{% endif %}></progress>
+    </section>
+    <section class="card stack-12 log-card">
+      <div class="row-between"><h2>Log</h2><span class="small muted">{% if not job.finished %}follows live{% else %}<span class="mono">work/runs/{{ job.id }}.log</span>{% endif %}</span></div>
+      <pre class="log" tabindex="0" data-log>{{ log_text }}</pre>
+    </section>
+  </div>
+</div>
+{% endblock %}

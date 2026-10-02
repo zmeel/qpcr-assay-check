@@ -1,4 +1,5 @@
-"""The FastAPI application: login, logout, dashboard.
+"""The FastAPI application: login, logout, dashboard; the Assays and run pages are added from
+:mod:`.assay_routes` and :mod:`.run_routes`.
 
 Sessions are signed cookies (Starlette's SessionMiddleware, itsdangerous) that scripts cannot
 read and browsers do not send from other sites; they end after ``idle_hours`` without a request.
@@ -13,6 +14,8 @@ import hmac
 import logging
 import secrets
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
@@ -28,6 +31,8 @@ from .. import __version__
 from .assay_routes import register_assay_routes
 from .auth import AuthStore, LoginThrottle
 from .records import RecordIndex
+from .run_routes import register_run_routes
+from .runs import JobStore, Runner, progress_of, read_tail
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +57,7 @@ class GuiSettings:
     secure_cookie: bool = False  # True when served over HTTPS (reverse proxy)
     examples_dir: Path | None = None  # read-only assay files offered for copying
     config_path: Path | None = None  # default: <work>/config.yaml when it exists
+    start_runner: bool = True  # follow the run queue in a background thread (off in tests)
 
     def config(self) -> Path | None:
         """The configuration file runs and validation use (as scripts/run_assay.sh)."""
@@ -97,7 +103,20 @@ def create_app(settings: GuiSettings) -> FastAPI:
     templates = Jinja2Templates(directory=str(_package_dir("templates")))
     templates.env.globals.update(version=__version__, validation_note=VALIDATION_NOTE)
 
-    app = FastAPI(title="qpcr-assay-check", docs_url=None, redoc_url=None, openapi_url=None)
+    runner = Runner(JobStore(settings.work_dir), config=settings.config)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if settings.start_runner:
+            runner.start()
+        yield
+        runner.stop()
+
+    app = FastAPI(
+        title="qpcr-assay-check", docs_url=None, redoc_url=None, openapi_url=None,
+        lifespan=lifespan,
+    )  # fmt: skip
+    app.state.runner = runner
     app.add_middleware(
         SessionMiddleware,
         secret_key=store.secret_key,
@@ -183,13 +202,22 @@ def create_app(settings: GuiSettings) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request, user: str = Depends(_require_login)) -> Response:
         every = records.all()
+        current = runner.current()
+        prog = (
+            progress_of(read_tail(runner.store.log_path(current.id), 400_000)) if current else None
+        )
         return _page(
             request, "dashboard.html", active="dashboard",
             latest=records.latest_per_assay(), recent=every[:20], n_records=len(every),
-            results_dir=records.results_dir,
+            results_dir=records.results_dir, current=current, progress=prog,
+            queued=runner.queued(),
         )  # fmt: skip
 
     register_assay_routes(
         app, settings=settings, page=_page, require_login=_require_login, csrf_ok=_csrf_ok
     )
+    register_run_routes(
+        app, settings=settings, runner=runner, page=_page, require_login=_require_login,
+        csrf_ok=_csrf_ok,
+    )  # fmt: skip
     return app

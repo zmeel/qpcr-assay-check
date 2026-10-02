@@ -1,5 +1,6 @@
 // Light/dark choice (remembered in this browser only; the default follows the system),
-// live validation of the YAML editor, and a warning before leaving unsaved edits.
+// live validation of the YAML editor, a warning before leaving unsaved edits, and the live log
+// of a run.
 (function () {
   "use strict";
   var root = document.documentElement;
@@ -71,9 +72,50 @@
     });
   }
 
+  function runStatus() {
+    var box = document.querySelector("[data-run-status]");
+    if (!box || box.getAttribute("data-finished") === "1") return;
+    var url = box.getAttribute("data-url");
+    var offset = parseInt(box.getAttribute("data-offset"), 10) || 0;
+    var logEl = box.querySelector("[data-log]");
+    var detail = box.querySelector("[data-detail]");
+    var bar = box.querySelector("[data-percent]");
+    var stages = box.querySelectorAll("[data-stage]");
+    function follow() {
+      return logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 40;
+    }
+    function poll() {
+      fetch(url + "?offset=" + offset, { credentials: "same-origin" })
+        .then(function (r) { return r.ok && !r.redirected ? r.json() : Promise.reject(r.status); })
+        .then(function (s) {
+          if (s.text) {
+            var stick = follow();
+            logEl.appendChild(document.createTextNode(s.text));
+            if (stick) logEl.scrollTop = logEl.scrollHeight;
+          }
+          offset = s.offset;
+          if (detail) detail.textContent = s.detail || "";
+          if (bar) {
+            if (s.percent === null) { bar.hidden = true; } else { bar.hidden = false; bar.value = s.percent; }
+          }
+          stages.forEach(function (li) {
+            var i = parseInt(li.getAttribute("data-stage"), 10);
+            var state = i < s.stage ? "done" : (i === s.stage && s.state === "running" ? "active" : "todo");
+            li.className = "stage stage-" + state;
+          });
+          if (s.finished) { window.location.reload(); return; }
+          setTimeout(poll, s.state === "queued" ? 5000 : 2000);
+        })
+        .catch(function () { setTimeout(poll, 10000); });
+    }
+    logEl.scrollTop = logEl.scrollHeight;
+    setTimeout(poll, 1500);
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     themeToggle();
     dirtyGuard();
     liveValidation();
+    runStatus();
   });
 })();

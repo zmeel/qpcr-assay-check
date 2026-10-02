@@ -1,0 +1,1 @@
+{% set css = {"queued": "incomplete", "running": "ok", "done": "ok", "failed": "exceeds", "cancelled": "incomplete", "interrupted": "review"} %}<span class="chip chip-sm chip-{{ css.get(j.state, 'incomplete') }}" data-job-state>{{ j.state | capitalize }}</span>

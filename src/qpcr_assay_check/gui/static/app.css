@@ -183,3 +183,34 @@ th:last-child, td:last-child { padding-right: 20px; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 0; font-size: 13px; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* G3: runs */
+.row-gap { display: flex; align-items: center; gap: 10px; }
+.narrow { max-width: 860px; }
+fieldset.card { margin: 0; min-width: 0; }
+legend { padding: 0 6px; font-weight: 600; }
+.choice { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+.choice input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.chip-gap { margin-left: 8px; vertical-align: middle; }
+.wrap { overflow-wrap: anywhere; }
+.mono-values dd { letter-spacing: 0.4px; }
+.live-dot { width: 10px; height: 10px; border-radius: 5px; background: var(--accent); flex: none; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+progress.bar { appearance: none; width: 100%; height: 10px; border: none; border-radius: 5px; background: var(--border); overflow: hidden; }
+progress.bar::-webkit-progress-bar { background: var(--border); border-radius: 5px; }
+progress.bar::-webkit-progress-value { background: var(--accent); border-radius: 5px; }
+progress.bar::-moz-progress-bar { background: var(--accent); border-radius: 5px; }
+.btn-danger-outline { border-color: var(--exceeds-fg); color: var(--exceeds-fg); background: transparent; }
+.run-layout { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.stages { flex: 0 1 300px; display: flex; flex-direction: column; gap: 12px; }
+.run-main { flex: 1 1 480px; min-width: 0; }
+.stage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.stage { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+.stage-dot { width: 24px; height: 24px; flex: none; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid var(--border); color: var(--muted); }
+.stage-done .stage-dot { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.stage-active .stage-dot { border: 2px solid var(--accent); color: var(--accent-text); }
+.stage-active { font-weight: 600; }
+.log-card { background: var(--code); }
+.log { margin: 0; max-height: 520px; overflow: auto; font: 400 12.5px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+[hidden] { display: none !important; }

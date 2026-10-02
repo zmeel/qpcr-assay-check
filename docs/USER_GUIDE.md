@@ -74,8 +74,7 @@ on a second live run.
 
 A browser interface for one person runs in the same image. It is meant for the local network
 or a VPN: do not forward its port from the internet. It has the sign-in, the dashboard (the latest
-record per assay and the recent records under `work/results`) and the Assays page; starting full
-runs, following them and reading reports in the browser follow in later steps.
+record per assay and the recent records under `work/results`) and the Assays page and the run pages; reading reports in the browser follows in a later step.
 
 ```bash
 # once: let the container run as the owner of work/ (not UID/GID: read-only in some shells)
@@ -125,6 +124,22 @@ with other problems is saved (work in progress) and marked. Every save keeps the
 `work/assays/.history/`; **Delete** moves the file to `work/assays/.deleted/`. **Run QC only** writes
 an evaluation record to `work/results/` (report.html, results.json, results.xlsx), exactly as
 `qpcr-assay-check run --qc-only`, and shows the QC tables.
+
+**Runs (G3).** **New run** lists the valid assay files. **Plan the searches** shows what a run
+would send to NCBI before anything is sent: the oligo sequences and the planned BLAST searches
+per tier (as `--dry-run` lists them; the exclusivity tier's organism names are resolved when the
+run starts). **Confirm and queue** queues the run; the assay file is copied as confirmed, and
+if it changed after the plan was shown you are asked to plan again. Runs go one at a time:
+each is `qpcr-assay-check run <assay> -o work/results --yes -v` in its own process (`--yes`
+stands for the confirmation given in the browser), so it writes the same record and log as
+`scripts/run_assay.sh` (`work/runs/<run>.log`). Runs started outside the GUI are not known to
+its queue: avoid starting both at once. A run's page shows the stages and the latest count read
+from the log (e.g. genomes scanned in this year's batch) and the log as it grows. **Cancel**
+stops a run as Ctrl-C would (then harder after 30 and 60 seconds); **Start again** queues the
+same confirmed file, and a stopped or interrupted run then continues where it was: stored
+genomes and finished searches are reused, unfinished searches resume. If the GUI stops during
+a run, the run is marked interrupted. Exit codes 0, 10, 20 and 30 are finished runs (the review
+status); 64 (assay or configuration refused) and 70 (NCBI problem) are failed runs.
 
 ## Quick start
 
