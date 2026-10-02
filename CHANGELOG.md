@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Browser interface, step G2: Assays** (user go-ahead 2026-10-02): the assay files in
+  `work/assays/`, a new one from the commented template, a copy of an example (`--examples`,
+  mounted from `docs/examples` by `docker-compose.yml`). Editor with a Form tab (name, target,
+  template, annealing, oligos, exclusivity organisms; changed in place with ruamel.yaml, so
+  comments and layout stay; renames follow into loci, channels and evidence) and a YAML tab
+  checked as you type. Beside both: the command line's validation with the run's configuration
+  (`work/config.yaml` or `--config`), the oligo QC flags and the parsed loci and channels. Saves
+  keep the previous version in `work/assays/.history/`; delete moves to `.deleted/`. **Run QC
+  only** writes an evaluation record as `run --qc-only` does and shows its tables. New
+  dependency in the `gui` extra: ruamel.yaml.
 - **Browser interface, step G1** (user decision 2026-10-02; design from the approved mockup):
   `qpcr-assay-check gui serve` and `gui set-password` (optional extra `gui`: FastAPI, uvicorn,
   python-multipart, itsdangerous). One password, stored only as a salted scrypt hash with the

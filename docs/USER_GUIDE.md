@@ -73,9 +73,9 @@ on a second live run.
 ### Browser interface (G1, after v2.0.0)
 
 A browser interface for one person runs in the same image. It is meant for the local network
-or a VPN: do not forward its port from the internet. This first step has the sign-in and the
-dashboard (the latest record per assay and the recent records under `work/results`); editing
-assays, starting runs, following them and reading reports in the browser follow in later steps.
+or a VPN: do not forward its port from the internet. It has the sign-in, the dashboard (the latest
+record per assay and the recent records under `work/results`) and the Assays page; starting full
+runs, following them and reading reports in the browser follow in later steps.
 
 ```bash
 # once: let the container run as the owner of work/ (not UID/GID: read-only in some shells)
@@ -103,6 +103,26 @@ Without Docker: `pip install 'qpcr-assay-check[gui]'`, then
   script ship with the package; the pages forbid loading anything from elsewhere.
 - The NCBI email and API key still come only from the environment (`.env`); the GUI never shows
   or stores them.
+
+**Assays page (G2).** Assay files live in `work/assays/`; they are the same YAML files the command
+line runs. The page lists them with their state (valid or needs attention), creates a new one from
+the fully commented template, and copies one of the examples (`docs/examples`, mounted read-only by
+`docker-compose.yml`). The editor has two tabs:
+
+- **Form:** assay name, target taxon, template type, annealing temperature, the oligos (name,
+  sequence; reporter, quencher and modifications for probes; add or drop one) and the exclusivity
+  organisms. The file is changed in place: comments (provenance, what was checked), key order
+  and layout stay as they were. A renamed oligo is renamed in loci, channels and lab evidence too.
+- **YAML:** the whole file, for loci, channels, reference fragments, taxa and settings. It is
+  checked as you type (Tab indents two spaces; press Esc, then Tab, to leave the field).
+
+Beside both, the same checks as `qpcr-assay-check validate` with the configuration a run would use
+(`work/config.yaml` when present, then the assay's own `settings:`), the oligo QC flags, and how the
+tool reads the file (loci, channels, own settings). A file that is not valid YAML is not saved; one
+with other problems is saved (work in progress) and marked. Every save keeps the previous version in
+`work/assays/.history/`; **Delete** moves the file to `work/assays/.deleted/`. **Run QC only** writes
+an evaluation record to `work/results/` (report.html, results.json, results.xlsx), exactly as
+`qpcr-assay-check run --qc-only`, and shows the QC tables.
 
 ## Quick start
 

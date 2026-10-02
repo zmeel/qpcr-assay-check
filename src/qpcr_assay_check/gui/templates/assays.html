@@ -1,0 +1,79 @@
+{% extends "app_shell.html" %}
+{% block title %}Assays · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <h1>Assays</h1>
+    <p class="muted">Assay files in <code>{{ assays_dir }}</code>. Edit them in the form or as YAML; the command line runs the same files.</p>
+  </div>
+</header>
+
+{% if error %}<p class="notice notice-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if assays %}
+<section class="card table-card" aria-labelledby="mine-title">
+  <h2 id="mine-title" class="table-title">My assays</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Assay</th><th scope="col">Status</th><th scope="col">Changed (UTC)</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+      <tbody>
+        {% for a in assays %}
+        <tr>
+          <td><div class="stack-2"><span class="strong">{{ a.assay_name }}</span><span class="mono small muted">{{ a.name }}</span></div></td>
+          <td>{% if a.valid %}<span class="chip chip-sm chip-ok">Valid</span>{% else %}<span class="chip chip-sm chip-review">{{ a.problem | capitalize }}</span>{% endif %}</td>
+          <td class="nowrap">{{ a.modified }}</td>
+          <td class="right"><a class="btn btn-sm" href="/assays/{{ a.name }}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% else %}
+<section class="card empty">
+  <h2>No assay files yet</h2>
+  <p class="muted">Start from the blank template{% if examples %} or copy one of the examples below{% endif %}.</p>
+</section>
+{% endif %}
+
+<section class="card stack-12" aria-labelledby="new-title">
+  <h2 id="new-title">New assay</h2>
+  <form class="row-form" method="post" action="/assays/new">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="source" value="template">
+    <div class="field grow">
+      <label for="new-name">File name</label>
+      <input id="new-name" name="name" placeholder="my_assay.yaml" required pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,80}" title="letters, digits, '.', '_' or '-'">
+    </div>
+    <button class="btn btn-primary" type="submit">Create from the template</button>
+  </form>
+  <p class="small muted">The template explains every option. Fill in the sequences as given by your source; the editor shows what is still missing.</p>
+</section>
+
+{% if examples %}
+<section class="card table-card" aria-labelledby="ex-title">
+  <h2 id="ex-title" class="table-title">Examples <span class="muted small">(read-only; copy one to edit it)</span></h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Example</th><th scope="col">Copy as</th></tr></thead>
+      <tbody>
+        {% for e in examples %}
+        <tr>
+          <td><div class="stack-2"><span class="strong">{{ e.assay_name }}</span><span class="mono small muted">{{ e.name }}</span></div></td>
+          <td>
+            <form class="row-form" method="post" action="/assays/new">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <input type="hidden" name="source" value="example:{{ e.name }}">
+              <label class="visually-hidden" for="copy-{{ loop.index }}">File name for the copy</label>
+              <input id="copy-{{ loop.index }}" class="input-sm" name="name" value="{{ e.name }}" required>
+              <button class="btn btn-sm" type="submit">Copy</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

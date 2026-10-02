@@ -1,0 +1,72 @@
+{% extends "app_shell.html" %}
+{% set qc = record.oligo_qc %}
+{% block title %}QC · {{ name }} · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <a class="back" href="/assays/{{ name }}">← {{ record.assay.assay_name }}</a>
+    <h1>Oligo QC</h1>
+    <span class="small muted">{{ record.generated_at[:16] | replace("T", " ") }} UTC · version {{ record.tool.version }} · record <span class="mono">{{ record.run_id }}</span></span>
+  </div>
+  <span class="chip chip-{{ qc_css[qc.status] }}">{{ qc_label[qc.status] }}</span>
+</header>
+
+<p class="notice" role="status">Saved as an evaluation record in <code>{{ run_dir }}</code> (report.html, results.json, results.xlsx). A QC-only record covers oligo design alone: no specificity, exclusivity or inclusivity.</p>
+
+<section class="card table-card">
+  <h2 class="table-title">Oligos</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Role</th><th scope="col">Name</th><th scope="col">Sequence</th><th scope="col">nt</th><th scope="col">GC %</th><th scope="col">Tm °C</th></tr></thead>
+      <tbody>
+        {% for o in qc.oligos %}
+        <tr>
+          <td>{{ o.role }}</td><td class="strong">{{ o.name or o.role }}</td><td class="mono small">{{ o.sequence }}</td><td>{{ o.length_nt }}</td>
+          <td class="nowrap">{{ "%.1f" | format(o.gc_percent_min) }}{% if o.gc_percent_max != o.gc_percent_min %}–{{ "%.1f" | format(o.gc_percent_max) }}{% endif %}</td>
+          <td class="nowrap">{{ "%.1f" | format(o.tm_c_min) }}{% if o.tm_c_max != o.tm_c_min %}–{{ "%.1f" | format(o.tm_c_max) }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card table-card">
+  <h2 class="table-title">Checks</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Subject</th><th scope="col">Check</th><th scope="col">Value</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
+      <tbody>
+        {% for c in qc.checks %}
+        <tr>
+          <td class="nowrap">{{ c.subject }}</td><td>{{ c.name }}</td><td class="mono small">{{ c.display }}</td>
+          <td><span class="chip chip-sm chip-{{ qc_css[c.status] }}">{{ qc_label[c.status] }}</span></td>
+          <td class="small muted">{{ c.message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if qc.structures %}
+<section class="card table-card">
+  <h2 class="table-title">Hairpins and dimers</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Kind</th><th scope="col">Oligo(s)</th><th scope="col">Tm °C</th><th scope="col">ΔG kcal/mol</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for s in qc.structures %}
+        <tr>
+          <td>{{ s.kind }}</td><td>{{ s.label }}</td>
+          <td>{{ "%.1f" | format(s.tm_c) if s.tm_c is not none else "—" }}</td>
+          <td>{{ "%.2f" | format(s.dg_kcal) if s.dg_kcal is not none else "—" }}</td>
+          <td><span class="chip chip-sm chip-{{ qc_css[s.status] }}">{{ qc_label[s.status] }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

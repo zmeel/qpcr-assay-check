@@ -529,6 +529,16 @@ def gui_serve(
     secure_cookie: Annotated[
         bool, typer.Option(help="Send the session cookie over HTTPS only (behind a TLS proxy).")
     ] = False,
+    examples: Annotated[
+        Path | None,
+        typer.Option(help="Folder of example assay files offered for copying (read-only)."),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config", "-c", help="Configuration YAML (default: <work>/config.yaml if present)."
+        ),
+    ] = None,
     verbose: Annotated[int, typer.Option("-v", count=True, help="More logging.")] = 1,
 ) -> None:
     """Start the browser interface."""
@@ -544,7 +554,13 @@ def gui_serve(
         _fail("--idle-hours must be positive.")
     try:
         web = create_app(
-            GuiSettings(work_dir=work, idle_hours=idle_hours, secure_cookie=secure_cookie)
+            GuiSettings(
+                work_dir=work,
+                idle_hours=idle_hours,
+                secure_cookie=secure_cookie,
+                examples_dir=examples,
+                config_path=config,
+            )  # fmt: skip
         )
     except RuntimeError as exc:
         _fail(str(exc))

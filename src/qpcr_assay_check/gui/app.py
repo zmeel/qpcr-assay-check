@@ -25,6 +25,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from .. import __version__
+from .assay_routes import register_assay_routes
 from .auth import AuthStore, LoginThrottle
 from .records import RecordIndex
 
@@ -49,6 +50,15 @@ class GuiSettings:
     work_dir: Path
     idle_hours: float = 8.0
     secure_cookie: bool = False  # True when served over HTTPS (reverse proxy)
+    examples_dir: Path | None = None  # read-only assay files offered for copying
+    config_path: Path | None = None  # default: <work>/config.yaml when it exists
+
+    def config(self) -> Path | None:
+        """The configuration file runs and validation use (as scripts/run_assay.sh)."""
+        if self.config_path:
+            return self.config_path
+        default = Path(self.work_dir) / "config.yaml"
+        return default if default.is_file() else None
 
 
 class LoginRequired(Exception):
@@ -123,9 +133,9 @@ def create_app(settings: GuiSettings) -> FastAPI:
         request.session["last_seen"] = now
         return USER
 
-    def _page(request: Request, name: str, status_code: int = 200, **context: Any) -> Response:
+    def _page(request: Request, template: str, status_code: int = 200, **context: Any) -> Response:
         context.setdefault("csrf", csrf_token(request))
-        return templates.TemplateResponse(request, name, context, status_code=status_code)
+        return templates.TemplateResponse(request, template, context, status_code=status_code)
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> JSONResponse:
@@ -179,4 +189,7 @@ def create_app(settings: GuiSettings) -> FastAPI:
             results_dir=records.results_dir,
         )  # fmt: skip
 
+    register_assay_routes(
+        app, settings=settings, page=_page, require_login=_require_login, csrf_ok=_csrf_ok
+    )
     return app

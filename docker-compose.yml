@@ -12,13 +12,15 @@ services:
   gui:
     build: .
     image: qpcr-assay-check
-    command: ["gui", "serve", "--host", "0.0.0.0", "--port", "8080", "--work", "/work"]
+    command: ["gui", "serve", "--host", "0.0.0.0", "--port", "8080", "--work", "/work",
+              "--examples", "/examples"]
     user: "${QAC_UID:-1000}:${QAC_GID:-1000}"  # owner of work/ (from .env)
     environment:  # read from .env in this folder (Compose substitutes them)
       NCBI_EMAIL: ${NCBI_EMAIL:-}
       NCBI_API_KEY: ${NCBI_API_KEY:-}
     volumes:
       - ./work:/work
+      - ./docs/examples:/examples:ro   # offered for copying on the Assays page
     ports:
       - "8080:8080"
     restart: unless-stopped
