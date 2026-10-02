@@ -175,7 +175,9 @@ The window counts release years by default. `inclusivity.status_axis: collection
 year the sample was collected instead (as its submitter recorded it), so a batch of old samples
 uploaded late does not make an old lineage look current; genomes without a usable collection
 date are then left out of the window and counted, and the release-year figure is shown as
-information. Many genomes carry no usable date, so check that count before relying on it.
+information. When more than 25% of the genomes with the region have no usable collection year
+(`inclusivity.max_undetermined_percent`), the status is *Incomplete*: it would describe only the
+dated minority.
 
 Next to the genome count, the report gives the same window with **distinct site patterns**:
 genomes whose three sites are identical counted once. A database dominated by one outbreak

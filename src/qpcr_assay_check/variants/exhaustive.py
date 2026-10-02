@@ -1279,8 +1279,9 @@ def _bracket(detected: int, undetermined: int, total: int, unit: str) -> str:
 
 
 def fragment_verdict(
-    years: list[FragmentYear], rules: Any, axis: str = "release"
-) -> tuple[Verdict, list[str]]:
+    years: list[FragmentYear], rules: Any, axis: str = "release",
+    undated: tuple[int, int] | None = None,
+) -> tuple[Verdict, list[str]]:  # fmt: skip
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
     current one, undetermined genomes left out of the denominator, at risk counted as not
@@ -1288,7 +1289,11 @@ def fragment_verdict(
     single window year with at least ``min_genomes_per_year`` genomes below
     ``fail_below_percent`` gives WARN (years outside the window never decide). The
     per-oligo figures are diagnostics only. ``axis``: whether ``years`` are release years or
-    collection years (``inclusivity.status_axis``); the window counts that year."""
+    collection years (``inclusivity.status_axis``); the window counts that year. ``undated``:
+    with collection years, (genomes with the region and no collection year to place them by,
+    all genomes with the region released in the years shown); more than
+    ``max_undetermined_percent`` undated is INCOMPLETE (user, 2026-10-02), as for undetermined
+    genomes, so a status is never carried by the dated minority."""
     w = fragment_window(years, rules.verdict_window_years)
     by_collection = axis == "collection"
     done, year_word = ("collected", "Collection") if by_collection else ("released", "Release")
@@ -1326,6 +1331,17 @@ def fragment_verdict(
                 f" ({share:.1f}% of the genomes with the region are undetermined, more than "
                 f"{rules.max_undetermined_percent:g}%: setting "
                 "inclusivity.max_undetermined_percent)"
+            ),
+        )
+    elif (
+        undated and undated[1] and 100.0 * undated[0] / undated[1] > rules.max_undetermined_percent
+    ):
+        verdict, why = (
+            Verdict.INCOMPLETE,
+            (
+                f" ({100.0 * undated[0] / undated[1]:.1f}% of the genomes with the region have "
+                f"no usable collection year, more than {rules.max_undetermined_percent:g}%: "
+                "settings inclusivity.max_undetermined_percent and inclusivity.status_axis)"
             ),
         )
     elif pct < rules.fail_below_percent:
@@ -1397,7 +1413,12 @@ def exhaustive_inclusivity(
     axis = cfg.inclusivity.status_axis
     by_collection = axis == "collection"
     status_rows = (collection.years if collection else []) if by_collection else fragment_years
-    verdict, rationale = fragment_verdict(status_rows, cfg.inclusivity, axis)
+    undated = None
+    if by_collection and collection is not None:
+        apart = collection.undated.with_region + collection.not_read.with_region
+        placed = sum(r.with_region for r in collection.years) + collection.earlier.with_region
+        undated = (apart, apart + placed)
+    verdict, rationale = fragment_verdict(status_rows, cfg.inclusivity, axis, undated)
     unit = "assemblies" if source == "datasets" else "records"
     if by_collection:
         rw = fragment_window(fragment_years, cfg.inclusivity.verdict_window_years)

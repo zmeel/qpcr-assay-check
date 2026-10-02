@@ -14,9 +14,10 @@ from .test_collection_dates import _dated
 from .test_variants_exhaustive import NOW, _empty_specificity, genome, run, setup
 
 
-def _run(tmp_path, axis: str, items=None):
+def _run(tmp_path, axis: str, items=None, max_undated: float = 60.0):
     cfg, fake, client, assay = setup(tmp_path, fake=FakeDatasets(items or _dated()))
     cfg.inclusivity.min_genomes_for_verdict = 1
+    cfg.inclusivity.max_undetermined_percent = max_undated
     cfg.inclusivity.status_axis = axis
     return cfg, assay, run(tmp_path, cfg, client, assay)
 
@@ -44,6 +45,13 @@ def test_the_status_counts_collection_years_when_asked(tmp_path):
     assert not any(x.startswith("By collection date (information only") for x in lines)
     # the release-year table is still there, unchanged
     assert rel.inclusivity.fragment_years == col.inclusivity.fragment_years
+    # at the default limit of 25%, half the genomes without a collection year: Incomplete
+    _, _, few = _run(tmp_path / "d", "collection", max_undated=25.0)
+    assert few.inclusivity.verdict is Verdict.INCOMPLETE
+    assert (
+        "50.0% of the genomes with the region have no usable collection year, more than 25%"
+        in few.inclusivity.rationale[0]
+    )
     w = fragment_window(status_years(col.inclusivity), cfg.inclusivity.verdict_window_years)
     assert (w.first, w.last, w.n) == (2024, 2024, 1)
 

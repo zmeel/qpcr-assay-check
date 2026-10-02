@@ -27,7 +27,9 @@ All notable changes to this project are documented here. The format follows
   results). With `collection`, the status window counts the year the sample was collected (the
   table by collection year), genomes without a usable collection date are left out of it and
   counted in a rationale line with their share, and the release-year figure is given as
-  information. The channel statuses are over all assessed genomes and do not change.
+  information. When more than `max_undetermined_percent` (25%) of the genomes with the region
+  have no usable collection year, the status is Incomplete (user, 2026-10-02), as for
+  undetermined genomes. The channel statuses are over all assessed genomes and do not change.
 
 ## [2.1.0] - 2026-10-02
 

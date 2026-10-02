@@ -16,9 +16,10 @@ verified NCBI facts) at the start of every session. Newest entry first.
   counted in a "Left out of the status by collection year" line, the release-year figure is
   information; the summary row, the not-located line and the report follow the axis. Channel
   statuses are over all genomes and unchanged.
-- Open for the user: with `collection`, should a large share without a usable date make the
-  status Incomplete (as max_undetermined_percent does for undetermined genomes)? Now it is only
-  reported. Run Neisseria/Legionella with both axes to compare.
+- User: "Use 25% limit": with `collection`, more than max_undetermined_percent (25%) of the
+  genomes with the region (released in the years shown) without a usable collection year gives
+  INCOMPLETE. Committed locally after the push; the user first runs Neisseria with the pushed
+  code (both axes) before it is pushed.
 - tests/test_status_axis.py (6 tests).
 
 ## 2026-10-02 — Browser interface G1-G5; v2.1.0 released
