@@ -64,6 +64,7 @@ from .models import (
     ChannelCoverageRow,
     ChannelResult,
     CopyCoverage,
+    CutReason,
     EscapeReason,
     EscapeRow,
     ExhaustiveCoverage,
@@ -484,6 +485,7 @@ def assess(
     *,
     calls: list[GenomeCall] | None = None,
     cut: list[str] | None = None,
+    cut_kinds: dict[str, tuple[str, str]] | None = None,
 ) -> tuple[list[SiteResult], int, list[str]]:
     """One site per role per genome, from the copy of the region the assay binds best.
 
@@ -495,7 +497,8 @@ def assess(
     :class:`GenomeCall` (copies, per-oligo coverage). The items' copies are already chosen by
     the copy rule (:func:`as_items`). Returns the sites, the number of genomes
     whose only copies are cut by a contig end, and the genomes whose best copy has an N in an
-    oligo site (masked, not assessed).
+    oligo site (masked, not assessed). ``cut_kinds``, if given, collects why each genome in
+    ``cut`` has no judged site (:func:`cut_kind`).
     """
     per_ref = sites_in_amplicon if isinstance(sites_in_amplicon, list) else [sites_in_amplicon]
     scoring = realign.Scoring(
@@ -532,6 +535,10 @@ def assess(
             contig_break += 1
             if cut is not None:
                 cut.append(it.accession)
+            if cut_kinds is not None:
+                cut_kinds[it.accession] = cut_kind(
+                    it, per_ref, assay, cfg, scoring, memo, channel_rule, bulges
+                )
             continue
         chosen, all_sites = parts if parts is not None else copies[best_i]
         if any("N" in s.s_aln.upper() for s in chosen.values()):
@@ -830,6 +837,58 @@ def _assess_parts(
             return None
         chosen[role] = _role_site(assay, role, every, channel_rule, bulges)
     return chosen, every
+
+
+CUT_KINDS = {
+    "not_assembled": "the fragment itself is not in the assembly: only the sequence beside it "
+    "reaches a contig end (no fragment base in an exact block)",
+    "no_site": "part of the fragment is there, but no oligo site is whole",
+    "site_cut_ok": "{roles} cut off; the whole site(s) are detectable",
+    "site_cut_fail": "{roles} cut off; a whole site already fails",
+    "sites_fail": "every site is whole on the cut copies, but they are not all detectable",
+    "other": "no copy cut by a contig end, but a site runs off the stored region",
+}
+
+
+def cut_kind(
+    it: StoredAssembly,
+    per_ref: list[dict[str, tuple[str, int, int]]],
+    assay: Assay,
+    cfg: Config,
+    scoring: realign.Scoring,
+    memo: dict[tuple[str, str], tuple[realign.Alignment, str]],
+    channel_rule: str,
+    bulges: bool,
+) -> tuple[str, str]:
+    """Why a genome with the region has no judged site (user, 2026-10-02: the breakdown of the
+    Legionella genomes cut by a contig end). Information only: they stay undetermined."""
+    cut = [lc for lc in it.loci if lc.truncated]
+    if not cut:
+        return "other", CUT_KINDS["other"]
+    if all(lc.n_seeds == 0 for lc in cut):
+        return "not_assembled", CUT_KINDS["not_assembled"]
+    every: dict[str, SiteResult] = {}
+    for locus in cut:
+        windows = per_ref[locus.ref] if locus.ref < len(per_ref) else per_ref[0]
+        for role in ROLES:
+            for name, site in (_role_sites(it, locus, assay, role, windows, cfg, scoring, memo)
+                               or {}).items():  # fmt: skip
+                if "N" in site.s_aln.upper():
+                    continue
+                if name not in every or _closeness_key(site, bulges) < _closeness_key(
+                    every[name], bulges
+                ):
+                    every[name] = site
+    whole = [r for r in ROLES if any(o.name in every for o in assay.by_role(r))]
+    if not whole:
+        return "no_site", CUT_KINDS["no_site"]
+    if len(whole) == len(ROLES):
+        return "sites_fail", CUT_KINDS["sites_fail"]
+    ok = all(detectable(_role_site(assay, r, every, channel_rule, bulges), bulges) for r in whole)
+    missing = [r for r in ROLES if r not in whole]
+    roles = " and ".join(f"the {r} site" for r in missing)
+    kind = "site_cut_ok" if ok else "site_cut_fail"
+    return f"{kind}:{'+'.join(missing)}", CUT_KINDS[kind].format(roles=roles)
 
 
 def _align(
@@ -1766,9 +1825,19 @@ def run_exhaustive(
     )
     calls: list[GenomeCall] = []
     cut: list[str] = []
+    kinds: dict[str, tuple[str, str]] = {}
     sites, contig_break, masked_site = assess(
-        items, assay, amplicon, placed, cfg, calls=calls, cut=cut
+        items, assay, amplicon, placed, cfg, calls=calls, cut=cut, cut_kinds=kinds
     )
+    level_of = {it.accession: it.assembly_level for it in items}
+    by_kind: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for acc in cut:
+        by_kind[kinds[acc]].append(acc)
+    cut_breakdown = [
+        CutReason(kind=k, label=label, genomes=len(accs), examples=accs[:10],
+                  complete=sum(1 for a in accs if level_of.get(a) in COMPLETE_LEVELS))
+        for (k, label), accs in sorted(by_kind.items(), key=lambda kv: -len(kv[1]))
+    ]  # fmt: skip
     # the region is there but no site could be judged: undetermined in the whole fragment, as
     # in the channels (user, 2026-10-01: "both")
     unjudged = set(cut) | set(masked_site)
@@ -1811,6 +1880,7 @@ def run_exhaustive(
         found=len(sites) // len(ROLES),
         not_found=len(not_found),
         contig_break=contig_break,
+        cut_reasons=cut_breakdown,
         multi_copy=sum(1 for it in items if len(it.loci) > 1),
         years=years,
         listed_at=(now or datetime.now(UTC)).isoformat(timespec="seconds"),

@@ -21,6 +21,17 @@ verified NCBI facts) at the start of every session. Newest entry first.
   INCOMPLETE. Committed locally after the push; the user first runs Neisseria with the pushed
   code (both axes) before it is pushed.
 - tests/test_status_axis.py (6 tests).
+- Legionella with the new code and status_axis collection (user, run 2026-10-02T12:22Z, GUI):
+  Incomplete, but from the 4,441 cut genomes (48% undetermined in the collection window, 38%
+  by release), not from the axis; 313 of 11,174 (2.8%) without a usable collection year.
+  Collection 2023-2026 93.9% of 1,669 (2025 87.7%, 2026 90.6%) vs release 97.3% of 4,549;
+  3,921 of the genomes released 2017-2026 were collected before 2017. Distinct patterns: 8
+  (4 detectable, 3 failing in 100 genomes; the most common one in 1,282 genomes).
+- 25% undated limit pushed (user: "Push and make break down"). Breakdown of the cut genomes
+  built: `cut_kind()` and `CUT_KINDS` in variants/exhaustive.py, `CutReason` and
+  `ExhaustiveCoverage.cut_reasons`, report coverage row, workbook coverage sheet, run_summary.
+  No count changes. tests/test_cut_reasons.py. Next: the user reruns Legionella and decides
+  whether a kind (e.g. "fragment not in the assembly") should leave the denominator.
 
 ## 2026-10-02 — Browser interface G1-G5; v2.1.0 released
 

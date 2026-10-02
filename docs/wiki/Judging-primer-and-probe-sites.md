@@ -134,6 +134,10 @@ Every genome ends in exactly one **outcome**, decided in one place in this order
 
 Genomes that carry the region but have no judgeable site, because it is **cut by a contig end**
 or **hidden by N**, count as **undetermined**, in the whole-fragment table as in the channels.
+The report says why for the cut ones: the fragment itself is not in the assembly (only the
+sequence beside it reaches a contig end); part of the fragment is there but no site is whole;
+one or two sites are cut off while the whole ones are detectable, or already fail; or every site
+is whole on the cut copies but not all are detectable. This breakdown changes no count.
 Genomes without the region (**region not found**, **related regions only**) are counted apart.
 The report shows each number, so the gap between "genomes listed" and "genomes judged" is always
 explained.

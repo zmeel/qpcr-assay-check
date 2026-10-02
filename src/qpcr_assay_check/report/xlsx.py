@@ -354,6 +354,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                     ", ".join(c.found_by_fallback_examples)],
                    ["Region cut by a record end" if c.source == "blast_partitioned"
                     else "Region cut by a contig end", c.contig_break, ""],
+                   *[[f"  ...{r.label}", r.genomes,
+                      ", ".join(r.examples)] for r in c.cut_reasons],
                    ["Region hidden by N", c.masked, ", ".join(c.masked_examples)],
                    ["Region not found", c.not_found, ", ".join(c.not_found_examples)],
                    ["  ...flanks present, fragment not locatable (possible escapes)",

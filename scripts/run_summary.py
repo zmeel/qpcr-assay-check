@@ -47,6 +47,7 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
         copies = cov.get("copies") or {}
         out["coverage"] = _scalars(cov)
         out["coverage"]["years"] = cov.get("years")
+        out["coverage"]["cut_reasons"] = cov.get("cut_reasons")
         out["copies"] = _scalars(copies)
         for key in (
             "oligos",

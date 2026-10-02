@@ -92,6 +92,18 @@ class EscapeReason(BaseModel):
     examples: list[str] = Field(default_factory=list)
 
 
+class CutReason(BaseModel):
+    """Genomes with the region but no judged site, for the same reason (user, 2026-10-02:
+    the breakdown of the genomes cut by a contig end). They stay undetermined."""
+
+    kind: str = Field(description="not_assembled | no_site | site_cut_ok:<roles> | "
+                      "site_cut_fail:<roles> | sites_fail | other")  # fmt: skip
+    label: str
+    genomes: int = 0
+    complete: int = Field(default=0, description="of them, complete or chromosome-level")
+    examples: list[str] = Field(default_factory=list)
+
+
 class EscapeRow(BaseModel):
     """One escape and why its best copy fails."""
 
@@ -244,6 +256,9 @@ class ExhaustiveCoverage(BaseModel):
     found: int
     not_found: int
     contig_break: int = Field(description="region cut by a contig end (draft assemblies)")
+    cut_reasons: list[CutReason] = Field(
+        default_factory=list, description="why those genomes have no judged site, most first"
+    )
     multi_copy: int = Field(description="assemblies with more than one copy of the region")
     years: list[YearCoverage] = Field(default_factory=list)
     listed_at: str
