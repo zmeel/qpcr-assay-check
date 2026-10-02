@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Annotated, Any
@@ -505,7 +506,13 @@ def gui_set_password(work: WorkDir = Path(".")) -> None:
     problem = check_new_password(password)
     if problem:
         _fail(f"Password not set: {problem}.")
-    AuthStore(work).set_password(password)
+    try:
+        AuthStore(work).set_password(password)
+    except PermissionError as exc:
+        _fail(
+            f"Cannot write {exc.filename}: this user (uid {os.getuid()}) may not write in "
+            f"{work}. Run as the owner of that folder (Docker: QAC_UID/QAC_GID in .env)."
+        )
     typer.echo(f"Password set in {AuthStore(work).path}. Restart the GUI if it is running.")
 
 

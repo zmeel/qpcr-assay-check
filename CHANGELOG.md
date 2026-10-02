@@ -17,7 +17,9 @@ All notable changes to this project are documented here. The format follows
   check, the inclusivity headline) and the recent records under `work/results`. Light and dark
   theme, works at phone width; IBM Plex fonts ship with the package (SIL OFL 1.1).
   `docker-compose.yml` for a NAS (port 8080, LAN or VPN only); the image installs the extra.
-  `work/` is now in `.gitignore`.
+  `work/` is now in `.gitignore`. The container user comes from `QAC_UID`/`QAC_GID` in `.env`
+  (`UID` is read-only in the Synology shell, first try on the NAS 2026-10-02), and
+  `gui set-password` explains a folder it may not write instead of a traceback.
 
 ## [2.0.0] - 2026-10-02
 

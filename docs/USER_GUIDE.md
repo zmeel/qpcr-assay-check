@@ -78,11 +78,13 @@ dashboard (the latest record per assay and the recent records under `work/result
 assays, starting runs, following them and reading reports in the browser follow in later steps.
 
 ```bash
+# once: let the container run as the owner of work/ (not UID/GID: read-only in some shells)
+echo "QAC_UID=$(id -u)" >> .env; echo "QAC_GID=$(id -g)" >> .env
 docker compose build
 # set the password once (asked twice; at least 10 characters). Only a salted scrypt hash is kept,
 # with the session key, in work/gui/auth.json (mode 0600; work/ is not in git)
-UID=$(id -u) GID=$(id -g) docker compose run --rm gui gui set-password --work /work
-UID=$(id -u) GID=$(id -g) docker compose up -d
+docker compose run --rm gui gui set-password --work /work
+docker compose up -d
 # open http://<nas-address>:8080
 ```
 
