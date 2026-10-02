@@ -1,0 +1,67 @@
+{% extends "app_shell.html" %}
+{% block title %}Settings · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <h1>Settings</h1>
+    <p class="muted">Sign-in, the configuration runs use, the NCBI environment and the room the work folder takes.</p>
+  </div>
+</header>
+
+{% if saved == "password" %}<p class="notice notice-ok" role="status">Password changed. Every other session has ended; this one stays signed in.</p>{% endif %}
+{% if saved == "config" %}<p class="notice notice-ok" role="status">Configuration saved. The next run uses it; a run already going keeps the one it started with.</p>{% endif %}
+
+<section class="card stack-12 narrow" aria-labelledby="pw-title">
+  <h2 id="pw-title">Password</h2>
+  {% if password_error %}<p class="notice notice-error" role="alert">{{ password_error }}</p>{% endif %}
+  <form class="form-grid" method="post" action="/settings/password">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="text" name="username" value="admin" autocomplete="username" hidden>
+    <div class="field"><label for="pw-current">Current password</label><input id="pw-current" name="current" type="password" autocomplete="current-password" required></div>
+    <div class="field"><label for="pw-new">New password</label><input id="pw-new" name="new" type="password" autocomplete="new-password" minlength="10" required></div>
+    <div class="field"><label for="pw-again">New password again</label><input id="pw-again" name="again" type="password" autocomplete="new-password" minlength="10" required></div>
+    <div class="field field-end"><button class="btn btn-primary" type="submit">Change password</button></div>
+  </form>
+  <p class="small muted">At least 10 characters. Only a salted hash is stored, in <code>{{ work_dir }}/gui/auth.json</code>. Signed out after {{ idle_hours | round | int }} hours without activity (<code>--idle-hours</code>){% if secure_cookie %}; the session cookie is sent over HTTPS only{% endif %}.</p>
+</section>
+
+<section class="card stack-12 narrow" aria-labelledby="ncbi-title">
+  <h2 id="ncbi-title">NCBI</h2>
+  <div class="row-between"><span class="mono">NCBI_EMAIL</span>{% if ncbi_email %}<span class="chip chip-sm chip-ok">set in the environment</span>{% else %}<span class="chip chip-sm chip-exceeds">not set: full runs will stop</span>{% endif %}</div>
+  <div class="row-between"><span class="mono">NCBI_API_KEY</span>{% if ncbi_key %}<span class="chip chip-sm chip-ok">set in the environment</span>{% else %}<span class="chip chip-sm chip-incomplete">not set: slower request rate</span>{% endif %}</div>
+  <p class="small muted">Both come from the environment (<code>.env</code> beside <code>docker-compose.yml</code>). The GUI never shows or stores them; change them there and restart the GUI.</p>
+</section>
+
+<section class="card stack-12 narrow" aria-labelledby="disk-title" data-storage-url="/settings/storage">
+  <div class="row-between">
+    <h2 id="disk-title">Storage</h2>
+    <button class="btn btn-sm" type="button" data-storage-measure>Measure</button>
+  </div>
+  <div data-storage-target><p class="small muted">Counting the files can take a few seconds for a large cache.</p></div>
+</section>
+
+<section class="card stack-12" aria-labelledby="cfg-title">
+  <div class="row-between">
+    <h2 id="cfg-title">Configuration</h2>
+    <span class="mono small muted">{{ config_file }}{% if not config_exists %} (not created yet: the packaged defaults are shown){% endif %}</span>
+  </div>
+  {% if config_error %}<p class="notice notice-error" role="alert">{{ config_error }}</p>{% endif %}
+  {% if cfg %}
+  <dl class="facts">
+    <dt>NCBI cache</dt><dd class="mono">{{ cfg.ncbi.cache_dir or "the default user cache folder" }}</dd>
+    <dt>Annealing</dt><dd>{{ "%g" | format(cfg.reaction.annealing_temp_C) }} °C (an assay's own settings win)</dd>
+    <dt>Genomes per run</dt><dd>{{ "{:,}".format(cfg.variants.max_assemblies_per_run) }}</dd>
+    <dt>BLAST E-value</dt><dd>{{ "%g" | format(cfg.search.expect) }}</dd>
+  </dl>
+  {% endif %}
+  <form class="stack-12" method="post" action="/settings/config" data-dirty-guard>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="visually-hidden" for="cfg-text">Configuration file</label>
+    <textarea id="cfg-text" class="code-editor" name="text" spellcheck="false" autocomplete="off">{{ config_text }}</textarea>
+    <div class="row-between">
+      <span class="small muted">Checked as a run loads it before it is saved; the previous version is kept in <code>gui/history/</code>. Lab-wide settings only: an assay's own <code>settings:</code> win over this file.</span>
+      <button class="btn btn-primary" type="submit">Save configuration</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

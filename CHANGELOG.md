@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Browser interface, step G5: Settings and documentation** (user go-ahead 2026-10-02): change
+  the password (the current one asked, with the same brake as sign-in); every session carries
+  a fingerprint of the signing key, so a new password ends every other session at once, also
+  when set with `gui set-password` while the GUI runs. Edit the configuration file runs use,
+  checked as a run loads it before saving, previous version kept in `work/gui/history/`. NCBI
+  email and key reported as set or not set only. Storage of the cache, records, logs and assay
+  files measured on request (stops after 5 s) with the free disk space. Wiki page *Browser
+  interface*; README and USER_GUIDE sections.
 - **Browser interface, step G4: results** (user go-ahead 2026-10-02): every record under
   `work/results` per assay (mode, version, review and inclusivity status, genomes assessed),
   a record page with its checks, the record's `report.html` shown in the page and its files to

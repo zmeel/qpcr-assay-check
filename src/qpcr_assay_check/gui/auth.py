@@ -2,7 +2,8 @@
 
 Only a salted scrypt hash of the password is stored (Python's standard library), with the key
 that signs session cookies, in ``<work>/gui/auth.json`` (mode 0600). Setting a new password also
-makes a new signing key, so every open session ends.
+makes a new signing key; every session carries the key's :attr:`AuthStore.generation`, so open
+sessions end at once, also when the password is set from the command line while the GUI runs.
 """
 
 from __future__ import annotations
@@ -84,6 +85,12 @@ class AuthStore:
     @property
     def secret_key(self) -> str:
         return self._read()["secret_key"]
+
+    @property
+    def generation(self) -> str:
+        """A short fingerprint of the current signing key ('' when none is set)."""
+        key = self._read().get("secret_key") or ""
+        return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16] if key else ""
 
     def verify(self, password: str) -> bool:
         encoded = self._read().get("password")
