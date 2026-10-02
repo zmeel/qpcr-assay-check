@@ -3,6 +3,15 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-10-02 — v2.0.0 release
+
+- User go-ahead for v2 (2026-10-02) after the enterovirus, Legionella and Neisseria runs with
+  the v2 code. Version 2.0.0 in pyproject.toml; CHANGELOG section with the breaking changes.
+  Tag v2.0.0 on main once the release PR is merged (as for 1.x). Docker: rebuild the image at
+  the tag (`docker build -t qpcr-assay-check .`) so the tool version in reports reads 2.0.0;
+  run_assay.sh mounts src/ and so already ran the v2 code.
+- Next phase (user, 2026-10-02): a browser GUI, after the release.
+
 ## 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
 
 - Step 8, Legionella (user, 2026-09-29 22:24 to 2026-09-30 08:54, 11,911 assemblies in one run, about 3.2 s each):
@@ -147,7 +156,21 @@ verified NCBI facts) at the start of every session. Newest entry first.
   axis) and the channels. Expected for Legionella: the from-parts genomes move to detected,
   but the cut genomes stay undetermined, so the fragment status will likely still be
   INCOMPLETE.
-- Not done yet: Legionella and Neisseria re-runs with this code, then the v2 release.
+- Neisseria with this code (user, run 2026-10-01T17:03Z; store reused, 1,283 new): 21,983 of
+  51,583 assessed. Whole fragment 2023-2026 89.8% detectable of 17,999 judged (91.9% on
+  2026-09-30); bracket 77.7-91.1%; undetermined 2,788 of 20,787 (13%, under the 25% limit),
+  23 of them cut or hidden; status Review, Incomplete until every genome is assessed. Fragment
+  and channel now agree (channel undetermined 2,990 = 1,603 + 1,345 unassembled + 42 cut or
+  hidden). The drop is not in detectable genomes (2025: 4,443 -> 4,445; 2026: 1,919 -> 1,922)
+  but in "possibly unassembled" (2025: 642 -> 450; 2026: 481 -> 355) turning into at risk or
+  likely failure: complete genomes rose from 160 to 297 (escapes 6 -> 12), and a draft is not
+  marked when a complete genome fails with the same sites. Expected behaviour, not a bug. R5c
+  seen live (NG-P2, 1-nt deletion -> at risk). "Tm <= annealing" now only on real drops (NG-R
+  3' variants, ΔTm -3.1 °C and more); MGB probes "ΔTm not applicable". By collection year,
+  the share at risk is 13-17% for samples collected 2024-2026 against 4-9% before (2024
+  releases only partly assessed, newest first). Specificity unchanged: one 76-bp product on
+  CP171264.1 (N. meningitidis); partner scan 43 windows, nothing added; score floors known.
+- Not done yet: two more Neisseria runs (29,582 left), Legionella re-run, then the v2 release.
 
 ## 2026-09-29 — Overhaul round 2: a generic assay model (advisor); user decisions
 
