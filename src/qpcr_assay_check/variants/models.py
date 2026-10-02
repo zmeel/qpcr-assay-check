@@ -83,6 +83,25 @@ class RunLengthBreakdown(BaseModel):
     )
 
 
+class EscapeReason(BaseModel):
+    """Escapes that fail for the same kind of reason (user request 2026-10-02)."""
+
+    kind: str = Field(description="run_length | mismatch | gap | pair")
+    label: str
+    genomes: int = 0
+    examples: list[str] = Field(default_factory=list)
+
+
+class EscapeRow(BaseModel):
+    """One escape and why its best copy fails."""
+
+    accession: str
+    kind: str
+    detail: str = Field(description="the failing site(s) of the best copy")
+    assembly_level: str = ""
+    copies: int = 0
+
+
 class CopyCoverage(BaseModel):
     """Every stored copy of the region, every alternative oligo: what the assay can detect.
 
@@ -102,6 +121,12 @@ class CopyCoverage(BaseModel):
     with_detectable_copy: int = 0
     escapes: int = Field(default=0, description="genomes without any detectable copy")
     escape_examples: list[str] = Field(default_factory=list)
+    escape_reasons: list[EscapeReason] = Field(
+        default_factory=list, description="escapes by the kind of failure, most first"
+    )
+    escape_rows: list[EscapeRow] = Field(
+        default_factory=list, description="every escape with the failing site(s) of its best copy"
+    )
     undetermined: int = Field(
         default=0,
         description="genomes without a detectable copy whose only problems have no published "

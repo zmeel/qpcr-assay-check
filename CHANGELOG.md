@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Why each escape fails** (user request 2026-10-02, after checking GCF_001025995.1 by hand in
+  the Neisseria run: its 3 assembled copies all read A8/A9 at NG-R's poly-A 7): every escape now
+  carries the failing site(s) of its best copy and a kind: *single-base run length only*
+  (detectable if homopolymer bulges were tolerated), *a gap in a site's alignment*,
+  *mismatches*, or *mismatches in both primers together* (rule R8). The report's escape row
+  counts them per kind with examples; the workbook has a sheet "Escapes" with every escape, its
+  kind, the failing sites, the assembly level and the number of copies; results.json has
+  `escape_reasons` and `escape_rows`. Nothing about which genomes count as escapes changes.
+
 ## [2.1.0] - 2026-10-02
 
 A browser interface for one user, behind a password, for a LAN or VPN (steps G1-G5 below):

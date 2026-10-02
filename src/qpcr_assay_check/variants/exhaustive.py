@@ -62,6 +62,8 @@ from .models import (
     ChannelCoverageRow,
     ChannelResult,
     CopyCoverage,
+    EscapeReason,
+    EscapeRow,
     ExhaustiveCoverage,
     LevelCoverage,
     OligoCoverageRow,
@@ -395,6 +397,8 @@ class GenomeCall:
     unassembled: bool = False  # see mark_unassembled
     from_parts: bool = False  # judged from sites on copies cut by a contig end (_assess_parts)
     channel_state: dict[str, str] = field(default_factory=dict)  # channel -> ok|undetermined|fail
+    escape_kind: str = ""  # why the best copy fails, when it does (see escape_reason)
+    escape_detail: str = ""
 
     @property
     def undetermined(self) -> bool:
@@ -574,7 +578,70 @@ def assess(
                     ),
                 )
             )
+            call = calls[-1]
+            call.escape_kind, call.escape_detail = escape_reason(
+                chosen, call.role_state, bulges,
+                rescued_by_bulges=not bulges and call.n_detectable_other_rule > 0,
+            )  # fmt: skip
     return sites, contig_break, masked_site
+
+
+ESCAPE_KINDS = {
+    "run_length": "single-base run length only: detectable if homopolymer bulges are tolerated",
+    "gap": "a gap in a site's alignment (an insertion or deletion; near a 3' end often how the "
+    "aligner writes two mismatches)",
+    "mismatch": "mismatches",
+    "pair": "mismatches in both primers together (rule R8)",
+}
+
+
+def _site_reason(role: str, s: SiteResult) -> tuple[str, str]:
+    cls = (s.grade or "not detectable").replace("_", " ")
+    who = role if s.query == role else f"{role} {s.query}"
+    if s.note and s.n_mismatch == 0:
+        return "run_length", f"{who}: {cls}, {s.note}"
+    parts = [f"{s.n_mismatch} mismatch(es)"]
+    if s.n_gap:
+        parts.append(f"{s.n_gap} gap(s)")
+    if s.mismatches_last5:
+        parts.append(f"{s.mismatches_last5} change(s) in the last 5 nt")
+    return ("gap" if s.n_gap else "mismatch"), f"{who}: {cls} ({', '.join(parts)})"
+
+
+def escape_reason(
+    chosen: dict[str, SiteResult],
+    state: dict[str, str],
+    bulges: bool = False,
+    rescued_by_bulges: bool = False,
+) -> tuple[str, str]:
+    """Why a genome's best copy fails (user request 2026-10-02): the kind and the failing sites.
+
+    ``rescued_by_bulges``: some copy would be detectable if homopolymer bulges counted, so the
+    genome fails only by the length of a single-base run (rule R5b, the strict setting). Other
+    kinds, most telling first: an insertion or deletion, mismatches, then a primer pair that
+    fails only together (rule R8: each primer alone would be detectable). ('', '') when no role
+    fails."""
+    kinds: list[str] = []
+    details: list[str] = []
+    for role in ROLES:
+        if state.get(role) != "fail" or role not in chosen:
+            continue
+        s = chosen[role]
+        if site_state(s, bulges) == "ok":  # detectable alone: failed with the other primer
+            kinds.append("pair")
+            who = role if s.query == role else f"{role} {s.query}"
+            details.append(f"{who}: detectable alone, fails with the other primer (R8)")
+            continue
+        kind, detail = _site_reason(role, s)
+        kinds.append(kind)
+        details.append(detail)
+    if not kinds:
+        return "", ""
+    if rescued_by_bulges:
+        kind = "run_length"
+    else:
+        kind = next(k for k in ("gap", "mismatch", "pair", "run_length") if k in kinds)
+    return kind, "; ".join(details)
 
 
 def _channel_sites(assay: Assay, every: dict[str, SiteResult]) -> list[SiteResult]:
@@ -919,6 +986,19 @@ def copy_coverage(
     out.from_parts, out.from_parts_accessions = len(parts), parts
     out.from_parts_counted = any(c.from_parts and c.n_detectable > 0 for c in calls)
     out.escapes, out.escape_examples = len(escapes), escapes[:20]
+    by_acc = {c.accession: c for c in calls}
+    out.escape_rows = [
+        EscapeRow(accession=acc, kind=by_acc[acc].escape_kind or "mismatch",
+                  detail=by_acc[acc].escape_detail, assembly_level=by_acc[acc].assembly_level,
+                  copies=by_acc[acc].n_copies)
+        for acc in escapes
+    ]  # fmt: skip
+    kinds = Counter(r.kind for r in out.escape_rows)
+    out.escape_reasons = [
+        EscapeReason(kind=k, label=ESCAPE_KINDS.get(k, k), genomes=n,
+                     examples=[r.accession for r in out.escape_rows if r.kind == k][:10])
+        for k, n in kinds.most_common()
+    ]  # fmt: skip
     unassembled = having(GenomeOutcome.UNASSEMBLED)
     out.unassembled, out.unassembled_accessions = len(unassembled), unassembled
     undet = having(GenomeOutcome.UNDETERMINED)

@@ -48,7 +48,14 @@ def summary(data: dict[str, Any]) -> dict[str, Any]:
         out["coverage"] = _scalars(cov)
         out["coverage"]["years"] = cov.get("years")
         out["copies"] = _scalars(copies)
-        for key in ("oligos", "role_none", "role_undetermined", "channels", "by_level"):
+        for key in (
+            "oligos",
+            "role_none",
+            "role_undetermined",
+            "channels",
+            "by_level",
+            "escape_reasons",
+        ):
             out["copies"][key] = copies.get(key)
         out["channels"] = cov.get("channel_results")
     inc = data.get("inclusivity")

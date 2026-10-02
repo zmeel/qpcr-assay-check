@@ -5,6 +5,19 @@ verified NCBI facts) at the start of every session. Newest entry first.
 
 ## 2026-10-02 — Browser interface G1-G5; v2.1.0 released
 
+- Neisseria escapes checked with the user (2026-10-02): GCF_001025995.1 (first escape example)
+  has 3 assembled copies of the region (2 whole on the reverse strand with A8 and A9 at NG-R's
+  poly-A 7, 1 cut at the end of contig 275 with T9 = A9); no copy with A7. The tool found every
+  copy; the escape comes from the strict homopolymer rule (best copy A8, at risk, R5b), not
+  the contig end. Not "possibly unassembled" (3 copies vs median 9) because complete genomes
+  fail with the same three sites. Most of the 1,889 escapes are this kind (933 reverse A8 only,
+  713 with a tolerated forward mismatch as well); 92.8% if bulges were tolerated. Whether NG-R
+  primes over T8/T9 is a wet-lab question.
+- Added (user: "Add escape reason per genome"): escape_reason() in variants/exhaustive.py,
+  CopyCoverage.escape_reasons / escape_rows, the report's escape row by kind, workbook sheet
+  "Escapes", run_summary includes escape_reasons. Tests in test_genome_outcome.py and
+  test_multi_copy.py. No change to who counts as an escape.
+
 - v2.0.0 tag pushed by the user (verified: annotated, on c5ef505, the merge of PR #56).
 - GUI decisions (user, 2026-10-02): one user with a password, LAN/VPN only, 8 hours idle
   sign-out, mockup first (approved: https://claude.ai/artifact/S8iW1kmSFw65wYQJuDULmx).
