@@ -214,3 +214,13 @@ progress.bar::-moz-progress-bar { background: var(--accent); border-radius: 5px;
 .log-card { background: var(--code); }
 .log { margin: 0; max-height: 520px; overflow: auto; font: 400 12.5px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
 [hidden] { display: none !important; }
+
+/* G4: results */
+.card-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: auto; font-weight: 600; font-size: 13px; }
+.card-links a { color: var(--accent-text); text-decoration: none; min-height: 32px; display: inline-flex; align-items: center; }
+.card-links a:hover { text-decoration: underline; }
+.checks-wide { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 24px; }
+.subrow td { border-top: none; padding-top: 0; }
+.report-card { padding: 0; overflow: hidden; }
+.report-head { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.report-frame { display: block; width: 100%; height: 80vh; min-height: 520px; border: 0; background: #FFFFFF; resize: vertical; }

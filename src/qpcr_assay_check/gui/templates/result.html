@@ -1,0 +1,49 @@
+{% extends "app_shell.html" %}
+{% block title %}{{ rec.assay_name }} {{ rec.date }} · Results · qPCR Assay Check{% endblock %}
+{% block main %}
+{% set base = "/records/" ~ rec.assay_slug ~ "/" ~ rec.run %}
+<header class="page-head">
+  <div class="stack-4">
+    <a class="back" href="/results/{{ rec.assay_slug }}">← All runs of this assay</a>
+    <h1>{{ rec.assay_name }}</h1>
+    <span class="small muted">{{ rec.generated_at[:16] | replace("T", " ") }} UTC · {{ rec.mode }} · version {{ rec.tool_version }} · record <span class="mono">{{ rec.run_id }}</span></span>
+  </div>
+  <span class="chip chip-{{ rec.css }}">{{ rec.status }}</span>
+</header>
+
+<section class="card stack-12">
+  <div class="row-between">
+    <h2>Checks</h2>
+    <div class="actions">
+      {% for name, size in files %}
+      <a class="btn btn-sm" href="{{ base }}/{{ name }}?download=1">{{ name }}&nbsp;<span class="muted">({{ (size / 1024) | round(0) | int }} kB)</span></a>
+      {% endfor %}
+    </div>
+  </div>
+  <ul class="checks checks-wide">
+    {% for c in rec.checks %}<li><span>{{ c.title }}</span><span class="chip chip-sm chip-{{ c.css }}">{{ c.status }}</span></li>{% endfor %}
+  </ul>
+  {% if rec.assessed is not none and rec.listed %}<p class="small muted">{{ "{:,}".format(rec.assessed) }} of {{ "{:,}".format(rec.listed) }} listed genomes assessed in this record.</p>{% endif %}
+</section>
+
+{% if has_report %}
+<section class="card report-card">
+  <div class="row-between report-head">
+    <h2>Report</h2>
+    <a class="small" href="{{ base }}/report.html" target="_blank" rel="noopener">Open in a new tab</a>
+  </div>
+  <iframe class="report-frame" src="{{ base }}/report.html" title="Evaluation report of {{ rec.assay_name }}, {{ rec.date }}" sandbox="allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>
+</section>
+{% else %}
+<p class="notice">This record has no report.html.</p>
+{% endif %}
+
+{% if others %}
+<section class="card stack-12">
+  <h2>Other runs of this assay</h2>
+  <ul class="checks checks-wide">
+    {% for o in others %}<li><a href="/results/{{ o.assay_slug }}/{{ o.run }}">{{ o.generated_at[:16] | replace("T", " ") }} · {{ o.mode }}</a><span class="chip chip-sm chip-{{ o.css }}">{{ o.status }}</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

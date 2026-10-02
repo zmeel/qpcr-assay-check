@@ -1,0 +1,33 @@
+{% extends "app_shell.html" %}
+{% block title %}{{ runs[0].assay_name }} · Results · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <a class="back" href="/results">← Results</a>
+    <h1>{{ runs[0].assay_name }}</h1>
+    <span class="small muted">{{ runs | length }} record(s), newest first. Records from different tool versions or settings are not always comparable; each report states its own.</span>
+  </div>
+</header>
+
+<section class="card table-card">
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th scope="col">Date (UTC)</th><th scope="col">Mode</th><th scope="col">Version</th><th scope="col">Review status</th><th scope="col">Inclusivity</th><th scope="col">Genomes assessed</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td class="nowrap">{{ r.generated_at[:16] | replace("T", " ") }}</td>
+          <td>{{ r.mode }}</td>
+          <td>{{ r.tool_version }}</td>
+          <td><span class="chip chip-sm chip-{{ r.css }}">{{ r.status }}</span></td>
+          <td>{% if r.inclusivity_status %}<span class="chip chip-sm chip-{{ r.inclusivity_css }}">{{ r.inclusivity_status }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="nowrap">{% if r.assessed is not none and r.listed %}{{ "{:,}".format(r.assessed) }} of {{ "{:,}".format(r.listed) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="right"><a class="btn btn-sm" href="/results/{{ r.assay_slug }}/{{ r.run }}">Open</a></td>
+        </tr>
+        {% if r.inclusivity_line %}<tr class="subrow"><td colspan="7" class="small muted">{{ r.inclusivity_line }}</td></tr>{% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

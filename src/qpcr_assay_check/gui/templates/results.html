@@ -1,0 +1,35 @@
+{% extends "app_shell.html" %}
+{% block title %}Results · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <h1>Results</h1>
+    <p class="muted">Every evaluation record in <code>{{ results_dir }}</code>, from the GUI and from the command line, per assay.</p>
+  </div>
+</header>
+
+{% if groups %}
+<div class="card-grid">
+  {% for slug, runs in groups.items() %}
+  {% set r = runs[0] %}
+  <article class="card stack-12">
+    <div class="stack-4">
+      <h2>{{ r.assay_name }}</h2>
+      <span class="small muted">{{ runs | length }} record(s) · latest {{ r.date }} · {{ r.mode }}</span>
+    </div>
+    <div class="row-gap">
+      <span class="chip chip-{{ r.css }}">{{ r.status }}</span>
+      {% if r.inclusivity_status %}<span class="small muted">Inclusivity: {{ r.inclusivity_status }}</span>{% endif %}
+    </div>
+    {% if r.assessed is not none and r.listed %}<span class="small muted">{{ "{:,}".format(r.assessed) }} of {{ "{:,}".format(r.listed) }} genomes assessed</span>{% endif %}
+    <div class="card-links"><a href="/results/{{ slug }}/{{ r.run }}">Latest report</a><a href="/results/{{ slug }}">All runs</a></div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<section class="card empty">
+  <h2>No evaluation records yet</h2>
+  <p class="muted">Records appear here when a run has written them. <a href="/runs/new">Start a run</a>.</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,5 +1,5 @@
-"""The FastAPI application: login, logout, dashboard; the Assays and run pages are added from
-:mod:`.assay_routes` and :mod:`.run_routes`.
+"""The FastAPI application: login, logout, dashboard; the Assays, run and Results pages are
+added from :mod:`.assay_routes`, :mod:`.run_routes` and :mod:`.results_routes`.
 
 Sessions are signed cookies (Starlette's SessionMiddleware, itsdangerous) that scripts cannot
 read and browsers do not send from other sites; they end after ``idle_hours`` without a request.
@@ -31,6 +31,7 @@ from .. import __version__
 from .assay_routes import register_assay_routes
 from .auth import AuthStore, LoginThrottle
 from .records import RecordIndex
+from .results_routes import register_results_routes
 from .run_routes import register_run_routes
 from .runs import JobStore, Runner, progress_of, read_tail
 
@@ -39,7 +40,8 @@ log = logging.getLogger(__name__)
 SESSION_COOKIE = "qac_session"
 USER = "admin"  # one user: the session only records that the password was given
 _CSP = (
-    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
+    "default-src 'self'; frame-src 'self'; img-src 'self' data:; style-src 'self'; "
+    "script-src 'self'; "
     "font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
 )
 VALIDATION_NOTE = (
@@ -130,9 +132,10 @@ def create_app(settings: GuiSettings) -> FastAPI:
     @app.middleware("http")
     async def security_headers(request: Request, call_next: Any) -> Response:
         response: Response = await call_next(request)
-        response.headers["Content-Security-Policy"] = _CSP
+        # a route may set its own policy (the record's report, framed by the GUI only)
+        response.headers.setdefault("Content-Security-Policy", _CSP)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
+        response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers["Referrer-Policy"] = "no-referrer"
         if not request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store"
@@ -216,6 +219,7 @@ def create_app(settings: GuiSettings) -> FastAPI:
     register_assay_routes(
         app, settings=settings, page=_page, require_login=_require_login, csrf_ok=_csrf_ok
     )
+    register_results_routes(app, records=records, page=_page, require_login=_require_login)
     register_run_routes(
         app, settings=settings, runner=runner, page=_page, require_login=_require_login,
         csrf_ok=_csrf_ok,

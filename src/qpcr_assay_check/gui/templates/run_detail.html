@@ -27,7 +27,7 @@
 {% if job.message %}<p class="notice{% if job.state == 'failed' %} notice-error{% endif %}" role="status">{{ job.message }}</p>{% endif %}
 {% if job.state == "queued" and queue_position %}<p class="notice" role="status">Waiting in the queue: number {{ queue_position }}.</p>{% endif %}
 {% if job.state == "done" %}
-<p class="notice notice-ok" role="status">Finished{% if job.review_status %} · review status: {{ job.review_status }}{% endif %}.{% if job.record %} Record: <code>{{ job.record }}</code>{% endif %}</p>
+<p class="notice notice-ok" role="status">Finished{% if job.review_status %} · review status: {{ job.review_status }}{% endif %}.{% if record_link %} <a href="{{ record_link }}">Open the report</a>.{% elif job.record %} Record: <code>{{ job.record }}</code>{% endif %}</p>
 {% endif %}
 
 <div class="run-layout" data-run-status data-url="/runs/{{ job.id }}/status" data-offset="{{ offset }}" data-finished="{{ 1 if job.finished else 0 }}">
