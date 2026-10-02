@@ -27,7 +27,17 @@ All notable changes to this project are documented here. The format follows
   results). With `collection`, the status window counts the year the sample was collected (the
   table by collection year), genomes without a usable collection date are left out of it and
   counted in a rationale line with their share, and the release-year figure is given as
-  information. The channel statuses are over all assessed genomes and do not change.
+  information. When more than `max_undetermined_percent` (25%) of the genomes with the region
+  have no usable collection year, the status is Incomplete (user, 2026-10-02), as for
+  undetermined genomes. The channel statuses are over all assessed genomes and do not change.
+
+- **Why a cut genome has no judged site** (user request 2026-10-02, after the Legionella run
+  with 4,441 genomes cut by a contig end): the report's coverage row, the workbook's coverage
+  sheet and results.json (`coverage.cut_reasons`) break them down: the fragment itself not in
+  the assembly (only the sequence beside it reaches a contig end), part of the fragment but no
+  whole site, named sites cut off with the whole ones detectable or already failing, every site
+  whole on the cut copies but not all detectable. Counts per reason, how many are complete or
+  chromosome-level, examples. Information only: they stay undetermined.
 
 ## [2.1.0] - 2026-10-02
 
