@@ -1,0 +1,53 @@
+<div class="stack-12" data-validation>
+  <div class="card stack-12">
+    <div class="row-between">
+      <h2>Check</h2>
+      {% if check.ok %}<span class="chip chip-ok">Valid</span>{% else %}<span class="chip chip-exceeds">Not valid yet</span>{% endif %}
+    </div>
+    {% if check.errors %}
+    <ul class="error-list">
+      {% for e in check.errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+    {% else %}
+    <p class="small muted">The same checks as <code>qpcr-assay-check validate</code>, with the configuration a run would use.</p>
+    {% endif %}
+  </div>
+
+  {% if check.qc %}
+  {% set flagged = check.qc.checks | selectattr("status", "in", ["WARN", "FAIL"]) | list %}
+  <div class="card stack-12">
+    <div class="row-between">
+      <h2>Oligo QC</h2>
+      <span class="chip chip-sm chip-{{ qc_css[check.qc.status] }}">{{ qc_label[check.qc.status] }}</span>
+    </div>
+    {% if flagged %}
+    <ul class="qc-list">
+      {% for c in flagged %}
+      <li><span class="chip chip-sm chip-{{ qc_css[c.status] }}">{{ qc_label[c.status] }}</span><span><strong>{{ c.subject }}</strong> · {{ c.name }}: {{ c.message or c.display }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="small muted">Every check within the preferred range.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if check.assay %}
+  <div class="card stack-12">
+    <h2>As the tool reads it</h2>
+    <dl class="facts">
+      <dt>Target</dt><dd>{{ check.assay.target.taxid or "no taxon" }}{% if check.assay.target.accession %} · {{ check.assay.target.accession }}{% endif %}</dd>
+      <dt>Template</dt><dd>{{ check.assay.template_type.value }}</dd>
+      {% if check.cfg %}<dt>Annealing</dt><dd>{{ "%g" | format(check.cfg.reaction.annealing_temp_C) }} °C</dd>{% endif %}
+      {% for lc in check.assay.loci %}
+      <dt>Locus</dt><dd>{{ lc.name }}: {{ lc.primers | join(", ") }}; probes {{ lc.probes | join(", ") }}; {{ lc.references | length }} reference fragment(s)</dd>
+      {% endfor %}
+      {% for ch in check.assay.channels %}
+      <dt>Channel</dt><dd>{{ ch.name }}{% if ch.reporter %} · {{ ch.reporter }}{% endif %}: {{ ch.probes | join(", ") }}{% if ch.target_taxid %} · taxon {{ ch.target_taxid }}{% endif %}</dd>
+      {% endfor %}
+      {% if check.assay.exclusivity_organisms %}<dt>Exclusivity</dt><dd>{{ check.assay.exclusivity_organisms | join(", ") }}</dd>{% endif %}
+      {% if check.assay.settings %}<dt>Own settings</dt><dd>{{ check.assay.settings | list | join(", ") }}</dd>{% endif %}
+    </dl>
+  </div>
+  {% endif %}
+</div>

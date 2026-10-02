@@ -15,7 +15,21 @@ verified NCBI facts) at the start of every session. Newest entry first.
   `gui set-password` / `gui serve`, extra `gui`, Dockerfile installs it, docker-compose.yml,
   `work/` gitignored, CI installs `.[dev,gui]`. tests/test_gui.py (17 tests). Checked in
   Chromium (light, dark, 390 px wide) against two sample records.
-- Next: G2 (assays: form and YAML editor, live validation, QC only), after the user's go-ahead.
+- First try on the NAS (user): `UID` is read-only in the Synology shell, so compose ran as uid
+  1000 and could not write work/gui. Fixed in PR #58 (QAC_UID/QAC_GID in .env; clear error).
+  The user confirmed the GUI works on the NAS.
+- G2 built (user go-ahead "Start next step"): gui/assays.py (AssayFiles: list, create, save
+  with .history, delete to .deleted; validate_text = the CLI's model + load_config + QC-only
+  oligo QC, about 20 ms), gui/form.py (ruamel.yaml round trip, byte-identical on every example
+  and template file; form edits change only their lines; oligo renames follow into loci,
+  channels, evidence), gui/assay_routes.py (list, new, editor, live validate, QC-only record,
+  delete; names checked against a strict pattern and resolved inside the folder), templates and
+  CSS, app.js live validation (debounced, ignores a redirect to the login page) and an
+  unsaved-changes guard. Decision: YAML stays the source of truth; the form covers the common
+  fields, loci/channels/references/settings are edited as YAML (comments with provenance must
+  survive). tests/test_gui_assays.py (20 tests). Checked in Chromium.
+- Next: G3 (runs: queue, search plan confirmed in the browser, live log and progress, cancel),
+  after the user's go-ahead.
 
 ## 2026-10-02 — v2.0.0 release
 

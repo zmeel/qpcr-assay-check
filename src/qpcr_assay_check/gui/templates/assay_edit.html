@@ -1,0 +1,112 @@
+{% extends "app_shell.html" %}
+{% block title %}{{ name }} · Assays · qPCR Assay Check{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div class="stack-4">
+    <a class="back" href="/assays">← Assays</a>
+    <h1>{{ (check.assay.assay_name if check.assay else (values.assay_name if values else "")) or name }}</h1>
+    <span class="mono small muted">{{ name }}</span>
+  </div>
+  <div class="actions">
+    <form method="post" action="/assays/{{ name }}/qc">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn" type="submit"{% if not check.ok %} disabled title="Fix the problems listed first"{% endif %}>Run QC only</button>
+    </form>
+    <details class="danger-zone">
+      <summary class="btn">Delete…</summary>
+      <form method="post" action="/assays/{{ name }}/delete" class="card stack-12 popover">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <p class="small">The file moves to <code>assays/.deleted/</code>; nothing is removed for good.</p>
+        <button class="btn btn-danger" type="submit">Delete {{ name }}</button>
+      </form>
+    </details>
+  </div>
+</header>
+
+{% if saved %}<p class="notice notice-ok" role="status">Saved. The previous version is kept in <code>assays/.history/</code>.</p>{% endif %}
+{% if error %}<p class="notice notice-error" role="alert">{{ error }}</p>{% endif %}
+
+<nav class="tabs" aria-label="Editor">
+  {% if values %}<a class="tab{% if tab == 'form' %} is-active{% endif %}" href="/assays/{{ name }}?tab=form"{% if tab == 'form' %} aria-current="page"{% endif %}>Form</a>{% endif %}
+  <a class="tab{% if tab == 'yaml' %} is-active{% endif %}" href="/assays/{{ name }}?tab=yaml"{% if tab == 'yaml' %} aria-current="page"{% endif %}>YAML</a>
+</nav>
+
+<div class="editor">
+  <div class="editor-main">
+    {% if tab == "form" and values %}
+    <form class="stack-20" method="post" action="/assays/{{ name }}/form" data-dirty-guard>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <section class="card form-grid">
+        <div class="field"><label for="f-name">Assay name</label><input id="f-name" name="assay_name" value="{{ values.assay_name }}" required maxlength="120"></div>
+        <div class="field"><label for="f-taxid">Target taxon (NCBI taxid)</label><input id="f-taxid" name="taxid" value="{{ values.taxid }}" inputmode="numeric" pattern="[0-9]*"></div>
+        <div class="field"><label for="f-tmpl">Template</label>
+          <select id="f-tmpl" name="template_type">{% for t in template_types %}<option{% if values.template_type == t %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="f-ann">Annealing (°C)</label><input id="f-ann" name="annealing" value="{{ values.annealing }}" inputmode="decimal" placeholder="{% if check.cfg %}{{ '%g' | format(check.cfg.reaction.annealing_temp_C) }} (default){% endif %}"></div>
+      </section>
+
+      <section class="card table-card">
+        <h2 class="table-title">Oligos</h2>
+        <div class="table-scroll">
+          <table class="oligo-table">
+            <thead><tr><th scope="col">Role</th><th scope="col">Name</th><th scope="col">Sequence 5′→3′</th><th scope="col">Reporter</th><th scope="col">Quencher</th><th scope="col">Modifications</th><th scope="col">Drop</th></tr></thead>
+            <tbody>
+              {% for o in values.oligos %}
+              <tr>
+                <td>{{ o.role }}<input type="hidden" name="o_role" value="{{ o.role }}"><input type="hidden" name="o_original" value="{{ o.original }}"></td>
+                <td><input class="input-sm name" name="o_name" value="{{ o.name }}" aria-label="Name of {{ o.original or 'new oligo' }}" maxlength="40"></td>
+                <td><input class="input-sm mono seq" name="o_sequence" value="{{ o.sequence }}" aria-label="Sequence of {{ o.name }}" spellcheck="false" autocomplete="off"></td>
+                {% if o.role == "probe" %}
+                <td><input class="input-sm short" name="o_reporter" value="{{ o.reporter }}" aria-label="Reporter of {{ o.name }}"></td>
+                <td><input class="input-sm short" name="o_quencher" value="{{ o.quencher }}" aria-label="Quencher of {{ o.name }}"></td>
+                <td><input class="input-sm short" name="o_mods" value="{{ o.modifications }}" aria-label="Modifications of {{ o.name }}" placeholder="MGB, LNA"></td>
+                {% else %}
+                <td class="muted">—<input type="hidden" name="o_reporter" value=""></td>
+                <td class="muted">—<input type="hidden" name="o_quencher" value=""></td>
+                <td class="muted">—<input type="hidden" name="o_mods" value=""></td>
+                {% endif %}
+                <td><input type="checkbox" name="o_remove" value="{{ loop.index0 }}" aria-label="Remove {{ o.name }}"{% if o.remove %} checked{% endif %}></td>
+              </tr>
+              {% endfor %}
+              {% set n = values.oligos | length %}
+              <tr class="new-row">
+                <td><label class="visually-hidden" for="new-role">Role of the new oligo</label>
+                  <select id="new-role" class="input-sm" name="o_role"><option value="">Add…</option>{% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select>
+                  <input type="hidden" name="o_original" value=""></td>
+                <td><input class="input-sm name" name="o_name" aria-label="Name of the new oligo" maxlength="40"></td>
+                <td><input class="input-sm mono seq" name="o_sequence" aria-label="Sequence of the new oligo" spellcheck="false" autocomplete="off"></td>
+                <td><input class="input-sm short" name="o_reporter" aria-label="Reporter of the new oligo (probes)"></td>
+                <td><input class="input-sm short" name="o_quencher" aria-label="Quencher of the new oligo (probes)"></td>
+                <td><input class="input-sm short" name="o_mods" aria-label="Modifications of the new oligo (probes)"></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted table-note">A renamed oligo is renamed in loci, channels and lab evidence too. A new probe or primer must also be added to a locus (and a probe to a channel) in the YAML tab when the file lists loci or channels.</p>
+      </section>
+
+      <section class="card stack-12">
+        <div class="field"><label for="f-excl">Exclusivity organisms (one per line)</label>
+          <textarea id="f-excl" name="exclusivity" rows="4">{{ values.exclusivity }}</textarea></div>
+        <p class="small muted">Loci, channels, reference fragments, taxa and other settings: YAML tab. Comments in the file are kept.</p>
+      </section>
+
+      <div><button class="btn btn-primary" type="submit">Save</button></div>
+    </form>
+    {% else %}
+    <form class="stack-12" method="post" action="/assays/{{ name }}/yaml" data-dirty-guard>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="visually-hidden" for="yaml-text">Assay file</label>
+      <textarea id="yaml-text" class="code-editor" name="text" spellcheck="false" autocomplete="off" data-validate-url="/assays/{{ name }}/validate">{{ text }}</textarea>
+      <div class="row-between">
+        <span class="small muted" data-validate-state>Checked as you type.</span>
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+  <aside class="editor-side" aria-live="polite" data-validation-target>
+    {% include "_validation.html" %}
+  </aside>
+</div>
+{% endblock %}
