@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..config import Config
-from ..inclusivity.models import fragment_window, status_years
+from ..inclusivity.models import FragmentWindow, fragment_window, status_years
 from ..results import RunResult
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL, Verdict
@@ -161,6 +161,20 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
     return rows
 
 
+def _undetermined_parts(w: FragmentWindow) -> str:
+    """What the undetermined genomes of the window are, as the rationale names them."""
+    parts = [
+        f"{n:,} {label}"
+        for n, label in (
+            (w.unassembled, "with copies possibly unassembled"),
+            (w.from_parts, "detectable from parts"),
+            (w.unjudged, "with the region cut or hidden by N"),
+        )
+        if n
+    ]
+    return ", of which " + ", ".join(parts) if parts else ""
+
+
 def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
     inc = result.inclusivity
     section = next(s for s in result.sections if s.key == "inclusivity")
@@ -193,10 +207,7 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
     done = "collected" if by_collection else "released"
     scope = (
         f"whole fragment, {w.n:,} {what} {done} {w.first}–{w.last} "
-        f"({w.undetermined:,} undetermined, not counted"
-        + (f", of which {w.unassembled:,} copies possibly unassembled" if w.unassembled else "")
-        + (f", {w.from_parts:,} detectable from parts" if w.from_parts else "")
-        + ")"
+        f"({w.undetermined:,} undetermined, not counted" + _undetermined_parts(w) + ")"
     )
     # the whole fragment's own status; a worse section status comes from a channel
     year_word = "collection" if by_collection else "release"

@@ -48,6 +48,12 @@ All notable changes to this project are documented here. The format follows
   the coverage row "Region not found" names how many (`coverage.not_assembled`). Every other
   cut genome stays undetermined.
 
+### Fixed
+- **The summary row names every kind of undetermined genome** (user, 2026-10-02): it named
+  only the copies possibly unassembled ("1 copies possibly unassembled" of 1,426 undetermined
+  in Legionella) and left out the genomes with the region cut or hidden by N; it now lists
+  them as the rationale does.
+
 ## [2.1.0] - 2026-10-02
 
 A browser interface for one user, behind a password, for a LAN or VPN (steps G1-G5 below):
