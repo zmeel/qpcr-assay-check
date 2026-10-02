@@ -227,6 +227,26 @@ def _as_locus(c: StoredCopy) -> StoredLocus:
     )  # fmt: skip
 
 
+def fragment_not_assembled(items: list[StoredAssembly]) -> tuple[list[StoredAssembly], list[str]]:
+    """Genomes whose every copy is cut by a contig end with no fragment base in an exact block:
+    only the sequence beside the fragment reaches the contig end, so the fragment itself is not
+    in the assembly. They count as "region not found", not as undetermined (user, 2026-10-02,
+    after the Legionella breakdown: 161 of 4,441 cut genomes)."""
+    out: list[StoredAssembly] = []
+    moved: list[str] = []
+    for it in items:
+        if (
+            it.status == "found"
+            and it.loci
+            and all(lc.truncated and lc.n_seeds == 0 for lc in it.loci)
+        ):
+            moved.append(it.accession)
+            it = it.model_copy(update={"status": "not_found", "loci": [], "n_loci": 0,
+                                       "found_by": None})  # fmt: skip
+        out.append(it)
+    return out, moved
+
+
 def latest(records: dict[str, GenomeRecord]) -> list[GenomeRecord]:
     """One record per accession base (the highest version wins), oldest release first."""
     best: dict[str, GenomeRecord] = {}
@@ -1823,6 +1843,7 @@ def run_exhaustive(
     items, related, related_ignored, flanked = as_items(
         latest(store.items), copy_rule(cfg), store.dates
     )
+    items, unassembled_fragment = fragment_not_assembled(items)
     calls: list[GenomeCall] = []
     cut: list[str] = []
     kinds: dict[str, tuple[str, str]] = {}
@@ -1911,6 +1932,8 @@ def run_exhaustive(
         related_ignored=len(related_ignored),
         min_copy_identity=v.min_copy_identity,
         not_located=len(not_located),
+        not_assembled=len(unassembled_fragment),
+        not_assembled_examples=unassembled_fragment[:20],
         not_located_examples=sorted(not_located)[:20],
         found_by_fallback=len(by_fallback),
         found_by_fallback_examples=by_fallback[:20],

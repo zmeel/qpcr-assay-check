@@ -295,6 +295,12 @@ class ExhaustiveCoverage(BaseModel):
         "side) but no copy of the fragment: present, not locatable (advisor, 2026-09-30)",
     )
     not_located_examples: list[str] = Field(default_factory=list)
+    not_assembled: int = Field(
+        default=0,
+        description="of not_found: every copy cut by a contig end with no fragment base "
+        "assembled (only the sequence beside it at the contig end; user, 2026-10-02)",
+    )
+    not_assembled_examples: list[str] = Field(default_factory=list)
     found_by_fallback: int = Field(
         default=0,
         description="genomes whose only copies were found by the fallback search (shorter "

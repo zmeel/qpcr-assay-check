@@ -39,6 +39,15 @@ All notable changes to this project are documented here. The format follows
   whole on the cut copies but not all detectable. Counts per reason, how many are complete or
   chromosome-level, examples. Information only: they stay undetermined.
 
+### Changed
+- **A fragment not in the assembly counts as "region not found"** (user decision 2026-10-02,
+  after the Legionella breakdown: 161 of 4,441 cut genomes): a genome whose every copy has only
+  the sequence beside the fragment at a contig end, with no fragment base assembled, no longer
+  counts as undetermined. It leaves the whole-fragment tables and the channels' undetermined
+  counts (a channel sees no locus: a draft is "no locus", a complete genome not detected), and
+  the coverage row "Region not found" names how many (`coverage.not_assembled`). Every other
+  cut genome stays undetermined.
+
 ## [2.1.0] - 2026-10-02
 
 A browser interface for one user, behind a password, for a LAN or VPN (steps G1-G5 below):

@@ -358,6 +358,8 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                       ", ".join(r.examples)] for r in c.cut_reasons],
                    ["Region hidden by N", c.masked, ", ".join(c.masked_examples)],
                    ["Region not found", c.not_found, ", ".join(c.not_found_examples)],
+                   ["  ...fragment not in the assembly (only its flank at a contig end)",
+                    c.not_assembled, ", ".join(c.not_assembled_examples)],
                    ["  ...flanks present, fragment not locatable (possible escapes)",
                     c.not_located, ", ".join(c.not_located_examples)],
                    *([["  ...no sequence labelled as a plasmid", c.not_found_without_plasmid,
