@@ -34,7 +34,9 @@ from .world import filler, mutate
 NOW = datetime(2026, 9, 23, tzinfo=UTC)
 # A SYNTHETIC amplicon: the CDC N1 oligos with random spacers. Not a real sequence.
 AMP = F + filler(30, 11) + P + filler(30, 12) + iupac.reverse_complement(R)
-F_VARIANT = mutate(F, [20])  # a 3'-terminal forward-primer mismatch
+# a 3'-terminal forward-primer mismatch plus one at -5 (rule R3: likely failure); a single
+# terminal T-T is G2, at risk since 2026-10-02, so it would no longer be an escape
+F_VARIANT = mutate(F, [16, 20])
 
 
 def genome(seed: int, amp: str = AMP, *, reverse: bool = False) -> dict[str, str]:
@@ -109,7 +111,7 @@ def test_every_assembly_is_accounted_for_and_the_variant_is_counted(tmp_path):
         (2026, 3, 3), (2025, 1, 1), (2024, 1, 1)
     }  # fmt: skip
     fwd = [s for s in res.sites if s.role == "forward"]
-    assert sorted(s.n_mismatch for s in fwd) == [0, 0, 1]
+    assert sorted(s.n_mismatch for s in fwd) == [0, 0, 2]
     variant = next(s for s in fwd if s.n_mismatch)
     assert variant.accession == "GCA_000000003.1" and variant.terminal_defect
     rev_site = next(

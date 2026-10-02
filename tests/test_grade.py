@@ -243,3 +243,38 @@ def test_deletions_in_the_probe_site_follow_otwell_2025():
     assert "not measured" in g.grade_probe(probe, one, mgb=False).note
     # an MGB probe whose mismatches already fail keeps failing
     assert g.grade_probe(probe, three, mgb=True).cls == g.FAILURE
+
+
+@pytest.mark.parametrize(
+    ("site_base", "kind"),
+    [("A", "T-T"), ("G", "T-C")],  # site in the primer's sense: the template faces its complement
+)
+def test_terminal_g2_is_at_risk_with_every_source_named(site_base, kind):
+    """User, 2026-10-02: Stadhouders 'avoid' (3.8-4.8 Ct), but Kwok 1990 amplified terminal G2
+    like a match and Huang 1992 found C-T the most easily extended mispair."""
+    primer = "GACCCCAAAATCAGCGAAAT"
+    r = g.grade_primer(primer, primer[:-1] + site_base)
+    assert (r.cls, r.rule) == (g.AT_RISK, "R1") and f"{kind} at -1" in r.note
+    assert "Kwok 1990" in r.note and "Huang 1992" in r.note
+    c_t = g.grade_primer("GACCCCAAAATCAGCGAAAC", "GACCCCAAAATCAGCGAAAA")  # primer C, template T
+    assert c_t.cls == g.AT_RISK and "C-T at -1" in c_t.note
+    # terminal G1 stays likely failure, terminal G3 stays tolerated with Huang printed
+    assert g.grade_primer(PRIMER, site_with({1: "T"})).cls == g.FAILURE
+    g3 = g.grade_primer(PRIMER, site_with({1: "G"}))
+    assert g3.cls == g.TOLERATED and "Huang 1992" in g3.note
+
+
+@pytest.mark.parametrize(
+    ("pos", "expected"),
+    [(1, g.FAILURE), (5, g.FAILURE), (7, g.FAILURE), (8, g.INDETERMINATE), (12, g.INDETERMINATE)],
+)
+def test_one_mgb_mismatch_under_the_mgb_is_a_likely_failure(pos, expected):
+    """User, 2026-10-02, after Kutyavin 2000: a single mismatch in the 3'-most 7 nt of an MGB
+    probe (the MGB's 5-6 bp plus 1-2 bp of sliding) is a likely failure; further toward the 5'
+    end the MGB adds nothing and the class stays undetermined."""
+    probe = "AAACACGGACACCCAAA"
+    i = len(probe) - pos
+    site = probe[:i] + ("T" if probe[i] != "T" else "G") + probe[i + 1 :]
+    r = g.grade_probe(probe, site, mgb=True)
+    assert (r.cls, r.rule) == (expected, "R9") and f"at -{pos}" in r.note and "Kutyavin" in r.note
+    assert g.grade_probe(probe, site, mgb=False).cls != g.FAILURE  # unmodified probes unchanged

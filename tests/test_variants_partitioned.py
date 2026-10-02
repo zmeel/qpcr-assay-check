@@ -64,7 +64,7 @@ def test_every_record_is_blasted_in_accession_lists_and_leaks_are_ignored(tmp_pa
     assert len(fake.blast_puts) == 3  # one list per publication year here (2026, 2025, 2024)
     assert "OT999999.1" not in res.release_dates  # the leak never enters the analysis
     fwd = sorted((s.accession, s.n_mismatch) for s in res.sites if s.role == "forward")
-    assert fwd == [("MZ000001.1", 0), ("MZ000002.1", 1), ("MZ000003.1", 0), ("MZ000005.1", 0)]
+    assert fwd == [("MZ000001.1", 0), ("MZ000002.1", 2), ("MZ000003.1", 0), ("MZ000005.1", 0)]
     assert res.release_dates["MZ000002.1"] == "2026-05-01"  # createdate, not just the year
     assert "Nucleotide record" in res.inclusivity.sample_scheme
 
@@ -106,7 +106,7 @@ def test_records_missing_from_the_blast_database_are_found_by_a_direct_scan(tmp_
     c = res.coverage
     assert (c.found, c.not_found, c.found_by_direct_scan, c.not_checked_directly) == (4, 1, 4, 0)
     fwd = sorted((s.accession, s.n_mismatch) for s in res.sites if s.role == "forward")
-    assert fwd == [("MZ000001.1", 0), ("MZ000002.1", 1), ("MZ000003.1", 0), ("MZ000005.1", 0)]
+    assert fwd == [("MZ000001.1", 0), ("MZ000002.1", 2), ("MZ000003.1", 0), ("MZ000005.1", 0)]
     assert any("," in ids for ids in fake.efetch_ids)  # several records per EFetch request
 
 

@@ -47,6 +47,19 @@ All notable changes to this project are documented here. The format follows
   counts (a channel sees no locus: a draft is "no locus", a complete genome not detected), and
   the coverage row "Region not found" names how many (`coverage.not_assembled`). Every other
   cut genome stays undetermined.
+- **A terminal T-T, T-C or C-T primer mismatch is "at risk", not "likely failure"** (rule R1;
+  user decision 2026-10-02, theory-review item 2): Stadhouders 2010 says "avoid" but measured
+  3.8-4.8 Ct, Kwok et al. 1990 (Table III) amplified all three like a perfect match, and Huang
+  et al. 1992 found C-T the most easily extended mispair. Terminal A-A/A-G/G-A/G-G/C-C stay
+  likely failure and terminal C-A/A-C/G-T/T-G stay tolerated; the class note names all sources.
+  **Changes results**: genomes whose only defect is such a mismatch are no longer escapes
+  (still not detected, as at risk).
+- **One mismatch under the MGB of an MGB probe is "likely failure"** (rule R9; user decision
+  2026-10-02, theory-review item 1, after the full text of Kutyavin et al. 2000): a single
+  mismatch in the 3'-most 7 nt of a probe with a 3' MGB, where Kutyavin measured far stronger
+  discrimination and a 12-mer lost its signal at 55-70 C, was undetermined and is now likely
+  failure; one further toward the 5' end stays undetermined. **Changes results**: such genomes
+  move from undetermined to escapes, and leave the undetermined count.
 
 ### Fixed
 - **The summary row names every kind of undetermined genome** (user, 2026-10-02): it named

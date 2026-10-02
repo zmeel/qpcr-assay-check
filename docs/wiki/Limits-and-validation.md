@@ -6,8 +6,10 @@
   primer-mismatch data (Stadhouders et al. 2010; Lefever et al. 2013). The size of a mismatch
   effect depends on the master mix, the polymerase and, for RNA targets, the reverse
   transcription step; the classes use one basis (Taq polymerase on DNA) for every laboratory.
-- **Probes have no published quantitative basis.** The probe classes are expert judgement and are
-  labelled as such; a single mismatch in an MGB probe is *undetermined*.
+- **Probes have little published quantitative basis.** A single mismatch under the MGB (the
+  3′-most 7 bases of an MGB probe) follows Kutyavin et al. 2000; the other probe classes are
+  expert judgement and are labelled as such; a single MGB mismatch further toward the 5′ end is
+  *undetermined*.
 - **Public data are not a random sample of what circulates.** NCBI holds what was sequenced and
   submitted: outbreak studies, reference collections, surveillance programmes. A lineage that is
   over-sequenced weighs heavily; one that is never sequenced is invisible. Percentages are exact

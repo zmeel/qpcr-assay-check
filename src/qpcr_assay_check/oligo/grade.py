@@ -43,6 +43,32 @@ _AVOID = {
 _COMPLEMENT = {"A": "T", "C": "G", "G": "C", "T": "A"}
 
 STADHOUDERS = "Stadhouders 2010, Table 1 (Taq on DNA)"
+KWOK = "Kwok 1990, Table III"
+HUANG = "Huang 1992"
+KUTYAVIN = "Kutyavin 2000"
+# Terminal G2 (T-T/T-C/C-T): Stadhouders "avoid" (3.77-4.75 Ct with Taq on DNA, pp. 111-113), but
+# Kwok et al. 1990 (Nucleic Acids Res 18:999, Table III p. 1001) amplified all three as well as a
+# perfect match and Huang et al. 1992 (Nucleic Acids Res 20:4567, p. 4570) found C-T the most
+# easily extended mispair (f_ext 2e-2): a delay rather than a block, so at risk (user,
+# 2026-10-02), not likely failure.
+_TERMINAL_G2_NOTE = (
+    f"terminal G2: {STADHOUDERS} 'avoid' (3.8-4.8 Ct), but {KWOK} amplified it like a match and "
+    f"{HUANG} found C-T the most easily extended mispair: at risk"
+)
+# Terminal G3 (C-A/A-C/G-T/T-G): Stadhouders and Kwok (yield 1.0) agree it is acceptable; Huang
+# measured 1e-3 to 1e-4 single-step extension (kinetics, not PCR yield, p. 4567): printed only.
+_TERMINAL_G3_NOTE = (
+    f"terminal G3: acceptable in {STADHOUDERS} and {KWOK}; {HUANG} measured 1e-3 to 1e-4 "
+    "single-step extension efficiency (enzyme kinetics, not PCR yield)"
+)
+# Kutyavin et al. 2000 (Nucleic Acids Res 28:655): the 3'-MGB folds into the minor groove of the
+# terminal 5-6 bp (p. 655) and can slide 1-2 bp toward the 5' end (pp. 657, 661); a mismatch
+# there is much more destabilising (T/G: dTm 15 vs 6 C, ddG 5.6 vs 2.0 kcal/mol, p. 657; 7 nt
+# from the 3' end dTm 11 vs 6.5 C, p. 660), a 12-mer with a mismatch 5 nt from the 3' end lost
+# its signal at 55-70 C (Fig. 7, p. 659); at 11 nt from the 3' end the MGB added nothing
+# (p. 661). Exceptions the authors could not explain: A/C at the terminal base and C/A at
+# position 6 discriminated less (p. 657).
+MGB_REGION = 7
 LEFEVER = "Lefever 2013"
 OTWELL = "Otwell 2025"
 # Lefever 2013 tested mismatches in the 3'-most 16 nt of 20-mers (p. 1472); Otwell et al. 2025
@@ -84,8 +110,12 @@ def _single_in_last5(m: _Mismatch) -> Grade:
     """R1: one mismatch in the last 5 nt, Stadhouders Table 1 (Taq on DNA)."""
     group = _GROUP.get(m.kind, "G1")  # unknown type (degenerate base): the severe group
     avoid = _AVOID[(group, _position_group(m.pos))]
-    cls = (FAILURE if m.pos == 1 else AT_RISK) if avoid else TOLERATED
+    cls = (FAILURE if m.pos == 1 and group != "G2" else AT_RISK) if avoid else TOLERATED
     note = f"{m.kind or 'unknown type'} at -{m.pos} ({group}; {STADHOUDERS})"
+    if m.pos == 1 and group == "G2":
+        note += f"; {_TERMINAL_G2_NOTE}"
+    elif m.pos == 1 and group == "G3":
+        note += f"; {_TERMINAL_G3_NOTE}"
     if m.pos == 4:
         note += "; position -4 was not tested (interpolated from positions 3 and 5)"
     return Grade(cls, "R1", note)
@@ -297,19 +327,26 @@ def grade_primer(q_aln: str, s_aln: str) -> Grade:
 
 
 def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
-    """R9: neither source tested probe mismatches; every probe class is expert judgement with no
-    quantitative source (advisor subagent, 2026-09-25). MGB probes: 1 mismatch undetermined, 2 or
-    more likely failure. Other probes: 1 mismatch outside the last 5 nt tolerated, else at risk."""
+    """R9. MGB probes (the MGB at the 3' end, as in Kutyavin 2000 and TaqMan MGB probes): one
+    mismatch in the 3'-most ``MGB_REGION`` nt likely failure (Kutyavin 2000; user, 2026-10-02),
+    further toward the 5' end undetermined; 2 or more likely failure (expert judgement). Other
+    probes: 1 mismatch outside the last 5 nt tolerated, else at risk (expert judgement)."""
     mm, amb, gap = _mismatches(q_aln, s_aln)
 
     def by_mismatches(mm: list[_Mismatch]) -> Grade:
         if not mm:
             return Grade(PERFECT, "", "")
+        if mgb and len(mm) == 1 and mm[0].pos <= MGB_REGION:
+            return Grade(FAILURE, "R9", f"one mismatch at -{mm[0].pos}, under the MGB (the "
+                         f"3'-most {MGB_REGION} nt): MGB probes discriminate such a mismatch "
+                         f"strongly, a 12-mer lost its signal at 55-70 C ({KUTYAVIN}, pp. 657-660, "
+                         "Fig. 7); A/C at the terminal base and C/A at -6 discriminated less "
+                         "there")  # fmt: skip
         if mgb and len(mm) == 1:
-            return Grade(INDETERMINATE, "R9", "one mismatch in an MGB probe: may or may not "
-                         "suppress the signal (MGB probes discriminate single bases; the effect "
-                         "depends on position and sequence); expert judgement, no quantitative "
-                         "source; undetermined")  # fmt: skip
+            return Grade(INDETERMINATE, "R9", f"one mismatch at -{mm[0].pos} in an MGB probe, "
+                         f"outside the MGB region (the 3'-most {MGB_REGION} nt): the MGB adds no "
+                         f"discrimination there ({KUTYAVIN}, p. 661), whether the short probe "
+                         "still binds is not known; undetermined")  # fmt: skip
         if mgb:
             return Grade(FAILURE, "R9", f"{len(mm)} mismatches in a short MGB probe: no stable "
                          "probe duplex expected; expert judgement from MGB probe chemistry, no "

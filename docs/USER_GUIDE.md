@@ -488,7 +488,8 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
 
 ### Laboratory evidence per oligo variant
 
-Where the tool has no published basis (a single mismatch in an MGB probe, a homopolymer length
+Where the tool has no published basis (a single mismatch in an MGB probe outside its 3′-most 7
+bases, a homopolymer length
 difference in a primer site), a wet-lab test decides. Record the result in the assay file and
 every genome with exactly that site variant takes it:
 

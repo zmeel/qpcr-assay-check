@@ -5,7 +5,8 @@
 #   target and settings unchanged). One amplified region with both fragments as references and
 #   both probes; one FAM channel whose target is the assay target (485). The variant analysis
 #   judges each genome by its best-binding copy of this multi-copy target. Both probes carry
-#   MGB, so a single probe mismatch is "indeterminate" and two or more are "likely failure"
+#   MGB, so a single probe mismatch is "likely failure" in the 3'-most 7 nt (under the MGB),
+#   "indeterminate" further toward the 5' end, and two or more are "likely failure"
 #   (docs/MISMATCH_CLASSES.md). No wet-lab evidence entries (user, 2026-09-30). No taxa inside
 #   N. gonorrhoeae are left out of the target. Settings for this assay are at the end.
 #

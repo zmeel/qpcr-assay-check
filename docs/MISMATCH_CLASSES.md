@@ -67,7 +67,27 @@ and setup.
 - Only positions 1, 2, 3 and 5 were mutated (p. 110); Table 1 groups "positions 3-5". Applying it
   to -4 is our interpolation: print "interpolated".
 - Where Stadhouders and Lefever disagree (terminal C-T/T-C: intermediate in Stadhouders, among the
-  smallest in Lefever), take the worse.
+  smallest in Lefever), take the worse, except terminal G2 below.
+- **Terminal G2 (T-T, T-C, C-T) is `at_risk`, not `likely_failure`** (user decision 2026-10-02,
+  after reading two more sources the theory reviews named):
+  - Stadhouders: "avoid", 3.77-4.75 Ct with Taq on DNA (pp. 111-113): a delay, not a block.
+  - Kwok S, Kellogg DE, McKinney N, Spasic D, Goda L, Levenson C, Sninsky JJ (1990). Nucleic
+    Acids Res 18(4):999-1005, doi:10.1093/nar/18.4.999. Table III (p. 1001), PCR yield relative
+    to a perfect match at 800 uM dNTPs, 30 cycles: T-T, T-C, C-T all 1.0.
+  - Huang MM, Arnheim N, Goodman MF (1992). Nucleic Acids Res 20(17):4567-4573,
+    doi:10.1093/nar/20.17.4567. Single-step extension efficiency by Taq (enzyme kinetics, not
+    PCR yield): C-T 2x10^-2, the most easily extended mispair (p. 4570); T-C and T-T 10^-4 to
+    10^-5 (p. 4567).
+  - Lefever: terminal C-T/T-C among the smallest effects.
+- **Terminal G1 and G3 are unchanged.** G1: all three agree (Kwok: A-G, G-A, C-C yield <0.01,
+  A-A 0.05, G-G 1.0 at 800 uM but poor at 50 uM dNTPs; Huang <10^-6, A-A about 2x10^-6). G3:
+  Stadhouders "acceptable" (0.99-1.91 Ct) and Kwok 1.0 agree; Huang measured 10^-3 to 10^-4 by
+  kinetics, printed in the note only. The molecular-biologist review's claim that terminal G3
+  "contradicts two foundational datasets" does not hold for Kwok 1990; Huang himself notes that
+  in Kwok's PCR only 4 of the 12 terminal mismatches were extended inefficiently (p. 4572).
+- Kwok (p. 1003, "data not shown"): a terminal mismatch other than T plus another in the last 4
+  bases cut yield at least 100-fold (supports R3); with a T at the terminus, an extra penultimate
+  mismatch cut it only 5-10-fold and two Ts 2-5-fold. Not encoded (no data shown).
 
 **R2. Single mismatch beyond the last 5 nt**: `tolerated`, with the note "moderate effect, can be
 tolerated" for -6 to -8 (Lefever abstract, p. 1470) and "almost negligible" from -9 on (Lefever
@@ -189,24 +209,44 @@ figure), for which the paper states no rule, so the worse single class may under
 
 ## 6. Probes
 
-**R9**: no rule from these two papers (neither tested probe mismatches). MGB probes are known to be
-more mismatch-selective (Kutyavin et al. 2000, cited by the advisor from the abstract; full text
-not checked). Every probe class is expert judgement with no quantitative source (advisor
-subagent, 2026-09-25; user decision the same day):
-- MGB probe, 1 mismatch: `indeterminate` (undetermined; neither detected nor an escape).
+**R9**: Stadhouders and Lefever tested no probe mismatches. The rule for a single MGB mismatch is
+position-aware since 2026-10-02 (user decision, after the full text of Kutyavin IV, Afonina IA,
+Mills A, Gorn VV, Lukhtanov EA, Belousov ES, Singer MJ, Walburger DK, Lokhov SG, Gall AA, Dempcy
+R, Reed MW, Meyer RB, Hedgpeth J (2000). Nucleic Acids Res 28(2):655-661,
+doi:10.1093/nar/28.2.655). For a probe with the MGB at its 3' end, as in Kutyavin and TaqMan
+MGB probes:
+- MGB probe, 1 mismatch in the 3'-most 7 nt: `likely_failure`. The MGB folds into the minor
+  groove of the terminal 5-6 bp (p. 655) and can slide 1-2 bp toward the 5' end (pp. 657, 661).
+  A mismatch there is far more destabilising: T/G under the MGB dTm 15 vs 6 C and ddG 5.6 vs 2.0
+  kcal/mol without MGB (p. 657); 7 nt from the 3' end dTm 11 vs 6.5 C (p. 660); a 12-mer with a
+  mismatch 5 nt from the 3' end gave no meaningful signal on the mismatched template from 55 to
+  70 C in real-time PCR (Fig. 7, p. 659). The authors could not explain why A/C at the terminal
+  base and C/A at position 6 discriminated less (p. 657): the note says so.
+- MGB probe, 1 mismatch further toward the 5' end: `indeterminate` (undetermined; neither
+  detected nor an escape). At 11 nt from the 3' end the MGB added nothing (dTm 8.5 C with and
+  without, p. 661); how the short probe then behaves in PCR is not shown.
 - MGB probe, 2 or more mismatches: `likely_failure`, position-free (a short MGB probe is not
-  expected to form a stable duplex). Before 2026-09-25 (later) this was `at_risk`, which ranked
-  milder than a single mismatch.
+  expected to form a stable duplex; expert judgement). Before 2026-09-25 (later) this was
+  `at_risk`, which ranked milder than a single mismatch.
 - Unmodified probe: 1 mismatch outside the last 5 nt `tolerated`, otherwise `at_risk` (longer
   probes are less mismatch-discriminating).
 - Deletions in the template within the probe site: R5c (section 4), the one probe rule with a
   measured basis.
 
-Both theory reviews of 2026-10-01 (`docs/reviews/`) rank these probe rules as the weakest part of
-the classes and name data not yet used: Kutyavin et al. 2000 (MGB discrimination is greatest when
-the mismatch lies under the MGB, at the probe's 3' end), Süß et al. 2009 and Klungthong et al.
-2010 (one probe mismatch caused clinical false negatives). A position-aware MGB rule is deferred
-until the user decides; it changes results.
+Both theory reviews of 2026-10-01 (`docs/reviews/`) ranked the probe rules as the weakest part of
+the classes. Read since (2026-10-02):
+- Kutyavin 2000: the MGB rule above.
+- Klungthong C, Chinnawirotpisan P, Hussem K, Phonpakobsin T, Manasatienkij W, Ajariyakhajorn C,
+  Rungrojcharoenkit K, Gibbons RV, Jarman RG (2010). J Clin Virol 48(2):91-95,
+  doi:10.1016/j.jcv.2010.03.012. The WHO swH1 probe is an unmodified 30-mer with an internal
+  BHQ1 quencher, not an MGB probe (Table 1, footnote b, p. 92), and no false negatives are
+  reported: every sample was detected (swH1 Ct up to 38.53, p. 92). Viruses with two probe
+  mismatches (3rd base from the 5' end and the 16th) plus reverse-primer mismatches had a mean
+  Ct gap to InfA of 9.28 against 5.58 with the 16th-base mismatch only; homologous oligos
+  recovered 4.59 Ct (Table 3, p. 93). Consistent with the unmodified-probe rule (2 mismatches
+  `at_risk`); the reviews' "clinical false negatives" overstates it.
+- Süß et al. 2009 (single mismatches in unmodified probes) could not be obtained; the rule for a
+  single mismatch in an unmodified probe stays expert judgement.
 
 ## 7. What changes in the reports
 
@@ -214,7 +254,8 @@ until the user decides; it changes results.
 - Inclusivity per year: counts per class instead of one "0-1 mismatch, clean 3' end" percentage;
   the verdict thresholds (`warn_below_percent`, `fail_below_percent`) apply to
   `perfect + tolerated`; `at_risk` counts as not detected.
-- **Undetermined** (user decision 2026-09-25): a single mismatch in an MGB probe (R9) and an
+- **Undetermined** (user decision 2026-09-25): a single mismatch in an MGB probe outside its
+  3'-most 7 nt (R9; since 2026-10-02 one inside them is `likely_failure`) and an
   ambiguity code in the genome in the last 5 nt that decides the class (R6) are neither detected
   nor escaped: left out of the inclusivity percentage and counted as "undetermined" genomes, not
   escapes (also in the panel check). A year in which every record is undetermined gets no
@@ -254,7 +295,7 @@ the class on every variant row, tests per rule.
 
 Still open:
 1. Check Table 1 once more against the PDF (the encoded cells are in `oligo/grade.py`).
-2. Kutyavin 2000 (MGB probes) if probe classes are wanted; until then R9 stays as written.
+2. Kutyavin 2000 (MGB probes): done 2026-10-02 (R9 position-aware).
 3. R7 (degenerate primers) is only a note; the pair flag at >= 4 mismatches in total is not shown
    yet.
 4. A live rerun of the NG and enterovirus assays to see the classes on real data.

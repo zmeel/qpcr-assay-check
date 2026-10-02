@@ -73,3 +73,18 @@ reviewers propose.
   result so far is affected.
 - Neither reviewer obtained the Stadhouders or Lefever PDFs, so whether `oligo/grade.py` matches
   their tables is still unchecked (open item 1 in MISMATCH_CLASSES).
+
+## Checked against the papers (2026-10-02)
+
+The user supplied Kutyavin 2000, Klungthong 2010, Kwok 1990 and Huang 1992 (Süß 2009 could not be
+obtained). Two claims in the molecular-biologist review do not hold:
+- **Klungthong 2010** reports reduced sensitivity, not clinical false negatives (every sample was
+  detected, swH1 Ct up to 38.53), and its probe is an unmodified 30-mer with an internal
+  quencher, not an MGB probe. It bears on the unmodified-probe rule, which it is consistent with.
+- **Terminal G3 (C-A, A-C, G-T, T-G)**: Kwok 1990 amplified all four as well as a perfect match
+  (Table III), so it does not contradict Stadhouders; only Huang 1992's single-step kinetics do,
+  and Huang notes the difference from Kwok's PCR himself. G3 stays `tolerated`.
+
+Taken up (user decisions 2026-10-02, MISMATCH_CLASSES R1 and R9): terminal G2 (T-T, T-C, C-T)
+`at_risk` instead of `likely_failure`; one mismatch in the 3'-most 7 nt of an MGB probe
+`likely_failure` (Kutyavin 2000), further toward the 5' end still undetermined.

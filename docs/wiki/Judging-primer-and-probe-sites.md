@@ -48,7 +48,9 @@ The main rules, in short:
 
 - **One primer mismatch in the last 5 bases** (Stadhouders et al. 2010, Table 1, Taq on DNA):
   the class depends on the mismatch *type* (which primer base faces which template base) and
-  its *position*. A terminal A–A, A–G, G–A, G–G or C–C mismatch is *likely failure*; at positions
+  its *position*. A terminal A–A, A–G, G–A, G–G or C–C mismatch is *likely failure*; a terminal
+  T–T, T–C or C–T is *at risk* (Stadhouders: "avoid", but 3.8–4.8 Ct; Kwok et al. 1990 amplified
+  them like a match; Huang et al. 1992 found C–T the most easily extended mispair); at positions
   −3 to −5 every type is *tolerated* with Taq on DNA.
 - **One primer mismatch further from the 3′ end** (Lefever et al. 2013): *tolerated*.
 - **Several mismatches in one primer** (Lefever 2013), counted within the 3′-most 16 bases, the
@@ -65,10 +67,12 @@ The main rules, in short:
   otherwise *likely failure*. No PCR study measured these, and they are also a known sequencing
   and assembly error, so the report shows the result under both a strict and a lenient setting
   (`variants.homopolymer_bulges_detectable`).
-- **Probe mismatches** (no quantitative data used yet; expert judgement, stated as such): an MGB
-  probe with one mismatch is *indeterminate*, with two or more *likely failure*; an unmodified
-  probe with one mismatch outside its last 5 bases is *tolerated*, otherwise *at risk*. Both
-  theory reviews (`docs/reviews/`) call these the weakest rules and name data not yet used.
+- **Probe mismatches**: an MGB probe with one mismatch in its 3′-most 7 bases, under the MGB, is
+  *likely failure* (Kutyavin et al. 2000: such mismatches are discriminated far more strongly,
+  and a 12-mer lost its signal at 55–70 °C); one mismatch further toward the 5′ end is
+  *indeterminate*; two or more are *likely failure* (expert judgement). An unmodified probe with
+  one mismatch outside its last 5 bases is *tolerated*, otherwise *at risk* (expert judgement;
+  Klungthong et al. 2010 is consistent with *at risk* for two).
 - **Deletions in the probe site** (Otwell et al. 2025, wet-lab data): 1–5 deleted bases *at
   risk*; 6 or more *likely failure* (6 bases was tolerated in one assay and fatal in another;
   the worse is taken); a deletion with three or more mismatches *likely failure*. Insertions
@@ -128,7 +132,7 @@ Every genome ends in exactly one **outcome**, decided in one place in this order
 |---|---|
 | **detectable from parts** | every copy is cut by a contig end, but every role has a detectable site on some cut copy; the sites may come from different copies; by default this counts as detected (`variants.judge_from_parts: detectable`; `undetermined` counts it as undetermined) |
 | **detected** | at least one detectable copy |
-| **undetermined** | no detectable copy, and the only problem has no published basis (a single MGB probe mismatch, a deciding ambiguity code) |
+| **undetermined** | no detectable copy, and the only problem has no published basis (a single MGB probe mismatch outside the 3′-most 7 bases, a deciding ambiguity code) |
 | **possibly unassembled** | a draft genome whose best copy fails but that carries fewer than half the copies typical of the complete genomes in the run: near-identical repeats are often left unassembled, so the copy judged may not be the one the PCR would amplify |
 | **not detected** (an escape) | the region is there, no copy is detectable |
 
