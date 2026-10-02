@@ -3,6 +3,17 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-10-02 — Visualisation examples (not built)
+
+- Mock-ups published as artifacts (data from the reports, nothing built in the tool): variant
+  landscape views (Legionella), site pattern maps (PCoA of oligo-site combinations; Legionella and
+  Neisseria). Assessment given to the user: the site map is exploratory only (every position
+  weighs the same, few points); the whole-amplicon map is the meaningful version.
+- scripts/export_amplicons.py: reads one genome store read-only, judges every genome with the
+  package's own functions (no NCBI request) and writes the distinct best-copy amplicons with
+  genome counts, outcomes, organisms, levels and collection years, for the whole-amplicon map.
+  tests/test_export_amplicons.py (the store stays byte-identical, no file added).
+
 ## 2026-10-02 — Theory-review items 1 and 2: MGB position rule, terminal G2
 
 - User asked for full references; supplied Kutyavin 2000, Klungthong 2010, Kwok 1990, Huang 1992
