@@ -88,3 +88,9 @@ obtained). Two claims in the molecular-biologist review do not hold:
 Taken up (user decisions 2026-10-02, MISMATCH_CLASSES R1 and R9): terminal G2 (T-T, T-C, C-T)
 `at_risk` instead of `likely_failure`; one mismatch in the 3'-most 7 nt of an MGB probe
 `likely_failure` (Kutyavin 2000), further toward the 5' end still undetermined.
+
+Taken up on 2026-10-03 (user: "Start with 8, 6 and 9"): the report states what the specificity
+search cannot find (word size 7 and the E-value against Primer-BLAST's default, Ye et al. 2012),
+an RNA note for one-step RT-PCR assays (Christopherson et al. 1997, abstract checked in PubMed),
+and the status figure under the other homopolymer setting. Both sources were checked against
+their text (Ye 2012 full text in Europe PMC, PMC3412702).

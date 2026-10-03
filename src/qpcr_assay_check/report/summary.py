@@ -203,6 +203,10 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
     d = inc.distinct
     if d is not None and d.percent is not None:
         res += f" ({d.percent:.1f}% of {d.patterns:,} distinct site patterns, information)"
+    alt = inc.bulge_alternative
+    if alt is not None and abs(alt - pct) >= 0.05:
+        res += (f"; {alt:.1f}% if single-base run-length differences were "
+                f"{'not tolerated' if inc.bulges_tolerated else 'tolerated'}")  # fmt: skip
     by_collection = inc.status_axis == "collection"
     done = "collected" if by_collection else "released"
     scope = (

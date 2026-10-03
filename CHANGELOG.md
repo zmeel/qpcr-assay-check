@@ -7,6 +7,18 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Open review items 8, 6 and 9** (user, 2026-10-03):
+  - **What the specificity search cannot find**, under "Reported down to": BLAST needs an
+    unbroken run of the word size (7) of matching bases, so a site with only shorter runs is never
+    found (Ye et al. 2012 estimate about 0.5% of 2-mismatch sites of a 20-mer), and the E-value
+    cut-off is lower than Primer-BLAST's default of 30,000, so this search is less sensitive than
+    Primer-BLAST with its defaults.
+  - **An RNA note** for assays with `template_type: RNA`: the classes rest on Taq on DNA and the
+    reverse-transcription step is not graded; Christopherson et al. 1997 measured 2-4 internal
+    mismatches without significant effect and 5-6 cutting yield about 22- and 100-fold in RT-PCR.
+  - **The status figure under the other homopolymer setting**: a rationale line and the summary
+    row give the detectable share of the same judged genomes if single-base run-length
+    differences were tolerated (or not); results.json `inclusivity.bulge_alternative`.
 - **Why each escape fails** (user request 2026-10-02, after checking GCF_001025995.1 by hand in
   the Neisseria run: its 3 assembled copies all read A8/A9 at NG-R's poly-A 7): every escape now
   carries the failing site(s) of its best copy and a kind: *single-base run length only*
@@ -62,6 +74,9 @@ All notable changes to this project are documented here. The format follows
   move from undetermined to escapes, and leave the undetermined count.
 
 ### Fixed
+- **The report's probe rule sentence** still said an MGB probe with one mismatch is undetermined
+  and that no published probe rule was used; it now states the position-aware rule (Kutyavin
+  2000).
 - **The whole-fragment tables no longer grow too wide** (user, 2026-10-03, Neisseria run of
   2026-10-02: "Needs attention" was 1,843 px wide): in each site cell the class and the variant
   frequency stay on the first line and the duplex Tm note (ΔTm, "Tm ≤ annealing") moves to its

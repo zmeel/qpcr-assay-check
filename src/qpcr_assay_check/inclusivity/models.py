@@ -191,6 +191,14 @@ class InclusivityResult(BaseModel):
     distinct: DistinctPatterns | None = Field(
         default=None, description="the status window with identical site patterns counted once"
     )
+    bulge_alternative: float | None = Field(
+        default=None,
+        description="the status window's detectable percentage under the other homopolymer-bulge "
+        "setting (information; the status uses bulges_tolerated)",
+    )
+    bulges_tolerated: bool = Field(
+        default=False, description="variants.homopolymer_bulges_detectable for this run"
+    )
     sample_scheme: str = ""
     verdict: Verdict
     rationale: list[str] = Field(default_factory=list)

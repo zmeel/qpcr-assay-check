@@ -66,7 +66,8 @@ The main rules, in short:
   identical bases, e.g. seven A instead of eight): *at risk* for one base outside the last 3,
   otherwise *likely failure*. No PCR study measured these, and they are also a known sequencing
   and assembly error, so the report shows the result under both a strict and a lenient setting
-  (`variants.homopolymer_bulges_detectable`).
+  (`variants.homopolymer_bulges_detectable`), including the status figure itself: the headline
+  and the summary row give the detectable share under the other setting next to it.
 - **Probe mismatches**: an MGB probe with one mismatch in its 3′-most 7 bases, under the MGB, is
   *likely failure* (Kutyavin et al. 2000: such mismatches are discriminated far more strongly,
   and a 12-mer lost its signal at 55–70 °C); one mismatch further toward the 5′ end is

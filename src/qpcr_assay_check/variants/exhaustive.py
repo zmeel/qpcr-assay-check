@@ -1238,6 +1238,47 @@ def distinct_patterns(
     )  # fmt: skip
 
 
+def bulge_alternative(
+    sites: list[SiteResult], year_of: dict[str, int], first: int, last: int, bulges: bool,
+    unassembled: set[str], from_parts: set[str], other_rule: set[str],
+) -> float | None:  # fmt: skip
+    """The status window's detectable percentage under the other homopolymer-bulge setting: of
+    the same judged genomes (undetermined ones left out, as in the status), those with a copy
+    detectable under the other setting (theory reviews 2026-10-01: report the strict-lenient
+    spread as an interval)."""
+    by_genome: dict[str, dict[str, SiteResult]] = defaultdict(dict)
+    for s in sites:
+        if first <= year_of.get(s.accession, _NOT_READ) <= last:
+            by_genome[s.accession][s.role] = s
+    judged = detectable = 0
+    for acc, roles in by_genome.items():
+        if len(roles) < len(ROLES) or acc in from_parts:
+            continue
+        outcome, _ = grade.combination_outcome(
+            roles["forward"], roles["probe"], roles["reverse"], bulges
+        )
+        if outcome == "undetermined" or (outcome != "detectable" and acc in unassembled):
+            continue
+        judged += 1
+        detectable += acc in other_rule
+    return 100.0 * detectable / judged if judged else None
+
+
+def _bulge_line(alternative: float | None, percent: float | None, bulges: bool) -> list[str]:
+    """One rationale line: the headline figure under the other homopolymer-bulge setting."""
+    if alternative is None or percent is None or abs(alternative - percent) < 0.05:
+        return []
+    other = "tolerated" if not bulges else "not tolerated (strict)"
+    this = "not tolerated (strict)" if not bulges else "tolerated"
+    return [
+        f"Homopolymer setting: {alternative:.1f}% detectable if single-base run-length "
+        f"differences were {other}, against {percent:.1f}% with them {this} as in the status "
+        "(setting variants.homopolymer_bulges_detectable). Whether a primer binds over a run "
+        "one base longer or shorter has no published PCR data; a wet-lab test of the commonest "
+        "run-length variant decides which figure applies."
+    ]
+
+
 def _distinct_line(d: DistinctPatterns | None, genome_percent: float | None) -> list[str]:
     """One rationale line: the window with identical site patterns counted once (information)."""
     if d is None or d.percent is None:
@@ -1460,8 +1501,11 @@ def exhaustive_inclusivity(
     unassembled: set[str] | None = None,
     from_parts: set[str] | None = None,
     unjudged: set[str] | None = None,
+    other_rule: set[str] | None = None,
 ) -> InclusivityResult:
     """Per-release-year inclusivity over every assessed assembly (not a sample).
+    ``other_rule``: genomes with a copy detectable under the other homopolymer-bulge setting,
+    for the status window's figure under both settings (theory reviews 2026-10-01).
     ``unassembled``: genomes whose copies are possibly unassembled (:func:`mark_unassembled`),
     counted as undetermined in the whole-fragment outcome. ``unjudged``: genomes with the
     region but no judged site (cut by a contig end, or hidden by N), counted as undetermined
@@ -1510,6 +1554,7 @@ def exhaustive_inclusivity(
     rationale += _collection_line(collection, unit, axis)
     w = fragment_window(status_rows, cfg.inclusivity.verdict_window_years)
     distinct = None
+    alternative = None
     if w is not None:
         axis_year = collection_bucket(items, shown) if by_collection else year_of
         distinct = distinct_patterns(
@@ -1517,6 +1562,12 @@ def exhaustive_inclusivity(
             axis,
         )  # fmt: skip
         rationale += _distinct_line(distinct, w.percent)
+        if other_rule is not None:
+            alternative = bulge_alternative(
+                sites, axis_year, w.first, w.last, bulges, unassembled or set(),
+                from_parts or set(), other_rule,
+            )  # fmt: skip
+            rationale += _bulge_line(alternative, w.percent, bulges)
     rationale += [
         f"{y.year}: {y.listed} "
         + (
@@ -1544,6 +1595,8 @@ def exhaustive_inclusivity(
         collection=collection,
         status_axis=axis,
         distinct=distinct,
+        bulge_alternative=alternative,
+        bulges_tolerated=bulges,
         sample_scheme=(
             (
                 "Every genome assembly of the target in NCBI Datasets (current versions, one copy "
@@ -1943,6 +1996,7 @@ def run_exhaustive(
     inclusivity = exhaustive_inclusivity(
         sites, items, years, assay, cfg, source=source,
         unassembled=unassembled, from_parts=parts_undetermined, unjudged=unjudged,
+        other_rule={c.accession for c in calls if c.n_detectable_other_rule > 0},
     )  # fmt: skip
     missing = coverage.not_found + coverage.related_only
     if coverage.contig_break or coverage.masked:

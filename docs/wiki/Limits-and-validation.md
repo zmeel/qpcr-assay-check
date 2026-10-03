@@ -6,6 +6,9 @@
   primer-mismatch data (Stadhouders et al. 2010; Lefever et al. 2013). The size of a mismatch
   effect depends on the master mix, the polymerase and, for RNA targets, the reverse
   transcription step; the classes use one basis (Taq polymerase on DNA) for every laboratory.
+  For an RNA assay the report says so and cites Christopherson et al. 1997 (Nucleic Acids Res
+  25:654): in RT-PCR of HIV-1 RNA, 2 to 4 internal primer mismatches had no significant effect,
+  5 and 6 in 28- and 30-base primers cut product yield about 22- and 100-fold.
 - **Probes have little published quantitative basis.** A single mismatch under the MGB (the
   3′-most 7 bases of an MGB probe) follows Kutyavin et al. 2000; the other probe classes are
   expert judgement and are labelled as such; a single MGB mismatch further toward the 5′ end is
