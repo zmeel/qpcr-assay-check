@@ -13,6 +13,11 @@ verified NCBI facts) at the start of every session. Newest entry first.
   package's own functions (no NCBI request) and writes the distinct best-copy amplicons with
   genome counts, outcomes, organisms, levels and collection years, for the whole-amplicon map.
   tests/test_export_amplicons.py (the store stays byte-identical, no file added).
+- Whole-amplicon map for Neisseria made from the export (51,545 genomes, 167 distinct 76 bp
+  amplicons): T8-T10 runs occur on all three common backgrounds (recurrent, not one lineage);
+  27 divergent amplicons in 1,496 genomes, mostly possibly unassembled (worth checking).
+- User, 2026-10-03: "For now no graph of the variants. Remove code": export_amplicons.py and its
+  test removed (they were merged in PR #69). The artifacts stay as examples only.
 
 ## 2026-10-02 — Theory-review items 1 and 2: MGB position rule, terminal G2
 
