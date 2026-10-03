@@ -332,3 +332,19 @@ def test_the_report_withholds_delta_tm_for_mgb_and_marks_a_low_tm(tmp_path):
     per_oligo = html[i : html.index("<h2>", i)]
     assert "ΔTm not applicable (MGB)" in per_oligo and "ΔTm -9.0 °C</span>" not in per_oligo
     assert "Tm ≤ annealing" in per_oligo and "ΔTm -8.0 °C" in per_oligo
+
+
+def test_the_fragment_table_puts_the_tm_note_under_the_class(tmp_path):
+    """User, 2026-10-03: the Neisseria 'Needs attention' table grew too wide because each site
+    cell kept its class, ΔTm, Tm flag and frequency on one unbreakable line."""
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.report.html import render_report
+
+    from .test_multi_copy import run_report_result
+
+    html = render_report(run_report_result(tmp_path), load_config())
+    i = html.index("<h3>Whole fragment (forward")
+    frag = html[i : html.index("<h3>Variants per oligo", i)]
+    assert frag.count('class="site-tm"') == frag.count(">ΔTm") > 0  # every Tm note on its line
+    assert "table.frag td.aln-cell { white-space: normal" in html  # only the alignment stays whole
+    assert "table.frag td.num { white-space: normal" in html

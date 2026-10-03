@@ -62,6 +62,12 @@ All notable changes to this project are documented here. The format follows
   move from undetermined to escapes, and leave the undetermined count.
 
 ### Fixed
+- **The whole-fragment tables no longer grow too wide** (user, 2026-10-03, Neisseria run of
+  2026-10-02: "Needs attention" was 1,843 px wide): in each site cell the class and the variant
+  frequency stay on the first line and the duplex Tm note (ΔTm, "Tm ≤ annealing") moves to its
+  own line; only the alignment never wraps. The notes under the record count wrap, the types
+  column gets more room and the release dates no longer break. Measured on that report: 1,406
+  px at most, rows about 40% lower; it fits a 1,440 px window.
 - **The summary row names every kind of undetermined genome** (user, 2026-10-02): it named
   only the copies possibly unassembled ("1 copies possibly unassembled" of 1,426 undetermined
   in Legionella) and left out the genomes with the region cut or hidden by N; it now lists
