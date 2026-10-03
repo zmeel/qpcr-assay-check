@@ -3,6 +3,15 @@
 Read this alongside `docs/SPEC.md` (authoritative spec) and `docs/ARCHITECTURE.md` (design and
 verified NCBI facts) at the start of every session. Newest entry first.
 
+## 2026-10-03 — Whole-fragment table width
+
+- User: in the Neisseria report of 2026-10-02T21:13Z (latest code) "Needs attention (119
+  combinations)" grew too wide. Measured: 1,843 px; each site column ~380 px because the cell
+  was nowrap with class, ΔTm, "Tm ≤ annealing" and frequency on one line, which squeezed the
+  types column to its minimum and made rows ~230 px tall. Fixed in report.html.j2 (site-tm line,
+  wrapping cells, wider types, unbroken dates); previewed on the real report: fits at 1,440 px.
+  Test in test_report_condensed.py.
+
 ## 2026-10-02 — Visualisation examples (not built)
 
 - Mock-ups published as artifacts (data from the reports, nothing built in the tool): variant
