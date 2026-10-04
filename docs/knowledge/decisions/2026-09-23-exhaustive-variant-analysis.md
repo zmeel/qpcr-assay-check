@@ -1,3 +1,5 @@
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T10:07:17Z }
 ---
 type: Decision
 title: "Variant analysis from every genome assembly"
