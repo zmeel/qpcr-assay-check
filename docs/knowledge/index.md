@@ -5,12 +5,14 @@ okf_version: "0.2"
 # qpcr-assay-check knowledge bundle
 
 * [About this bundle](about.md) - What qpcr-assay-check is, how this knowledge bundle is organised and how far to trust it.
+* [Current status](status.md) - Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 
 # Folders
 
 * [rules](rules/index.md) - How a primer or probe site is graded and how a genome counts, rule by rule
 * [sources](sources/index.md) - Papers, reviews and NCBI documentation the rules and facts rest on
 * [decisions](decisions/index.md) - The user's decisions, dated, with what they changed
+* [sessions](sessions/index.md) - What each working session did, newest first (the former progress log)
 * [assays](assays/index.md) - The example assays: where the sequences come from and what was checked
 * [runs](runs/index.md) - Live runs the user made and their key numbers
 * [ncbi](ncbi/index.md) - NCBI behaviour checked against current documentation or measured live

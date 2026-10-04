@@ -8,8 +8,8 @@ decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-10-02 — Theory-review items 1 and 2: MGB position rule, terminal G2"
+    resource: ../sessions/2026-10-02-04-theory-review-items-1-and-2-mgb-position-rule-terminal-g2.md
+    title: "Session 2026-10-02: Theory-review items 1 and 2: MGB position rule, terminal G2"
   - id: mismatch-classes
     resource: ../../MISMATCH_CLASSES.md
     title: "docs/MISMATCH_CLASSES.md"
@@ -27,5 +27,5 @@ User: "a single mismatch in the 7 bases at the 3′ end of an MGB probe → like
 
 Seen live: 2 Neisseria genomes (NG-P1 mismatch at -2) ([R9](../rules/r9-probes.md)).
 
-[^progress]: PROGRESS.md, entry 2026-10-02 — Theory-review items 1 and 2: MGB position rule, terminal G2
+[^progress]: Session 2026-10-02: Theory-review items 1 and 2: MGB position rule, terminal G2
 [^mismatch-classes]: docs/MISMATCH_CLASSES.md

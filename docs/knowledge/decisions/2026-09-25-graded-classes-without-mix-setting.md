@@ -8,8 +8,8 @@ decided_on: 2026-09-25
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target"
+    resource: ../sessions/2026-09-25-02-enterovirus-assay-taxa-excluded-from-the-target.md
+    title: "Session 2026-09-25 (continued): Enterovirus assay; taxa excluded from the target"
   - id: mismatch-classes
     resource: ../../MISMATCH_CLASSES.md
     title: "docs/MISMATCH_CLASSES.md"
@@ -27,5 +27,5 @@ User: "no lab-specific setting for the mix (the tool is for many labs; it is get
 
 `oligo/grade.py`; detectable = perfect or tolerated; a fixed caveat about mixes in the report ([classes](../rules/classes.md)).
 
-[^progress]: PROGRESS.md, entry 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
+[^progress]: Session 2026-09-25 (continued): Enterovirus assay; taxa excluded from the target
 [^mismatch-classes]: docs/MISMATCH_CLASSES.md

@@ -8,8 +8,8 @@ decided_on: 2026-09-30
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan"
+    resource: ../sessions/2026-09-30-01-live-runs-fallback-search-blast-blind-spot-wet-lab-classes.md
+    title: "Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan"
   - id: arch
     resource: ../../ARCHITECTURE.md
     title: "docs/ARCHITECTURE.md"
@@ -27,5 +27,5 @@ User: "Build 2 and 3", after the smoke-test E-value sweep.
 
 [Specificity findings](../rules/specificity-findings.md), [BLAST URL API facts](../ncbi/blast-url-api.md).
 
-[^progress]: PROGRESS.md, entry 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
+[^progress]: Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
 [^arch]: docs/ARCHITECTURE.md

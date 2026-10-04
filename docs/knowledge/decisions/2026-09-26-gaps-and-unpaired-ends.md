@@ -8,8 +8,8 @@ decided_on: 2026-09-26
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-25 (later) — Second code review of the unreleased changes"
+    resource: ../sessions/2026-09-25-03-second-code-review-of-the-unreleased-changes.md
+    title: "Session 2026-09-25 (later): Second code review of the unreleased changes"
   - id: mismatch-classes
     resource: ../../MISMATCH_CLASSES.md
     title: "docs/MISMATCH_CLASSES.md"
@@ -27,5 +27,5 @@ User, 2026-09-26, after a probe variant with 7 mismatches and a gap was reported
 
 [R5](../rules/r5-gaps.md).
 
-[^progress]: PROGRESS.md, entry 2026-09-25 (later) — Second code review of the unreleased changes
+[^progress]: Session 2026-09-25 (later): Second code review of the unreleased changes
 [^mismatch-classes]: docs/MISMATCH_CLASSES.md

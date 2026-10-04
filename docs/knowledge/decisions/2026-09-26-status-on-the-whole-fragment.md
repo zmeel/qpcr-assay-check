@@ -8,8 +8,8 @@ decided_on: 2026-09-26
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-26 — v1.4.0 released; inclusivity on the whole fragment"
+    resource: ../sessions/2026-09-26-01-v1-4-0-released-inclusivity-on-the-whole-fragment.md
+    title: "Session 2026-09-26: v1.4.0 released; inclusivity on the whole fragment"
 ---
 
 # Decision
@@ -24,4 +24,4 @@ User decision on the advisor's proposal (PR #21).
 
 [Inclusivity status](../rules/inclusivity-status.md).
 
-[^progress]: PROGRESS.md, entry 2026-09-26 — v1.4.0 released; inclusivity on the whole fragment
+[^progress]: Session 2026-09-26: v1.4.0 released; inclusivity on the whole fragment

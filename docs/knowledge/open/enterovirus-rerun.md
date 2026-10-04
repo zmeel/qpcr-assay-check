@@ -8,8 +8,8 @@ origin: "review 13"
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md"
+    resource: ../sessions/2026-10-02-04-theory-review-items-1-and-2-mgb-position-rule-terminal-g2.md
+    title: "Session 2026-10-02: Theory-review items 1 and 2: MGB position rule, terminal G2"
 ---
 
 # What is open
@@ -20,4 +20,4 @@ Entero-P is an MGB probe; single mismatches in its 3'-most 7 nt are now likely f
 
 A run by the user on the NAS.
 
-[^progress]: PROGRESS.md
+[^progress]: Session 2026-10-02: Theory-review items 1 and 2: MGB position rule, terminal G2

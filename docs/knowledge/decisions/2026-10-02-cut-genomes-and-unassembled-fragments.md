@@ -8,8 +8,8 @@ decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-10-02 — Theory-review items 3 and 4"
+    resource: ../sessions/2026-10-02-03-theory-review-items-3-and-4.md
+    title: "Session 2026-10-02: Theory-review items 3 and 4"
 ---
 
 # Decision
@@ -24,4 +24,4 @@ User: "Go with 1 and 2", after the breakdown of Legionella's 4,441 cut genomes.
 
 Legionella: cut 4,441 -> 4,280, not found 259; still Incomplete ([run](../runs/legionella-2026-10-02.md)).
 
-[^progress]: PROGRESS.md, entry 2026-10-02 — Theory-review items 3 and 4
+[^progress]: Session 2026-10-02: Theory-review items 3 and 4

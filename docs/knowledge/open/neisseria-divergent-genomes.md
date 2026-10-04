@@ -8,8 +8,8 @@ origin: "offered 2026-10-02"
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md"
+    resource: ../sessions/2026-10-02-05-visualisation-examples-not-built.md
+    title: "Session 2026-10-02: Visualisation examples (not built)"
 ---
 
 # What is open
@@ -20,4 +20,4 @@ Seen in the whole-amplicon export of the 2026-10-02 run (167 distinct 76-bp ampl
 
 The user's go-ahead.
 
-[^progress]: PROGRESS.md
+[^progress]: Session 2026-10-02: Visualisation examples (not built)

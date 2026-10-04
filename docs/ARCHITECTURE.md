@@ -189,7 +189,7 @@ report and nothing else this project didn't already improve on.
   records carried all three oligos among the hits (5,862 excluded), because each oligo's top 5000
   is a separate selection among millions of tied perfect matches. The report now says so whenever
   the target list is full; real variant frequencies for such targets need a different sample
-  (not yet designed, see PROGRESS.md).
+  (not yet designed, see the session logs in docs/knowledge/sessions/).
 - **Exhaustive variant analysis from NCBI Datasets genome assemblies** (v1.1.0,
   `variants/`): the target tier's BLAST hits are BLAST's best matches, so for any target with more
   records than `hitlist_size` they are biased toward perfect matches (seen live: 5000/5000 perfect

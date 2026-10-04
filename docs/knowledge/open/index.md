@@ -7,7 +7,7 @@ Open items: review suggestions not taken up, checks still to do.
 * [Analyse every locus of a multi-locus assay](every-locus.md) - Only the first locus is analysed; a multi-locus assay would be judged on one region.
 * [Independent validation of the classes](independent-validation.md) - The Otwell comparison is calibration; independent data such as Knight 2025 or the GoPrime templates are needed.
 * [Legionella example still has placeholders](legionella-example-sequences.md) - The repository's Legionella example has TODO sequences, while the user runs a complete file on the NAS.
-* [CLAUDE.md says the licence is not chosen](license-note.md) - pyproject.toml and PROGRESS say Apache-2.0; CLAUDE.md still says to ask before adding a licence.
+* [CLAUDE.md says the licence is not chosen](license-note.md) - pyproject.toml and the old progress log say Apache-2.0; CLAUDE.md still says to ask before adding a licence.
 * [Exact Tm of the mismatched duplex](mismatched-duplex-dtm.md) - Compute ΔTm on the actual mismatched duplex instead of the current estimate; check primer3's documentation first.
 * [Check the 1,496 divergent Neisseria genomes](neisseria-divergent-genomes.md) - 27 divergent amplicons in 1,496 genomes, mostly possibly unassembled, from the whole-amplicon map.
 * [R7 note and the pair flag at 4+ mismatches](r7-pair-flag.md) - Degenerate primers are only a note, and pairs with 4 or more mismatches in total are not flagged yet.

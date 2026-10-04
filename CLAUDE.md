@@ -1,7 +1,9 @@
 # qpcr-assay-check — project rules
 
-Full specification: docs/SPEC.md (authoritative). Progress log: docs/PROGRESS.md.
-Read both at the start of every session. Update PROGRESS.md before ending a session.
+Full specification: docs/SPEC.md (authoritative). Current status: docs/knowledge/status.md.
+Session logs: docs/knowledge/sessions/ (one page per session; the former docs/PROGRESS.md).
+At the start of every session read SPEC.md, status.md and the newest session pages. Before
+ending a session, update status.md and add a session page (see docs/knowledge/about.md).
 
 ## Hard rules
 - NEVER invent primer/probe sequences, NCBI parameters, limits or API behaviour.
@@ -38,7 +40,7 @@ Read both at the start of every session. Update PROGRESS.md before ending a sess
 - Knowledge bundle: docs/knowledge/ (Open Knowledge Format v0.2; start at its index.md). When a
   rule, source, decision, assay, run, NCBI fact or open item changes, update its concept there
   (or add one, with its sources). Never add `verified` for me: I do that after reading. After
-  changing PROGRESS.md, CHANGELOG.md or the default config, run
+  adding a session page or changing CHANGELOG.md or the default config, run
   `python scripts/build_knowledge.py`; tests/test_knowledge_bundle.py fails otherwise.
 
 ## Open items

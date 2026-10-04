@@ -8,8 +8,8 @@ decided_on: 2026-09-25
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target"
+    resource: ../sessions/2026-09-25-02-enterovirus-assay-taxa-excluded-from-the-target.md
+    title: "Session 2026-09-25 (continued): Enterovirus assay; taxa excluded from the target"
 ---
 
 # Decision
@@ -24,4 +24,4 @@ User, after the first enterovirus runs; the advisor proposed the split.
 
 The example assay lists 5 rhinovirus taxa as must-not-detect and 36 animal taxa as out of scope ([assay](../assays/enterovirus-realt.md)).
 
-[^progress]: PROGRESS.md, entry 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
+[^progress]: Session 2026-09-25 (continued): Enterovirus assay; taxa excluded from the target

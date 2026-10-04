@@ -8,8 +8,8 @@ decided_on: 2026-10-01
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan"
+    resource: ../sessions/2026-09-30-01-live-runs-fallback-search-blast-blind-spot-wet-lab-classes.md
+    title: "Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan"
 ---
 
 # Decision
@@ -24,4 +24,4 @@ User decisions (2026-10-01).
 
 Expected and seen for Legionella: the from-parts genomes moved to detected, the cut ones kept it Incomplete ([genome outcome](../rules/genome-outcome.md)).
 
-[^progress]: PROGRESS.md, entry 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
+[^progress]: Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan

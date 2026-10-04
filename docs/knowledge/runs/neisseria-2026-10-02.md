@@ -11,8 +11,8 @@ sources:
     resource: the user's report of run 2026-10-02T21:13Z on the NAS (work/results), read in the session of 2026-10-03
     title: Report of the run (not in the repository)
   - id: progress
-    resource: ../../PROGRESS.md
-    title: PROGRESS.md, entries 2026-09-29 to 2026-10-03
+    resource: ../sessions/2026-10-02-02-browser-interface-g1-g5-v2-1-0-released.md
+    title: "Session 2026-10-02: Browser interface G1-G5; v2.1.0 released"
 ---
 
 # Run
@@ -40,4 +40,4 @@ NG-R's poly-A 7; the escape comes from the strict homopolymer rule, not from a c
 perfect.[^progress]
 
 [^report]: Report of the run (not in the repository)
-[^progress]: PROGRESS.md, entries 2026-09-29 to 2026-10-03
+[^progress]: Session 2026-10-02: Browser interface G1-G5; v2.1.0 released

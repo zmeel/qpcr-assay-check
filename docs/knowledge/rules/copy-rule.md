@@ -10,8 +10,8 @@ sources:
     resource: ../settings/variants.md
     title: Settings - variants
   - id: progress
-    resource: ../../PROGRESS.md
-    title: PROGRESS.md, entries 2026-09-28 and 2026-09-29 (legionella4 measurement)
+    resource: ../sessions/2026-09-29-01-overhaul-round-2-a-generic-assay-model-advisor-user.md
+    title: "Session 2026-09-29: Overhaul round 2: a generic assay model (advisor); user decisions"
 ---
 
 # Rule
@@ -34,4 +34,4 @@ at most 18 anchored bases; whole real copies 114 or more. The defaults were kept
 measurement.[^progress]
 
 [^config]: Settings - variants
-[^progress]: PROGRESS.md, entries 2026-09-28 and 2026-09-29 (legionella4 measurement)
+[^progress]: Session 2026-09-29: Overhaul round 2: a generic assay model (advisor); user decisions

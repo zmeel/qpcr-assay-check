@@ -8,8 +8,8 @@ decided_on: 2026-09-29
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-29 — Overhaul round 2: a generic assay model (advisor); user decisions"
+    resource: ../sessions/2026-09-29-01-overhaul-round-2-a-generic-assay-model-advisor-user.md
+    title: "Session 2026-09-29: Overhaul round 2: a generic assay model (advisor); user decisions"
   - id: spec
     resource: ../../SPEC.md
     title: "docs/SPEC.md (amendments)"
@@ -27,5 +27,5 @@ User: "everything on the table"; the advisor's plan.
 
 Overhaul steps 1-8 built ([components](../components/index.md)); SPEC amended. Only the first locus of a multi-locus assay is analysed so far ([open](../open/every-locus.md)).
 
-[^progress]: PROGRESS.md, entry 2026-09-29 — Overhaul round 2: a generic assay model (advisor); user decisions
+[^progress]: Session 2026-09-29: Overhaul round 2: a generic assay model (advisor); user decisions
 [^spec]: docs/SPEC.md (amendments)

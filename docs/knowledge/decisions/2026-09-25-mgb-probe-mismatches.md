@@ -8,8 +8,8 @@ decided_on: 2026-09-25
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target"
+    resource: ../sessions/2026-09-25-02-enterovirus-assay-taxa-excluded-from-the-target.md
+    title: "Session 2026-09-25 (continued): Enterovirus assay; taxa excluded from the target"
   - id: mismatch-classes
     resource: ../../MISMATCH_CLASSES.md
     title: "docs/MISMATCH_CLASSES.md"
@@ -27,5 +27,5 @@ User: "MGB probe with 1 mismatch = undetermined"; the 2+ rule was the user's pro
 
 Since 2026-10-02 a single mismatch in the 3'-most 7 nt is likely failure ([MGB region](2026-10-02-mgb-region-likely-failure.md)); only one further toward the 5' end stays undetermined ([R9](../rules/r9-probes.md)).
 
-[^progress]: PROGRESS.md, entry 2026-09-25 (continued) — Enterovirus assay; taxa excluded from the target
+[^progress]: Session 2026-09-25 (continued): Enterovirus assay; taxa excluded from the target
 [^mismatch-classes]: docs/MISMATCH_CLASSES.md

@@ -14,8 +14,8 @@ sources:
     resource: ../../ARCHITECTURE.md
     title: docs/ARCHITECTURE.md, v1.1.0 design, target exclusions
   - id: progress
-    resource: ../../PROGRESS.md
-    title: PROGRESS.md, entry 2026-09-30
+    resource: ../sessions/2026-09-30-01-live-runs-fallback-search-blast-blind-spot-wet-lab-classes.md
+    title: "Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan"
 ---
 
 # Measured live
@@ -33,4 +33,4 @@ Request limits and identification: [etiquette](etiquette.md).[^eutils]
 
 [^eutils]: NCBI E-utilities documentation
 [^arch]: docs/ARCHITECTURE.md, v1.1.0 design, target exclusions
-[^progress]: PROGRESS.md, entry 2026-09-30
+[^progress]: Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan

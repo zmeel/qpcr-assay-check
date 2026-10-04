@@ -1,15 +1,15 @@
 ---
 type: Decision
 title: "A knowledge bundle in Open Knowledge Format"
-description: "The project's knowledge as an OKF v0.2 bundle in docs/knowledge/, with PROGRESS.md kept and the generated parts tested."
+description: "The project's knowledge as an OKF v0.2 bundle in docs/knowledge/, with the generated parts tested; PROGRESS.md first kept, then moved in the same day."
 tags: [decision]
 status: draft
 decided_on: 2026-10-04
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-10-04 — Knowledge bundle (OKF v0.2)"
+    resource: ../sessions/2026-10-04-01-knowledge-bundle-okf-v0-2.md
+    title: "Session 2026-10-04: Knowledge bundle (OKF v0.2)"
 ---
 
 # Decision
@@ -22,6 +22,6 @@ User: "Build as you propose" (2026-10-04), after advice on the OKF format.
 
 # What followed
 
-[About this bundle](../about.md).
+[About this bundle](../about.md). Later the same day the progress log itself moved into the bundle ([decision](2026-10-04-progress-into-sessions.md)), so PROGRESS.md is no longer the session log.
 
-[^progress]: PROGRESS.md, entry 2026-10-04 — Knowledge bundle (OKF v0.2)
+[^progress]: Session 2026-10-04: Knowledge bundle (OKF v0.2)

@@ -8,8 +8,8 @@ decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-10-02 — Browser interface G1-G5; v2.1.0 released"
+    resource: ../sessions/2026-10-02-02-browser-interface-g1-g5-v2-1-0-released.md
+    title: "Session 2026-10-02: Browser interface G1-G5; v2.1.0 released"
   - id: spec
     resource: ../../SPEC.md
     title: "docs/SPEC.md (amendments)"
@@ -27,5 +27,5 @@ User decisions (2026-10-02), after an approved mock-up.
 
 Phases G1-G5 built and released as v2.1.0 ([GUI](../components/gui.md)).
 
-[^progress]: PROGRESS.md, entry 2026-10-02 — Browser interface G1-G5; v2.1.0 released
+[^progress]: Session 2026-10-02: Browser interface G1-G5; v2.1.0 released
 [^spec]: docs/SPEC.md (amendments)

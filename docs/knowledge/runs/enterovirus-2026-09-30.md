@@ -8,8 +8,8 @@ stale_after: 2027-01-01T00:00:00Z
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: PROGRESS.md, entry 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
+    resource: ../sessions/2026-09-30-01-live-runs-fallback-search-blast-blind-spot-wet-lab-classes.md
+    title: "Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan"
 ---
 
 # Run
@@ -29,4 +29,4 @@ rule of 2026-10-02.[^progress]
 Not rerun since the MGB region rule (2026-10-02), which can change the probe's single-mismatch
 genomes: see [open item](../open/enterovirus-rerun.md).
 
-[^progress]: PROGRESS.md, entry 2026-09-30 — Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
+[^progress]: Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan
