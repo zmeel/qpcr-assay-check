@@ -348,3 +348,35 @@ def test_the_fragment_table_puts_the_tm_note_under_the_class(tmp_path):
     assert frag.count('class="site-tm"') == frag.count(">ΔTm") > 0  # every Tm note on its line
     assert "table.frag td.aln-cell { white-space: normal" in html  # only the alignment stays whole
     assert "table.frag td.num { white-space: normal" in html
+
+
+def test_the_report_states_search_limits_rna_and_the_homopolymer_range(tmp_path):
+    """Open review items 8, 6 and 9 (user, 2026-10-03)."""
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.models import TemplateType
+    from qpcr_assay_check.report.html import render_report
+    from qpcr_assay_check.report.summary import summary_rows
+
+    from .test_multi_copy import run_report_result
+
+    result, cfg = run_report_result(tmp_path), load_config()
+    html = render_report(result, cfg)
+    # 8: what BLAST cannot find, with the run's own word size and E-value
+    assert "What the search cannot find." in html and "an unbroken run of at least 7" in html
+    assert "Ye et al. (BMC Bioinformatics 2012, 13:134)" in html and "30,000" in html
+    # the probe rule sentence follows the position-aware MGB rule
+    assert "3′-most 7 nt (under the MGB) is a likely failure (Kutyavin" in html
+    assert "an MGB probe with 1 mismatch is undetermined and" not in html
+
+    # 6: the RT note only for an RNA assay (the fixture, CDC N1, is one)
+    def as_type(kind):
+        assay = result.assay.model_copy(update={"template_type": kind})
+        return render_report(result.model_copy(update={"assay": assay}), cfg)
+
+    assert "Christopherson et al. (Nucleic Acids Res 1997, 25:654)" in as_type(TemplateType.RNA)
+    assert "This assay detects RNA" not in as_type(TemplateType.DNA)
+    # 9: the summary row names the other homopolymer setting when it changes the figure
+    inc = result.inclusivity
+    if inc.bulge_alternative is not None:
+        (row,) = [x for x in summary_rows(result, cfg, []) if x.check.startswith("Target detect")]
+        assert "run-length differences were tolerated" in row.result

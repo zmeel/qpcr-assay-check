@@ -318,3 +318,26 @@ def test_escape_reasons_in_report_and_workbook(tmp_path):
     assert [c.value for c in ws[1]][:3] == ["Accession", "Reason",
                                            "Failing site(s) of the best copy"]  # fmt: skip
     assert ws.max_row == cc.escapes + 1
+
+
+def test_the_status_figure_is_also_given_under_the_other_homopolymer_setting(tmp_path):
+    """Theory reviews 2026-10-01 (item 9 of the open list): the strict-lenient spread next to
+    the headline. Three genomes: perfect, a forward poly-A 4->5 (run length only), and a
+    reverse 3'-end mismatch."""
+    genomes = [
+        FakeAssembly("GCA_000000121.1", "2026-02-01",
+                     copies(21, AMP.replace(F, F.replace("AAAA", "AAAAA", 1)))),
+        FakeAssembly("GCA_000000122.1", "2026-03-01",
+                     copies(22, AMP.replace(RC_R, mutate(RC_R, [1])))),
+        FakeAssembly("GCA_000000123.1", "2026-04-01", copies(23, AMP)),
+    ]  # fmt: skip
+    strict = run(tmp_path / "s", genomes).inclusivity
+    assert strict.bulges_tolerated is False
+    assert round(strict.bulge_alternative, 1) == 66.7  # the run-length genome counts as well
+    line = next(x for x in strict.rationale if x.startswith("Homopolymer setting:"))
+    assert "66.7% detectable if single-base run-length differences were tolerated" in line
+    assert "against 33.3% with them not tolerated (strict) as in the status" in line
+    tolerant = run(tmp_path / "t", genomes, variants={"homopolymer_bulges_detectable": True})
+    assert round(tolerant.inclusivity.bulge_alternative, 1) == 33.3
+    assert any("were not tolerated (strict), against 66.7%" in x
+               for x in tolerant.inclusivity.rationale)  # fmt: skip

@@ -32,7 +32,13 @@ own query. Searches are submitted through NCBI's BLAST URL API with the tool's o
 search ID (RID) can be stored and a run that was interrupted resumes the same search instead of
 submitting it again.
 
-**What a search can miss.** BLAST reports an alignment only when its expected number of chance
+**What a search can miss.** BLAST only finds a site that shares an unbroken run of at least
+the word size (7) of matching bases with the oligo; a site whose matches all lie in shorter runs
+is never found, whatever its score. Ye et al. (BMC Bioinformatics 2012, 13:134, the Primer-BLAST
+paper) estimate that word size 7 misses about 0.5% of sites with 2 mismatches to a 20-base
+primer, and give 30,000 as Primer-BLAST's default E-value for primers; the lower E-value used
+here makes this search less sensitive than Primer-BLAST with its defaults. The report says both.
+Beyond that, BLAST reports an alignment only when its expected number of chance
 hits (E-value) is at most 1,000. The E-value grows with the size of the search, so the smallest
 reportable score does too. NCBI reports the statistics of every search (the effective search
 space, λ and K), and from them the tool computes, per tier and oligo, the smallest score the

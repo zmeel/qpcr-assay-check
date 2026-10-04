@@ -1,0 +1,43 @@
+---
+type: Run
+title: Neisseria gonorrhoeae, 2026-10-02 21:13Z
+description: First run with every one of 51,545 genomes assessed; 85.8% detectable by collection year, 89.0% by release year - Review, driven by NG-R's poly-A run.
+tags: [run, neisseria]
+status: draft
+stale_after: 2027-01-01T00:00:00Z
+generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
+sources:
+  - id: report
+    resource: the user's report of run 2026-10-02T21:13Z on the NAS (work/results), read in the session of 2026-10-03
+    title: Report of the run (not in the repository)
+  - id: progress
+    resource: ../../PROGRESS.md
+    title: PROGRESS.md, entries 2026-09-29 to 2026-10-03
+---
+
+# Run
+
+[Assay](../assays/neisseria-gonorrhoeae-two-probes.md), code with the MGB-region and terminal G2
+rules (2026-10-02), status axis collection. Numbers as read from the report;[^report] the
+numbers are counts over public genomes, not prevalence.
+
+# Key numbers
+
+- All 51,545 genomes assessed (earlier runs covered 20,000 each).
+- Whole fragment, collection years in the window: 85.8% detectable of 8,733; by release year
+  89.0%. Status: Review.
+- 4,330 escapes, 4,196 of them only by a homopolymer length difference (NG-R poly-A +1, at risk
+  under [R5b](../rules/r5b-homopolymer-length.md)).
+- Collection years 2024-2026: 80%, 79% and 77% detectable, the rest mostly at risk (poly-A +1).
+- Effect of the new rules: the MGB region rule changed 2 genomes (NG-P1 mismatch at -2); the
+  terminal G2 rule none.
+
+# Earlier findings
+
+Checked with the user on 2026-10-02: GCF_001025995.1 has 3 assembled copies, all with A8/A9 at
+NG-R's poly-A 7; the escape comes from the strict homopolymer rule, not from a contig end. A
+76-bp product on N. meningitidis CP171264.1 is predicted with both primers and NG-P1
+perfect.[^progress]
+
+[^report]: Report of the run (not in the repository)
+[^progress]: PROGRESS.md, entries 2026-09-29 to 2026-10-03
