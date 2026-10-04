@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Knowledge viewer** (user, 2026-10-04: "Make the viewer"): `python scripts/knowledge_viewer.py`
+  writes `work/knowledge-viewer.html`, one self-contained file without external requests: a map
+  of every concept and its links (colour and shape per folder, a ring for concepts verified by a
+  person), a list with each concept's review state, search, and a reading panel with the rendered
+  text, sources, links and what cites it.
 - **Knowledge bundle** (user, 2026-10-04: "Build as you propose"): `docs/knowledge/`, the
   project's knowledge in the Open Knowledge Format v0.2 (markdown with YAML frontmatter): the
   grading rules, the papers and NCBI documents they rest on (citations checked in PubMed), the

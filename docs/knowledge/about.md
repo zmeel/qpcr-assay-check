@@ -55,6 +55,13 @@ longer holds gets `status: deprecated` and a line saying what replaced it; it is
 Concepts about live data (`runs/`, `ncbi/`) carry `stale_after`: past that date, check again
 before relying on them.
 
+# Viewing
+
+`python scripts/knowledge_viewer.py` writes `work/knowledge-viewer.html`: one self-contained
+file (no external requests) with a map of every concept and its links, a list with each
+concept's review state, and a reading panel with sources, links and what cites it. Open it in a
+browser; rebuild it after the bundle changes.
+
 # Links
 
 Links are relative, so they work on GitHub, in a checkout and in any markdown viewer. Links to

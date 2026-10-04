@@ -29,6 +29,14 @@ generated: { by: claude-code/agent, at: 2026-10-04T06:00:00Z }
   to status.md and the session pages; docs/PROGRESS.md is a pointer; references in
   ARCHITECTURE.md, clinical_pathogen_panels.md and probe_variant_sources.py updated (the
   reviews in docs/reviews/ are verbatim and still say PROGRESS.md).
+- User: "Make the viewer" (after the advice on what to do with the bundle). Built
+  `scripts/knowledge_viewer.py` + `knowledge_viewer.html`: one self-contained HTML file
+  (`work/knowledge-viewer.html`, gitignored; about 580 kB with IBM Plex embedded from the GUI's
+  fonts) with a map of the concepts (colour and shape per folder, a ring for concepts verified by
+  a person), a list with review state, search, and a reading panel (rendered text, sources, links
+  out, cited by, GitHub link). Checked in Chromium (desktop light/dark, 400 px phone; no console
+  errors, no sideways scroll). tests/test_knowledge_viewer.py. Also published as a private
+  artifact for a first look.
 
 # Related
 

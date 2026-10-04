@@ -20,7 +20,9 @@ sources:
 - `scripts/check_blast_stats.py`, `measure_borderline.py`, `probe_variant_sources.py`,
   `validate_assessment.py`, `resolve_pathogen_panel_taxids.py`: one-off checks behind recorded
   facts.
-- `scripts/build_knowledge.py`: writes the generated parts of this bundle.
+- `scripts/build_knowledge.py`: writes the generated parts of this bundle;
+  `scripts/knowledge_viewer.py` (with `knowledge_viewer.html`) writes a self-contained viewer of it
+  to `work/knowledge-viewer.html`.
 
 # Code
 
