@@ -3,7 +3,8 @@ type: Decision
 title: "Enterovirus assay - human enteroviruses only; taxa roles"
 description: "Animal enteroviruses are out of scope (information only) and rhinoviruses must not be detected; one list with a role and reason per taxon."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T07:40:00Z }
 decided_on: 2026-09-25
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
