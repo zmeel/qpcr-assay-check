@@ -3,7 +3,8 @@
 
 WHY THIS EXISTS
     v1.1.0 replaces the saturated target-tier BLAST search as the source of the variant summary
-    and inclusivity with two exhaustive sources (see docs/PROGRESS.md, 2026-09-23):
+    and inclusivity with two exhaustive sources (see the session of 2026-09-23 in
+    docs/knowledge/sessions/2026-09-23-07-report-states-when-human-background-was-skipped.md):
 
       Option 2  NCBI Datasets: list every genome assembly of the target taxon, download them one
                 by one, scan each locally for the amplicon and keep only that region.

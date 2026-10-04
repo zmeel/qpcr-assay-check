@@ -7,6 +7,7 @@ On top of that, for this bundle: links and path-valued fields resolve, every foo
 """
 
 import importlib.util
+import os
 import re
 import sys
 from datetime import date, datetime
@@ -122,11 +123,39 @@ def test_the_log_follows_section_9():
         date.fromisoformat(d)
 
 
-def test_progress_entries_are_parsed():
-    entries = bk.progress_entries(
-        "## 2026-10-03 — A\n## 2026-09-28 (later) — B\n## 2026-09-20/21 — C\n## Open questions\n"
-    )
-    assert entries == [("2026-10-03", "A"), ("2026-09-28", "B"), ("2026-09-20", "C")]
+def test_sessions_are_named_dated_and_logged():
+    entries = bk.session_entries()
+    assert len(entries) >= 40
+    log_text = (BUNDLE / "log.md").read_text(encoding="utf-8")
+    for d, _title, name in entries:
+        assert re.match(r"^\d{4}-\d{2}-\d{2}-\d{2}-[a-z0-9-]+\.md$", name), name
+        assert name.startswith(d), f"{name}: session_date {d}"
+        assert _meta(BUNDLE / "sessions" / name)["type"] == "Session"
+        assert f"](sessions/{name})" in log_text
+    names = [n for _, _, n in entries]
+    assert names == sorted(names, reverse=True), "newest first"
+
+
+def test_sessions_link_back_to_the_concepts_that_cite_them():
+    """A concept citing a session page in ``sources`` is listed under the session's Related."""
+    missing = []
+    for path in CONCEPTS:
+        for s in _meta(path).get("sources") or []:
+            r = str(s.get("resource", ""))
+            if "sessions/" not in r or r.endswith("index.md"):
+                continue
+            session = (path.parent / r).resolve()
+            back = Path(os.path.relpath(path, session.parent)).as_posix()
+            if f"]({back})" not in session.read_text(encoding="utf-8"):
+                missing.append(f"{_id(session)} -> {back}")
+    assert not missing, f"add these under '# Related': {missing}"
+
+
+def test_the_status_page_and_the_old_progress_log():
+    status = _meta(BUNDLE / "status.md")
+    assert status["type"] == "Status"
+    old = (ROOT / "docs" / "PROGRESS.md").read_text(encoding="utf-8")
+    assert "knowledge/status.md" in old and not re.search(r"^## \d{4}", old, flags=re.M)
 
 
 def test_releases_and_settings_follow_their_sources():

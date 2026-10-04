@@ -23,4 +23,5 @@ The user's decisions, dated, with what they changed.
 * [One mismatch under the MGB is a likely failure](2026-10-02-mgb-region-likely-failure.md) - A single mismatch in the 3'-most 7 nt of an MGB probe is likely failure (Kutyavin 2000); further toward the 5' end it stays undetermined.
 * [Terminal G2 mismatches at risk](2026-10-02-terminal-g2-at-risk.md) - A single terminal T-T, T-C or C-T primer mismatch is at risk instead of likely failure, after Kwok 1990 and Huang 1992.
 * [No graph of the variants for now](2026-10-03-no-variant-graph.md) - Variant maps were shown as mock-ups only; the amplicon export script was removed again.
-* [A knowledge bundle in Open Knowledge Format](2026-10-04-knowledge-bundle.md) - The project's knowledge as an OKF v0.2 bundle in docs/knowledge/, with PROGRESS.md kept and the generated parts tested.
+* [A knowledge bundle in Open Knowledge Format](2026-10-04-knowledge-bundle.md) - The project's knowledge as an OKF v0.2 bundle in docs/knowledge/, with the generated parts tested; PROGRESS.md first kept, then moved in the same day.
+* [The progress log moves into the bundle as session pages](2026-10-04-progress-into-sessions.md) - PROGRESS.md becomes one page per session in sessions/, with a short status page read first; CLAUDE.md points to them.

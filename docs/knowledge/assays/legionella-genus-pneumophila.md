@@ -14,8 +14,8 @@ sources:
     resource: ../sources/herpers-2003.md
     title: Herpers et al. 2003
   - id: progress
-    resource: ../../PROGRESS.md
-    title: PROGRESS.md, entries 2026-09-27 to 2026-10-02
+    resource: ../sessions/2026-09-27-01-summary-instead-of-a-verdict-v1-5-0-released-legionella.md
+    title: "Session 2026-09-27: Summary instead of a verdict; v1.5.0 released; Legionella draft"
 ---
 
 # Provenance
@@ -41,4 +41,4 @@ To do: put the real sequences into the example, or say why not
 
 [^assay-file]: docs/examples/legionella_genus_pneumophila.yaml (draft; provenance and checks in its header)
 [^herpers]: Herpers et al. 2003
-[^progress]: PROGRESS.md, entries 2026-09-27 to 2026-10-02
+[^progress]: Session 2026-09-27: Summary instead of a verdict; v1.5.0 released; Legionella draft

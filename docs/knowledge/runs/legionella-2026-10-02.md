@@ -8,8 +8,8 @@ stale_after: 2027-01-01T00:00:00Z
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: PROGRESS.md, entry 2026-10-02 — Theory-review items 3 and 4
+    resource: ../sessions/2026-10-02-03-theory-review-items-3-and-4.md
+    title: "Session 2026-10-02: Theory-review items 3 and 4"
   - id: report
     resource: the user's report of run 2026-10-02T13:16Z on the NAS, read in the session of 2026-10-02
     title: Report of the 13:16Z run (not in the repository)
@@ -37,5 +37,5 @@ Earlier (2026-09-30, overhaul code before v2.0.0): 11,911 assemblies; the 25 com
 Legionella species where the genus probe fails (L. anisa, L. micdadei, F. dumoffii and others);
 signal of the pneumophila channel in 2 non-pneumophila genomes.
 
-[^progress]: PROGRESS.md, entry 2026-10-02 — Theory-review items 3 and 4
+[^progress]: Session 2026-10-02: Theory-review items 3 and 4
 [^report]: Report of the 13:16Z run (not in the repository)

@@ -8,8 +8,8 @@ decided_on: 2026-09-23
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-09-23 — Report states when human background was skipped"
+    resource: ../sessions/2026-09-23-07-report-states-when-human-background-was-skipped.md
+    title: "Session 2026-09-23: Report states when human background was skipped"
   - id: arch
     resource: ../../ARCHITECTURE.md
     title: "docs/ARCHITECTURE.md"
@@ -27,5 +27,5 @@ User priority: the variant analysis is the most important part of the tool and m
 
 Built as v1.1.0. core_nt excludes WGS drafts, where most bacterial assemblies live, so BLAST alone would miss most bacterial data. Every limit is a setting (budget questions were not answered).
 
-[^progress]: PROGRESS.md, entry 2026-09-23 — Report states when human background was skipped
+[^progress]: Session 2026-09-23: Report states when human background was skipped
 [^arch]: docs/ARCHITECTURE.md

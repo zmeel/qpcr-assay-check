@@ -254,7 +254,7 @@ look rather than assumed settled:**
   resolution. Add candidate alternate names to `scripts/resolve_pathogen_panel_taxids.py`'s
   `NAMES` list and re-run to check.
 - *Mycobacterium chelonae* — already an open, unexplained item in this project's own exclusivity
-  organism list (`data/clinical_organisms.yaml`, `docs/PROGRESS.md`); consistent with that prior
+  organism list (`data/clinical_organisms.yaml`, the session logs in `docs/knowledge/sessions/`); consistent with that prior
   finding, not new.
 - *Mycoplasma pneumoniae* — expected: this project already established (`docs/ARCHITECTURE.md`)
   that this specific name does not resolve, including via `[All Names]`, and uses the current name

@@ -8,8 +8,8 @@ origin: "since 2026-09-30"
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md"
+    resource: ../sessions/2026-09-30-01-live-runs-fallback-search-blast-blind-spot-wet-lab-classes.md
+    title: "Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan"
 ---
 
 # What is open
@@ -20,4 +20,4 @@ With `search.max_taxids_per_search` 1 the enterovirus run made 36 out-of-scope s
 
 The user's go-ahead.
 
-[^progress]: PROGRESS.md
+[^progress]: Session 2026-09-30: Live runs; fallback search; BLAST blind spot; wet-lab classes; partner scan

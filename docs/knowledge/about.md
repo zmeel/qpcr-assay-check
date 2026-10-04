@@ -13,8 +13,8 @@ sources:
     resource: ../SPEC.md
     title: docs/SPEC.md (authoritative specification)
   - id: progress
-    resource: ../PROGRESS.md
-    title: docs/PROGRESS.md (session log)
+    resource: sessions/index.md
+    title: Session logs (formerly docs/PROGRESS.md)
 ---
 
 # The tool
@@ -35,12 +35,16 @@ rest on, the user's decisions, the example assays, the live runs, the NCBI behav
 relies on, and what is still open.
 
 - **Hand-written** concepts (`rules/`, `sources/`, `decisions/`, `assays/`, `runs/`, `ncbi/`,
-  `components/`, `open/`) summarise and link; the documents they link to stay the full record.
+  `components/`, `open/`, `status.md`) summarise and link; the documents they link to stay the full record.
   Each claim names its source; where a source was not checked, the concept says so.
 - **Generated** concepts (`settings/`, `releases/`, every `index.md` and `log.md`) are written
-  by `scripts/build_knowledge.py` from the configuration, `CHANGELOG.md` and `PROGRESS.md`; a
+  by `scripts/build_knowledge.py` from the configuration, `CHANGELOG.md` and the session pages; a
   test fails when they are out of date. Do not edit them by hand.
-- The session log stays in PROGRESS.md;[^progress] `log.md` lists its entries.
+- **Sessions**: what each working session did, one page per session in `sessions/`, the former
+  PROGRESS.md moved verbatim;[^progress] `log.md` lists them. [status.md](status.md) is the
+  current state, read first. Before ending a session: update status.md and add a session page
+  (`sessions/<date>-<nn>-<slug>.md`, `type: Session`, `session_date`, a "Related" list of the
+  concepts it changed, and those concepts cite it in `sources`).
 
 # Trust
 
@@ -58,4 +62,4 @@ files outside the bundle (code, docs) point into this repository.
 
 [^spec]: docs/SPEC.md (authoritative specification)
 [^okf]: Open Knowledge Format v0.2 specification
-[^progress]: docs/PROGRESS.md (session log)
+[^progress]: Session logs (formerly docs/PROGRESS.md)

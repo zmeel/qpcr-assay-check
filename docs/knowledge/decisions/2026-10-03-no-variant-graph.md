@@ -8,8 +8,8 @@ decided_on: 2026-10-03
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-10-02 — Visualisation examples (not built)"
+    resource: ../sessions/2026-10-02-05-visualisation-examples-not-built.md
+    title: "Session 2026-10-02: Visualisation examples (not built)"
 ---
 
 # Decision
@@ -24,4 +24,4 @@ User: "For now no graph of the variants. Remove code" (2026-10-03).
 
 Assessment given: the site-pattern map is exploratory only; the whole-amplicon map is the meaningful version, if one is built later.
 
-[^progress]: PROGRESS.md, entry 2026-10-02 — Visualisation examples (not built)
+[^progress]: Session 2026-10-02: Visualisation examples (not built)

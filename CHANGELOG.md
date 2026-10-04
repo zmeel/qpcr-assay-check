@@ -60,6 +60,12 @@ All notable changes to this project are documented here. The format follows
   chromosome-level, examples. Information only: they stay undetermined.
 
 ### Changed
+- **The progress log moved into the knowledge bundle** (user, 2026-10-04): every entry of
+  `docs/PROGRESS.md` is now its own page in `docs/knowledge/sessions/` (moved verbatim), with
+  `docs/knowledge/status.md` as the current state to read first; `log.md` is generated from the
+  session pages, and concepts cite the session they come from, which links back under "Related"
+  (checked by a test). `docs/PROGRESS.md` is a pointer. CLAUDE.md says to read status.md and the
+  newest session pages at the start of a session and to update them before ending one.
 - **A fragment not in the assembly counts as "region not found"** (user decision 2026-10-02,
   after the Legionella breakdown: 161 of 4,441 cut genomes): a genome whose every copy has only
   the sequence beside the fragment at a contig end, with no fragment base assembled, no longer

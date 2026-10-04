@@ -8,8 +8,8 @@ decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: progress
-    resource: ../../PROGRESS.md
-    title: "PROGRESS.md, entry 2026-10-02 — Theory-review items 3 and 4"
+    resource: ../sessions/2026-10-02-03-theory-review-items-3-and-4.md
+    title: "Session 2026-10-02: Theory-review items 3 and 4"
 ---
 
 # Decision
@@ -24,4 +24,4 @@ User: "Start with 3 and 4", then "Use 25% limit".
 
 Legionella (collection axis): Incomplete from the cut genomes, 2.8% undated. Neisseria: 85.8% by collection year vs 89.0% by release ([runs](../runs/index.md)).
 
-[^progress]: PROGRESS.md, entry 2026-10-02 — Theory-review items 3 and 4
+[^progress]: Session 2026-10-02: Theory-review items 3 and 4
