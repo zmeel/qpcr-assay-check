@@ -1,0 +1,26 @@
+# Decisions
+
+The user's decisions, dated, with what they changed.
+
+* [Run history as a required section (withdrawn)](2026-09-22-history-section-required.md) - A first run was Incomplete until a previous run existed; withdrawn on 2026-09-29 when the run history was removed.
+* [Variant analysis from every genome assembly](2026-09-23-exhaustive-variant-analysis.md) - Both sources: NCBI Datasets genome downloads scanned locally for exhaustive runs, partitioned remote BLAST kept for targets without assemblies.
+* [Graded mismatch classes, without a mix setting](2026-09-25-graded-classes-without-mix-setting.md) - Sites get graded classes from Stadhouders and Lefever on one basis (Taq on DNA) for every laboratory; no switch back to the old rule.
+* [Enterovirus assay - human enteroviruses only; taxa roles](2026-09-25-human-enteroviruses-only.md) - Animal enteroviruses are out of scope (information only) and rhinoviruses must not be detected; one list with a role and reason per taxon.
+* [MGB probe mismatches - one undetermined, two or more likely failure](2026-09-25-mgb-probe-mismatches.md) - A single MGB probe mismatch is undetermined (neither detected nor an escape); 2+ mismatches likely failure. Narrowed on 2026-10-02 by the 7-nt MGB region.
+* [Gaps never hide mismatches; an unpaired end base is a mismatch](2026-09-26-gaps-and-unpaired-ends.md) - A site whose mismatches already fail keeps that class with a gap; an oligo base without a template partner at an end counts as a mismatch.
+* [Homopolymer bulges graded; laboratory evidence entries](2026-09-26-homopolymer-bulges-graded.md) - Primer run-length differences get class R5b instead of indeterminate; an evidence entry in the assay file can override a class with the lab's result.
+* [Inclusivity status on the whole fragment over a window](2026-09-26-status-on-the-whole-fragment.md) - The inclusivity status uses the genome outcome of all three sites together, over the last 3 complete years plus the current one.
+* [A summary with review statuses instead of an overall verdict](2026-09-27-summary-instead-of-verdict.md) - No pass/fail verdict: a review status (No flags, Review, Exceeds limit, Incomplete) per check, a reviewer's decision box, first run as baseline.
+* [Genomes judged from parts; copies possibly unassembled; copy identity](2026-09-28-judge-from-parts-and-unassembled-copies.md) - Introduced the 'detectable from parts' class, 'copies possibly unassembled' for multi-copy drafts and the 0.75 copy-identity threshold.
+* [One generic assay model - loci and channels](2026-09-29-generic-assay-model.md) - Oligos, loci and channels for simple, multi-oligo and multiplex assays; run history, panel command and sampled BLAST-hit inclusivity removed.
+* [Mismatch counts within the 3'-most 16 nt; R3b](2026-09-30-count-within-16-nt.md) - R3 and R8 count only mismatches within the 3'-most 16 nt; mismatches beyond get their own rule R3b from Otwell 2025.
+* [E-value stays 1000; score floor and partner scan built](2026-09-30-expect-1000-score-floor-partner-scan.md) - Keep EXPECT 1000, compute what each search could report, and scan for partner primers and probes next to off-target primer sites.
+* [Detectable from parts counts as detected; cut genomes undetermined](2026-10-01-from-parts-detected-cut-undetermined.md) - Genomes with every site seen whole on cut copies count as detected; genomes with the region cut or hidden by N are undetermined everywhere.
+* [The small points of the theory reviews](2026-10-01-small-review-points.md) - Probe deletions graded (R5c), Tm-at-annealing flag, ΔTm not applicable for modified oligos, calibration wording, quantification caveat, bracketing and the 25% undetermined limit.
+* [Collection year as an optional status axis; 25% undated limit](2026-10-02-collection-year-status-axis.md) - inclusivity.status_axis release | collection; with collection, more than 25% undated genomes gives Incomplete.
+* [Cut genomes stay undetermined; a fragment not in the assembly is not found](2026-10-02-cut-genomes-and-unassembled-fragments.md) - Option 1 and 2 of the cut-genome breakdown: keep cut genomes undetermined, and count genomes whose fragment is absent from the assembly as region not found.
+* [Browser interface - one user, LAN or VPN, YAML stays the source](2026-10-02-gui-one-user.md) - A password-protected GUI for one user on a LAN or VPN, 8 hours idle sign-out; YAML stays the source of truth; the GUI confirms the dry-run plan.
+* [One mismatch under the MGB is a likely failure](2026-10-02-mgb-region-likely-failure.md) - A single mismatch in the 3'-most 7 nt of an MGB probe is likely failure (Kutyavin 2000); further toward the 5' end it stays undetermined.
+* [Terminal G2 mismatches at risk](2026-10-02-terminal-g2-at-risk.md) - A single terminal T-T, T-C or C-T primer mismatch is at risk instead of likely failure, after Kwok 1990 and Huang 1992.
+* [No graph of the variants for now](2026-10-03-no-variant-graph.md) - Variant maps were shown as mock-ups only; the amplicon export script was removed again.
+* [A knowledge bundle in Open Knowledge Format](2026-10-04-knowledge-bundle.md) - The project's knowledge as an OKF v0.2 bundle in docs/knowledge/, with PROGRESS.md kept and the generated parts tested.

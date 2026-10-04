@@ -35,6 +35,11 @@ Read both at the start of every session. Update PROGRESS.md before ending a sess
   without my go-ahead.
 - I run live NCBI checks locally (scripts/smoke_test.py) and paste back the output
   you specify.
+- Knowledge bundle: docs/knowledge/ (Open Knowledge Format v0.2; start at its index.md). When a
+  rule, source, decision, assay, run, NCBI fact or open item changes, update its concept there
+  (or add one, with its sources). Never add `verified` for me: I do that after reading. After
+  changing PROGRESS.md, CHANGELOG.md or the default config, run
+  `python scripts/build_knowledge.py`; tests/test_knowledge_bundle.py fails otherwise.
 
 ## Open items
 - LICENSE not yet chosen: ask me before adding one.
