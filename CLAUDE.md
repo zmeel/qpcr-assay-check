@@ -29,7 +29,11 @@ ending a session, update status.md and add a session page (see docs/knowledge/ab
 
 ## Git
 - Conventional Commits. Annotated tags per phase (v0.1.0 ... v1.0.0).
-- Never force-push. Never push without asking me first.
+- Work on `main` and push there once a change is finished: no pull request needed, no need to
+  ask me first (my decision of 2026-10-05). Push only after `ruff check .`,
+  `ruff format --check .` and `pytest -m "not live"` have passed; if anything fails, fix it or
+  tell me, and do not push. Say what you pushed.
+- Never force-push. Never push a tag: I set and push the annotated tags myself.
 - Update CHANGELOG.md at the end of each phase.
 
 ## Workflow

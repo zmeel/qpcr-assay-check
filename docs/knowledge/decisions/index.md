@@ -25,3 +25,4 @@ The user's decisions, dated, with what they changed.
 * [No graph of the variants for now](2026-10-03-no-variant-graph.md) - Variant maps were shown as mock-ups only; the amplicon export script was removed again.
 * [A knowledge bundle in Open Knowledge Format](2026-10-04-knowledge-bundle.md) - The project's knowledge as an OKF v0.2 bundle in docs/knowledge/, with the generated parts tested; PROGRESS.md first kept, then moved in the same day.
 * [The progress log moves into the bundle as session pages](2026-10-04-progress-into-sessions.md) - PROGRESS.md becomes one page per session in sessions/, with a short status page read first; CLAUDE.md points to them.
+* [Push to main after the tests pass, without asking](2026-10-05-push-to-main-after-tests.md) - Work goes straight to main once ruff and the test suite pass; no pull request and no go-ahead per push. Tags stay the user's.

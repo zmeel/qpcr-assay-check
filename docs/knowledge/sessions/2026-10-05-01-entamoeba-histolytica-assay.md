@@ -36,8 +36,11 @@ generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
   in other Entamoeba species; target 84.9% detectable of 73 records, Incomplete (14 records in the
   collection window); 45 of 2,345 records left to assess. Written up in
   [runs/entamoeba-2026-10-05](../runs/entamoeba-2026-10-05.md). The chosen variant source works.
+- User: push to main after the tests pass, no pull request, no go-ahead per push. CLAUDE.md's
+  Git section rewritten; decision page added. PR #74 was the last of the old workflow.
 
 # Related
 
 * [Entamoeba histolytica, SSU rRNA (one FAM-MGB probe)](../assays/entamoeba-histolytica-ssu.md)
 * [Entamoeba histolytica, 2026-10-05 10:10Z (first run)](../runs/entamoeba-2026-10-05.md)
+* [Push to main after the tests pass, without asking](../decisions/2026-10-05-push-to-main-after-tests.md)
