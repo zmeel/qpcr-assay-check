@@ -3,7 +3,8 @@ type: Decision
 title: "The progress log moves into the bundle as session pages"
 description: "PROGRESS.md becomes one page per session in sessions/, with a short status page read first; CLAUDE.md points to them."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:35:00Z }
 decided_on: 2026-10-04
 generated: { by: claude-code/agent, at: 2026-10-04T06:00:00Z }
 sources:
