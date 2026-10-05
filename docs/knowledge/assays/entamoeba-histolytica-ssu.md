@@ -10,6 +10,9 @@ sources:
   - id: assay-file
     resource: ../../examples/entamoeba_histolytica_ssu.yaml
     title: docs/examples/entamoeba_histolytica_ssu.yaml (provenance and checks in its header)
+  - id: run
+    resource: ../runs/entamoeba-2026-10-05.md
+    title: "Entamoeba histolytica, 2026-10-05 10:10Z (first run)"
   - id: session
     resource: ../sessions/2026-10-05-01-entamoeba-histolytica-assay.md
     title: "Session 2026-10-05: Entamoeba histolytica assay"
@@ -44,11 +47,15 @@ genomes the [inclusivity status](../rules/inclusivity-status.md) needs) and the 
 a multi-copy episome. Records whose title names none of the filter words are not
 assessed.[^session]
 
-# QC-only run (2026-10-05, no NCBI)
+# Runs
 
-Review: the probe's model Tm is 4.8 C below the primers (expected for an MGB probe, whose
-modification the model does not include), one more G than C in the probe, amplicon 173 bp and GC
-34.1% outside the preferred ranges. The full run has not been made.
+[2026-10-05](../runs/entamoeba-2026-10-05.md), the first: Exceeds limit, from 62 predicted
+products in other Entamoeba species (E. dispar and E. bangladeshi with both primers perfect);
+the target itself 84.9% detectable of 73 records, Incomplete for want of recent records.
+
+Oligo QC in that run: Review, 0 outside the limit and 5 outside the preferred range (the probe's
+model Tm 4.8 C below the primers, expected for an MGB probe whose modification the model does
+not include; one more G than C in the probe; amplicon 173 bp and GC 34.1%).
 
 [^assay-file]: docs/examples/entamoeba_histolytica_ssu.yaml (provenance and checks in its header)
 [^session]: Session 2026-10-05: Entamoeba histolytica assay

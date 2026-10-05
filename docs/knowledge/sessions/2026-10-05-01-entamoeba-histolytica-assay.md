@@ -32,7 +32,12 @@ generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
   assay pages say so.
 - User added E. moshkovskii (41668) to the exclusivity list in their own copy; added to the
   repository's file too, marked as the user's addition.
+- First full run by the user (report 2026-10-05T10:10Z): Exceeds limit from 62 predicted products
+  in other Entamoeba species; target 84.9% detectable of 73 records, Incomplete (14 records in the
+  collection window); 45 of 2,345 records left to assess. Written up in
+  [runs/entamoeba-2026-10-05](../runs/entamoeba-2026-10-05.md). The chosen variant source works.
 
 # Related
 
 * [Entamoeba histolytica, SSU rRNA (one FAM-MGB probe)](../assays/entamoeba-histolytica-ssu.md)
+* [Entamoeba histolytica, 2026-10-05 10:10Z (first run)](../runs/entamoeba-2026-10-05.md)
