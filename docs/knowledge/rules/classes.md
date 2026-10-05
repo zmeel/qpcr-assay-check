@@ -3,7 +3,8 @@ type: Grading Rule
 title: Site classes
 description: The five classes every primer or probe site on the target gets, and which of them count as detectable.
 tags: [grading, classes]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T15:39:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: mismatch-classes
