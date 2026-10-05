@@ -3,7 +3,8 @@ type: Decision
 title: "Terminal G2 mismatches at risk"
 description: "A single terminal T-T, T-C or C-T primer mismatch is at risk instead of likely failure, after Kwok 1990 and Huang 1992."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:34:00Z }
 decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
