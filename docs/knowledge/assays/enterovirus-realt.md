@@ -15,8 +15,8 @@ sources:
 # Provenance
 
 Sequences, names, dye and protocol supplied by the user on 2026-09-25; an in-house assay, not
-checked against a publication or kit insert. The probe quencher was not given and is left
-empty.[^assay-file]
+checked against a publication or kit insert. Probe quencher NFQ (non-fluorescent; the user,
+2026-10-05: MGB probes have non-fluorescent quenchers).[^assay-file]
 
 # Design
 

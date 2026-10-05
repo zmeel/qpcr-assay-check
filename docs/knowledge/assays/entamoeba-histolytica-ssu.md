@@ -19,14 +19,15 @@ sources:
 
 Sequences, probe label (FAM-...-MGB), fragment and exclusivity organisms supplied by the user on
 2026-10-05; not checked against a publication or kit insert. Oligo names are placeholders; the
-quencher was not given.[^assay-file]
+quencher is NFQ (non-fluorescent; the user, 2026-10-05: MGB probes have non-fluorescent
+quenchers).[^assay-file]
 
 # Design
 
 | Role | Oligo | Position in the 173-nt fragment |
 |---|---|---|
 | forward | Eh-F (22 nt) | 1-22 |
-| probe | Eh-P (22 nt, FAM, MGB) | 44-65, same strand |
+| probe | Eh-P (22 nt, FAM, MGB, NFQ) | 44-65, same strand |
 | reverse | Eh-R (20 nt) | binds 154-173 |
 
 Target E. histolytica (5759); reference record X64142.1 (SSU rRNA gene, HM-1:IMSS), which holds

@@ -36,8 +36,8 @@
 #     with mismatches at its 3' end. The NG-P2 copy in NZ_CP078119.1 (around 2133686) has yet
 #     another reverse site: a poly-T run of 10 and GGTCAAACCG, i.e. no substitution. Poly-T length
 #     differs between copies and strains (and homopolymer runs are prone to sequencing errors).
-#   * Probe quencher: MGB probes were given as "FAM-MGB"; the quencher was not specified and is
-#     left empty rather than guessed.
+#   * Probe quencher: MGB probes were given as "FAM-MGB"; NFQ (non-fluorescent quencher; the
+#     user, 2026-10-05: MGB probes have non-fluorescent quenchers).
 #   * Template: DNA (not stated by the user; DNA for a bacterial target). Exclusivity: N.
 #     meningitidis, as in the user's first live run (taxid 487).
 
@@ -45,8 +45,8 @@ assay_name: Neisseria gonorrhoeae (two probes)
 forward: {name: NG-F, sequence: GTTGAAACACCGCCCGG}
 reverse: {name: NG-R, sequence: CGGTTTGACCGGTTAAAAAAAGAT}
 probe:
-  - {name: NG-P1, sequence: CCCTTCAACATCAGTGAAA, reporter: FAM, modifications: [MGB]}
-  - {name: NG-P2, sequence: CTTTGAACCATCAGTGAAA, reporter: FAM, modifications: [MGB]}
+  - {name: NG-P1, sequence: CCCTTCAACATCAGTGAAA, reporter: FAM, quencher: NFQ, modifications: [MGB]}
+  - {name: NG-P2, sequence: CTTTGAACCATCAGTGAAA, reporter: FAM, quencher: NFQ, modifications: [MGB]}
 template_type: DNA
 target:
   taxid: 485                     # Neisseria gonorrhoeae

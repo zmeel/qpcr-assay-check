@@ -27,6 +27,9 @@ generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
   `blast_max_records_per_run` 2500 to cover them in one run.
 - `validate`: OK. QC-only run: Review (MGB probe Tm below the primers in the model, probe G>C by
   one, amplicon 173 bp and GC 34.1% outside preferred). Test in tests/test_examples.py.
+- User: MGB probes have non-fluorescent quenchers. Quencher NFQ set on the MGB probes of all
+  three examples with them (E. histolytica, N. gonorrhoeae, enterovirus); their headers and
+  assay pages say so.
 
 # Related
 

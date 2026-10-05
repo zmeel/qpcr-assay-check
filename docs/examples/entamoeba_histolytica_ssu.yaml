@@ -5,7 +5,8 @@
 #   Sequences, probe label (FAM-...-MGB), amplified fragment and exclusivity organisms supplied by
 #   the user (2026-10-05); not checked against a publication or kit insert. Oligo names (Eh-F,
 #   Eh-R, Eh-P) are placeholders; replace them with the laboratory's own. The probe was given as
-#   FAM-...-MGB: the quencher was not specified and is left empty rather than guessed.
+#   FAM-...-MGB; quencher NFQ (non-fluorescent quencher; the user, 2026-10-05: MGB probes have
+#   non-fluorescent quenchers).
 #
 # WHAT WAS CHECKED (2026-10-05)
 #   * Against the supplied fragment (Eh-fragment, 173 nt, GC 34.1%): Eh-F at 1-22, Eh-P at 44-65
@@ -34,7 +35,7 @@ assay_name: Entamoeba histolytica (SSU rRNA)
 forward: {name: Eh-F, sequence: ATTGTCGTGGCATCCTAACTCA}
 reverse: {name: Eh-R, sequence: GCGGACGGCTCATTATAACA}
 probe:
-  - {name: Eh-P, sequence: TCATTGAATGAATTGGCCATTT, reporter: FAM, modifications: [MGB]}
+  - {name: Eh-P, sequence: TCATTGAATGAATTGGCCATTT, reporter: FAM, quencher: NFQ, modifications: [MGB]}
 template_type: DNA               # not stated by the user; DNA for a parasite detected in stool
 target:
   taxid: 5759                    # Entamoeba histolytica
