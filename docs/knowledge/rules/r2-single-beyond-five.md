@@ -3,7 +3,8 @@ type: Grading Rule
 title: R2 - one mismatch beyond the last 5 nt of a primer
 description: Tolerated; moderate at -6 to -8 and almost negligible from -9 on, after Lefever 2013.
 tags: [grading, primer, R2]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T16:22:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: lefever
