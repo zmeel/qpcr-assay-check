@@ -64,6 +64,15 @@ All notable changes to this project are documented here. The format follows
   whole on the cut copies but not all detectable. Counts per reason, how many are complete or
   chromosome-level, examples. Information only: they stay undetermined.
 
+### Fixed
+- **Records EFetch returns under a pipe-delimited identifier are assessed** (user's
+  E. histolytica run, 2026-10-05): a record whose sequence comes from a PDB structure is listed
+  by ESearch as `9V29_sa` but returned by EFetch as `pdb|9V29|sa`, so the fetched sequence was
+  never matched to the accession asked for. Such records counted as "EFetch returned no
+  sequence" and were retried on every later run, so a run could never assess them and the
+  coverage stayed incomplete for good (45 of 2,345 records in that run). A FASTA record is now
+  indexed under both forms of its identifier.
+
 ### Changed
 - **The progress log moved into the knowledge bundle** (user, 2026-10-04): every entry of
   `docs/PROGRESS.md` is now its own page in `docs/knowledge/sessions/` (moved verbatim), with

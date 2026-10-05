@@ -208,15 +208,38 @@ def parse_fasta(text: str) -> dict[str, str]:
     return {name: seq for name, (_desc, seq) in parse_fasta_records(text).items()}
 
 
+def fasta_ids(name: str) -> list[str]:
+    """The accession forms a FASTA header's first field stands for.
+
+    Usually the accession itself. A record whose sequence comes from a PDB structure is listed by
+    ESearch and ESummary as ``9V29_sa`` but returned by EFetch under the legacy pipe-delimited
+    identifier ``pdb|9V29|sa`` (checked live against NCBI on 2026-10-05), so both forms index it;
+    without the second form such a record is never matched to the accession that was asked for.
+    """
+    out = [name]
+    parts = name.split("|")
+    if len(parts) == 3 and parts[0] and parts[1]:  # database|entry|chain
+        out.append(f"{parts[1]}_{parts[2]}" if parts[2] else parts[1])
+    return out
+
+
 def parse_fasta_records(text: str) -> dict[str, tuple[str, str]]:
-    """``{record id: (header description, upper-case sequence)}`` of a multi-FASTA text."""
+    """``{record id: (header description, upper-case sequence)}`` of a multi-FASTA text.
+
+    A record is indexed under every form of its identifier (:func:`fasta_ids`).
+    """
     out: dict[str, tuple[str, str]] = {}
     name: str | None = None
     desc, chunks = "", []
+
+    def store() -> None:
+        if name is not None:
+            for key in fasta_ids(name):
+                out[key] = (desc, "".join(chunks).upper())
+
     for line in text.splitlines():
         if line.startswith(">"):
-            if name is not None:
-                out[name] = (desc, "".join(chunks).upper())
+            store()
             parts = line[1:].split(maxsplit=1)
             name, desc, chunks = (
                 (parts[0] if parts else ""),
@@ -225,8 +248,7 @@ def parse_fasta_records(text: str) -> dict[str, tuple[str, str]]:
             )
         elif name is not None:
             chunks.append(line.strip())
-    if name is not None:
-        out[name] = (desc, "".join(chunks).upper())
+    store()
     return out
 
 

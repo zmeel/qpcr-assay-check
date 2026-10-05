@@ -28,6 +28,7 @@ class FakeRecord:
     partial: bool = False  # BLAST reports only part of the amplicon
     in_blast_db: bool = True  # False: too new for the BLAST database (live finding, 2026-09-23)
     collected: str | None = None  # collection_date source qualifier, in subtype/subname
+    fasta_header: str | None = None  # EFetch's own id when not the accession ('pdb|9V29|sa')
 
 
 @dataclass
@@ -98,7 +99,10 @@ class FakeNuccore:
         ids = str(p["id"]).split(",")
         if len(ids) > 1 or "seq_start" not in p:  # whole records, possibly several
             recs = [r for r in [*self.records, *self.unlisted] if r.accession in ids]
-            return FakeResponse(200, "".join(f">{r.accession} {r.title}\n{r.seq}\n" for r in recs))
+            return FakeResponse(
+                200,
+                "".join(f">{r.fasta_header or r.accession} {r.title}\n{r.seq}\n" for r in recs),
+            )
         r = next(r for r in self.records if r.accession == p["id"])
         lo, hi = int(p.get("seq_start", 1)), int(p.get("seq_stop", len(r.seq)))
         return FakeResponse(200, f">{r.accession} {r.title}\n{r.seq[lo - 1 : hi]}\n")

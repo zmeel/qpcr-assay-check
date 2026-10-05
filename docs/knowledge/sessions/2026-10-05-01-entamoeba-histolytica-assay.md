@@ -38,9 +38,15 @@ generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
   [runs/entamoeba-2026-10-05](../runs/entamoeba-2026-10-05.md). The chosen variant source works.
 - User: push to main after the tests pass, no pull request, no go-ahead per push. CLAUDE.md's
   Git section rewritten; decision page added. PR #74 was the last of the old workflow.
+- Second run (10:26Z log) processed 0 of the 45 remaining records. Cause found: they are
+  PDB-derived records (9V29_sa and the like) that EFetch returns as `pdb|9V29|sa`, so the fetched
+  sequence never matched the accession and they were retried every run. Checked live against
+  NCBI, fixed in `variants/datasets.py` (`fasta_ids`, both forms indexed), regression test in
+  tests/test_variants_partitioned.py (fails on the old code with the user's own log line).
 
 # Related
 
 * [Entamoeba histolytica, SSU rRNA (one FAM-MGB probe)](../assays/entamoeba-histolytica-ssu.md)
 * [Entamoeba histolytica, 2026-10-05 10:10Z (first run)](../runs/entamoeba-2026-10-05.md)
 * [Push to main after the tests pass, without asking](../decisions/2026-10-05-push-to-main-after-tests.md)
+* [EFetch returns PDB-derived records under a pipe identifier](../ncbi/efetch-pipe-identifiers.md)

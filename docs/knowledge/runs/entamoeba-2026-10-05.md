@@ -13,6 +13,9 @@ sources:
   - id: assay
     resource: ../assays/entamoeba-histolytica-ssu.md
     title: Entamoeba histolytica, SSU rRNA (one FAM-MGB probe)
+  - id: efetch
+    resource: ../ncbi/efetch-pipe-identifiers.md
+    title: EFetch returns PDB-derived records under a pipe identifier
   - id: session
     resource: ../sessions/2026-10-05-01-entamoeba-histolytica-assay.md
     title: "Session 2026-10-05: Entamoeba histolytica assay"
@@ -63,6 +66,13 @@ is amplified (Review, not Exceeds limit). Near neighbours were not searched in t
   below the 100 of `min_genomes_for_verdict`. With so few sequences for this organism that will
   not change; the percentage above is what the data allow.
 - 36 of 68 records with the region (52.9%) have no usable collection date.
+
+# The 45 records that were left
+
+A second run the same day (10:26Z) processed none of them: all 45 are PDB-derived records that
+EFetch returns under a pipe identifier, which the tool did not match to their accession, so they
+were retried for ever ([NCBI fact](../ncbi/efetch-pipe-identifiers.md), fixed 2026-10-05). A run
+after the fix should assess them and complete the coverage.
 
 # Worth knowing
 

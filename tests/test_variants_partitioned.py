@@ -196,3 +196,17 @@ def test_a_title_with_plasmids_is_no_plasmid_and_records_have_no_plasmid_logic(t
     c = res.coverage
     assert c.target_on_plasmid is None and c.plasmid_header_examples == []
     assert (c.not_found_with_plasmid, c.not_found_without_plasmid) == (0, 0)
+
+
+def test_a_record_efetch_returns_under_a_pipe_identifier_is_still_assessed(tmp_path):
+    """PDB-derived records are listed as '9V29_sa' and fetched as 'pdb|9V29|sa' (live, 2026-10-05).
+
+    Before the fix the fetched sequence was never matched to the accession, so the record stayed
+    unassessed and was retried on every run: a run could never complete (user's E. histolytica
+    log of 2026-10-05, 45 such records).
+    """
+    pdb = FakeRecord("7", "9V29_sa", "2026/02/01", filler(100, 7) + AMP + filler(100, 8),
+                     title="Chain sa, 17S rRNA", fasta_header="pdb|9V29|sa")  # fmt: skip
+    res = setup(tmp_path, FakeNuccore([pdb]), direct_scan_max_length=100000)()
+    assert (res.coverage.assessed_total, res.coverage.found) == (1, 1)
+    assert [s.accession for s in res.sites if s.role == "forward"] == ["9V29_sa"]
