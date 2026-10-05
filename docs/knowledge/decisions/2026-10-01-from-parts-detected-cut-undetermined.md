@@ -3,7 +3,8 @@ type: Decision
 title: "Detectable from parts counts as detected; cut genomes undetermined"
 description: "Genomes with every site seen whole on cut copies count as detected; genomes with the region cut or hidden by N are undetermined everywhere."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T12:06:00Z }
 decided_on: 2026-10-01
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
