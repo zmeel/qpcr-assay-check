@@ -3,7 +3,8 @@ type: Decision
 title: "Collection year as an optional status axis; 25% undated limit"
 description: "inclusivity.status_axis release | collection; with collection, more than 25% undated genomes gives Incomplete."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:30:00Z }
 decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
