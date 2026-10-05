@@ -3,7 +3,8 @@ type: Decision
 title: "Browser interface - one user, LAN or VPN, YAML stays the source"
 description: "A password-protected GUI for one user on a LAN or VPN, 8 hours idle sign-out; YAML stays the source of truth; the GUI confirms the dry-run plan."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:032:00Z }
 decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
