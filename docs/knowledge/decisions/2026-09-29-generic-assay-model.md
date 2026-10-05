@@ -3,7 +3,8 @@ type: Decision
 title: "One generic assay model - loci and channels"
 description: "Oligos, loci and channels for simple, multi-oligo and multiplex assays; run history, panel command and sampled BLAST-hit inclusivity removed."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T12:01:00Z }
 decided_on: 2026-09-29
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
