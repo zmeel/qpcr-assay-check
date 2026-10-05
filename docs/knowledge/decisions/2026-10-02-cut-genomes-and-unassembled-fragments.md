@@ -3,7 +3,8 @@ type: Decision
 title: "Cut genomes stay undetermined; a fragment not in the assembly is not found"
 description: "Option 1 and 2 of the cut-genome breakdown: keep cut genomes undetermined, and count genomes whose fragment is absent from the assembly as region not found."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T09:14:31Z }
 decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
