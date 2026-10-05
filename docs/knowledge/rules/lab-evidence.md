@@ -3,7 +3,8 @@ type: Grading Rule
 title: LAB - laboratory evidence
 description: An evidence entry in the assay file replaces the in silico class of one exact variant with the laboratory's result.
 tags: [grading, evidence, LAB]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T16:04:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: mismatch-classes
