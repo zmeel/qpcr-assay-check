@@ -32,7 +32,8 @@ quenchers).[^assay-file]
 
 Target E. histolytica (5759); reference record X64142.1 (SSU rRNA gene, HM-1:IMSS), which holds
 the fragment exactly. Exclusivity, as supplied: E. dispar, E. coli, E. bangladeshi,
-E. hartmanni, E. polecki, E. gingivalis (all checked in NCBI Taxonomy). Template DNA (not stated
+E. hartmanni, E. polecki, E. gingivalis, plus E. moshkovskii added by the user the same day
+(all checked in NCBI Taxonomy). Template DNA (not stated
 by the user).
 
 # Variant source (to confirm by the user)

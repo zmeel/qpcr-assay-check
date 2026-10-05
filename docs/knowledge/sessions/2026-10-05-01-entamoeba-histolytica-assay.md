@@ -30,6 +30,8 @@ generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
 - User: MGB probes have non-fluorescent quenchers. Quencher NFQ set on the MGB probes of all
   three examples with them (E. histolytica, N. gonorrhoeae, enterovirus); their headers and
   assay pages say so.
+- User added E. moshkovskii (41668) to the exclusivity list in their own copy; added to the
+  repository's file too, marked as the user's addition.
 
 # Related
 

@@ -14,7 +14,8 @@
 #     each exactly, once.
 #   * NCBI Taxonomy (E-utilities, live): Entamoeba histolytica 5759 (species; genus Entamoeba
 #     5758). Exclusivity names resolve to species: E. dispar 46681, E. coli 110766,
-#     E. bangladeshi 1226471, E. hartmanni 110767, E. polecki 110769, E. gingivalis 38877.
+#     E. bangladeshi 1226471, E. hartmanni 110767, E. polecki 110769, E. gingivalis 38877,
+#     E. moshkovskii 41668 (added by the user, 2026-10-05).
 #   * Gene and reference record (E-utilities, live): the fragment lies in the SSU rRNA gene, on the
 #     strand opposite the rRNA. It occurs exactly in 23 of the 35 Nucleotide records of 1,500-2,500
 #     nt titled 18S / small subunit, among them X64142.1 ("E.histolytica gene for small subunit
@@ -43,13 +44,14 @@ target:
   gene: small subunit (18S) rRNA
 reference_amplicons:
   - {name: Eh-fragment, sequence: ATTGTCGTGGCATCCTAACTCACTTAGAATGTCATTTCTCAATTCATTGAATGAATTGGCCATTTTGTACTAATACAAACTGGATCGTCTCAAGTATTATCTTTATCATTCACAAAGCTATCCTTGTATTTTACTAACCAAAGAAACTATTACTGTTATAATGAGCCGTCCGC}
-exclusivity_organisms:           # as supplied by the user
+exclusivity_organisms:           # as supplied by the user; E. moshkovskii added by the user later
   - Entamoeba dispar
   - Entamoeba coli
   - Entamoeba bangladeshi
   - Entamoeba hartmanni
   - Entamoeba polecki
   - Entamoeba gingivalis
+  - Entamoeba moshkovskii
 oligo_source: Supplied by the user; source publication or kit not stated.
 settings:                        # only what differs from the defaults, for this assay
   reaction:
