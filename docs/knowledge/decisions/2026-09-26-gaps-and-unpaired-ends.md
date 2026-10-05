@@ -3,7 +3,8 @@ type: Decision
 title: "Gaps never hide mismatches; an unpaired end base is a mismatch"
 description: "A site whose mismatches already fail keeps that class with a gap; an oligo base without a template partner at an end counts as a mismatch."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T07:44:00Z }
 decided_on: 2026-09-26
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:

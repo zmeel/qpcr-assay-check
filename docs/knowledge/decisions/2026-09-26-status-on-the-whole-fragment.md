@@ -3,7 +3,8 @@ type: Decision
 title: "Inclusivity status on the whole fragment over a window"
 description: "The inclusivity status uses the genome outcome of all three sites together, over the last 3 complete years plus the current one."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T09:23:00Z }
 decided_on: 2026-09-26
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:

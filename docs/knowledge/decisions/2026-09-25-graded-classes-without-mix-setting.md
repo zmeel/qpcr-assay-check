@@ -3,7 +3,8 @@ type: Decision
 title: "Graded mismatch classes, without a mix setting"
 description: "Sites get graded classes from Stadhouders and Lefever on one basis (Taq on DNA) for every laboratory; no switch back to the old rule."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T10:07:25Z }
 decided_on: 2026-09-25
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:

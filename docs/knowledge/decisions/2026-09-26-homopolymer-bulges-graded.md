@@ -3,7 +3,8 @@ type: Decision
 title: "Homopolymer bulges graded; laboratory evidence entries"
 description: "Primer run-length differences get class R5b instead of indeterminate; an evidence entry in the assay file can override a class with the lab's result."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T07:46:00Z }
 decided_on: 2026-09-26
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:

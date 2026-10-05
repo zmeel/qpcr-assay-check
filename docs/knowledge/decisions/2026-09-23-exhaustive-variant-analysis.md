@@ -3,7 +3,8 @@ type: Decision
 title: "Variant analysis from every genome assembly"
 description: "Both sources: NCBI Datasets genome downloads scanned locally for exhaustive runs, partitioned remote BLAST kept for targets without assemblies."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T10:07:17Z }
 decided_on: 2026-09-23
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
