@@ -3,7 +3,8 @@ type: Grading Rule
 title: Genome outcome
 description: How one genome counts - detected, not detected (escape), undetermined, possibly unassembled, or with its region cut, hidden or not found.
 tags: [genome, outcome, inclusivity]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T16:00:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: exhaustive-py
