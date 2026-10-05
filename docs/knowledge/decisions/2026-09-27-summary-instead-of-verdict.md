@@ -3,7 +3,8 @@ type: Decision
 title: "A summary with review statuses instead of an overall verdict"
 description: "No pass/fail verdict: a review status (No flags, Review, Exceeds limit, Incomplete) per check, a reviewer's decision box, first run as baseline."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T09:24:00Z }
 decided_on: 2026-09-27
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
