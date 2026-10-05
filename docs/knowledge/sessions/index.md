@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [Entamoeba histolytica assay](2026-10-05-01-entamoeba-histolytica-assay.md) - Session log of 2026-10-05.
 * [Progress log moved into the bundle](2026-10-04-02-progress-log-moved-into-the-bundle.md) - Session log of 2026-10-04 (later).
 * [Knowledge bundle (OKF v0.2)](2026-10-04-01-knowledge-bundle-okf-v0-2.md) - Session log of 2026-10-04.
 * [Open review items 8, 6 and 9](2026-10-03-02-open-review-items-8-6-and-9.md) - Session log of 2026-10-03.

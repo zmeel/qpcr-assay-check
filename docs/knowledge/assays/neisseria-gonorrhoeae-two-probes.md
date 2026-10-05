@@ -15,8 +15,8 @@ sources:
 # Provenance
 
 Sequences supplied by the user on 2026-09-24; not checked against a publication or kit insert.
-Oligo names are placeholders. The MGB probes' quencher was not specified and is left
-empty.[^assay-file]
+Oligo names are placeholders. Probe quencher NFQ (non-fluorescent; the user, 2026-10-05: MGB
+probes have non-fluorescent quenchers).[^assay-file]
 
 # Design
 

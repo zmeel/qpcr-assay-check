@@ -3,8 +3,8 @@
 #
 # PROVENANCE
 #   Sequences, names, dye and protocol supplied by the user (2026-09-25); in-house assay, not
-#   checked against a publication or kit insert. The probe quencher was not given and is left
-#   empty rather than guessed.
+#   checked against a publication or kit insert. Probe quencher: NFQ (non-fluorescent quencher;
+#   the user, 2026-10-05: MGB probes have non-fluorescent quenchers).
 #
 # WHAT WAS CHECKED (2026-09-25)
 #   * Against the reference fragment (74 nt): realT-Entero-F1 at 1-19 exactly; realT-Entero-F2
@@ -64,7 +64,7 @@ forward:
   - {name: realT-Entero-F2, sequence: TCTGTGGCGGAACCGACTA}
 reverse: {name: realT-Entero-DHU-R, sequence: RATTGTCACCATAAGCAGCCA}
 probe:
-  - {name: Entero-P, sequence: AAACMCGGACACCCAAA, reporter: FAM, modifications: [MGB]}
+  - {name: Entero-P, sequence: AAACMCGGACACCCAAA, reporter: FAM, quencher: NFQ, modifications: [MGB]}
 template_type: RNA
 target:
   taxid: 12059                     # genus Enterovirus

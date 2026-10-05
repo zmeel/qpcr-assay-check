@@ -1,0 +1,670 @@
+<title>Knowledge Map</title>
+<style>
+/* Layout: a one-screen tool. Header with search and view switch; a row of folder filters;
+   below, the map (or the list) beside a reading panel; stacked on phones.
+   Tokens follow the browser interface (deep teal accent, IBM Plex); folder colours are the
+   validated categorical order, each folder also has its own node shape. */
+:root {
+  --bg: #F3F5F7; --surface: #FFFFFF; --border: #D9E0E7; --text: #15202B; --muted: #4F5D6B;
+  --faint: #8794A1; --accent: #0E6670; --accent-soft: #E4F0F1; --code: #F7F9FA; --edge: #9AA7B4;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --s7: #4a3aa7; --s8: #e34948; --s0: #7D8995;
+  --ok-bg: #E2F3E8; --ok-fg: #1B6B3A; --review-bg: #FCEFD6; --review-fg: #7D4A00;
+  --exceeds-bg: #FBE4E1; --exceeds-fg: #9F2418; --plain-bg: #E6EBF1; --plain-fg: #34465B;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F151B; --surface: #17202A; --border: #2A3644; --text: #E6ECF2; --muted: #A3B0BE;
+    --faint: #6E7C8B; --accent: #7CCBD0; --accent-soft: #1E2C38; --code: #121A22; --edge: #4A5868;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+    --s7: #9085e9; --s8: #e66767; --s0: #8A96A3;
+    --ok-bg: #143222; --ok-fg: #8FDDAD; --review-bg: #3A2A0E; --review-fg: #F2C46B;
+    --exceeds-bg: #3D1715; --exceeds-fg: #F49B91; --plain-bg: #222E3B; --plain-fg: #B5C3D3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F151B; --surface: #17202A; --border: #2A3644; --text: #E6ECF2; --muted: #A3B0BE;
+  --faint: #6E7C8B; --accent: #7CCBD0; --accent-soft: #1E2C38; --code: #121A22; --edge: #4A5868;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --s7: #9085e9; --s8: #e66767; --s0: #8A96A3;
+  --ok-bg: #143222; --ok-fg: #8FDDAD; --review-bg: #3A2A0E; --review-fg: #F2C46B;
+  --exceeds-bg: #3D1715; --exceeds-fg: #F49B91; --plain-bg: #222E3B; --plain-fg: #B5C3D3;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/1.5 var(--font); }
+h1, h2, h3, h4, h5, h6, p { margin: 0; }
+a { color: var(--accent); }
+code { font-family: var(--mono); font-size: .9em; background: var(--code); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { font: inherit; color: inherit; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto auto 1fr; padding-inline: 16px; padding-block: 12px; gap: 10px; max-width: 1680px; margin: 0 auto; }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+.brand { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
+.brand h1 { font-size: 20px; font-weight: 600; letter-spacing: -.01em; text-wrap: balance; }
+.brand p { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.search { position: relative; flex: 1 1 260px; max-width: 420px; }
+.search input { width: 100%; min-height: 38px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+.results { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / .12); max-height: 50vh; overflow: auto; padding: 4px; }
+.results button { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 0; background: none; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.results button:hover, .results button[aria-selected="true"] { background: var(--accent-soft); }
+.results .r-folder { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.switch { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.switch button { border: 0; background: none; padding: 7px 14px; cursor: pointer; font-weight: 500; }
+.switch button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); cursor: pointer; font-size: 12.5px; }
+.chip[aria-pressed="false"] { opacity: .45; }
+.chip .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip svg { width: 12px; height: 12px; flex: none; }
+.filters .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+.link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0 4px; font-size: 12.5px; text-decoration: underline; }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: 12px; min-height: 0; }
+.pane { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); min-height: 0; min-width: 0; }
+.map { position: relative; overflow: hidden; }
+.map canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.map canvas.dragging { cursor: grabbing; }
+.zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
+.zoom button { width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; font-weight: 600; }
+.zoom button.wide { width: auto; padding: 0 10px; font-weight: 500; }
+.tip { position: absolute; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12px; padding: 3px 8px; border-radius: 6px; white-space: nowrap; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
+.legend-note { position: absolute; left: 12px; bottom: 10px; color: var(--muted); font-size: 12px; background: var(--surface); padding: 2px 6px; border-radius: 6px; }
+
+.list { overflow: auto; }
+.list table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.list th { position: sticky; top: 0; background: var(--surface); text-align: left; font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; padding: 10px 10px 6px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; }
+.list td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.list tr { cursor: pointer; }
+.list tbody tr:hover, .list tr.sel { background: var(--accent-soft); }
+.list .t { font-weight: 500; }
+.list .d { color: var(--muted); font-size: 12.5px; }
+.list .num { text-align: right; font-variant-numeric: tabular-nums; }
+.list-head { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 12px 12px 4px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.detail { overflow: auto; padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+.eyebrow svg { width: 12px; height: 12px; }
+.detail h2 { font-size: 19px; font-weight: 600; line-height: 1.3; text-wrap: balance; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: 12px; font-weight: 500; padding: 2px 9px; border-radius: 999px; background: var(--plain-bg); color: var(--plain-fg); white-space: nowrap; }
+.pill.ok { background: var(--ok-bg); color: var(--ok-fg); }
+.pill.review { background: var(--review-bg); color: var(--review-fg); }
+.pill.exceeds { background: var(--exceeds-bg); color: var(--exceeds-fg); }
+.lede { color: var(--muted); }
+.body { display: flex; flex-direction: column; gap: 10px; max-width: 68ch; }
+.body h3 { font-size: 15px; font-weight: 600; margin-top: 6px; }
+.body h4, .body h5, .body h6 { font-size: 14px; font-weight: 600; margin-top: 4px; }
+.body ul, .body ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.body li > ul, .body li > ol { margin-top: 4px; }
+.scroll { overflow-x: auto; max-width: 100%; }
+.body table { border-collapse: collapse; font-size: 13px; }
+.body th, .body td { border: 1px solid var(--border); padding: 5px 8px; text-align: left; vertical-align: top; }
+.body th { background: var(--code); font-weight: 600; }
+.body pre { margin: 0; background: var(--code); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font: 12px/1.45 var(--mono); }
+.body pre code { border: 0; padding: 0; background: none; }
+.fn a { text-decoration: none; font-size: 11px; padding: 0 2px; }
+.section h3 { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.section ol, .section ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.section li.flash { background: var(--accent-soft); border-radius: 4px; }
+.refs { display: flex; flex-wrap: wrap; gap: 6px; }
+.ref { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 3px 9px; cursor: pointer; font-size: 12.5px; text-align: left; max-width: 100%; }
+.ref:hover { border-color: var(--accent); }
+.ref svg { width: 10px; height: 10px; flex: none; }
+.meta { color: var(--muted); font-size: 12px; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.empty { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-rows: none; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .map { height: 58vh; min-height: 320px; }
+  .list { max-height: 60vh; }
+  .detail { overflow: visible; }
+  .filters .hint, .legend-note { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<style>
+/*__FONTS__*/
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Knowledge Map</h1>
+      <p id="summary">qpcr-assay-check · __COUNT__ concepts</p>
+    </div>
+    <div class="search">
+      <input id="q" type="search" placeholder="Search titles, descriptions, tags" autocomplete="off" aria-label="Search the bundle" aria-controls="results">
+      <div class="results" id="results" role="listbox" hidden></div>
+    </div>
+    <div class="switch" role="group" aria-label="View">
+      <button type="button" id="v-map" aria-pressed="true">Map</button>
+      <button type="button" id="v-list" aria-pressed="false">List</button>
+    </div>
+  </header>
+  <nav class="filters" id="filters" aria-label="Folders"></nav>
+  <main class="split">
+    <section class="pane map" id="map-pane" aria-label="Map of concepts">
+      <canvas id="canvas" aria-label="Map of concepts; use the List view or search for keyboard access"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="legend-note" id="legend-note">Drag to move · scroll to zoom · click a node</div>
+      <div class="zoom">
+        <button type="button" id="z-in" aria-label="Zoom in">+</button>
+        <button type="button" id="z-out" aria-label="Zoom out">−</button>
+        <button type="button" class="wide" id="z-fit">Fit</button>
+      </div>
+    </section>
+    <section class="pane list" id="list-pane" aria-label="List of concepts" hidden>
+      <div class="list-head" id="list-head"></div>
+      <table>
+        <thead><tr>
+          <th data-sort="title">Concept</th><th data-sort="folder">Folder</th>
+          <th data-sort="state">Review</th><th data-sort="cited" class="num">Cited by</th>
+        </tr></thead>
+        <tbody id="list-body"></tbody>
+      </table>
+    </section>
+    <aside class="pane detail" id="detail" aria-live="polite"></aside>
+  </main>
+</div>
+
+<script type="application/json" id="bundle-data">__DATA__</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("bundle-data").textContent);
+  const C = DATA.concepts;
+  const byId = new Map(C.map((c) => [c.id, c]));
+  const FOLDERS = DATA.folders;
+  const folderOf = new Map(FOLDERS.map((f) => [f.key, f]));
+  const css = getComputedStyle(document.documentElement);
+  const tok = (name) => css.getPropertyValue(name).trim();
+  const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  const NOW = new Date();
+
+  // ------------------------------------------------------------ graph data
+  const edges = [];
+  const seen = new Set();
+  for (const c of C) {
+    for (const t of c.links) {
+      const key = c.id < t ? c.id + "|" + t : t + "|" + c.id;
+      if (!seen.has(key) && byId.has(t)) { seen.add(key); edges.push([c.id, t]); }
+    }
+  }
+  const citedBy = new Map(C.map((c) => [c.id, []]));
+  for (const c of C) for (const t of c.links) if (citedBy.has(t)) citedBy.get(t).push(c.id);
+  const degree = new Map(C.map((c) => [c.id, 0]));
+  for (const [a, b] of edges) { degree.set(a, degree.get(a) + 1); degree.set(b, degree.get(b) + 1); }
+
+  const reviewable = (c) => !c.generatedBy.startsWith("process:") && c.type !== "Session";
+  const nReview = C.filter(reviewable).length;
+  const nVerified = C.filter((c) => reviewable(c) && c.tier === "human").length;
+  document.getElementById("summary").textContent =
+    "qpcr-assay-check · " + C.length + " concepts · " + nVerified + " of " + nReview +
+    " hand-written concepts verified · OKF " + DATA.okfVersion;
+
+  // ------------------------------------------------------------ shapes
+  function shapePath(ctx, shape, x, y, r) {
+    ctx.beginPath();
+    const poly = (n, rot) => {
+      for (let i = 0; i < n; i++) {
+        const a = rot + (i * 2 * Math.PI) / n;
+        const px = x + r * Math.cos(a), py = y + r * Math.sin(a);
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+    };
+    switch (shape) {
+      case "square": ctx.rect(x - r * 0.86, y - r * 0.86, r * 1.72, r * 1.72); break;
+      case "diamond": poly(4, 0); break;
+      case "triangle": poly(3, -Math.PI / 2); break;
+      case "hexagon": poly(6, 0); break;
+      case "pentagon": poly(5, -Math.PI / 2); break;
+      case "star": {
+        for (let i = 0; i < 10; i++) {
+          const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.5 : r * 1.15;
+          const px = x + rr * Math.cos(a), py = y + rr * Math.sin(a);
+          i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+        }
+        ctx.closePath(); break;
+      }
+      default: ctx.arc(x, y, r, 0, 2 * Math.PI);
+    }
+  }
+  function shapeSvg(f, size) {
+    const s = size || 12;
+    const col = "var(--s" + f.slot + ")";
+    const h = s / 2, r = s * 0.4;
+    const pts = (n, rot, rr) => Array.from({ length: n }, (_, i) => {
+      const a = rot + (i * 2 * Math.PI) / n; return (h + (rr || r) * Math.cos(a)).toFixed(2) + "," + (h + (rr || r) * Math.sin(a)).toFixed(2);
+    }).join(" ");
+    let inner;
+    switch (f.shape) {
+      case "square": inner = '<rect x="' + (h - r * 0.86) + '" y="' + (h - r * 0.86) + '" width="' + r * 1.72 + '" height="' + r * 1.72 + '"/>'; break;
+      case "diamond": inner = '<polygon points="' + pts(4, 0) + '"/>'; break;
+      case "triangle": inner = '<polygon points="' + pts(3, -Math.PI / 2, r * 1.1) + '"/>'; break;
+      case "hexagon": inner = '<polygon points="' + pts(6, 0) + '"/>'; break;
+      case "pentagon": inner = '<polygon points="' + pts(5, -Math.PI / 2) + '"/>'; break;
+      case "star": inner = '<polygon points="' + Array.from({ length: 10 }, (_, i) => {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.5 : r * 1.15;
+        return (h + rr * Math.cos(a)).toFixed(2) + "," + (h + rr * Math.sin(a)).toFixed(2);
+      }).join(" ") + '"/>'; break;
+      case "ring": return '<svg viewBox="0 0 ' + s + " " + s + '" aria-hidden="true"><circle cx="' + h + '" cy="' + h + '" r="' + (r * 0.85) + '" fill="none" stroke="' + col + '" stroke-width="2.4"/></svg>';
+      default: inner = '<circle cx="' + h + '" cy="' + h + '" r="' + r + '"/>';
+    }
+    return '<svg viewBox="0 0 ' + s + " " + s + '" aria-hidden="true" fill="' + col + '">' + inner + "</svg>";
+  }
+
+  // ------------------------------------------------------------ layout (deterministic)
+  let seed = 7;
+  const rand = () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const nodes = C.map((c) => ({ id: c.id, c, x: 0, y: 0, vx: 0, vy: 0, r: Math.min(4.5 + Math.sqrt(degree.get(c.id)) * 1.6, 13) }));
+  const nodeOf = new Map(nodes.map((n) => [n.id, n]));
+  const fKeys = FOLDERS.map((f) => f.key);
+  const anchor = new Map(fKeys.map((k, i) => {
+    const a = (i / fKeys.length) * 2 * Math.PI;
+    return [k, { x: Math.cos(a) * 420, y: Math.sin(a) * 300 }];
+  }));
+  for (const n of nodes) {
+    const a = anchor.get(n.c.folder);
+    n.x = a.x + (rand() - 0.5) * 160; n.y = a.y + (rand() - 0.5) * 160;
+  }
+  const links = edges.map(([a, b]) => [nodeOf.get(a), nodeOf.get(b)]);
+  (function simulate() {
+    const N = nodes.length;
+    for (let it = 0; it < 420; it++) {
+      const alpha = 1 - it / 420;
+      for (let i = 0; i < N; i++) {
+        const a = nodes[i];
+        for (let j = i + 1; j < N; j++) {
+          const b = nodes[j];
+          let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 0.01;
+          if (d2 > 90000) continue;
+          const f = (900 / d2) * alpha;
+          const d = Math.sqrt(d2); dx /= d; dy /= d;
+          a.vx += dx * f * 4; a.vy += dy * f * 4; b.vx -= dx * f * 4; b.vy -= dy * f * 4;
+        }
+      }
+      for (const [a, b] of links) {
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+        const f = ((d - 70) / d) * 0.04 * alpha;
+        a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+      }
+      for (const n of nodes) {
+        const an = anchor.get(n.c.folder);
+        n.vx += (an.x - n.x) * 0.012 * alpha; n.vy += (an.y - n.y) * 0.012 * alpha;
+        n.vx -= n.x * 0.002; n.vy -= n.y * 0.002;
+        n.x += Math.max(-30, Math.min(30, n.vx)); n.y += Math.max(-30, Math.min(30, n.vy));
+        n.vx *= 0.55; n.vy *= 0.55;
+      }
+    }
+  })();
+
+  // ------------------------------------------------------------ state
+  const store = {
+    get(k) { try { return localStorage.getItem("kmap." + k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem("kmap." + k, v); } catch (e) { /* storage blocked */ } },
+  };
+  const defaultOff = new Set(["settings", "releases"]);
+  let shown;
+  try { shown = new Set(JSON.parse(store.get("folders") || "null") || fKeys.filter((k) => !defaultOff.has(k))); }
+  catch (e) { shown = new Set(fKeys.filter((k) => !defaultOff.has(k))); }
+  let selected = null;
+  let view = store.get("view") === "list" ? "list" : "map";
+  const visible = (n) => shown.has(n.c.folder);
+
+  // ------------------------------------------------------------ filters
+  const filtersEl = document.getElementById("filters");
+  function renderFilters() {
+    const count = (k) => C.filter((c) => c.folder === k).length;
+    filtersEl.innerHTML = FOLDERS.map((f) =>
+      '<button type="button" class="chip" data-folder="' + esc(f.key) + '" aria-pressed="' + shown.has(f.key) + '">' +
+      shapeSvg(f) + "<span>" + esc(f.label) + '</span><span class="n">' + count(f.key) + "</span></button>"
+    ).join("") +
+      '<button type="button" class="link-btn" id="all">All</button>' +
+      '<span class="hint">Colour and shape name the folder · a dark ring marks a concept verified by a person</span>';
+    filtersEl.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", (ev) => {
+      const k = b.dataset.folder;
+      if (ev.altKey || ev.metaKey) { shown = new Set([k]); }
+      else if (shown.has(k)) shown.delete(k); else shown.add(k);
+      store.set("folders", JSON.stringify([...shown]));
+      renderFilters(); draw(); renderList();
+    }));
+    document.getElementById("all").addEventListener("click", () => {
+      shown = new Set(fKeys); store.set("folders", JSON.stringify([...shown]));
+      renderFilters(); draw(); renderList();
+    });
+  }
+  function showOnlyFolder(k) {
+    shown = k === "" ? new Set(fKeys) : new Set([k]);
+    store.set("folders", JSON.stringify([...shown]));
+    renderFilters(); draw(); renderList(); fit();
+  }
+
+  // ------------------------------------------------------------ canvas
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const tip = document.getElementById("tip");
+  let W = 0, H = 0, dpr = 1;
+  const cam = { x: 0, y: 0, k: 1 };
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1; W = r.width; H = r.height;
+    canvas.width = Math.max(1, Math.round(W * dpr)); canvas.height = Math.max(1, Math.round(H * dpr));
+    draw();
+  }
+  const toScreen = (n) => [(n.x - cam.x) * cam.k + W / 2, (n.y - cam.y) * cam.k + H / 2];
+  const toWorld = (sx, sy) => [(sx - W / 2) / cam.k + cam.x, (sy - H / 2) / cam.k + cam.y];
+  function fit() {
+    const vis = nodes.filter(visible);
+    if (!vis.length || !W) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of vis) { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x); y1 = Math.max(y1, n.y); }
+    cam.x = (x0 + x1) / 2; cam.y = (y0 + y1) / 2;
+    cam.k = Math.min(3, Math.max(0.15, Math.min((W - 60) / (x1 - x0 + 1), (H - 60) / (y1 - y0 + 1))));
+    draw();
+  }
+  function neighbours(id) {
+    const s = new Set([id]);
+    for (const t of byId.get(id).links) s.add(t);
+    for (const t of citedBy.get(id)) s.add(t);
+    return s;
+  }
+  function draw() {
+    if (!W || view !== "map") return;
+    const col = { edge: tok("--edge"), accent: tok("--accent"), text: tok("--text"), surface: tok("--surface"), muted: tok("--muted") };
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const near = selected ? neighbours(selected) : null;
+    ctx.lineWidth = 1;
+    for (const [a, b] of links) {
+      if (!visible(a) || !visible(b)) continue;
+      const hot = near && (a.id === selected || b.id === selected);
+      ctx.strokeStyle = hot ? col.accent : col.edge;
+      ctx.globalAlpha = hot ? 0.95 : near ? 0.12 : 0.35;
+      ctx.lineWidth = hot ? 1.6 : 1;
+      const [ax, ay] = toScreen(a), [bx, by] = toScreen(b);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    for (const n of nodes) {
+      if (!visible(n)) continue;
+      const f = folderOf.get(n.c.folder);
+      const [x, y] = toScreen(n);
+      if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue;
+      const r = n.r * Math.max(0.7, Math.min(1.6, Math.sqrt(cam.k)));
+      ctx.globalAlpha = near && !near.has(n.id) ? 0.22 : 1;
+      const colour = tok("--s" + f.slot);
+      shapePath(ctx, f.shape, x, y, r);
+      if (f.shape === "ring") {
+        ctx.fillStyle = col.surface; ctx.fill();
+        ctx.lineWidth = Math.max(2, r * 0.45); ctx.strokeStyle = colour; ctx.stroke();
+      } else {
+        ctx.fillStyle = colour; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = col.surface; ctx.stroke();
+      }
+      if (n.c.tier === "human") {
+        ctx.beginPath(); ctx.arc(x, y, r + 4, 0, 2 * Math.PI);
+        ctx.lineWidth = 1.8; ctx.strokeStyle = col.text; ctx.stroke();
+      }
+      if (n.id === selected) {
+        ctx.beginPath(); ctx.arc(x, y, r + 7, 0, 2 * Math.PI);
+        ctx.lineWidth = 2.5; ctx.strokeStyle = col.accent; ctx.stroke();
+      }
+    }
+    // labels: the selection and its neighbours, or everything when zoomed in
+    ctx.globalAlpha = 1;
+    ctx.font = "500 12px " + tok("--font");
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    for (const n of nodes) {
+      if (!visible(n)) continue;
+      const show = near ? near.has(n.id) : cam.k > 1.7;
+      if (!show) continue;
+      const [x, y] = toScreen(n);
+      if (x < 0 || y < 0 || x > W || y > H) continue;
+      let label = n.c.title;
+      if (label.length > 42) label = label.slice(0, 40) + "…";
+      const wdt = ctx.measureText(label).width;
+      const left = x + n.r + 8 + wdt > W - 8;
+      const tx = left ? x - n.r - 8 : x + n.r + 8;
+      ctx.textAlign = left ? "right" : "left";
+      ctx.lineWidth = 4; ctx.strokeStyle = col.surface; ctx.lineJoin = "round";
+      ctx.strokeText(label, tx, y);
+      ctx.fillStyle = n.id === selected ? col.text : col.muted;
+      ctx.fillText(label, tx, y);
+    }
+  }
+  function hit(sx, sy) {
+    const [wx, wy] = toWorld(sx, sy);
+    let best = null, bd = Infinity;
+    for (const n of nodes) {
+      if (!visible(n)) continue;
+      const d = Math.hypot(n.x - wx, n.y - wy) * cam.k;
+      if (d < Math.max(12, n.r * cam.k + 6) && d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+  let drag = null;
+  canvas.addEventListener("pointerdown", (e) => {
+    const r = canvas.getBoundingClientRect();
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    const n = hit(sx, sy);
+    drag = { n, sx, sy, cx: cam.x, cy: cam.y, moved: false };
+    canvas.setPointerCapture(e.pointerId); canvas.classList.add("dragging");
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const r = canvas.getBoundingClientRect();
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    if (drag) {
+      if (Math.hypot(sx - drag.sx, sy - drag.sy) > 3) drag.moved = true;
+      if (drag.n) { const [wx, wy] = toWorld(sx, sy); drag.n.x = wx; drag.n.y = wy; }
+      else { cam.x = drag.cx - (sx - drag.sx) / cam.k; cam.y = drag.cy - (sy - drag.sy) / cam.k; }
+      draw(); tip.hidden = true; return;
+    }
+    const n = hit(sx, sy);
+    if (n) {
+      tip.textContent = n.c.title + " · " + folderOf.get(n.c.folder).label;
+      tip.style.left = Math.min(sx + 14, W - 40) + "px"; tip.style.top = sy + 12 + "px"; tip.hidden = false;
+      canvas.style.cursor = "pointer";
+    } else { tip.hidden = true; canvas.style.cursor = ""; }
+  });
+  const endDrag = () => {
+    if (drag && !drag.moved) select(drag.n ? drag.n.id : null);
+    drag = null; canvas.classList.remove("dragging");
+  };
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", () => { drag = null; canvas.classList.remove("dragging"); });
+  canvas.addEventListener("pointerleave", () => { tip.hidden = true; });
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+  }, { passive: false });
+  function zoomAt(sx, sy, factor) {
+    const [wx, wy] = toWorld(sx, sy);
+    cam.k = Math.min(6, Math.max(0.12, cam.k * factor));
+    cam.x = wx - (sx - W / 2) / cam.k; cam.y = wy - (sy - H / 2) / cam.k;
+    draw();
+  }
+  document.getElementById("z-in").addEventListener("click", () => zoomAt(W / 2, H / 2, 1.3));
+  document.getElementById("z-out").addEventListener("click", () => zoomAt(W / 2, H / 2, 1 / 1.3));
+  document.getElementById("z-fit").addEventListener("click", fit);
+
+  // ------------------------------------------------------------ detail
+  const detail = document.getElementById("detail");
+  function statePills(c) {
+    const p = [];
+    if (c.tier === "human") {
+      const v = c.verified.find((x) => x.by.startsWith("human:"));
+      p.push('<span class="pill ok">Verified by ' + esc(v.by.replace("human:", "")) + (v.at ? " · " + esc(v.at.slice(0, 10)) : "") + "</span>");
+    } else if (c.tier === "machine") p.push('<span class="pill">Machine-confirmed</span>');
+    else if (reviewable(c)) p.push('<span class="pill review">Not yet verified</span>');
+    if (c.status === "draft") p.push('<span class="pill">Draft</span>');
+    if (c.status === "deprecated") p.push('<span class="pill exceeds">Deprecated</span>');
+    if (c.generatedBy.startsWith("process:")) p.push('<span class="pill">Generated</span>');
+    if (c.staleAfter) {
+      const past = new Date(c.staleAfter) <= NOW;
+      p.push('<span class="pill' + (past ? " exceeds" : "") + '">' + (past ? "Past its stale date " : "Check again after ") + esc(c.staleAfter.slice(0, 10)) + "</span>");
+    }
+    if (c.date) p.push('<span class="pill">' + esc(c.date.slice(0, 10)) + "</span>");
+    return p.join("");
+  }
+  function refButton(id) {
+    const t = byId.get(id); const f = folderOf.get(t.folder);
+    return '<button type="button" class="ref" data-concept="' + esc(id) + '" title="' + esc(t.description) + '">' + shapeSvg(f, 10) + "<span>" + esc(t.title) + "</span></button>";
+  }
+  function whereHtml(w, label) {
+    if (w.concept && byId.has(w.concept)) return '<a href="#" data-concept="' + esc(w.concept) + '">' + esc(label || byId.get(w.concept).title) + "</a>";
+    if (w.folder !== undefined) return '<a href="#" data-folder="' + esc(w.folder) + '">' + esc(label || w.folder || "Bundle") + "</a>";
+    if (w.url) return '<a href="' + esc(w.url) + '" target="_blank" rel="noopener">' + esc(label || w.url) + "</a>";
+    return esc(label ? label + " (" + w.text + ")" : w.text || "");
+  }
+  function renderDetail() {
+    if (!selected) { detail.innerHTML = '<p class="empty">Select a concept on the map or in the list.</p>'; return; }
+    const c = byId.get(selected); const f = folderOf.get(c.folder);
+    const outs = c.links.filter((x) => byId.has(x));
+    const ins = citedBy.get(c.id);
+    const srcs = c.sources.map((s) =>
+      '<li id="src-' + esc(s.id) + '">' + whereHtml(s, s.title) + "</li>").join("");
+    detail.innerHTML =
+      '<div class="eyebrow">' + shapeSvg(f) + "<span>" + esc(f.label) + " · " + esc(c.type) + "</span></div>" +
+      "<h2>" + esc(c.title) + "</h2>" +
+      '<div class="pills">' + statePills(c) + "</div>" +
+      (c.description ? '<p class="lede">' + esc(c.description) + "</p>" : "") +
+      '<div class="body">' + c.html + "</div>" +
+      (srcs ? '<div class="section"><h3>Sources</h3><ol>' + srcs + "</ol></div>" : "") +
+      (outs.length ? '<div class="section"><h3>Links to</h3><div class="refs">' + outs.map(refButton).join("") + "</div></div>" : "") +
+      '<div class="section"><h3>Cited by</h3>' + (ins.length ? '<div class="refs">' + ins.map(refButton).join("") + "</div>" : '<p class="empty">Nothing in the bundle links here yet.</p>') + "</div>" +
+      '<div class="meta"><span>' + esc(c.path) + ' · <a href="' + esc(c.url) + '" target="_blank" rel="noopener">open on GitHub</a></span>' +
+      (c.generatedBy ? "<span>Written by " + esc(c.generatedBy) + (c.generatedAt ? " · " + esc(c.generatedAt.slice(0, 10)) : "") + "</span>" : "") +
+      (c.resource ? "<span>Resource: " + whereHtml(c.resource) + "</span>" : "") + "</div>";
+    detail.scrollTop = 0;
+  }
+  detail.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-concept],[data-folder],[data-src]");
+    if (!a) return;
+    e.preventDefault();
+    if (a.dataset.concept) { const id = a.dataset.concept; if (!shown.has(byId.get(id).folder)) { shown.add(byId.get(id).folder); renderFilters(); renderList(); } select(id, true); }
+    else if (a.dataset.folder !== undefined) showOnlyFolder(a.dataset.folder);
+    else {
+      const li = document.getElementById("src-" + a.dataset.src);
+      if (li) { li.scrollIntoView({ block: "center" }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1200); }
+    }
+  });
+
+  // ------------------------------------------------------------ list
+  const listBody = document.getElementById("list-body");
+  let sortKey = "folder", sortDir = 1;
+  const stateLabel = (c) => c.tier === "human" ? "Verified" : c.generatedBy.startsWith("process:") ? "Generated" : c.type === "Session" ? "Log" : "Not yet verified";
+  function renderList() {
+    if (view !== "list") return;
+    const rows = C.filter((c) => shown.has(c.folder));
+    const order = new Map(fKeys.map((k, i) => [k, i]));
+    const key = {
+      title: (c) => c.title.toLowerCase(),
+      folder: (c) => String(order.get(c.folder)).padStart(3, "0") + c.title.toLowerCase(),
+      state: (c) => stateLabel(c) + c.title.toLowerCase(),
+      cited: (c) => String(9999 - citedBy.get(c.id).length).padStart(4, "0"),
+    }[sortKey];
+    rows.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * sortDir);
+    listBody.innerHTML = rows.map((c) => {
+      const f = folderOf.get(c.folder); const st = stateLabel(c);
+      const cls = st === "Verified" ? "ok" : st === "Not yet verified" ? "review" : "";
+      return '<tr data-id="' + esc(c.id) + '"' + (c.id === selected ? ' class="sel"' : "") + ' tabindex="0">' +
+        '<td><div class="t">' + esc(c.title) + '</div><div class="d">' + esc(c.description) + "</div></td>" +
+        '<td><span class="eyebrow" style="text-transform:none;letter-spacing:0;font-weight:500">' + shapeSvg(f) + esc(f.label) + "</span></td>" +
+        '<td><span class="pill ' + cls + '">' + st + "</span></td>" +
+        '<td class="num">' + citedBy.get(c.id).length + "</td></tr>";
+    }).join("");
+    const rv = rows.filter(reviewable);
+    document.getElementById("list-head").innerHTML =
+      "<span>" + rows.length + " shown</span><span>" + rv.filter((c) => c.tier === "human").length + " of " + rv.length +
+      " hand-written verified</span><span>To mark one verified, add <code>verified: { by: human:zmeel, at: … }</code> to its frontmatter</span>";
+  }
+  listBody.addEventListener("click", (e) => { const tr = e.target.closest("tr[data-id]"); if (tr) select(tr.dataset.id); });
+  listBody.addEventListener("keydown", (e) => { if (e.key === "Enter") { const tr = e.target.closest("tr[data-id]"); if (tr) select(tr.dataset.id); } });
+  document.querySelectorAll(".list th[data-sort]").forEach((th) => th.addEventListener("click", () => {
+    const k = th.dataset.sort; sortDir = sortKey === k ? -sortDir : 1; sortKey = k; renderList();
+  }));
+
+  // ------------------------------------------------------------ search
+  const q = document.getElementById("q"), results = document.getElementById("results");
+  let hits = [], active = 0;
+  function runSearch() {
+    const s = q.value.trim().toLowerCase();
+    if (!s) { results.hidden = true; return; }
+    const words = s.split(/\s+/);
+    hits = C.map((c) => {
+      const hay = (c.title + " " + c.description + " " + c.tags.join(" ") + " " + c.id).toLowerCase();
+      if (!words.every((w) => hay.includes(w))) return null;
+      return [c.title.toLowerCase().includes(s) ? 0 : 1, c];
+    }).filter(Boolean).sort((a, b) => a[0] - b[0]).slice(0, 12).map((x) => x[1]);
+    active = 0;
+    results.innerHTML = hits.length ? hits.map((c, i) =>
+      '<button type="button" role="option" data-id="' + esc(c.id) + '" aria-selected="' + (i === 0) + '">' + shapeSvg(folderOf.get(c.folder)) +
+      "<span>" + esc(c.title) + '</span><span class="r-folder">' + esc(folderOf.get(c.folder).label) + "</span></button>").join("")
+      : '<p class="empty" style="padding:6px 8px">No concept matches.</p>';
+    results.hidden = false;
+  }
+  function pick(id) {
+    results.hidden = true; q.blur();
+    const f = byId.get(id).folder;
+    if (!shown.has(f)) { shown.add(f); renderFilters(); renderList(); }
+    select(id, true);
+  }
+  q.addEventListener("input", runSearch);
+  q.addEventListener("keydown", (e) => {
+    if (results.hidden || !hits.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length;
+      results.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-selected", i === active));
+    } else if (e.key === "Enter") { e.preventDefault(); pick(hits[active].id); }
+    else if (e.key === "Escape") results.hidden = true;
+  });
+  results.addEventListener("click", (e) => { const b = e.target.closest("button[data-id]"); if (b) pick(b.dataset.id); });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".search")) results.hidden = true; });
+
+  // ------------------------------------------------------------ selection and views
+  function select(id, center) {
+    selected = id && byId.has(id) ? id : null;
+    renderDetail(); draw(); renderList();
+    if (selected) {
+      try { history.replaceState(null, "", "#" + selected.replace(/\//g, "~")); } catch (e) { /* sandboxed */ }
+      if (center && view === "map") { const n = nodeOf.get(selected); cam.x = n.x; cam.y = n.y; cam.k = Math.max(cam.k, 1.1); draw(); }
+    }
+  }
+  const mapPane = document.getElementById("map-pane"), listPane = document.getElementById("list-pane");
+  function setView(v) {
+    view = v; store.set("view", v);
+    document.getElementById("v-map").setAttribute("aria-pressed", v === "map");
+    document.getElementById("v-list").setAttribute("aria-pressed", v === "list");
+    mapPane.hidden = v !== "map"; listPane.hidden = v !== "list";
+    if (v === "map") { resize(); } else renderList();
+  }
+  document.getElementById("v-map").addEventListener("click", () => setView("map"));
+  document.getElementById("v-list").addEventListener("click", () => setView("list"));
+
+  // ------------------------------------------------------------ start
+  renderFilters();
+  new ResizeObserver(() => { if (view === "map") resize(); }).observe(mapPane);
+  const fromHash = decodeURIComponent((location.hash || "").slice(1)).replace(/~/g, "/");
+  const first = byId.has(fromHash) ? fromHash : byId.has("status") ? "status" : C[0].id;
+  setView(view);
+  fit();
+  select(first);
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  if (media.addEventListener) media.addEventListener("change", () => draw());
+  new MutationObserver(() => draw()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+})();
+</script>
