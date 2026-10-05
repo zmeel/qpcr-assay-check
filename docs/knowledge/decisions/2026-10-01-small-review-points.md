@@ -3,7 +3,8 @@ type: Decision
 title: "The small points of the theory reviews"
 description: "Probe deletions graded (R5c), Tm-at-annealing flag, ΔTm not applicable for modified oligos, calibration wording, quantification caveat, bracketing and the 25% undetermined limit."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:30:00Z }
 decided_on: 2026-10-01
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
