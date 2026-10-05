@@ -3,7 +3,8 @@ type: Decision
 title: "One mismatch under the MGB is a likely failure"
 description: "A single mismatch in the 3'-most 7 nt of an MGB probe is likely failure (Kutyavin 2000); further toward the 5' end it stays undetermined."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:33:00Z }
 decided_on: 2026-10-02
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
