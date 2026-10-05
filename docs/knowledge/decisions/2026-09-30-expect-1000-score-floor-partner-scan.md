@@ -3,7 +3,8 @@ type: Decision
 title: "E-value stays 1000; score floor and partner scan built"
 description: "Keep EXPECT 1000, compute what each search could report, and scan for partner primers and probes next to off-target primer sites."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T12:04:00Z }
 decided_on: 2026-09-30
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
