@@ -1,0 +1,61 @@
+# Example assay: Entamoeba histolytica, one primer pair and one FAM-MGB probe in the small-subunit
+# (18S) rRNA gene.
+#
+# PROVENANCE
+#   Sequences, probe label (FAM-...-MGB), amplified fragment and exclusivity organisms supplied by
+#   the user (2026-10-05); not checked against a publication or kit insert. Oligo names (Eh-F,
+#   Eh-R, Eh-P) are placeholders; replace them with the laboratory's own. The probe was given as
+#   FAM-...-MGB: the quencher was not specified and is left empty rather than guessed.
+#
+# WHAT WAS CHECKED (2026-10-05)
+#   * Against the supplied fragment (Eh-fragment, 173 nt, GC 34.1%): Eh-F at 1-22, Eh-P at 44-65
+#     on the same strand, the reverse primer binding site at 154-173 (reverse complement of Eh-R);
+#     each exactly, once.
+#   * NCBI Taxonomy (E-utilities, live): Entamoeba histolytica 5759 (species; genus Entamoeba
+#     5758). Exclusivity names resolve to species: E. dispar 46681, E. coli 110766,
+#     E. bangladeshi 1226471, E. hartmanni 110767, E. polecki 110769, E. gingivalis 38877.
+#   * Gene and reference record (E-utilities, live): the fragment lies in the SSU rRNA gene, on the
+#     strand opposite the rRNA. It occurs exactly in 23 of the 35 Nucleotide records of 1,500-2,500
+#     nt titled 18S / small subunit, among them X64142.1 ("E.histolytica gene for small subunit
+#     rRNA", reverse complement at 88-260), used as target.accession below.
+#
+# VARIANT SOURCE: NUCLEOTIDE RECORDS, NOT GENOME ASSEMBLIES
+#   NCBI Assembly lists 13 current assemblies for taxid 5759 (12 strains; the 2008 HM-1:IMSS
+#   reference as both GCA_ and GCF_000208925.1), fewer than the 100 genomes the inclusivity status
+#   needs (inclusivity.min_genomes_for_verdict), and the rRNA genes sit on a multi-copy episome
+#   that short-read assemblies may collapse. So the variant analysis uses the Nucleotide records
+#   (variants.source blast_partitioned), narrowed to rRNA records: live 2026-10-05,
+#   txid5759[ORGN] has 124,728 records; with the filter below 2,345. A narrower filter
+#   (18S OR "small subunit" OR SSU, 626 records) missed records that carry a primer site, e.g.
+#   AP023147.1 (rDNA episome pEhCl6-2001) and PDB entries titled "17S rRNA" (4 of 500 checked
+#   records outside it). Records whose title names none of these words are not assessed; the
+#   report states the filter.
+assay_name: Entamoeba histolytica (SSU rRNA)
+forward: {name: Eh-F, sequence: ATTGTCGTGGCATCCTAACTCA}
+reverse: {name: Eh-R, sequence: GCGGACGGCTCATTATAACA}
+probe:
+  - {name: Eh-P, sequence: TCATTGAATGAATTGGCCATTT, reporter: FAM, modifications: [MGB]}
+template_type: DNA               # not stated by the user; DNA for a parasite detected in stool
+target:
+  taxid: 5759                    # Entamoeba histolytica
+  accession: X64142.1            # SSU rRNA gene, HM-1:IMSS; holds the fragment exactly
+  gene: small subunit (18S) rRNA
+reference_amplicons:
+  - {name: Eh-fragment, sequence: ATTGTCGTGGCATCCTAACTCACTTAGAATGTCATTTCTCAATTCATTGAATGAATTGGCCATTTTGTACTAATACAAACTGGATCGTCTCAAGTATTATCTTTATCATTCACAAAGCTATCCTTGTATTTTACTAACCAAAGAAACTATTACTGTTATAATGAGCCGTCCGC}
+exclusivity_organisms:           # as supplied by the user
+  - Entamoeba dispar
+  - Entamoeba coli
+  - Entamoeba bangladeshi
+  - Entamoeba hartmanni
+  - Entamoeba polecki
+  - Entamoeba gingivalis
+oligo_source: Supplied by the user; source publication or kit not stated.
+settings:                        # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60         # default; check against this assay's cycling protocol
+  search:
+    background_taxids: [9606]    # human background search
+  variants:
+    source: blast_partitioned    # Nucleotide records (see VARIANT SOURCE above)
+    nucleotide_query: 'ribosomal OR rRNA OR 18S OR SSU OR "small subunit" OR 16S-like'
+    blast_max_records_per_run: 2500   # the 2,345 filtered records in one run (default 2000)

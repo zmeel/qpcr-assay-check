@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-10-04T06:00:00Z }
+generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -43,9 +43,12 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 | Neisseria | [2026-10-02 21:13Z](runs/neisseria-2026-10-02.md) | all 51,545 genomes; 85.8% by collection year, 89.0% by release; Review |
 | Legionella | [2026-10-02 13:16Z](runs/legionella-2026-10-02.md) | Incomplete: 46.1% undetermined, mostly regions cut by contig ends |
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
+| Entamoeba histolytica | not run yet | [assay file](assays/entamoeba-histolytica-ssu.md) added 2026-10-05; QC only: Review |
 
 # Next, waiting on the user
 
+- A first full run of the [Entamoeba histolytica assay](assays/entamoeba-histolytica-ssu.md),
+  and confirmation of its variant source (Nucleotide rRNA records), oligo names and template.
 - Which remaining review items to take up; [open items](open/index.md) lists them.[^open]
 - An enterovirus rerun with the MGB region rule ([open](open/enterovirus-rerun.md)).
 - The Stadhouders PDF for the Table 1 check, if available.

@@ -55,3 +55,20 @@ def test_example_amplicon_qc_matches_the_live_reference_geometry():
     assert not any(
         c.subject == "amplicon" and c.status.value in ("WARN", "FAIL") for c in qc.checks
     )
+
+
+def test_entamoeba_example_places_its_oligos_as_its_header_states():
+    """docs/examples/entamoeba_histolytica_ssu.yaml (user-supplied, 2026-10-05)."""
+    path = ROOT / "docs" / "examples" / "entamoeba_histolytica_ssu.yaml"
+    a = build_assay(path, {})
+    assert a.target.taxid == 5759 and a.target.accession == "X64142.1"
+    frag = a.reference_amplicon
+    assert len(frag) == 173
+    comp = str.maketrans("ACGT", "TGCA")
+    forward, reverse, probe = (a.oligos[n] for n in ("Eh-F", "Eh-R", "Eh-P"))
+    assert frag.find(forward) == 0 and frag.count(forward) == 1
+    assert frag.find(probe) == 43 and frag.count(probe) == 1
+    assert frag.endswith(reverse.translate(comp)[::-1])
+    cfg = load_config(assay_settings=a.settings)
+    assert cfg.variants.source == "blast_partitioned"
+    assert cfg.variants.nucleotide_query.startswith("ribosomal OR rRNA")
