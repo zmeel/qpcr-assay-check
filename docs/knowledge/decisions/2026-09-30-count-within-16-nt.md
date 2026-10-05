@@ -3,7 +3,8 @@ type: Decision
 title: "Mismatch counts within the 3'-most 16 nt; R3b"
 description: "R3 and R8 count only mismatches within the 3'-most 16 nt; mismatches beyond get their own rule R3b from Otwell 2025."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T12:04:00Z }
 decided_on: 2026-09-30
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
