@@ -3,7 +3,8 @@ type: Decision
 title: "No graph of the variants for now"
 description: "Variant maps were shown as mock-ups only; the amplicon export script was removed again."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:34:00Z }
 decided_on: 2026-10-03
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:

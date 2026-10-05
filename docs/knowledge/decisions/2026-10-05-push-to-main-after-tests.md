@@ -3,7 +3,8 @@ type: Decision
 title: "Push to main after the tests pass, without asking"
 description: "Work goes straight to main once ruff and the test suite pass; no pull request and no go-ahead per push. Tags stay the user's."
 tags: [decision, workflow]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T14:35:00Z }
 decided_on: 2026-10-05
 generated: { by: claude-code/agent, at: 2026-10-05T11:30:00Z }
 sources:
