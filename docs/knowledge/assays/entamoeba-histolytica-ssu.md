@@ -11,6 +11,9 @@ sources:
     resource: ../../examples/entamoeba_histolytica_ssu.yaml
     title: docs/examples/entamoeba_histolytica_ssu.yaml (provenance and checks in its header)
   - id: run
+    resource: ../runs/entamoeba-2026-10-05-complete.md
+    title: "Entamoeba histolytica, 2026-10-05 12:49Z (complete)"
+  - id: first-run
     resource: ../runs/entamoeba-2026-10-05.md
     title: "Entamoeba histolytica, 2026-10-05 10:10Z (first run)"
   - id: session
@@ -49,9 +52,11 @@ assessed.[^session]
 
 # Runs
 
-[2026-10-05](../runs/entamoeba-2026-10-05.md), the first: Exceeds limit, from 62 predicted
-products in other Entamoeba species (E. dispar and E. bangladeshi with both primers perfect);
-the target itself 84.9% detectable of 73 records, Incomplete for want of recent records.
+[2026-10-05 12:49Z](../runs/entamoeba-2026-10-05-complete.md), the latest and the first with
+every listed record assessed: Exceeds limit, from 62 predicted products in other Entamoeba
+species (E. dispar and E. bangladeshi with both primers perfect); the target itself 86.4%
+detectable of 81 records, inclusivity Incomplete for want of recent records.
+[2026-10-05 10:10Z](../runs/entamoeba-2026-10-05.md) was the first, and found the EFetch bug.
 
 Oligo QC in that run: Review, 0 outside the limit and 5 outside the preferred range (the probe's
 model Tm 4.8 C below the primers, expected for an MGB probe whose modification the model does

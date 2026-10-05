@@ -43,10 +43,16 @@ generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
   sequence never matched the accession and they were retried every run. Checked live against
   NCBI, fixed in `variants/datasets.py` (`fasta_ids`, both forms indexed), regression test in
   tests/test_variants_partitioned.py (fails on the old code with the user's own log line).
+- Run with the fixed code (report 12:49Z): all 2,345 records assessed, coverage No flags. The 45
+  are PDB ribosome structure records; 8 of them carry the region and all 8 are detectable, so the
+  figure went from 62 of 73 (84.9%) to 70 of 81 (86.4%) with the escapes and the undetermined
+  record unchanged. Specificity and the Incomplete inclusivity status are unchanged. Written up
+  in [runs/entamoeba-2026-10-05-complete](../runs/entamoeba-2026-10-05-complete.md).
 
 # Related
 
 * [Entamoeba histolytica, SSU rRNA (one FAM-MGB probe)](../assays/entamoeba-histolytica-ssu.md)
 * [Entamoeba histolytica, 2026-10-05 10:10Z (first run)](../runs/entamoeba-2026-10-05.md)
+* [Entamoeba histolytica, 2026-10-05 12:49Z (complete)](../runs/entamoeba-2026-10-05-complete.md)
 * [Push to main after the tests pass, without asking](../decisions/2026-10-05-push-to-main-after-tests.md)
 * [EFetch returns PDB-derived records under a pipe identifier](../ncbi/efetch-pipe-identifiers.md)

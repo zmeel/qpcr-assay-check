@@ -43,12 +43,11 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 | Neisseria | [2026-10-02 21:13Z](runs/neisseria-2026-10-02.md) | all 51,545 genomes; 85.8% by collection year, 89.0% by release; Review |
 | Legionella | [2026-10-02 13:16Z](runs/legionella-2026-10-02.md) | Incomplete: 46.1% undetermined, mostly regions cut by contig ends |
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
-| Entamoeba histolytica | [2026-10-05 10:10Z](runs/entamoeba-2026-10-05.md) | Exceeds limit: products in other Entamoeba species; target 84.9% of 73 records, Incomplete; 45 records left, now fetchable after the EFetch fix |
+| Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
 
 # Next, waiting on the user
 
-- Entamoeba histolytica: one more run (with the EFetch fix of 2026-10-05) to assess the last 45
-  records, and a decision on the 62
+- Entamoeba histolytica: a decision on the 62
   predicted products in other Entamoeba species (a wet-lab check against E. dispar and
   E. moshkovskii is the way to settle the probe's discrimination).
 - Which remaining review items to take up; [open items](open/index.md) lists them.[^open]

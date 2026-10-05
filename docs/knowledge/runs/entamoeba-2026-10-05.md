@@ -71,8 +71,9 @@ is amplified (Review, not Exceeds limit). Near neighbours were not searched in t
 
 A second run the same day (10:26Z) processed none of them: all 45 are PDB-derived records that
 EFetch returns under a pipe identifier, which the tool did not match to their accession, so they
-were retried for ever ([NCBI fact](../ncbi/efetch-pipe-identifiers.md), fixed 2026-10-05). A run
-after the fix should assess them and complete the coverage.
+were retried for ever ([NCBI fact](../ncbi/efetch-pipe-identifiers.md), fixed 2026-10-05). The
+run of [12:49Z](entamoeba-2026-10-05-complete.md) assessed them and completed the coverage: 81
+records with the region, 86.4% detectable, the same escapes.
 
 # Worth knowing
 
