@@ -3,7 +3,8 @@ type: Decision
 title: "Genomes judged from parts; copies possibly unassembled; copy identity"
 description: "Introduced the 'detectable from parts' class, 'copies possibly unassembled' for multi-copy drafts and the 0.75 copy-identity threshold."
 tags: [decision]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T12:00:00Z }
 decided_on: 2026-09-28
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
