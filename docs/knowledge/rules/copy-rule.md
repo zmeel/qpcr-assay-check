@@ -3,7 +3,8 @@ type: Grading Rule
 title: Copy rule (a, b, c)
 description: When a located region counts as a copy of the locus - 32 anchored bases, 32 context bases, or identity 0.75 with 16 anchored.
 tags: [locator, copy, chain]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-05T15:590:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: config
