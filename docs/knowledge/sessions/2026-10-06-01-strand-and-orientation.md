@@ -28,9 +28,12 @@ generated: { by: claude-code/agent, at: 2026-10-06T08:00:00Z }
   unassembled", 1 detected. Live EFetch of six finished chromosomes: each carries exactly one
   copy of that divergent site next to 5-7 exact forward-primer sites. Conclusion: an assembly
   artefact, the rule handles it as intended, nothing to change.
-- One lead left: NZ_CP098544.1 (finished) has no exact forward-primer site; its seven
-  probe-bearing copies all carry 1-2 forward mismatches. The ad-hoc window cannot measure its
-  reverse sites (it cuts the poly-T run), so it needs a look with the tool itself.
+- Lead followed up (user: "Check NZ_CP098544.1 with the tool"): judged with the package's own
+  scan_genome / as_items / assess / genome_outcome on the nuccore record. 9 copies, **not
+  detected**: best copy forward 1 mismatch at the 5' end (tolerated), probe perfect, reverse
+  poly-A 7->8 (at risk, R5b); detectable under the lenient bulge setting. So the forward site was
+  a red herring and this is the known NG-R poly-A escape in a finished genome. NZ_CP098536.1 for
+  comparison: detected, 6 of 9 copies. Open item closed.
 
 # Related
 

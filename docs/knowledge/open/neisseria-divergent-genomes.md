@@ -1,10 +1,10 @@
 ---
 type: Open Item
-title: "The divergent Neisseria genomes: checked, an assembly artefact"
-description: "Checked 2026-10-06: about 1,500 draft genomes whose only assembled copy is a single-copy opa paralogue every genome carries; the tool counts them undetermined, which is right. One lead left."
+title: "The divergent Neisseria genomes: checked, an assembly artefact (closed)"
+description: "Checked 2026-10-06: about 1,500 draft genomes whose only assembled copy is a single-copy opa paralogue every genome carries; the tool counts them undetermined, which is right. Closed."
 tags: [open, small, checked]
 status: draft
-origin: "offered 2026-10-02, checked 2026-10-06"
+origin: "offered 2026-10-02, checked and closed 2026-10-06"
 generated: { by: claude-code/agent, at: 2026-10-06T10:00:00Z }
 sources:
   - id: progress
@@ -19,6 +19,9 @@ sources:
   - id: session-2809
     resource: ../sessions/2026-09-28-01-opa-copies-unassembled-in-draft-genomes-detection-per.md
     title: "Session 2026-09-28: Opa copies unassembled in draft genomes"
+  - id: tool
+    resource: judged with the package's scan_genome, as_items, assess and genome_outcome on the nuccore record, session of 2026-10-06
+    title: NZ_CP098544.1 judged with the tool, 2026-10-06
   - id: outcome
     resource: ../rules/genome-outcome.md
     title: Genome outcome
@@ -50,14 +53,24 @@ So these genomes are not an assay problem and not real escapes: they are drafts 
 copies collapsed or were left unassembled, leaving the one paralogue as the only assembled copy.
 The `multicopy_unassembled` rule handles them exactly as intended. Nothing to change.
 
-# The one lead left
+# The lead, followed up with the tool
 
-Among the six finished chromosomes, **NZ_CP098544.1** had no exact forward-primer site at all:
-all seven of its probe-bearing copies carry 1-2 mismatches in the forward site.[^live] Whether
-that strain is still detectable depends on its reverse sites, which the ad-hoc window used for
-this check cannot measure reliably (the window cuts the poly-T run). It needs a proper look with
-the tool, not a script. It is one finished genome, so it cannot change the percentages much, but
-a finished genome without a perfect forward site is worth understanding.
+Among the six finished chromosomes, **NZ_CP098544.1** (strain 10296) had no exact forward-primer
+site.[^live] Judged with the tool's own functions (scan, copy rule, grading, genome outcome) on
+the record fetched from nuccore:[^tool] 9 copies kept, **not detected**, so an escape. Its best
+copy is forward 1 mismatch (`A` for `G` at the 5' end, graded *tolerated*), probe perfect,
+reverse with the **poly-A run 7 to 8** (at risk, [R5b](../rules/r5b-homopolymer-length.md)).
+Under the lenient homopolymer setting one copy would be detectable and the genome detected.
+
+So the forward site was a red herring: the mismatch sits at the 5' end and is tolerated. This is
+the assay's known NG-R poly-A escape in a finished genome, consistent with the run's largest
+escape group (4,196 of 4,330 escapes fail on run length only). A finished genome with the same
+failure is also why these drafts are not marked "possibly unassembled" wrongly: that rule asks
+whether a complete genome fails the same way. For comparison, NZ_CP098536.1 is detected, with 6
+of its 9 copies detectable.
+
+Nothing open here either; whether NG-R primes over an A8 template stays the wet-lab question it
+already was.
 
 [^progress]: Session 2026-10-02: Visualisation examples (not built)
 [^export]: Whole-amplicon export of the 2026-10-02 run (not in the repository)
