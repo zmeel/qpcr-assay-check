@@ -10,6 +10,9 @@ sources:
   - id: report
     resource: the user's report of run 2026-10-02T21:13Z on the NAS (work/results), read in the session of 2026-10-03
     title: Report of the run (not in the repository)
+  - id: divergent
+    resource: ../open/neisseria-divergent-genomes.md
+    title: "The divergent Neisseria genomes: checked, an assembly artefact (closed)"
   - id: progress
     resource: ../sessions/2026-10-02-02-browser-interface-g1-g5-v2-1-0-released.md
     title: "Session 2026-10-02: Browser interface G1-G5; v2.1.0 released"
@@ -31,6 +34,15 @@ numbers are counts over public genomes, not prevalence.
 - Collection years 2024-2026: 80%, 79% and 77% detectable, the rest mostly at risk (poly-A +1).
 - Effect of the new rules: the MGB region rule changed 2 genomes (NG-P1 mismatch at -2); the
   terminal G2 rule none.
+
+# The divergent amplicons, checked afterwards
+
+The whole-amplicon map of this run showed a tail far from the reference. Checked on 2026-10-06:
+32 amplicons differing by 6 or more site changes, in 1,535 genomes, every one a draft and none of
+the 330 finished genomes; 1,504 share one forward site, a single-copy opa paralogue every finished
+chromosome also carries. They are counted "possibly unassembled", not escapes, which is right
+([checked](../open/neisseria-divergent-genomes.md)). The same check judged the finished genome
+NZ_CP098544.1 an escape on the poly-A run alone.
 
 # Earlier findings
 

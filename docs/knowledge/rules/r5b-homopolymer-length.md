@@ -18,6 +18,9 @@ sources:
   - id: elbrecht
     resource: ../sources/elbrecht-2018.md
     title: Elbrecht et al. 2018
+  - id: divergent
+    resource: ../open/neisseria-divergent-genomes.md
+    title: "The divergent Neisseria genomes: checked, an assembly artefact (closed)"
   - id: d-bulges
     resource: ../decisions/2026-09-26-homopolymer-bulges-graded.md
     title: Decision to grade homopolymer bulges
@@ -38,7 +41,10 @@ without mismatch as detectable instead. The report gives the status figure under
 assembly level), since run length is a known sequencing and assembly error.
 
 Live: the N. gonorrhoeae reverse primer NG-R crosses a poly-A 7 run; A8/A9 variants drive most of
-that assay's escapes (see [the Neisseria runs](../runs/neisseria-2026-10-02.md)).
+that assay's escapes (see [the Neisseria runs](../runs/neisseria-2026-10-02.md)). The rule decides real genomes on its own:
+NZ_CP098544.1, a **finished** N. gonorrhoeae chromosome, escapes only because of it (forward
+1 mismatch at the 5' end, tolerated; probe perfect; reverse poly-A 7 to 8), and is detected under
+the lenient setting ([checked with the tool](../open/neisseria-divergent-genomes.md)).
 
 [^mismatch-classes]: docs/MISMATCH_CLASSES.md, R5b
 [^zhu-wartell]: Zhu and Wartell 1999
