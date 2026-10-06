@@ -23,6 +23,9 @@ evidence and the [copy rule](../rules/copy-rule.md) decides at assessment. Repla
 median offset that split or misplaced copies of species whose spacer length differs (overhaul,
 2026-09-28/29). About 2.6 s per 4 Mb genome with context.
 
+Both strands are searched, so a record deposited as the reverse complement is found and judged
+like any other: [strand and orientation](strand-and-orientation.md).
+
 # Code
 
 [`variants/chain.py`](../../../src/qpcr_assay_check/variants/chain.py), [`variants/locate.py`](../../../src/qpcr_assay_check/variants/locate.py)[^code0][^code1]

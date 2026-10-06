@@ -14,3 +14,4 @@ What each part of the code does, with links to the source.
 * [Report and records](report.md) - Self-contained HTML report, Excel workbook, results.json and hits.tsv per run.
 * [Scripts](scripts.md) - Helper scripts for live checks, Docker runs, run summaries and this bundle.
 * [Specificity search and assessment](specificity.md) - Plans remote BLAST tiers, re-aligns hits over the whole oligo, pairs products, scans for partners and rolls up by taxon.
+* [Strand and orientation of a record](strand-and-orientation.md) - Both strands are searched, so a record submitted as the reverse complement is found and judged like any other; only a record that starts or ends inside the amplicon is cut.
