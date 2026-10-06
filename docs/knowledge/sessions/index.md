@@ -2,7 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
-* [Strand and orientation of a record](2026-10-06-01-strand-and-orientation.md) - Session log of 2026-10-06.
+* [Strand and orientation; the divergent Neisseria genomes checked](2026-10-06-01-strand-and-orientation.md) - Session log of 2026-10-06.
 * [Entamoeba histolytica assay](2026-10-05-01-entamoeba-histolytica-assay.md) - Session log of 2026-10-05.
 * [Progress log moved into the bundle](2026-10-04-02-progress-log-moved-into-the-bundle.md) - Session log of 2026-10-04 (later).
 * [Knowledge bundle (OKF v0.2)](2026-10-04-01-knowledge-bundle-okf-v0-2.md) - Session log of 2026-10-04.

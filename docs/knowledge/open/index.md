@@ -9,7 +9,7 @@ Open items: review suggestions not taken up, checks still to do.
 * [Legionella example still has placeholders](legionella-example-sequences.md) - The repository's Legionella example has TODO sequences, while the user runs a complete file on the NAS.
 * [CLAUDE.md says the licence is not chosen](license-note.md) - pyproject.toml and the old progress log say Apache-2.0; CLAUDE.md still says to ask before adding a licence.
 * [Exact Tm of the mismatched duplex](mismatched-duplex-dtm.md) - Compute ΔTm on the actual mismatched duplex instead of the current estimate; check primer3's documentation first.
-* [Check the 1,496 divergent Neisseria genomes](neisseria-divergent-genomes.md) - 27 divergent amplicons in 1,496 genomes, mostly possibly unassembled, from the whole-amplicon map.
+* [The divergent Neisseria genomes: checked, an assembly artefact](neisseria-divergent-genomes.md) - Checked 2026-10-06: about 1,500 draft genomes whose only assembled copy is a single-copy opa paralogue every genome carries; the tool counts them undetermined, which is right. One lead left.
 * [R7 note and the pair flag at 4+ mismatches](r7-pair-flag.md) - Degenerate primers are only a note, and pairs with 4 or more mismatches in total are not flagged yet.
 * [The 3'-most 16 nt window](sixteen-nt-window.md) - R3/R8 count mismatches within the 3'-most 16 nt, which the biologist calls an artefact of Lefever's 20-mers.
 * [Check the encoded Stadhouders Table 1](stadhouders-table-check.md) - Compare the Table 1 cells encoded in oligo/grade.py with the printed table; needs the PDF.

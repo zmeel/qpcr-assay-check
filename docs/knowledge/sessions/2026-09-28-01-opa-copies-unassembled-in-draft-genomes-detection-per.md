@@ -32,3 +32,7 @@ moved_from: docs/PROGRESS.md (verbatim, 2026-10-04)
   `variants.multicopy_unassembled`. Evidence of an incomplete draft is "more than one sequence
   or a copy cut by a contig end", not N gaps (contig-level assemblies have none), so nothing is
   downloaded again. Not yet seen on a live run.
+
+# Related
+
+* [The divergent Neisseria genomes: checked, an assembly artefact](../open/neisseria-divergent-genomes.md)
