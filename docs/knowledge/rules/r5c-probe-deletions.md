@@ -3,8 +3,9 @@ type: Grading Rule
 title: R5c - deletions in a probe site
 description: 1-5 deleted bases at risk, 6 or more likely failure, from Otwell 2025; the notes now say where that study's data stop (25-28 nt linear probes, 55 C, 50 cycles).
 tags: [grading, probe, deletions, R5c]
-status: draft
-generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
+status: stable
+verified: { by: human:zmeel, at: 2026-10-07T08:00:00Z }
+generated: { by: claude-code/agent, at: 2026-10-07T10:38:00Z }
 sources:
   - id: otwell
     resource: ../sources/otwell-2025.md
