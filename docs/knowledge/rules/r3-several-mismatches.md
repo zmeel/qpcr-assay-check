@@ -3,7 +3,8 @@ type: Grading Rule
 title: R3 - several mismatches in one primer
 description: Counts within the 3'-most 16 nt decide; R3b grades mismatches beyond -16 from Otwell 2025.
 tags: [grading, primer, R3, R3b]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-07T08:37:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: lefever
