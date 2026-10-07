@@ -72,12 +72,18 @@ The main rules, in short:
   *likely failure* (Kutyavin et al. 2000: such mismatches are discriminated far more strongly,
   and a 12-mer lost its signal at 55–70 °C); one mismatch further toward the 5′ end is
   *indeterminate*; two or more are *likely failure* (expert judgement). An unmodified probe with
-  one mismatch outside its last 5 bases is *tolerated*, otherwise *at risk* (expert judgement;
-  Klungthong et al. 2010 is consistent with *at risk* for two).
+  one mismatch outside its last 5 bases is *tolerated*; one in the last 5 or two anywhere is
+  *at risk* (Klungthong et al. 2010: an unmodified 30-mer with two mismatches detected every
+  sample, with the Ct gap about 3.7 wider); **three or more are *likely failure*** (expert
+  judgement, since 2026-10-07; before that the rule had no ceiling, so even eleven mismatches
+  were only *at risk*).
 - **Deletions in the probe site** (Otwell et al. 2025, wet-lab data): 1–5 deleted bases *at
   risk*; 6 or more *likely failure* (6 bases was tolerated in one assay and fatal in another;
   the worse is taken); a deletion with three or more mismatches *likely failure*. Insertions
-  were not tested and stay *indeterminate*.
+  were not tested and stay *indeterminate*. That study measured 25–28 base linear probes at
+  55 °C over 50 cycles, and deletions of 1, 3, 4, 6, 7 and 8 bases. For a shorter probe, an MGB
+  probe, or a deletion of 2 or 5 bases, the site keeps its class and its note says the case was
+  never measured; no study has measured a deletion under an MGB probe at all.
 - **Ambiguity codes in the genome** (R, Y, …): a code that could pair counts as a match beyond the
   last 5 bases; within them the site is graded both ways, and only when that decides between
   detectable and not is the site *indeterminate*.

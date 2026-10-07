@@ -74,6 +74,24 @@ All notable changes to this project are documented here. The format follows
   indexed under both forms of its identifier.
 
 ### Changed
+- **An unmodified probe with 3 or more mismatches is a likely failure** (rule R9; user decision
+  2026-10-07). Until now the unmodified branch had no ceiling: one mismatch outside the last 5 nt
+  was tolerated and *everything else* was at risk, so the Legionella run of 2026-10-02 graded an
+  11-mismatch, 2-gap site of the 35-nt LEGpneu probe at risk while the 19-nt MGB LEGgenus probe
+  with 7 mismatches on the same genome was a likely failure. Now: 1 outside the last 5 tolerated,
+  1 in the last 5 or 2 anywhere at risk (Klungthong et al. 2010 measured two mismatches in an
+  unmodified 30-mer, every sample detected but the Ct gap about 3.7 wider), 3 or more a likely
+  failure (expert judgement, the standing the MGB 2+ rule already had). MGB probes are unchanged.
+  The detectable percentage does not move: at risk and likely failure both count as not detected.
+- **The probe-deletion classes say where their data stop** (rule R5c; user question 2026-10-06,
+  advisor literature search 2026-10-07). The classes are unchanged. A site's note now says when it
+  falls outside what Otwell et al. 2025 measured: an MGB probe or one shorter than 25 nt ("no
+  measured data"; no study has measured a deletion under an MGB probe), and a deletion of 2 or 5
+  bases ("interpolated": 1, 3, 4, 6, 7 and 8 were tested). The report and the documentation state
+  the calibration conditions (25-28 nt linear probes, 55 C annealing, 50 cycles), which are
+  permissive, so the thresholds are upper bounds on tolerance.
+
+### Changed
 - **The progress log moved into the knowledge bundle** (user, 2026-10-04): every entry of
   `docs/PROGRESS.md` is now its own page in `docs/knowledge/sessions/` (moved verbatim), with
   `docs/knowledge/status.md` as the current state to read first; `log.md` is generated from the

@@ -69,6 +69,20 @@ _TERMINAL_G3_NOTE = (
 # (p. 661). Exceptions the authors could not explain: A/C at the terminal base and C/A at
 # position 6 discriminated less (p. 657).
 MGB_REGION = 7
+KLUNGTHONG = "Klungthong 2010"
+# Unmodified probes: from this many mismatches on, no stable probe duplex is expected (user
+# decision 2026-10-07, after an 11-mismatch unmodified probe site was graded only at risk in the
+# Legionella run of 2026-10-02). Expert judgement, the same standing as the MGB rule above; the
+# only measurement nearby is Klungthong et al. 2010 (J Clin Virol 48:91-95), where an unmodified
+# 30-mer probe with two mismatches still detected every sample but its mean Ct gap to the
+# reference target widened from 5.58 to 9.28 (Table 3, p. 93), which is why two is at risk.
+UNMODIFIED_PROBE_FAIL = 3
+# Probe lengths and chemistry the probe-deletion data (R5c) cover: Otwell et al. 2025 measured
+# 25-28 nt linear ZEN/IBFQ probes only, at 55 C annealing over 50 cycles.
+R5C_MIN_PROBE_NT = 25
+# Deletion lengths Otwell's workbook has no template for (1, 3, 4, 6, 7 and 8 nt were
+# measured): the class for these is interpolated, not measured.
+UNTESTED_DELETIONS = frozenset({2, 5})
 LEFEVER = "Lefever 2013"
 OTWELL = "Otwell 2025"
 # Lefever 2013 tested mismatches in the 3'-most 16 nt of 20-mers (p. 1472); Otwell et al. 2025
@@ -355,13 +369,26 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
             return Grade(TOLERATED, "R9", "one probe mismatch outside the last 5 nt: a longer "
                          "unmodified probe usually tolerates it; expert judgement, no "
                          "quantitative source")  # fmt: skip
-        return Grade(AT_RISK, "R9", "probe mismatches beyond one internal mismatch; expert "
-                     "judgement, no quantitative source")  # fmt: skip
+        if len(mm) >= UNMODIFIED_PROBE_FAIL:
+            return Grade(FAILURE, "R9", f"{len(mm)} mismatches in an unmodified probe: no stable "
+                         f"probe duplex expected from {UNMODIFIED_PROBE_FAIL} mismatches on; "
+                         "expert judgement, no quantitative source (user decision 2026-10-07; "
+                         f"{KLUNGTHONG} measured two, still detected)")  # fmt: skip
+        return Grade(AT_RISK, "R9", "one probe mismatch in the last 5 nt, or two anywhere: "
+                     f"expert judgement; {KLUNGTHONG} measured two mismatches in an unmodified "
+                     "30-mer probe, every sample still detected but the Ct gap widened from "
+                     "5.58 to 9.28")  # fmt: skip
 
     if gap:
         deleted, inserted = _probe_gap_bases(q_aln, s_aln)
         if deleted and not inserted:
-            return _probe_deletion(deleted, mm, _with_ambiguity(by_mismatches, mm, amb))
+            return _probe_deletion(
+                deleted,
+                mm,
+                _with_ambiguity(by_mismatches, mm, amb),
+                mgb=mgb,
+                probe_nt=len(q_aln.replace("-", "")),
+            )
         return _with_gap(_with_ambiguity(by_mismatches, mm, amb), "gap or bulge in the probe site")
     return _with_ambiguity(by_mismatches, mm, amb)
 
@@ -376,7 +403,27 @@ def _probe_gap_bases(q_aln: str, s_aln: str) -> tuple[int, int]:
     return deleted, inserted
 
 
-def _probe_deletion(deleted: int, mm: list[_Mismatch], by_mismatches: Grade) -> Grade:
+def _r5c_scope(mgb: bool, probe_nt: int) -> str:
+    """What the probe-deletion data do not cover for this probe (empty when they do).
+
+    Otwell et al. 2025 measured 25-28 nt linear ZEN/IBFQ probes at 55 C over 50 cycles; there is
+    no measurement of a deletion under an MGB or other Tm-raising probe, nor under a probe
+    shorter than that (advisor's literature search, 2026-10-07: searches of PubMed and Europe PMC
+    for a probe-site deletion return that study alone).
+    """
+    if mgb:
+        return ("; no measured data: the deletion classes come from unmodified 25-28 nt probes, "
+                "and no study measured a deletion under an MGB probe")  # fmt: skip
+    if probe_nt < R5C_MIN_PROBE_NT:
+        return (f"; no measured data for a probe of {probe_nt} nt: the deletion classes come from "
+                f"{R5C_MIN_PROBE_NT}-28 nt probes, which keep longer paired arms either side of "
+                "the gap")  # fmt: skip
+    return ""
+
+
+def _probe_deletion(
+    deleted: int, mm: list[_Mismatch], by_mismatches: Grade, *, mgb: bool = False, probe_nt: int = 0
+) -> Grade:
     """R5c: a deletion in the template within the probe site (probe bases without a partner),
     graded from the deletions Otwell et al. 2025 measured in probe sites (section "mismatches in
     probe binding region"): C4 ORF8 (26-nt probe site) <= 6 nt deleted: Ct shift <= 5, no
@@ -398,11 +445,14 @@ def _probe_deletion(deleted: int, mm: list[_Mismatch], by_mismatches: Grade) -> 
                      "(Young-S)")  # fmt: skip
     note = (
         f"{where}: {OTWELL} measured Ct shifts of about 3 (3 nt, ncov_n_gene) to at most 5 "
-        "(<= 6 nt, C4 ORF8), detected at 50 copies"
+        "(<= 6 nt, C4 ORF8), detected at 50 copies, at 55 C over 50 cycles"
     )
+    if deleted in UNTESTED_DELETIONS:
+        note += (f"; {deleted} nt was never tested (1, 3, 4 and 6 nt were), so this class is "
+                 "interpolated")  # fmt: skip
     if mm:
         note += f"; with {len(mm)} mismatch(es) as well, a combination not measured"
-    return Grade(AT_RISK, "R5c", note)
+    return Grade(AT_RISK, "R5c", note + _r5c_scope(mgb, probe_nt))
 
 
 def tested_mismatches(site: Any) -> int:

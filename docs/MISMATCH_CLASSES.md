@@ -159,9 +159,32 @@ detected. Young-S, 3 nt plus three mismatches: not detected at any level. Yale 6
 detected at any level. Encoded: 1-5 nt `at_risk`; 6 nt or more `likely_failure` (at 6 nt the
 assays disagree and the worse is taken); a deletion with three or more mismatches
 `likely_failure`; with one or two mismatches `at_risk`, noted as a combination not measured.
-Insertions in the template within a probe site were not tested and stay R5. One study, SARS-CoV-2
-assays, unmodified ZEN/IBFQ probes under permissive conditions; whether MGB probes behave alike is
-not known.
+Insertions in the template within a probe site were not tested and stay R5.
+
+**How far the data reach** (advisor's literature search, 2026-10-07, after the user questioned
+the lenient classes). A search of PubMed and Europe PMC for a deletion in a probe binding region
+returns this one study; the whole dataset is 15 templates from 4 assays, and the classes carry
+these limits, which the report and the site notes now state:
+
+- **Probe length and chemistry.** All four assays use 25-28 nt linear ZEN/IBFQ probes. No study
+  measured a deletion under an MGB or other Tm-raising probe, or under a shorter probe. A site on
+  a probe outside that range keeps the class but is flagged "no measured data": a 26-mer with a
+  6-nt gap keeps paired arms of about 12 and 8 nt, a 19-mer keeps about 6 and 7.
+- **Deletion lengths.** 1, 3, 4, 6, 7 and 8 nt were measured; **2 and 5 nt never were**, so those
+  two classes are interpolated and say so.
+- **Conditions.** 55 C annealing (not 60) and 50 cycles (not 40), chosen by the authors to be
+  permissive, so the thresholds are upper bounds on tolerance: their 7-nt template gave a mean Ct
+  of 41.0 at 50 copies, already a false negative under a 40-cycle cut-off.
+- **Sequence, not length, decides.** At 6 nt the same study has two near-identical geometries
+  with opposite outcomes: C4 ORF8 (arms 12 + 8) detected at +4.0 Ct, Yale 69/70 del (arms 11 + 8)
+  not detected at any level in four templates. The length thresholds are a calibration
+  convenience, not a mechanism.
+- **The failure is of signal, not amplification.** The authors' minimum positive fluorescence
+  falls from 14,000-27,000 to about 2,900 at 6 nt while the Ct moves only +4, and they recovered
+  dim curves for a failing template on fluorescence-focusing plates. Which side of the threshold
+  a given instrument and plate land on is therefore not predictable from sequence.
+- **Real-world cases are all 6 nt** (the TaqPath S-gene dropout and the like); no clinical case of
+  a 1-5 nt probe-site deletion with a measured outcome has been published.
 
 **R5b. Homopolymer length differences in a primer site** (built 2026-09-26, advisor subagent; the
 class is ours): a single gap block that only changes the length of a run of at least 3 identical
@@ -228,8 +251,15 @@ MGB probes:
 - MGB probe, 2 or more mismatches: `likely_failure`, position-free (a short MGB probe is not
   expected to form a stable duplex; expert judgement). Before 2026-09-25 (later) this was
   `at_risk`, which ranked milder than a single mismatch.
-- Unmodified probe: 1 mismatch outside the last 5 nt `tolerated`, otherwise `at_risk` (longer
-  probes are less mismatch-discriminating).
+- Unmodified probe: 1 mismatch outside the last 5 nt `tolerated`; 1 mismatch in the last 5 nt or
+  2 anywhere `at_risk`; **3 or more `likely_failure`** (user decision 2026-10-07). Until then the
+  rule had no ceiling, so any number of mismatches was `at_risk`: the Legionella run of
+  2026-10-02 graded an 11-mismatch, 2-gap site of the unmodified 35-nt LEGpneu probe `at_risk`
+  while the 19-nt MGB LEGgenus probe with 7 mismatches on the same genome was `likely_failure`.
+  The 2-mismatch step has a measurement behind it: Klungthong et al. 2010 (J Clin Virol
+  48(2):91-95) found an unmodified 30-mer probe with two mismatches still detected every sample,
+  with the mean Ct gap to the reference target widening from 5.58 to 9.28 (Table 3, p. 93). The
+  ceiling at 3 is expert judgement with no source, the same standing as the MGB rule above.
 - Deletions in the template within the probe site: R5c (section 4), the one probe rule with a
   measured basis.
 

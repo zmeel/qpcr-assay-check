@@ -13,9 +13,9 @@ How a primer or probe site is graded and how a genome counts, rule by rule.
 * [R4 - reverse primer in a one-step RT-PCR (not encoded)](r4-reverse-primer-rt.md) - Stadhouders found reverse-primer mismatches mattered little with Taq + MMLV and more with rTth; a caveat, not a class.
 * [R5 - gaps (bulges)](r5-gaps.md) - A gap is indeterminate unless the site's mismatches already give at risk or likely failure; an unpaired end base is a mismatch.
 * [R5b - homopolymer length differences in a primer site](r5b-homopolymer-length.md) - One extra or missing base in a run of 3+ is at risk with the run outside the last 3 nt, otherwise likely failure; our class, no PCR study.
-* [R5c - deletions in a probe site](r5c-probe-deletions.md) - 1-5 deleted bases at risk, 6 or more likely failure, graded from Otwell 2025's probe-site deletions.
+* [R5c - deletions in a probe site](r5c-probe-deletions.md) - 1-5 deleted bases at risk, 6 or more likely failure, from Otwell 2025; the notes now say where that study's data stop (25-28 nt linear probes, 55 C, 50 cycles).
 * [R6 - ambiguity codes in the genome](r6-ambiguity-codes.md) - A code is graded both ways in the last 5 nt; only when it decides between detectable and not is the site undetermined.
 * [R7 - degenerate primers](r7-degenerate-primers.md) - The best-matching variant of a degenerate oligo is graded; no source for partially matching pools.
 * [R8 - the primer pair](r8-primer-pair.md) - 3 mismatches in one primer with 2+ in the other, or 4 with 1+, is likely failure for the pair (Lefever 2013).
-* [R9 - probe mismatches](r9-probes.md) - MGB probe - 1 mismatch in the 3'-most 7 nt likely failure, further 5' undetermined, 2+ likely failure; unmodified probe - 1 outside the last 5 tolerated.
+* [R9 - probe mismatches](r9-probes.md) - MGB probe - 1 mismatch under the MGB likely failure, further 5' undetermined, 2+ likely failure; unmodified probe - 1 outside the last 5 tolerated, 2 at risk, 3+ likely failure.
 * [Specificity findings](specificity-findings.md) - Off-target sites as critical or warning by mismatches, gaps and clean 3' bases; products paired from facing primer sites; severities per finding.

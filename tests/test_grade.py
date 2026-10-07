@@ -278,3 +278,52 @@ def test_one_mgb_mismatch_under_the_mgb_is_a_likely_failure(pos, expected):
     r = g.grade_probe(probe, site, mgb=True)
     assert (r.cls, r.rule) == (expected, "R9") and f"at -{pos}" in r.note and "Kutyavin" in r.note
     assert g.grade_probe(probe, site, mgb=False).cls != g.FAILURE  # unmodified probes unchanged
+
+
+def test_an_unmodified_probe_fails_from_three_mismatches_on():
+    """R9, unmodified probes (user decision 2026-10-07, after the Legionella run of 2026-10-02
+    graded an 11-mismatch unmodified probe site only 'at risk'): 1 mismatch outside the last 5 nt
+    tolerated, 2 at risk, 3 or more likely failure. Klungthong et al. 2010 measured two mismatches
+    in an unmodified 30-mer, every sample still detected; beyond that there is no source, so the
+    ceiling is expert judgement, as the MGB rule already was."""
+    probe = "ACGTTGCAACGTTGCAACGTTGCAAC"  # 26 nt, SYNTHETIC
+
+    def mism(n, start=2):
+        s = list(probe)
+        for i in range(start, start + 2 * n, 2):
+            s[i] = "T" if s[i] != "T" else "A"
+        return "".join(s)
+
+    assert g.grade_probe(probe, mism(1), mgb=False).cls == g.TOLERATED
+    two = g.grade_probe(probe, mism(2), mgb=False)
+    assert (two.cls, two.rule) == (g.AT_RISK, "R9") and "Klungthong" in two.note
+    for n in (3, 4, 8):
+        bad = g.grade_probe(probe, mism(n), mgb=False)
+        assert (bad.cls, bad.rule) == (g.FAILURE, "R9"), n
+        assert f"{n} mismatches" in bad.note and "expert judgement" in bad.note
+    # one mismatch inside the last 5 nt stays at risk, not a failure
+    last5 = probe[:-3] + ("T" if probe[-3] != "T" else "A") + probe[-2:]
+    assert g.grade_probe(probe, last5, mgb=False).cls == g.AT_RISK
+
+
+def test_probe_deletions_say_where_the_measured_data_stop():
+    """R5c grades only what Otwell et al. 2025 measured: 25-28 nt linear probes, 55 C, 50 cycles,
+    deletions of 1, 3, 4, 6, 7 and 8 nt. The classes are unchanged; the note now says when a
+    probe's length or chemistry, or a deletion length, lies outside that (advisor's literature
+    search 2026-10-07: no study measured a deletion under an MGB probe)."""
+    long_probe = "ACGTTGCAACGTTGCAACGTTGCAAC"  # 26 nt, inside the measured range
+    short_probe = "ACGTTGCAACGTTGCAACG"  # 19 nt, outside it
+
+    def deleted(probe, n, at=8):
+        return probe[:at] + "-" * n + probe[at + n :]
+
+    measured = g.grade_probe(long_probe, deleted(long_probe, 3), mgb=False)
+    assert measured.cls == g.AT_RISK and "55 C over 50 cycles" in measured.note
+    assert "never tested" not in measured.note and "no measured data" not in measured.note
+    for n in (2, 5):  # lengths with no template in the study
+        note = g.grade_probe(long_probe, deleted(long_probe, n), mgb=False).note
+        assert f"{n} nt was never tested" in note and "interpolated" in note
+    mgb = g.grade_probe(long_probe, deleted(long_probe, 3), mgb=True)
+    assert mgb.cls == g.AT_RISK and "no study measured a deletion under an MGB probe" in mgb.note
+    short = g.grade_probe(short_probe, deleted(short_probe, 3), mgb=False)
+    assert short.cls == g.AT_RISK and "no measured data for a probe of 19 nt" in short.note
