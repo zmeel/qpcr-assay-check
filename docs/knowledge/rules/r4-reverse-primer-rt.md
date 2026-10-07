@@ -3,7 +3,8 @@ type: Grading Rule
 title: R4 - reverse primer in a one-step RT-PCR (not encoded)
 description: Stadhouders found reverse-primer mismatches mattered little with Taq + MMLV and more with rTth; a caveat, not a class.
 tags: [grading, primer, R4, RNA]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-07T08:39:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: stadhouders
