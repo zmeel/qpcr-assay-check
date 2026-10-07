@@ -53,8 +53,6 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
   headline is still moving with coverage ([run](runs/influenza-a-2026-10-07-16h.md)). A wet-lab
   test of a template with the reverse primer's 3'-terminal G-A would settle 97.6% of the
   failures.
-- Whether an inclusivity FAIL should be held back to Incomplete while coverage is incomplete
-  ([open](open/partial-coverage-and-the-inclusivity-limit.md)).
 - Entamoeba histolytica: a decision on the 62
   predicted products in other Entamoeba species (a wet-lab check against E. dispar and
   E. moshkovskii is the way to settle the probe's discrimination).

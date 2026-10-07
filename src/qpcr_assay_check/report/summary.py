@@ -234,7 +234,15 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
             else f"a single {year_word} year below {rules.fail_below_percent:g}%"
         )
     elif inc.verdict is Verdict.INCOMPLETE:
-        reason = inc.rationale[0] if inc.rationale else ""
+        # the hold-back while coverage is incomplete says what the limit would have made it, so
+        # the reviewer sees the warning without a filed Review or Exceeds limit (user 2026-10-07)
+        reason = next(
+            (line for line in inc.rationale if "held back while genomes are still" in line),
+            next(
+                (line for line in inc.rationale if "not assessed yet (run again" in line),
+                inc.rationale[0] if inc.rationale else "",
+            ),
+        )
     else:
         reason = ""
     return _row("Target detection (inclusivity)", scope, res, inc.verdict, reason, "inclusivity")

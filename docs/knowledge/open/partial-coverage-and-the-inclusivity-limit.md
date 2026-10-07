@@ -1,8 +1,8 @@
 ---
 type: Open Item
 title: An inclusivity FAIL on partly assessed records
-description: The inclusivity status can read "Exceeds limit" while coverage is still Incomplete, on a subset that is biased by the newest-first order. Whether a FAIL should be held back to Incomplete is the user's call.
-tags: [open, question, inclusivity, coverage]
+description: The inclusivity status could read "Exceeds limit" while coverage was still Incomplete, on a subset biased by the newest-first order. The user chose to hold a crossed limit back; built 2026-10-07.
+tags: [open, question, inclusivity, coverage, closed]
 status: draft
 generated: { by: claude-code/agent, at: 2026-10-07T18:00:00Z }
 sources:
@@ -45,8 +45,29 @@ A middle option: keep the FAIL but require coverage, i.e. report Incomplete as t
 verdict while naming the inclusivity figure and its limit in the same row, so the reviewer sees
 the warning without a filed FAIL.
 
-Not built, and nothing was changed: this is a decision about what the status means, not a
-defect.[^rules]
+# Decided: hold it back, 2026-10-07
+
+The user chose the middle option ("Keep incomplete for now"). While genomes or records are still
+to assess, a crossed limit no longer decides the status: the verdict is Incomplete and the
+sentence names what the limit would have made it, for example
+
+> Status: Incomplete (Exceeds limit (below 80%) on the collected genomes assessed so far, held
+> back while genomes are still to assess: the newest are assessed first, so this subset is
+> weighted to the most recent year; setting inclusivity.limits_need_complete_coverage)
+
+so the reviewer sees the warning without a filed Review or Exceeds limit, and the counts line
+("127,768 of 172,768 listed records not assessed yet") stays beside it. The new setting
+`inclusivity.limits_need_complete_coverage` (default true) turns it off for a laboratory that
+wants the genomes assessed so far judged as they stand.
+
+This reverses a deliberate earlier rule: the guide used to say the status is Incomplete "unless
+the figure is already below the FAIL limit", and the code kept a FAIL (code review 2026-09-27
+had asked only that missing evidence never read as no flags). The phrasing lives in
+`fragment_verdict`, which has the limits to name; `pipeline.py` adds the counts as before.[^rules]
+
+Covered by `test_a_crossed_limit_is_held_back_while_genomes_are_still_to_assess`: both a FAIL and
+a WARN held back with the sentence naming them, a PASS untouched, the limits deciding again once
+coverage completes, and the setting turning the hold-back off.
 
 [^run]: "Influenza A (matrix), 2026-10-07 (16:14Z)"
 [^rules]: How the inclusivity status is decided

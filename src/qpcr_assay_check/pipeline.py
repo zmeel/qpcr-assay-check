@@ -214,16 +214,19 @@ def evaluate(
         and inclusivity.exhaustive
         and variant_coverage is not None
         and not variant_coverage.complete
-        and inclusivity.verdict in (Verdict.PASS, Verdict.WARN)
     ):
         # not every genome assessed yet: missing evidence is never "no flags" (code review,
-        # 2026-09-27); a figure already below the FAIL limit stays FAIL
+        # 2026-09-27). A crossed limit is held back in fragment_verdict, which has the limits to
+        # name in its sentence (user, 2026-10-07: "Keep incomplete for now"); here only the
+        # counts are added, for every verdict that is not already a crossed limit the laboratory
+        # chose to keep (inclusivity.limits_need_complete_coverage: false).
         c = variant_coverage
         left = c.listed_total - c.assessed_total - c.unavailable
         what = "records" if c.source == "blast_partitioned" else "assemblies"
+        held = inclusivity.verdict in (Verdict.PASS, Verdict.WARN)
         inclusivity = inclusivity.model_copy(
             update={
-                "verdict": Verdict.INCOMPLETE,
+                "verdict": Verdict.INCOMPLETE if held else inclusivity.verdict,
                 "rationale": [
                     *inclusivity.rationale,
                     f"{left} of {c.listed_total} listed {what} "

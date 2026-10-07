@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **A crossed inclusivity limit is held back to Incomplete while genomes or records are still to
+  assess** (user, 2026-10-07: "Keep incomplete for now", after an influenza run read Exceeds
+  limit at 76.9% on 45,000 of 172,768 records). The analysis works newest publication year first,
+  so a partial run is weighted to the most recent year: in that run 2026 was fully assessed at
+  86.1% detectable, half of 2025 at 75.2%, and 2024 and earlier not at all, and the figure had
+  already moved 85.4% → 83.6% → 76.9% as coverage grew. The status is now Incomplete and the
+  sentence names what the limit would have made it ("Status: Incomplete (Exceeds limit (below
+  80%) on the genomes assessed so far, held back while genomes are still to assess …)"), so the
+  reviewer sees the warning without a filed Review or Exceeds limit. New setting
+  `inclusivity.limits_need_complete_coverage` (default true) turns it off.
+
 ### Fixed
 - **The duplex Tm of a degenerate oligo was measured against a baseline about 15 °C too low**
   (found from two influenza rows that were drawn identically but read ΔTm -3.6 and +0.0 °C).

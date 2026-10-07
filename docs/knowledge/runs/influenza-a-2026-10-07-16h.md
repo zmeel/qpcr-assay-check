@@ -72,7 +72,9 @@ records are strongly correlated. A sample of 40 records per publication year, ta
 0%, 12%, 15% and 0% carrying the terminal mismatch for 2026, 2025, 2024 and 2023 - which is what
 batch structure looks like, not a trend.[^sampling] Only 26% of the listed records are assessed,
 so 76.9% is provisional; the run must be repeated until coverage completes before the figure
-means anything for the assay.[^provisional]
+means anything for the assay. On the user's decision of the same day a crossed limit is now held
+back while records are still to assess, so a rerun of this state would read **Incomplete**, with
+the sentence naming the Exceeds limit it would otherwise have been.[^provisional]
 
 # Both fixes confirmed in the output
 

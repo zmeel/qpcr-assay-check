@@ -166,6 +166,7 @@ settings:                                  # only what differs from the defaults
 #   min_genomes_for_verdict: 100   # fewer in the window: INCOMPLETE
 #   min_genomes_per_year: 30       # one window year this large below the FAIL limit: review
 #   max_undetermined_percent: 25   # more undetermined than this share: INCOMPLETE
+#   limits_need_complete_coverage: true   # hold a crossed limit back while genomes remain
 #   status_axis: release           # release or collection year for the status window
 # variants:                        # the exhaustive variant analysis
 #   source: datasets               # datasets | blast_partitioned

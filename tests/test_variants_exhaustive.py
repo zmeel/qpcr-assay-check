@@ -955,3 +955,37 @@ def test_the_bulge_alternative_counts_the_genomes_judged_from_parts(tmp_path):
     assert cc.with_detectable_copy_bulges == cc.with_detectable_copy_strict + 1
     win2 = fragment_window(res2.inclusivity.fragment_years, cfg2.inclusivity.verdict_window_years)
     assert res2.inclusivity.bulge_alternative > win2.percent
+
+
+def test_a_crossed_limit_is_held_back_while_genomes_are_still_to_assess():
+    """User, 2026-10-07 ("Keep incomplete for now"), from an influenza run that read Exceeds
+    limit at 76.9% on 45,000 of 172,768 records: the newest are assessed first, so a partial run
+    is weighted to the most recent year and a figure can cross a limit and cross back. The
+    sentence still names what the limit would have made it."""
+    from qpcr_assay_check.inclusivity.models import FragmentYear
+    from qpcr_assay_check.variants.exhaustive import fragment_verdict
+
+    rules = load_config().inclusivity
+    assert rules.limits_need_complete_coverage is True
+
+    def year(y, det, fail=0):
+        return FragmentYear(year=y, with_region=det + fail, detectable=det, likely_failure=fail)
+
+    failing = [year(y, 70, fail=30) for y in range(2023, 2027)]
+    reviewing = [year(y, 90, fail=10) for y in range(2023, 2027)]
+    passing = [year(y, 99, fail=1) for y in range(2023, 2027)]
+    # complete coverage: the limits decide, as before
+    assert fragment_verdict(failing, rules)[0] is Verdict.FAIL
+    assert fragment_verdict(reviewing, rules)[0] is Verdict.WARN
+    # still assessing: held back, and the sentence says what it would have been
+    for rows, label in ((failing, "Exceeds limit"), (reviewing, "Review")):
+        verdict, lines = fragment_verdict(rows, rules, coverage_complete=False)
+        assert verdict is Verdict.INCOMPLETE
+        assert f"Status: Incomplete ({label}" in lines[0]
+        assert "held back while genomes are still to assess" in lines[0]
+        assert "limits_need_complete_coverage" in lines[0]
+    # a figure that crosses no limit is not touched, and neither is PASS
+    assert fragment_verdict(passing, rules, coverage_complete=False)[0] is Verdict.PASS
+    # the hold-back is a setting the laboratory can turn off
+    loose = rules.model_copy(update={"limits_need_complete_coverage": False})
+    assert fragment_verdict(failing, loose, coverage_complete=False)[0] is Verdict.FAIL

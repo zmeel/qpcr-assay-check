@@ -38,6 +38,12 @@ inclusivity:
                                     # genomes): INCOMPLETE, not a percentage status. The report
                                     # also gives the figure if all undetermined were escapes and
                                     # if all were detected. Your laboratory's choice.
+  limits_need_complete_coverage: true   # while genomes or records are still to assess, a crossed
+                                    # limit (Review or Exceeds limit) is held back to Incomplete
+                                    # and the sentence says what it would have been. The newest
+                                    # are assessed first, so a partial run is weighted to the most
+                                    # recent year and a figure can cross a limit and cross back.
+                                    # false: judge the genomes assessed so far as they stand.
   status_axis: release             # which year groups the genomes for the status window:
                                     # release (NCBI release year) or collection (the year the
                                     # sample was collected, as its submitter recorded it). The

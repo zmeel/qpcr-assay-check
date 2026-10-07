@@ -1413,7 +1413,7 @@ def _bracket(detected: int, undetermined: int, total: int, unit: str) -> str:
 
 def fragment_verdict(
     years: list[FragmentYear], rules: Any, axis: str = "release",
-    undated: tuple[int, int] | None = None,
+    undated: tuple[int, int] | None = None, coverage_complete: bool = True,
 ) -> tuple[Verdict, list[str]]:  # fmt: skip
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
@@ -1426,7 +1426,14 @@ def fragment_verdict(
     with collection years, (genomes with the region and no collection year to place them by,
     all genomes with the region released in the years shown); more than
     ``max_undetermined_percent`` undated is INCOMPLETE (user, 2026-10-02), as for undetermined
-    genomes, so a status is never carried by the dated minority."""
+    genomes, so a status is never carried by the dated minority.
+
+    ``coverage_complete``: whether every listed genome or record has been assessed. While it is
+    False, a crossed limit is held back to INCOMPLETE and the sentence names what it would have
+    been (user, 2026-10-07: "Keep incomplete for now"). The records are worked newest
+    publication year first, so a partial run is weighted to the most recent year and a figure
+    that crosses a limit on the way can cross back; setting
+    ``inclusivity.limits_need_complete_coverage``."""
     w = fragment_window(years, rules.verdict_window_years)
     by_collection = axis == "collection"
     done, year_word = ("collected", "Collection") if by_collection else ("released", "Release")
@@ -1498,6 +1505,18 @@ def fragment_verdict(
                         Verdict.WARN,
                         f" (a single {year_word.lower()} year below the limit)",
                     )
+    if (
+        not coverage_complete
+        and getattr(rules, "limits_need_complete_coverage", True)
+        and verdict in (Verdict.FAIL, Verdict.WARN)
+    ):
+        why = (
+            f" ({STATUS_LABEL[verdict]}{why} on the {done} genomes assessed so far, held back "
+            "while genomes are still to assess: the newest are assessed first, so this subset is "
+            "weighted to the most recent year; setting "
+            "inclusivity.limits_need_complete_coverage)"
+        )
+        verdict = Verdict.INCOMPLETE
     # written last, so the sentence always names the status the section ends with
     lines[0] += f" Status: {STATUS_LABEL[verdict]}{why}."
     return verdict, lines
@@ -1515,6 +1534,7 @@ def exhaustive_inclusivity(
     from_parts: set[str] | None = None,
     unjudged: set[str] | None = None,
     other_rule: set[str] | None = None,
+    coverage_complete: bool = True,
 ) -> InclusivityResult:
     """Per-release-year inclusivity over every assessed assembly (not a sample).
     ``other_rule``: genomes with a copy detectable under the other homopolymer-bulge setting,
@@ -1554,7 +1574,9 @@ def exhaustive_inclusivity(
         apart = collection.undated.with_region + collection.not_read.with_region
         placed = sum(r.with_region for r in collection.years) + collection.earlier.with_region
         undated = (apart, apart + placed)
-    verdict, rationale = fragment_verdict(status_rows, cfg.inclusivity, axis, undated)
+    verdict, rationale = fragment_verdict(
+        status_rows, cfg.inclusivity, axis, undated, coverage_complete
+    )
     unit = "assemblies" if source == "datasets" else "records"
     if by_collection:
         rw = fragment_window(fragment_years, cfg.inclusivity.verdict_window_years)
@@ -2010,6 +2032,7 @@ def run_exhaustive(
         sites, items, years, assay, cfg, source=source,
         unassembled=unassembled, from_parts=parts_undetermined, unjudged=unjudged,
         other_rule={c.accession for c in calls if c.n_detectable_other_rule > 0},
+        coverage_complete=coverage.complete,
     )  # fmt: skip
     missing = coverage.not_found + coverage.related_only
     if coverage.contig_break or coverage.masked:
