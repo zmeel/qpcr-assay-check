@@ -245,8 +245,10 @@ _COMP = {"A": "T", "C": "G", "G": "C", "T": "A"}
 def site_changes(row: Any) -> str:
     """The differences of a site from its oligo, short: position from the 3' end and the type
     primer-template (as in the class notes, Stadhouders' convention), e.g. "-3 C-A, -12 G-T".
-    Degenerate or ambiguous bases are written oligo/site; runs of inserted or deleted bases are
-    written once ("2-base insertion between -11 and -10", "-12 to -11 deleted")."""
+    An incompatible degenerate or ambiguous base is written oligo/site; one that still matches is
+    written oligo=site ("-9 Y=T": the oligo is degenerate there and this template takes T, so the
+    position is a match but not the same base). Runs of inserted or deleted bases are written once
+    ("2-base insertion between -11 and -10", "-12 to -11 deleted")."""
     q, s = row.q_aln.upper(), row.s_aln.upper()
     length = sum(c != "-" for c in q)
     pos = 0
@@ -288,6 +290,8 @@ def site_changes(row: Any) -> str:
                 out.append(f"-{at} {qc}-{_COMP[sc]}")
         elif not iupac.compatible(qc, sc):
             out.append(f"-{at} {qc}/{sc}")
+        elif qc != sc:  # compatible through a degenerate code: a match, but not the same base
+            out.append(f"-{at} {qc}={sc}")
     flush()
     return ", ".join(out) or "none"
 

@@ -31,8 +31,9 @@ detectable, most frequent first per outcome:
 [![The "Needs attention" table in the HTML report](docs/images/needs_attention_enterovirus.png)](docs/images/needs_attention_enterovirus.png)
 
 Each site is written against its oligo in the column header: a dot is a matching base, a letter a
-mismatch in the genome, the primer 3′ end is underlined; (1) and (2) say which of the two forward
-primers binds best. Next to a site's class: how often that site variant occurs among all records.
+mismatch in the genome, a grey letter a base that matches only through a degenerate code (the
+oligo's own, or an ambiguity code in the genome), the primer 3′ end is underlined; (1) and (2) say
+which of the two forward primers binds best. Next to a site's class: how often that site variant occurs among all records.
 A genome's outcome is its worst site, or likely failure when the two primers together carry too
 many mismatches (Lefever 2013). "Undetermined" (further down the table) is a single mismatch in
 an MGB probe: no published data say whether it matters, so those genomes are counted neither as

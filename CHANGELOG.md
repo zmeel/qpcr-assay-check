@@ -7,6 +7,24 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- **The duplex Tm of a degenerate oligo was measured against a baseline about 15 °C too low**
+  (found from two influenza rows that were drawn identically but read ΔTm -3.6 and +0.0 °C).
+  The perfect-match baseline was the oligo against its own reverse complement with the degenerate
+  codes still in it, and primer3 cannot pair a Y with an R: for RfluA the baseline came out at
+  49.3 °C where the primer's two resolutions melt at 63.0 and 64.5 °C, so every ΔTm was
+  positive-biased, the absolute Tm was not credible, which member the template took decided the
+  figure, and the "Tm ≤ annealing" flag could never fire (it needs the baseline above the
+  annealing temperature). A degenerate oligo is now resolved against the template first - the
+  template's base where the two are compatible, expanded where they are not, the best-binding
+  member winning - so both of those rows read ΔTm -0.7 °C at 62.2 and 63.8 °C. Affects any assay
+  with a degenerate oligo (of the examples, influenza A and enterovirus); ΔTm, ΔG and that flag
+  are the only things that move, never a class.
+- **A base that matches only through a degenerate code is written out instead of a dot**
+  (user, 2026-10-07: "first 2 rows seems the same but have different delta Tm"). In the compact
+  alignments such a position is now a grey letter - a match, but not the same base - and
+  `site_changes` names it (`-9 Y=T`, against `-9 Y/C` for an incompatible one), so two site
+  variants that differ only there are told apart. Covers the oligo's own degenerate codes and
+  ambiguity codes in the genome.
 - **The bracketing homopolymer figure counted the genomes judged from parts as not detectable**
   (found in the Legionella run of 2026-10-07, which read "44.7% if single-base run-length
   differences were tolerated" against 94.0% with them not tolerated: impossible over one cohort,

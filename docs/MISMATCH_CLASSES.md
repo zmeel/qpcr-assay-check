@@ -48,7 +48,10 @@ for the laboratory's own interpretation.
 
 Positions are counted from the 3' end: -1 is the terminal base (Stadhouders nt 1, Lefever
 distance 0). Mismatch type is written primer-template (Stadhouders' convention): the primer base,
-then the base on the template strand facing it.
+then the base on the template strand facing it. A degenerate position that still matches is not a
+mismatch and takes no class, but it is named (`-9 Y=T`) and drawn as a grey letter rather than a
+dot, because two site variants can differ in nothing else; the duplex Tm of such a site is
+computed for the member of the mix the template takes, not for the degenerate code.
 
 **R1. Last 5 nt, a single mismatch** (Stadhouders Table 1, p. 116): classes by type group, position
 and setup.

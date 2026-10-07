@@ -4,6 +4,7 @@ Open items: review suggestions not taken up, checks still to do.
 
 * [The bracketing bulge figure drops the from-parts genomes](bulge-alternative-from-parts.md) - The "x% if run-length differences were tolerated" figure counted a genome judged from parts as not detectable, so it could fall below the headline. Fixed the same day (option 2).
 * [Check N. meningitidis record CP171264.1](cp171264-record-check.md) - A perfect 76-bp product with NG-P1 is predicted on this N. meningitidis record; is the record what it says it is?
+* [Degenerate oligos broke the duplex Tm baseline](degenerate-duplex-baseline.md) - The perfect-match baseline was computed with the degenerate codes left in, which primer3 cannot pair, so every ΔTm of such an oligo was measured against a reference about 15 C too low. Fixed 2026-10-07.
 * [Rerun the enterovirus assay](enterovirus-rerun.md) - The enterovirus run predates the MGB region rule, which can change its probe's single-mismatch genomes.
 * [Analyse every locus of a multi-locus assay](every-locus.md) - Only the first locus is analysed; a multi-locus assay would be judged on one region.
 * [Independent validation of the classes](independent-validation.md) - The Otwell comparison is calibration; independent data such as Knight 2025 or the GoPrime templates are needed.

@@ -82,7 +82,11 @@ def test_site_changes_are_written_from_the_3prime_end():
     row = NS(q_aln="ACGTACGTAC", s_aln="ACGTACGTAA")  # site A facing oligo C at -1
     assert site_changes(row) == "-1 C-T"  # oligo base - template base (complement of A)
     assert site_changes(NS(q_aln="ACGTA", s_aln="AC-TA")) == "-3 deleted"
-    assert site_changes(NS(q_aln="ACGTR", s_aln="ACGTG")) == "none"  # degenerate base matches
+    # a degenerate position that matches is a match, but not the same base: named, so that two
+    # site variants differing only there are told apart (user, 2026-10-07)
+    assert site_changes(NS(q_aln="ACGTR", s_aln="ACGTG")) == "-1 R=G"
+    assert site_changes(NS(q_aln="ACGTA", s_aln="ACGTW")) == "-1 A=W"  # ambiguity in the genome
+    assert site_changes(NS(q_aln="ACGTR", s_aln="ACGTC")) == "-1 R/C"  # incompatible, unchanged
     assert site_changes(NS(q_aln="ACGTA", s_aln="ACGTA")) == "none"
     assert site_changes(NS(q_aln="AC-GTA", s_aln="ACAGTA")) == "insertion between -4 and -3"
 
@@ -380,3 +384,25 @@ def test_the_report_states_search_limits_rna_and_the_homopolymer_range(tmp_path)
     if inc.bulge_alternative is not None:
         (row,) = [x for x in summary_rows(result, cfg, []) if x.check.startswith("Target detect")]
         assert "run-length differences were tolerated" in row.result
+
+
+def test_a_degenerate_match_is_written_out_instead_of_a_dot():
+    """User, 2026-10-07: two influenza rows were drawn identically because the base under the
+    primer's Y is a match either way, so the only sign of the difference was the ΔTm."""
+    from qpcr_assay_check.align.realign import midline
+    from qpcr_assay_check.report.html import _compact_html
+
+    def row(q, s):
+        return NS(q_aln=q, s_aln=s, midline=midline(q, s), role="forward")
+
+    plain = str(_compact_html(row("ACGTA", "ACGTA")))
+    assert plain.count(".") == 5 and "amb" not in plain
+    with_t = str(_compact_html(row("ACGTY", "ACGTT")))
+    with_c = str(_compact_html(row("ACGTY", "ACGTC")))
+    assert with_t != with_c  # the whole point: the two variants are told apart
+    for html, base in ((with_t, "T"), (with_c, "C")):
+        assert f'class="amb tail">{base}<' in html  # grey, not a dot, and not a mismatch
+        assert "mm" not in html
+    # an ambiguity code in the genome is written out too, and a real mismatch stays highlighted
+    assert 'class="amb tail">W<' in str(_compact_html(row("ACGTA", "ACGTW")))
+    assert 'class="mm tail">C<' in str(_compact_html(row("ACGTA", "ACGTC")))

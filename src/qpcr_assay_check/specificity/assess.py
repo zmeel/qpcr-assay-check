@@ -198,7 +198,7 @@ def assess_specificity(
         if s.source == "blast_partial_worst_case":
             continue
         nM = cfg.reaction.probe_nM if s.role == "probe" else cfg.reaction.primer_nM
-        s.tm_c, s.dg_kcal, s.delta_tm_c = estimate_duplex(s.oligo, s.s_aln, cond, nM)
+        s.tm_c, s.dg_kcal, s.delta_tm_c = estimate_duplex(s.oligo, s.s_aln, cond, nM, s.q_aln)
 
     saturated = [
         (r.tier, sat.label, sat.note)

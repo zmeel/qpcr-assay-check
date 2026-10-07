@@ -45,12 +45,12 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 | Legionella | [2026-10-02 13:16Z](runs/legionella-2026-10-02.md) | Incomplete: 46.1% undetermined, mostly regions cut by contig ends |
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
-| Influenza A (matrix) | [2026-10-07 13:08Z](runs/influenza-a-2026-10-07.md) | made with a reverse primer 2 nt short: its figures are not an assessment. Primer corrected the same day; a fresh run is needed |
+| Influenza A (matrix) | [2026-10-07 14:01Z](runs/influenza-a-2026-10-07-corrected.md) | 83.6% detectable of 17,058 records; Incomplete, 152,768 records left to assess. ΔTm figures predate the degenerate-oligo fix |
 
 # Next, waiting on the user
 
-- Influenza A (matrix): rerun with the corrected reverse primer, after clearing this assay's
-  cached regions so the reverse sites are re-aligned ([assay](assays/influenza-a-matrix.md)).
+- Influenza A (matrix): keep running to work through the remaining 152,768 records; a rerun
+  also picks up the corrected ΔTm figures ([assay](assays/influenza-a-matrix.md)).
 - Entamoeba histolytica: a decision on the 62
   predicted products in other Entamoeba species (a wet-lab check against E. dispar and
   E. moshkovskii is the way to settle the probe's discrimination).

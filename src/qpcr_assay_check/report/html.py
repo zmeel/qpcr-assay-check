@@ -91,7 +91,12 @@ def _alignment_html(site: Any, tail: int = 5) -> Markup:
 def _compact_html(site: Any, tail: int = 5, suffix: str = "") -> Markup:
     """One-line alignment for narrow tables: the subject in oligo orientation with matching
     bases as dots, mismatches as highlighted letters and gaps as '-'; the 3' end underlined.
-    The oligo itself is shown once, in the table header."""
+    The oligo itself is shown once, in the table header.
+
+    A base that matches only through a degenerate code - the oligo's own (Y against C or T) or an
+    ambiguity code in the genome - is written out in grey instead of a dot: it is a match, but it
+    is not the same base, and two site variants that differ only there would otherwise be drawn
+    identically (user, 2026-10-07)."""
     if getattr(site, "role", None) == "probe":
         tail = 0
     q, s, mid = site.q_aln, site.s_aln, site.midline
@@ -108,6 +113,8 @@ def _compact_html(site: Any, tail: int = 5, suffix: str = "") -> Markup:
             ch, klass = sc if sc != "-" else "-", "gp"
         elif mc == " ":
             ch, klass = sc, "mm"
+        elif qc != sc:
+            ch, klass = sc, "amb"  # a match through a degenerate code: shown, not a dot
         else:
             ch, klass = ".", ""
         classes = " ".join(c for c in (klass, "tail" if is_tail else "") if c)

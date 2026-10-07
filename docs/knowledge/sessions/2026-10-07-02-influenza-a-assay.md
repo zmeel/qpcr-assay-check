@@ -71,6 +71,19 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
   forms. QC falls from Exceeds limit to Review (primer Tm difference 6.2 C to 3.4 C, within the
   limit), the reverse site sits at 118-141 exactly and the product is the whole 141-nt reference.
   Written up as [runs/influenza-a-2026-10-07](../runs/influenza-a-2026-10-07.md).
+- First run with the corrected primer (14:01Z): 83.6% detectable of 17,058 records, oligo QC 0
+  outside the limit (was 1), 49 needs-attention combinations against 67; still Incomplete only
+  because 152,768 records are left to assess
+  ([run](../runs/influenza-a-2026-10-07-corrected.md)).
+- The user compared its first two "Needs attention" rows: identical in every column, ΔTm -3.6 C
+  against +0.0 C. They are two variants differing only in the base under the reverse primer's
+  degenerate Y (PX851249.1 T, PZ038336.1 C), which the dot notation hid. Chasing it found the
+  perfect-match Tm baseline was computed with the degenerate codes left in, which primer3 cannot
+  pair: 49.3 C where the primer's resolutions melt at 63.0 and 64.5 C. Both fixed on the user's
+  word ("Do both"): the estimate resolves the oligo against the template first (both rows now
+  -0.7 C at 62.2 and 63.8 C), and a match through a degenerate code is drawn as a grey letter and
+  named `-9 Y=T` instead of a dot
+  ([open item, closed](../open/degenerate-duplex-baseline.md)).
 
 # Related
 
@@ -78,3 +91,5 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
 * [Legionella, 2026-10-07 (09:48Z)](../runs/legionella-2026-10-07.md)
 * [The bracketing bulge figure drops the from-parts genomes](../open/bulge-alternative-from-parts.md)
 * [Influenza A (matrix), 2026-10-07 (13:08Z)](../runs/influenza-a-2026-10-07.md)
+* [Influenza A (matrix), 2026-10-07 (14:01Z)](../runs/influenza-a-2026-10-07-corrected.md)
+* [Degenerate oligos broke the duplex Tm baseline](../open/degenerate-duplex-baseline.md)
