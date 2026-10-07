@@ -204,14 +204,61 @@ politely and caches every result. See [docs/USER_GUIDE.md](docs/USER_GUIDE.md#nc
   others, and a year's records are those published that year, not those collected.
 - Sequencing errors and consensus ambiguity codes appear as variants; homopolymer runs are
   especially error-prone.
-- The mismatch classes come from primer studies on DNA with one polymerase; no source covers
-  probe mismatches or gaps, so those are shown as such (indeterminate or undetermined).
+- The mismatch classes come from primer studies on DNA with one polymerase. The probe rules rest
+  on far less: a single mismatch in an MGB probe has no published outcome at all (shown as
+  undetermined), and the deletion thresholds come from one study of 25-28 nt linear probes, so a
+  shorter or MGB probe is graded but flagged as outside the measured range
+  ([rules](docs/knowledge/rules/index.md) names the evidence per rule).
 - BLAST is a heuristic: "no hit" is not proof of "no binding". Products from a single primer
   binding both strands are not predicted.
 - Specificity covers only the tiers that were searched.
 - None of this is a validation of the assay.
 
 The complete list: [docs/USER_GUIDE.md](docs/USER_GUIDE.md#limitations).
+
+## The knowledge base
+
+Why the tool judges a site the way it does is kept in the repository, not only in the code:
+[docs/knowledge/](docs/knowledge/index.md) is a knowledge bundle in the
+[Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format) v0.2 —
+over 170 markdown files, one concept each, with YAML frontmatter and relative links, readable on
+GitHub or in any markdown viewer.
+
+| Folder | What is in it |
+|---|---|
+| [rules](docs/knowledge/rules/index.md) | Each grading rule: what it says, what it rests on, and where the evidence stops |
+| [sources](docs/knowledge/sources/index.md) | The papers, reviews and NCBI documentation the rules rest on |
+| [decisions](docs/knowledge/decisions/index.md) | Dated decisions, with what each one changed |
+| [assays](docs/knowledge/assays/index.md) | The example assays: where the sequences come from, what was checked |
+| [runs](docs/knowledge/runs/index.md) | Live runs and their key numbers |
+| [ncbi](docs/knowledge/ncbi/index.md) | NCBI behaviour checked against current documentation or measured live |
+| [components](docs/knowledge/components/index.md) | What each part of the code does, linked to the source |
+| [open](docs/knowledge/open/index.md) | Open items: review points not taken up, checks still to do |
+| [sessions](docs/knowledge/sessions/index.md) | What each working session did, newest first |
+| [settings](docs/knowledge/settings/index.md), [releases](docs/knowledge/releases/index.md) | The default configuration and the release history (generated) |
+
+Two things it is for. **Traceability**: a reviewer can follow any class in a report to the rule,
+the rule to its source, and the source to what was and was not measured — a rule calibrated on
+25–28 nt linear probes says so, and a site outside that range is flagged in the report rather
+than quietly graded. **Honest provenance**: every concept carries its trust tier in its
+frontmatter. A concept starts `draft` and unverified; it becomes `stable` only once the
+laboratory has read it and agrees, recorded as `verified: { by: human:<id>, at: <timestamp> }`.
+Nothing is marked verified on the reader's behalf. Concepts about live data carry `stale_after`,
+after which they must be checked again.
+
+Start at [docs/knowledge/index.md](docs/knowledge/index.md), or read
+[about.md](docs/knowledge/about.md) for how the bundle is organised and how far to trust it.
+[status.md](docs/knowledge/status.md) is where the project stands today.
+
+For browsing rather than reading file by file:
+
+```bash
+python scripts/knowledge_viewer.py    # writes work/knowledge-viewer.html
+```
+
+One self-contained HTML file, no external requests: a map of every concept and its links, a list
+with each concept's review state, search, and a reading panel showing a concept's sources, its
+links and what cites it.
 
 ## Documentation
 
@@ -222,6 +269,7 @@ The complete list: [docs/USER_GUIDE.md](docs/USER_GUIDE.md#limitations).
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design, and the NCBI behaviour it relies on (verified live) |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
 | [docs/FEATURE_IDEAS.md](docs/FEATURE_IDEAS.md) | Proposed features, not started |
+| [docs/knowledge/](docs/knowledge/index.md) | The knowledge base: rules, sources, decisions, runs, open items (see above) |
 
 ## Development
 
