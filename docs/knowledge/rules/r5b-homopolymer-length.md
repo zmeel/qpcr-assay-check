@@ -3,7 +3,8 @@ type: Grading Rule
 title: R5b - homopolymer length differences in a primer site
 description: One extra or missing base in a run of 3+ is at risk with the run outside the last 3 nt, otherwise likely failure; our class, no PCR study.
 tags: [grading, primer, homopolymer, R5b]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-07T09:01:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: mismatch-classes
