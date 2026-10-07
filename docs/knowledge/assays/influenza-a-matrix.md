@@ -55,6 +55,29 @@ report a 2-base discrepancy at the 5' end of RfluA on essentially every record. 
 been asked to check the primer against the laboratory's order sheet.** Until then a report of
 this file says more about the transcription than about the assay.
 
+# Exclusivity panel
+
+The user asked for influenza B only and, on advice, agreed to widen it the same day. The reason
+is partly mechanical: an assay's own `exclusivity_organisms` **replaces** the packaged clinical
+organism list (`organisms.source: assay` falls back to the global list only for an assay that
+defines none), so a one-name list would have made this tier narrower than the default. The panel
+is now 17 taxa:
+
+| Group | Taxa |
+|---|---|
+| Orthomyxoviridae, nearest neighbours | influenza B (11520, both lineages), C (11552), D (1511084) |
+| Respiratory differential | RSV (11250), hMPV (162145), Human respirovirus 1 (12730) and 3 (11216), Human orthorubulavirus 2 (2560525), SARS-CoV-2 (2697049), HCoV 229E (11137), OC43 (31631), NL63 (277944), HKU1 (290028), Rhinovirus A (147711), Enterovirus (12059), Mastadenovirus (10509), Human bocavirus 1 (689403) |
+
+Influenza C and D are the nearest taxa outside the target and each has its own M gene, which is
+the conserved segment these primers sit in. The respiratory differential is there for what the
+tier is for: showing no product in the other organisms the sample contains. Every name resolves
+to exactly one taxon by scientific name (checked live, 2026-10-07); parainfluenza 1-3 and
+rhinovirus A are written with their current names, because the older spellings resolve only
+through the `[All Names]` synonym fallback.[^taxonomy]
+
+Nothing **inside** influenza A is excluded: avian and swine strains sit under 11320 and detecting
+them is the point of an M-gene target.
+
 # Variant source
 
 `blast_partitioned`, narrowed to `980:1100[SLEN] AND segment 7[TITL]`. Influenza A is segmented,

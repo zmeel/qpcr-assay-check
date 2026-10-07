@@ -32,6 +32,13 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
   apart, a 5-base run in each probe) plus the two site warnings. Product 139 bp, GC 49.6%.
 - Both probes are linear NED/BHQ1, so they are the first example assay the unmodified-probe
   ladder of [R9](../rules/r9-probes.md) applies to.
+- User asked whether a different exclusion would be better, and agreed to widen it: the panel
+  went from influenza B alone to 17 taxa (influenza B, C, D, plus the respiratory differential).
+  The mechanical reason is that an assay's own `exclusivity_organisms` replaces the packaged
+  clinical organism list, so one name would have made the tier narrower than the default. Every
+  name checked live; parainfluenza 1-3 and rhinovirus A written with their current scientific
+  names (the older spellings need the `[All Names]` fallback). Nothing inside influenza A is
+  excluded.
 
 # Related
 
