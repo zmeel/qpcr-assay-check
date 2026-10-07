@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **The bracketing homopolymer figure counted the genomes judged from parts as not detectable**
+  (found in the Legionella run of 2026-10-07, which read "44.7% if single-base run-length
+  differences were tolerated" against 94.0% with them not tolerated: impossible over one cohort,
+  since tolerating a run-length difference never loses a genome). `n_detectable_other_rule`
+  omitted the `judge_from_parts` term that `n_detectable` carries, so every genome counted from
+  its parts was missing from the figure's numerator - 2,928 of them in that run. It now judges
+  from parts under the other rule as well (user decision 2026-10-07, option 2), so a genome whose
+  parts are detectable only when a run-length difference is tolerated is counted too. Only
+  `inclusivity.bulge_alternative` and the "Homopolymer setting:" rationale line change; the
+  headline, the per-year table, the channel figures and every class are unaffected.
+
 ### Added
 - **Knowledge viewer** (user, 2026-10-04: "Make the viewer"): `python scripts/knowledge_viewer.py`
   writes `work/knowledge-viewer.html`, one self-contained file without external requests: a map

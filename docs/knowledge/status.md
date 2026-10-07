@@ -49,8 +49,6 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
-- Which fix to take for the bracketing bulge figure, which counts the from-parts genomes as
-  not detectable ([open](open/bulge-alternative-from-parts.md)).
 - Influenza A (matrix): check RfluA against the laboratory's order sheet. As supplied it misses
   the supplied reference by 2 bases at its 5' end ([assay](assays/influenza-a-matrix.md)); a run
   before that is settled would report that discrepancy on every record.

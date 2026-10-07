@@ -50,9 +50,14 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
   against 94.0% strict, which is impossible over a fixed cohort. `n_detectable_other_rule`
   omits the `judge_from_parts` term that `n_detectable` has, so the 2,928 genomes judged from
   parts count as not detectable in the bracketing figure. Reproduced with the existing
-  `_split_fixture` (75.0% headline, 50.0% bracketing, no bulge anywhere in the fixture). Not
-  fixed: it changes a number in filed reports and there are two fixes to choose between
-  ([open item](../open/bulge-alternative-from-parts.md)).
+  `_split_fixture` (75.0% headline, 50.0% bracketing, no bulge anywhere in the fixture).
+- Fixed on the user's word ("Execute option 2"): `assess` now also judges from parts under the
+  other bulge rule, so a genome detectable from parts only because a run-length difference is
+  tolerated is counted as well. `_assess_parts` runs a second time only for a genome with no
+  copy detectable under the other rule and a cut copy. A genome with no whole copy at all never
+  gets a `GenomeCall`, so it stays outside both figures' cohort either way; the extra case is a
+  failing whole copy plus cut copies, the Legionella shape. New test covers both halves and
+  fails on the old code ([open item, now closed](../open/bulge-alternative-from-parts.md)).
 
 # Related
 

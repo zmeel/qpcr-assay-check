@@ -572,6 +572,29 @@ def assess(
                 update["channel_sites"] = channels
             sites.append(chosen[role].model_copy(update=update))
         if calls is not None:
+            # The same count under the other homopolymer-bulge rule, for the bracketing figure
+            # (bulge_alternative): the copies, and the judgement from parts that genome would
+            # get under that rule. Without the parts term the alternative drops every genome
+            # counted from parts and can fall below the headline, which is impossible over one
+            # cohort (user decision 2026-10-07, option 2 of open/bulge-alternative-from-parts).
+            n_other = sum(
+                all(
+                    roles_ok(
+                        {r: _role_site(assay, r, a, channel_rule, not bulges) for r in ROLES},
+                        not bulges,
+                    ).values()
+                )
+                for _c, a in copies
+            )
+            parts_other = None
+            if parts_rule != "off" and not n_other and any(lc.truncated for lc in it.loci):
+                parts_other = _assess_parts(
+                    it, per_ref, assay, cfg, scoring, memo, channel_rule, not bulges
+                )
+                if parts_other is not None and not all(
+                    roles_ok(parts_other[0], not bulges).values()
+                ):
+                    parts_other = None  # as above: only a detectable judgement counts
             calls.append(
                 GenomeCall(
                     accession=it.accession,
@@ -580,18 +603,8 @@ def assess(
                     + (parts is not None and parts_rule == "detectable"),
                     from_parts=parts is not None,
                     best_is_first=best_i == 0,
-                    n_detectable_other_rule=sum(
-                        all(
-                            roles_ok(
-                                {
-                                    r: _role_site(assay, r, a, channel_rule, not bulges)
-                                    for r in ROLES
-                                },
-                                not bulges,
-                            ).values()
-                        )
-                        for _c, a in copies
-                    ),  # fmt: skip
+                    n_detectable_other_rule=n_other
+                    + (parts_other is not None and parts_rule == "detectable"),
                     oligo_good={name: detectable(x, bulges) for name, x in all_sites.items()},
                     role_good=roles_ok(chosen, bulges),
                     role_state=roles_state(chosen, bulges),

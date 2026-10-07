@@ -910,3 +910,48 @@ def test_by_default_a_genome_detectable_from_parts_counts_as_detected(tmp_path):
     assert cc.from_parts_counted and cc.with_detectable_copy == 3
     years = res.inclusivity.fragment_years
     assert sum(y.from_parts for y in years) == 0  # not undetermined any more
+
+
+def _split_with_a_bulge():
+    """A genome with one whole copy that fails (a 3'-end forward mismatch) and a copy split over
+    two contigs whose forward site carries a poly-A run one base longer: judged from parts only
+    when run-length differences are tolerated."""
+    left = AMP[:80].replace(F, F.replace("AAAA", "AAAAA", 1), 1)
+    split = FakeAssembly(
+        "GCA_000000008.1",
+        "2026-05-01",
+        {
+            "W8.1": filler(2000, 80) + AMP.replace(F, F_VARIANT, 1) + filler(500, 83),
+            "L8.1": filler(3000, 81) + left,
+            "R8.1": AMP[60:] + filler(3000, 82),
+        },
+    )
+    return FakeDatasets([*assemblies(), split])
+
+
+def test_the_bulge_alternative_counts_the_genomes_judged_from_parts(tmp_path):
+    """User decision 2026-10-07 (option 2): the figure under the other homopolymer-bulge rule
+    judges from parts under that rule too. Without it a genome counted from parts is missing
+    from the alternative, which could then fall below the headline - impossible over one
+    cohort, since tolerating a run-length difference never loses a genome."""
+    cfg, fake, client, assay = setup(tmp_path, fake=_split_fixture())
+    assert cfg.variants.judge_from_parts == "detectable"
+    res = run(tmp_path, cfg, client, assay)
+    win = fragment_window(res.inclusivity.fragment_years, cfg.inclusivity.verdict_window_years)
+    # the split genome has no bulge: detectable from parts under either rule, so the two agree
+    assert (win.n, win.detectable, win.percent) == (4, 3, 75.0)
+    assert res.inclusivity.bulge_alternative == 75.0
+    assert not [x for x in res.inclusivity.rationale if x.startswith("Homopolymer setting:")]
+
+    # a genome whose parts are detectable only when the run-length difference is tolerated
+    cfg2, fake2, client2, assay2 = setup(tmp_path / "b", fake=_split_with_a_bulge())
+    res2 = run(tmp_path / "b", cfg2, client2, assay2)
+    cc = res2.coverage.copies
+    split = "GCA_000000008.1"
+    assert split not in cc.from_parts_accessions  # strict: its parts are not detectable
+    assert split in cc.escape_examples  # strict: its whole copy fails, so it is an escape
+    # tolerating the run-length difference makes its parts detectable, and that judgement is
+    # now made under that rule too: one genome more
+    assert cc.with_detectable_copy_bulges == cc.with_detectable_copy_strict + 1
+    win2 = fragment_window(res2.inclusivity.fragment_years, cfg2.inclusivity.verdict_window_years)
+    assert res2.inclusivity.bulge_alternative > win2.percent

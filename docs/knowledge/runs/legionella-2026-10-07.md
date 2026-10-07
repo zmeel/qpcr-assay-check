@@ -83,8 +83,10 @@ have nothing to mark.
 
 The summary reads "44.7% if single-base run-length differences were tolerated" against 94.0%
 with them not tolerated. Tolerating more cannot lower detectability over a fixed cohort, and it
-does not: the bracketing figure drops every genome judged from parts (2,928 in this run).
-See [the open item](../open/bulge-alternative-from-parts.md).[^bug]
+does not: the bracketing figure dropped every genome judged from parts (2,928 in this run).
+Fixed the same day;[^bug] this report still carries the understated figure, and nothing else in
+it is affected - the headline, the per-year table, the channel figures and every class were
+computed on the configured rule and stand.
 
 [^report]: Report of the 09:48Z run
 [^previous]: "Legionella, 2026-10-02"
