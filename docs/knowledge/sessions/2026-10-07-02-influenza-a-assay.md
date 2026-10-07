@@ -40,6 +40,22 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
   names (the older spellings need the `[All Names]` fallback). Nothing inside influenza A is
   excluded.
 
+- User uploaded a Legionella run made with the latest code (09:48Z). The probe-rule change
+  landed as predicted: the micdadei row (7 genomes, GCF_000953635.1) now reads likely failure
+  for the unmodified LEGpneu probe, every LEGpneu entry in "Needs attention" does, and no
+  headline figure moved (94.0% of 1,690 against 93.9% of 1,669 on 2026-10-02, the difference
+  being NCBI's growth from 11,174 to 11,952 assemblies). R5c never fires in this assay.
+  Written up as [runs/legionella-2026-10-07](../runs/legionella-2026-10-07.md).
+- Found a bug in that report: "44.7% if single-base run-length differences were tolerated"
+  against 94.0% strict, which is impossible over a fixed cohort. `n_detectable_other_rule`
+  omits the `judge_from_parts` term that `n_detectable` has, so the 2,928 genomes judged from
+  parts count as not detectable in the bracketing figure. Reproduced with the existing
+  `_split_fixture` (75.0% headline, 50.0% bracketing, no bulge anywhere in the fixture). Not
+  fixed: it changes a number in filed reports and there are two fixes to choose between
+  ([open item](../open/bulge-alternative-from-parts.md)).
+
 # Related
 
 * [Influenza A, matrix gene (two NED probes)](../assays/influenza-a-matrix.md)
+* [Legionella, 2026-10-07 (09:48Z)](../runs/legionella-2026-10-07.md)
+* [The bracketing bulge figure drops the from-parts genomes](../open/bulge-alternative-from-parts.md)

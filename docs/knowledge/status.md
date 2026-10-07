@@ -41,6 +41,7 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 | Assay | Run | Result |
 |---|---|---|
 | Neisseria | [2026-10-02 21:13Z](runs/neisseria-2026-10-02.md) | all 51,545 genomes; 85.8% by collection year, 89.0% by release; Review |
+| Legionella | [2026-10-07 09:48Z](runs/legionella-2026-10-07.md) | Incomplete: 46.1% undetermined; 94.0% of 1,690 collected 2023-2026; first run with the new R9 ladder |
 | Legionella | [2026-10-02 13:16Z](runs/legionella-2026-10-02.md) | Incomplete: 46.1% undetermined, mostly regions cut by contig ends |
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
@@ -48,6 +49,8 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
+- Which fix to take for the bracketing bulge figure, which counts the from-parts genomes as
+  not detectable ([open](open/bulge-alternative-from-parts.md)).
 - Influenza A (matrix): check RfluA against the laboratory's order sheet. As supplied it misses
   the supplied reference by 2 bases at its 5' end ([assay](assays/influenza-a-matrix.md)); a run
   before that is settled would report that discrepancy on every record.
