@@ -1,7 +1,7 @@
 ---
 type: Assay
 title: Influenza A, matrix gene (two NED probes)
-description: One primer pair and two alternative linear NED/BHQ1 probes in segment 7; added as supplied, with a 2-base discrepancy between the reverse primer and the reference sequence left in place.
+description: One primer pair and two alternative linear NED/BHQ1 probes in segment 7; the reverse primer arrived two bases short and now carries the user's own laboratory's sequence.
 resource: ../../examples/influenza_a_matrix.yaml
 tags: [assay, example, RNA, virus]
 status: draft
@@ -13,6 +13,9 @@ sources:
   - id: session
     resource: ../sessions/2026-10-07-02-influenza-a-assay.md
     title: "Session 2026-10-07: Influenza A assay file"
+  - id: run
+    resource: ../runs/influenza-a-2026-10-07.md
+    title: "Influenza A (matrix), 2026-10-07 (13:08Z)"
   - id: r9
     resource: ../rules/r9-probes.md
     title: R9 - probe mismatches
@@ -24,9 +27,10 @@ stale_after: 2027-04-07T00:00:00Z
 
 # Provenance
 
-Oligos, the 141-nt reference sequence and the exclusion (influenza B) supplied by the user on
-2026-10-07; not checked against a publication or kit insert. Oligo names are the user's. The
-sequences are in the file exactly as given, including the discrepancy below.[^assay-file]
+Oligos, the 141-nt reference sequence and the exclusion (influenza B) passed on by the user on
+2026-10-07, who had them from another laboratory to test this tool with; not checked against a
+publication or kit insert. Oligo names are as received. One sequence was corrected, the reverse
+primer (below); everything else is exactly as received.[^assay-file]
 
 # Design
 
@@ -35,25 +39,37 @@ sequences are in the file exactly as given, including the discrepancy below.[^as
 | forward | FfluA (23 nt, R at 6) | 1-23, exact |
 | probe | PfluA1-tq-NED (22 nt, NED, BHQ1) | 43-64, same strand, exact |
 | probe | PfluA2-tq-NED (22 nt, NED, BHQ1) | 43-64, one mismatch 3 nt from its 3' end |
-| reverse | RfluA (22 nt, Y at 14) | binds 118-139, **2 mismatches** |
+| reverse | RfluA (24 nt, Y at 16) | binds 118-141, exact |
 
-Product 139 bp, GC 49.6%, with 2 nt of the reference left over at the 3' end. Both probes sit on
-one NED channel; both are linear (no MGB, LNA or other Tm-raising modification), so the
+Product 141 bp (the whole reference, no flanking bases), GC 49.6%. Both probes sit on one NED
+channel; both are linear (no MGB, LNA or other Tm-raising modification), so the
 unmodified-probe ladder of R9 applies to them.[^r9] Target influenza A virus (11320); template
 RNA.
 
-# The reverse primer does not fit the reference
+# The reverse primer arrived two bases short
 
-The supplied reference reads `...CTCATGGAATGGCTAAAGACAAGA` and the reverse primer, reversed,
-reads `CTCATGGAARTGGCTAAAGAAGA`: two mismatches at the primer's 5' end, and the reference runs on
-for 2 more bases. The reference is in frame for M1 (`CTA AAG ACA AGA` = Leu-Lys-Thr-Arg); the
-primer is 2 bases short of covering it. Inserting `GT` after the primer's leading `TCTT`
-(`TCTTCTTTAGCC...` to `TCTTGTCTTTAGCC...`) makes the primer match the reference over its whole
-length with no mismatch and no gap. That is arithmetic on the two supplied sequences, not a
-sequence from any source, and nothing was changed: the primer stands as supplied, so a run will
-report a 2-base discrepancy at the 5' end of RfluA on essentially every record. **The user has
-been asked to check the primer against the laboratory's order sheet.** Until then a report of
-this file says more about the transcription than about the assay.
+As received, RfluA was the 22-mer `TCTTCTTTAGCCAYTCCATGAG`. Against the supplied reference its
+site read two mismatches at the primer's 5' end while the reference ran on for 2 more bases:
+
+```
+reference 118-141     CTCATGGAATGGCTAAAGACAAGA
+RfluA (22 nt), rev.   CTCATGGAARTGGCTAAAGAAGA-
+```
+
+The reference is in frame for M1 there (`CTA AAG ACA AGA` = Leu-Lys-Thr-Arg), so the primer was
+out of register, not the reference; inserting `GT` after its leading `TCTT` restores it. That was
+arithmetic on two sequences, so nothing was changed at the time and the user was asked to check
+the order sheet.
+
+The [run of 13:08Z](../runs/influenza-a-2026-10-07.md) then showed the same thing in the data:
+all 23 reverse site variants, over all 14,960 assessed records (100%), carried the 2-base
+difference, so not one record in 15,000 matched the primer perfectly.[^run] Two records the user
+downloaded settled it live: the 22-mer gives 3 mismatches in both, the 24-mer 1, and the one left
+is strain variation at a different position in each.
+
+The user then gave their own laboratory's primer for the same influenza A PCR -
+`TCTTGTCTTTAGCCAYTCCATGAG` - and the file carries that. It is the laboratory's sequence, not an
+inferred one.
 
 # Exclusivity panel
 
@@ -93,13 +109,17 @@ is "Influenza B virus".[^taxonomy]
 
 # Oligo QC (`run --qc-only`, no network)
 
-Exceeds limit, from the oligos as supplied: FfluA Tm 66.4 C above the preferred range, the
-primers 6.2 C apart in Tm, a run of 5 identical bases in each probe, plus the two site warnings
-above. Not run against NCBI yet.
+**Review** with the corrected primer: FfluA Tm 66.4 C above the preferred range, the primers
+3.4 C apart in Tm (within the limit), PfluA2 4.6 C above the mean primer Tm, a run of 5 identical
+bases in each probe, and PfluA2's designed single mismatch against the reference. Under the
+22-mer this was Exceeds limit: the primers were 6.2 C apart, over the limit, because every
+reverse Tm was about 5.5 C low.
 
 # Runs
 
-None yet.
+[2026-10-07 13:08Z](../runs/influenza-a-2026-10-07.md), made with the 22-mer, so its figures
+describe that primer and not this assay. A fresh run is needed, after clearing this assay's
+cached regions so the reverse sites are re-aligned.
 
 [^assay-file]: docs/examples/influenza_a_matrix.yaml (provenance and checks in its header)
 [^session]: "Session 2026-10-07: Influenza A assay file"

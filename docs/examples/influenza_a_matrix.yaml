@@ -12,9 +12,15 @@
 #   entries. No taxa inside influenza A are left out of the target.
 #
 # PROVENANCE
-#   Oligos, reference sequence and the exclusion supplied by the user (2026-10-07); not checked
-#   against a publication or kit insert. The sequences are added exactly as given, including the
-#   discrepancy under WHAT WAS CHECKED. Oligo names are the user's.
+#   Oligos, reference sequence and the exclusion passed on by the user (2026-10-07), who had
+#   them from another laboratory to test this tool with; not checked against a publication or
+#   kit insert. Oligo names are as received.
+#   ONE SEQUENCE WAS CORRECTED, and only this one: the reverse primer arrived as the 22-mer
+#   TCTTCTTTAGCCAYTCCATGAG, two bases short, and stands here as the user's own laboratory's
+#   primer for the same influenza A PCR, TCTTGTCTTTAGCCAYTCCATGAG (the user, 2026-10-07: "in the
+#   past we ran the same Influenza A PCR and our reverse primer is ..."). See REVERSE PRIMER
+#   below for how the short form was found and what it did to the run of 13:08Z. Everything else
+#   is exactly as received.
 #
 # WHAT WAS CHECKED (2026-10-07, against the supplied reference sequence, 141 nt)
 #   * FfluA at 1-23 exactly (its R matches the reference's A at position 6).
@@ -22,24 +28,36 @@
 #   * PfluA2-tq-NED binds the same site with one mismatch, 3 nt from its 3' end
 #     (...CCGAGA -> ...CCGAAA): the alternative probe for that variant. It is absent from the
 #     reference as supplied.
-#   * RfluA: its binding site is at 118-139 (reverse complement) with TWO MISMATCHES, and the
-#     reference runs on for 2 more nt. Aligned in full:
-#         reference 118-141  CTCATGGAATGGCTAAAGACAAGA
-#         RfluA, reversed    CTCATGGAARTGGCTAAAGAAGA-      (R = the Y of the primer)
-#     The reference reads ...CTA AAG ACA AGA (Leu-Lys-Thr-Arg of M1), i.e. it carries two bases
-#     more than the primer covers. Inserting GT after the primer's leading TCTT
-#     (TCTTCTTTAGCC... -> TCTTGTCTTTAGCC...) makes the primer match the reference over its whole
-#     length with no mismatch and no gap, which is consistent with two bases having been lost
-#     when the primer was written down. THIS WAS NOT CHANGED HERE: the primer stands as supplied,
-#     so a run will report a 2-base discrepancy at the 5' end of RfluA on essentially every
-#     record. Confirm the primer against the laboratory's order sheet before reading a report of
-#     this file.
+#   * RfluA at 118-141 exactly (reverse complement; its Y matches the reference's T), so the
+#     reference amplicon is the product: no flanking bases left over.
 #   * Taxonomy IDs verified live at NCBI on 2026-10-07: 11320 "Influenza A virus" (a no-rank node
 #     under the species Alphainfluenzavirus influenzae, 2955291, so it covers every subtype and
 #     strain below it), and every name in exclusivity_organisms below, each resolving to exactly
 #     one taxon by scientific name. Parainfluenza 1-3 and rhinovirus A are written with their
 #     current scientific names: the older spellings resolve only through the [All Names] synonym
 #     fallback.
+#
+# REVERSE PRIMER: WHY IT WAS CORRECTED (2026-10-07)
+#   As received, RfluA was TCTTCTTTAGCCAYTCCATGAG (22 nt). Against the supplied reference its
+#   site read two mismatches at the primer's 5' end and the reference ran on for 2 more bases:
+#       reference 118-141     CTCATGGAATGGCTAAAGACAAGA
+#       RfluA (22 nt), rev.   CTCATGGAARTGGCTAAAGAAGA-
+#   The reference is in frame for M1 there (CTA AAG ACA AGA = Leu-Lys-Thr-Arg), so the primer,
+#   not the reference, was out of register: inserting GT after its leading TCTT restores it.
+#   The run of 2026-10-07T13:08Z showed the same thing in the data: all 23 reverse site variants,
+#   over all 14,960 assessed records (100%), carried that 2-base difference, i.e. not one record
+#   in 15,000 matched the primer perfectly. Checked live on two records the user downloaded
+#   (PZ488030.1, PZ641704.1): the 22-mer gives 3 mismatches in both, the 24-mer gives 1, and the
+#   one left is strain variation at a different position in each (3'-terminal G-T in PZ488030.1,
+#   G-A at -3 in PZ641704.1). The forward primer and PfluA1 match both records exactly.
+#   The user then gave their own laboratory's primer for the same PCR, which is the 24-mer, and
+#   that is what stands above. What the 13:08Z report said under the 22-mer, for the record:
+#   85.4% detectable and 13.0% likely failure of 12,848 records collected 2023-2026; 12,582
+#   records (84.1%) were graded "tolerated" on the two phantom mismatches alone, and the 1,649
+#   records (11.0%) with a real 3'-terminal G-A were "likely failure" (R1+R3b) where the lone
+#   terminal mismatch is "at risk". Every reverse Tm was depressed by about 5.5 C, which is also
+#   where that report's one hard QC failure (primer Tm difference 6.2 C) came from. Those numbers
+#   describe the short primer, not this assay; rerun after clearing the cached regions.
 #
 # EXCLUSIVITY PANEL
 #   The user asked for influenza B only; widened on advice and their go-ahead (2026-10-07).
@@ -64,7 +82,7 @@
 
 assay_name: Influenza A (matrix gene)
 forward: {name: FfluA, sequence: CTTCTRACCGAGGTCGAAACGTA}       # R = A or G
-reverse: {name: RfluA, sequence: TCTTCTTTAGCCAYTCCATGAG}        # Y = C or T
+reverse: {name: RfluA, sequence: TCTTGTCTTTAGCCAYTCCATGAG}      # Y = C or T; see REVERSE PRIMER
 probe:
   - {name: PfluA1-tq-NED, sequence: TCAGGCCCCCTCAAAGCCGAGA, reporter: NED, quencher: BHQ1}
   - {name: PfluA2-tq-NED, sequence: TCAGGCCCCCTCAAAGCCGAAA, reporter: NED, quencher: BHQ1}

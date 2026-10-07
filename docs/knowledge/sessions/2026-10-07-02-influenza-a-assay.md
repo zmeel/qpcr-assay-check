@@ -59,8 +59,22 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
   failing whole copy plus cut copies, the Legionella shape. New test covers both halves and
   fails on the old code ([open item, now closed](../open/bulge-alternative-from-parts.md)).
 
+- First influenza A run (13:08Z, the 22-mer): the user read it as a tool bug ("2 mismatches in
+  every reverse primer that are not there in real") and downloaded PZ488030.1 and PZ641704.1.
+  Aligned live: the 22-mer gives 3 mismatches in both, the 24-mer 1, and the one left is strain
+  variation at a different position in each; the forward primer and PfluA1 match both exactly.
+  The report itself gave it away - all 23 reverse variants, over all 14,960 assessed records
+  (100%), carried the same 2-base difference, so no record matched the primer perfectly. The
+  tool was right against the primer it was given; no code changed.
+- The user then gave their own laboratory's primer for the same PCR, the 24-mer
+  `TCTTGTCTTTAGCCAYTCCATGAG`, and the assay file now carries it with the provenance of both
+  forms. QC falls from Exceeds limit to Review (primer Tm difference 6.2 C to 3.4 C, within the
+  limit), the reverse site sits at 118-141 exactly and the product is the whole 141-nt reference.
+  Written up as [runs/influenza-a-2026-10-07](../runs/influenza-a-2026-10-07.md).
+
 # Related
 
 * [Influenza A, matrix gene (two NED probes)](../assays/influenza-a-matrix.md)
 * [Legionella, 2026-10-07 (09:48Z)](../runs/legionella-2026-10-07.md)
 * [The bracketing bulge figure drops the from-parts genomes](../open/bulge-alternative-from-parts.md)
+* [Influenza A (matrix), 2026-10-07 (13:08Z)](../runs/influenza-a-2026-10-07.md)
