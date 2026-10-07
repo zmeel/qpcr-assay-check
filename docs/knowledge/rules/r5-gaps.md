@@ -3,7 +3,8 @@ type: Grading Rule
 title: R5 - gaps (bulges)
 description: A gap is indeterminate unless the site's mismatches already give at risk or likely failure; an unpaired end base is a mismatch.
 tags: [grading, gaps, R5]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-07T08:50:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: mismatch-classes
