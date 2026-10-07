@@ -117,9 +117,12 @@ reverse Tm was about 5.5 C low.
 
 # Runs
 
-[2026-10-07 13:08Z](../runs/influenza-a-2026-10-07.md), made with the 22-mer, so its figures
-describe that primer and not this assay. A fresh run is needed, after clearing this assay's
-cached regions so the reverse sites are re-aligned.
+[2026-10-07 16:14Z](../runs/influenza-a-2026-10-07-16h.md), the latest: 76.9% detectable of
+35,078 records, Exceeds limit, on 45,000 of 172,768 records assessed; one reverse-primer
+3'-terminal G-A mismatch (17.4% of reverse sites) is 97.6% of the failures.
+[14:01Z](../runs/influenza-a-2026-10-07-corrected.md) was the first with the corrected primer
+(83.6% of 17,058), and [13:08Z](../runs/influenza-a-2026-10-07.md) the only one with the 22-mer,
+so its figures describe that primer and not this assay.
 
 [^assay-file]: docs/examples/influenza_a_matrix.yaml (provenance and checks in its header)
 [^session]: "Session 2026-10-07: Influenza A assay file"

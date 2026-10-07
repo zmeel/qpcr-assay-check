@@ -84,6 +84,19 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
   -0.7 C at 62.2 and 63.8 C), and a match through a degenerate code is drawn as a grey letter and
   named `-9 Y=T` instead of a dot
   ([open item, closed](../open/degenerate-duplex-baseline.md)).
+- Run of 16:14Z, 45,000 of 172,768 records: both fixes confirmed in the output (the two rows now
+  told apart, `T` and `C` written out in grey, both ΔTm -0.7 C; the "Tm <= annealing" flag firing
+  for the first time; 111 grey bases and `-9 Y=T` in the change lists). 76.9% detectable, now
+  **Exceeds limit** against the configured 80%. One reverse-primer variant - a 3'-terminal G-A
+  mismatch, 17.4% of reverse sites - accounts for 7,989 of the 8,186 records in "Needs attention"
+  (97.6%). The headline has moved 85.4% -> 83.6% -> 76.9% as coverage grew, because the work goes
+  newest year first: 2026 is 86.1% detectable, the assessed half of 2025 75.2%, 2024 and earlier
+  untouched. A live sample of 40 records per year gave 0%, 12%, 15%, 0% carrying the mismatch, so
+  NCBI's batch structure means the figure will keep jumping
+  ([run](../runs/influenza-a-2026-10-07-16h.md)).
+- Raised for the user, not changed: the inclusivity status reads Exceeds limit while coverage is
+  Incomplete, on a subset biased by the newest-first order
+  ([open](../open/partial-coverage-and-the-inclusivity-limit.md)).
 
 # Related
 
@@ -93,3 +106,5 @@ generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
 * [Influenza A (matrix), 2026-10-07 (13:08Z)](../runs/influenza-a-2026-10-07.md)
 * [Influenza A (matrix), 2026-10-07 (14:01Z)](../runs/influenza-a-2026-10-07-corrected.md)
 * [Degenerate oligos broke the duplex Tm baseline](../open/degenerate-duplex-baseline.md)
+* [Influenza A (matrix), 2026-10-07 (16:14Z)](../runs/influenza-a-2026-10-07-16h.md)
+* [An inclusivity FAIL on partly assessed records](../open/partial-coverage-and-the-inclusivity-limit.md)

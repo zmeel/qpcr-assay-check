@@ -45,12 +45,16 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 | Legionella | [2026-10-02 13:16Z](runs/legionella-2026-10-02.md) | Incomplete: 46.1% undetermined, mostly regions cut by contig ends |
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
-| Influenza A (matrix) | [2026-10-07 14:01Z](runs/influenza-a-2026-10-07-corrected.md) | 83.6% detectable of 17,058 records; Incomplete, 152,768 records left to assess. ΔTm figures predate the degenerate-oligo fix |
+| Influenza A (matrix) | [2026-10-07 16:14Z](runs/influenza-a-2026-10-07-16h.md) | Exceeds limit: 76.9% of 35,078 records, below the 80% limit, but only 45,000 of 172,768 assessed. One reverse-primer terminal mismatch is 97.6% of the failures |
 
 # Next, waiting on the user
 
-- Influenza A (matrix): keep running to work through the remaining 152,768 records; a rerun
-  also picks up the corrected ΔTm figures ([assay](assays/influenza-a-matrix.md)).
+- Influenza A (matrix): keep running to work through the remaining 127,768 records - the
+  headline is still moving with coverage ([run](runs/influenza-a-2026-10-07-16h.md)). A wet-lab
+  test of a template with the reverse primer's 3'-terminal G-A would settle 97.6% of the
+  failures.
+- Whether an inclusivity FAIL should be held back to Incomplete while coverage is incomplete
+  ([open](open/partial-coverage-and-the-inclusivity-limit.md)).
 - Entamoeba histolytica: a decision on the 62
   predicted products in other Entamoeba species (a wet-lab check against E. dispar and
   E. moshkovskii is the way to settle the probe's discrimination).
