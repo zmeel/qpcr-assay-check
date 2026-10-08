@@ -3,7 +3,8 @@ type: Grading Rule
 title: R6 - ambiguity codes in the genome
 description: A code is graded both ways in the last 5 nt; only when it decides between detectable and not is the site undetermined.
 tags: [grading, IUPAC, R6]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-08T07:33:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: mismatch-classes
