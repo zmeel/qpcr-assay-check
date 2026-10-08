@@ -441,7 +441,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
         rules = SimpleNamespace(**result.config.get("inclusivity", {}))
         rows = []
         for r in cov_all.channel_results:  # type: ignore[union-attr]
-            level, why = channel_verdict(r, rules)
+            level, why = channel_verdict(r, rules, cov_all.complete)
             rows.append([
                 r.name, r.reporter or "", ", ".join(r.probes), r.target_taxid, r.target_genomes,
                 r.detected, r.detected_percent, r.not_detected, r.undetermined, r.no_locus,

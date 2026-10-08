@@ -90,3 +90,30 @@ def test_a_degenerate_oligo_is_resolved_against_the_template_for_its_duplex_esti
     # without the alignment the old behaviour stands (a degenerate oligo used as written)
     tm_old, _dg, dtm_old = estimate_duplex(oligo, with_t, cond, nM)
     assert tm_old < 55.0 and dtm_old < out["T"][1] - 1.0
+
+
+def test_an_ambiguity_code_in_the_genome_is_resolved_against_the_oligo():
+    """Code review 2026-10-08: resolving only the oligo left a genome ambiguity code pairing with
+    nothing in primer3, so a single N read as a 13 C drop - and once the degenerate-oligo fix
+    had unblocked the "Tm <= annealing" flag, that drop could trip it on a site R6 grades a
+    match."""
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.oligo import thermo
+    from qpcr_assay_check.specificity.duplex import estimate_duplex, resolved_template
+
+    oligo = "CTTCTRACCGAGGTCGAAACGTA"  # influenza A FfluA: one R
+    exact = "CTTCTAACCGAGGTCGAAACGTA"
+    with_n = "CTTCTAACCGAGGTCGANACGTA"  # a match under R6: N is compatible with anything
+    assert resolved_template(oligo, with_n) == exact  # the N takes the oligo's base
+    # an ambiguity the oligo contradicts becomes a concrete base, so the position is a mismatch
+    assert resolved_template("ACGTA", "ACGTS") == "ACGTC"
+    assert resolved_template(None, with_n) == with_n  # no alignment: left as it was
+    assert resolved_template("AC-GT", "ACAG.") == "ACAG."  # gaps and unaligned left alone
+
+    cfg = load_config()
+    cond = thermo.Conditions.from_reaction(cfg.reaction)
+    nM = cfg.reaction.primer_nM
+    plain = estimate_duplex(oligo, exact, cond, nM, oligo)
+    masked = estimate_duplex(oligo, with_n, cond, nM, oligo)
+    assert plain == masked  # one N is not a 13 C penalty
+    assert masked[0] > cfg.reaction.annealing_temp_C  # so it cannot trip "Tm <= annealing"

@@ -25,9 +25,9 @@
 # WHAT WAS CHECKED (2026-10-07, against the supplied reference sequence, 141 nt)
 #   * FfluA at 1-23 exactly (its R matches the reference's A at position 6).
 #   * PfluA1-tq-NED at 43-64 exactly, in the sense strand, 19 nt behind the forward primer.
-#   * PfluA2-tq-NED binds the same site with one mismatch, 3 nt from its 3' end
-#     (...CCGAGA -> ...CCGAAA): the alternative probe for that variant. It is absent from the
-#     reference as supplied.
+#   * PfluA2-tq-NED binds the same site with one mismatch at position 21 of 22, i.e. 2 nt from
+#     its 3' end (...CCGAGA -> ...CCGAAA): the alternative probe for that variant. It is absent
+#     from the reference as supplied.
 #   * RfluA at 118-141 exactly (reverse complement; its Y matches the reference's T), so the
 #     reference amplicon is the product: no flanking bases left over.
 #   * Taxonomy IDs verified live at NCBI on 2026-10-07: 11320 "Influenza A virus" (a no-rank node

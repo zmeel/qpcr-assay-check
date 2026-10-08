@@ -257,7 +257,7 @@ def _channel_rows(result: RunResult, cfg: Config) -> list[SummaryRow]:
         return []
     rows = []
     for r in c.channel_results:  # type: ignore[union-attr]
-        level, why = channel_verdict(r, cfg.inclusivity)
+        level, why = channel_verdict(r, cfg.inclusivity, c.complete)
         judged = r.detected + r.not_detected
         scope = (f"{r.target_genomes:,} genomes of its target (taxon {r.target_taxid}), all "
                  f"years; {r.nontarget_genomes:,} other genomes of the scan")  # fmt: skip

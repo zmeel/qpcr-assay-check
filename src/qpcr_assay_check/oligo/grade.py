@@ -344,7 +344,9 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
     """R9. MGB probes (the MGB at the 3' end, as in Kutyavin 2000 and TaqMan MGB probes): one
     mismatch in the 3'-most ``MGB_REGION`` nt likely failure (Kutyavin 2000; user, 2026-10-02),
     further toward the 5' end undetermined; 2 or more likely failure (expert judgement). Other
-    probes: 1 mismatch outside the last 5 nt tolerated, else at risk (expert judgement)."""
+    probes: 1 mismatch outside the last 5 nt tolerated; 1 in the last 5 nt or 2 anywhere at risk
+    (Klungthong 2010 measured two, still detected); ``UNMODIFIED_PROBE_FAIL`` (3) or more likely
+    failure (user decision 2026-10-07; expert judgement, no quantitative source)."""
     mm, amb, gap = _mismatches(q_aln, s_aln)
 
     def by_mismatches(mm: list[_Mismatch]) -> Grade:
@@ -448,8 +450,8 @@ def _probe_deletion(
         "(<= 6 nt, C4 ORF8), detected at 50 copies, at 55 C over 50 cycles"
     )
     if deleted in UNTESTED_DELETIONS:
-        note += (f"; {deleted} nt was never tested (1, 3, 4 and 6 nt were), so this class is "
-                 "interpolated")  # fmt: skip
+        note += (f"; {deleted} nt was never tested (1, 3, 4, 6, 7 and 8 nt were), so this class "
+                 "is interpolated")  # fmt: skip
     if mm:
         note += f"; with {len(mm)} mismatch(es) as well, a combination not measured"
     return Grade(AT_RISK, "R5c", note + _r5c_scope(mgb, probe_nt))

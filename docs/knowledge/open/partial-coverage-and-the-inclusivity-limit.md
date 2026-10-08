@@ -65,9 +65,27 @@ the figure is already below the FAIL limit", and the code kept a FAIL (code revi
 had asked only that missing evidence never read as no flags). The phrasing lives in
 `fragment_verdict`, which has the limits to name; `pipeline.py` adds the counts as before.[^rules]
 
-Covered by `test_a_crossed_limit_is_held_back_while_genomes_are_still_to_assess`: both a FAIL and
-a WARN held back with the sentence naming them, a PASS untouched, the limits deciding again once
-coverage completes, and the setting turning the hold-back off.
+# What the code review found in it (2026-10-08)
+
+Three faults in the first build, all fixed:
+
+- The setting released only the FAIL, while the code, its comment and the configuration all
+  described it as governing a Review too. A Review waits whatever the setting says - it has since
+  the code review of 2026-09-27 - and the setting is now documented as releasing the Exceeds
+  limit, which is what it does.
+- **A probe channel could file a crossed limit on partial coverage.** The inclusivity status is
+  the worst of the whole-assay figure and each channel, and `combine` ranks a crossed limit above
+  INCOMPLETE, so a two-channel assay (the Legionella shape) carried the status straight past the
+  hold-back. The decision now lives in one helper, `variants.exhaustive.hold_back`, used by both
+  `fragment_verdict` and `channel_verdict`, and every caller of `channel_verdict` - the pipeline,
+  the summary row, the report's channel table and the workbook - passes coverage completeness.
+- The counts line read "the status stays Incomplete until they are" beside a deliberately kept
+  Exceeds limit; its last clause now follows the verdict.
+
+Covered by `test_a_crossed_limit_is_held_back_while_genomes_are_still_to_assess` (a FAIL and a
+WARN held back with the sentence naming them, the setting cited only where it applies, a PASS
+untouched, the limits deciding again once coverage completes, and the setting releasing the FAIL
+and only the FAIL) and `test_a_channel_cannot_file_a_crossed_limit_on_partial_coverage`.
 
 [^run]: "Influenza A (matrix), 2026-10-07 (16:14Z)"
 [^rules]: How the inclusivity status is decided

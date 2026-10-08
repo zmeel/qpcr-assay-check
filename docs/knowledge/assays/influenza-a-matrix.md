@@ -42,7 +42,7 @@ primer (below); everything else is exactly as received.[^assay-file]
 |---|---|---|
 | forward | FfluA (23 nt, R at 6) | 1-23, exact |
 | probe | PfluA1-tq-NED (22 nt, NED, BHQ1) | 43-64, same strand, exact |
-| probe | PfluA2-tq-NED (22 nt, NED, BHQ1) | 43-64, one mismatch 3 nt from its 3' end |
+| probe | PfluA2-tq-NED (22 nt, NED, BHQ1) | 43-64, one mismatch at 21 of 22 (2 nt from its 3' end) |
 | reverse | RfluA (24 nt, Y at 16) | binds 118-141, exact |
 
 Product 141 bp (the whole reference, no flanking bases), GC 49.6%. Both probes sit on one NED

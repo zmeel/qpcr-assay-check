@@ -185,7 +185,8 @@ def _channel_table(result: RunResult, cfg: Config) -> list[tuple[Any, Any, str]]
     c = result.variant_summary.coverage if result.variant_summary else None
     if not channels_shown(c):
         return []
-    return [(r, *channel_verdict(r, cfg.inclusivity)) for r in c.channel_results]  # type: ignore[union-attr]
+    return [(r, *channel_verdict(r, cfg.inclusivity, c.complete))  # type: ignore[union-attr]
+            for r in c.channel_results]  # type: ignore[union-attr]  # fmt: skip
 
 
 def render_report(result: RunResult, cfg: Config) -> str:

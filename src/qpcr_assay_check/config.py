@@ -403,9 +403,10 @@ class InclusivitySettings(_Strict):
     # theory reviews 2026-10-01, user 2026-10-02: which year decides the status window. The
     # other axis is reported as information next to it.
     status_axis: Literal["release", "collection"] = "release"
-    # user 2026-10-07 ("Keep incomplete for now"): while genomes are still to assess, a crossed
-    # limit is held back to INCOMPLETE and the sentence names what it would have been. The newest
-    # are assessed first, so a partial run is weighted to the most recent year.
+    # user 2026-10-07 ("Keep incomplete for now"): while genomes are still to assess, a FAIL is
+    # held back to INCOMPLETE and the sentence names what it would have been. The newest are
+    # assessed first, so a partial run is weighted to the most recent year. A WARN and a PASS
+    # wait whatever this says; see variants.exhaustive.hold_back.
     limits_need_complete_coverage: bool = True
 
     @model_validator(mode="after")

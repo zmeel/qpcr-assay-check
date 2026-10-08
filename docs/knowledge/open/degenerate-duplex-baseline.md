@@ -59,6 +59,18 @@ Of the example assays this touches influenza A (`FfluA` has R, `RfluA` has Y) an
 ΔTm, ΔG and that one flag are the only figures that move, never a class, so no earlier outcome
 changes. Reports written before the fix carry the biased ΔTm.
 
+# A third fix, from the code review of 2026-10-08
+
+Only the oligo was resolved. An ambiguity code in the **genome** still reached primer3, which
+can pair nothing with it: a template differing by a single N read as a duplex Tm of 50.87 C
+against a perfect match of 64.28 C, a 13.4 C drop - and because unblocking the "Tm <= annealing"
+flag was part of this very fix, that drop could now trip the flag on a site [R6](../rules/r6-ambiguity-codes.md)
+grades a match. `resolved_template` now resolves the template too: an ambiguity code compatible
+with the oligo takes the oligo's base, which is what R6 says it is, and one the oligo contradicts
+takes a concrete base of its own so the position is a defined mismatch rather than a character
+that pairs with nothing. Covered by
+`test_an_ambiguity_code_in_the_genome_is_resolved_against_the_oligo`.
+
 [^run]: "Influenza A (matrix), 2026-10-07 (14:01Z)"
 [^code]: specificity/duplex.py (estimate_duplex, resolved_oligos)
 [^records]: The two records behind the two rows

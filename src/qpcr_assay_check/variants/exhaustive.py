@@ -1411,6 +1411,30 @@ def _bracket(detected: int, undetermined: int, total: int, unit: str) -> str:
     )
 
 
+def hold_back(verdict: Verdict, rules: Any, coverage_complete: bool) -> tuple[Verdict, str]:
+    """Whether a crossed limit waits for complete coverage, and the words for it.
+
+    While genomes or records are still to assess the figure is not the population's: they are
+    worked newest publication year first, so a partial run is weighted to the most recent year and
+    a figure can cross a limit and cross back (user, 2026-10-07: "Keep incomplete for now"). A
+    Review has waited since the code review of 2026-09-27, which asked only that missing evidence
+    never read as no flags; holding an Exceeds limit back as well is the 2026-10-07 decision, and
+    ``inclusivity.limits_need_complete_coverage: false`` restores the older rule for it. Returns
+    the verdict unchanged and an empty string when nothing is held back.
+    """
+    if coverage_complete or verdict not in (Verdict.FAIL, Verdict.WARN):
+        return verdict, ""
+    if verdict is Verdict.FAIL and not getattr(rules, "limits_need_complete_coverage", True):
+        return verdict, ""
+    note = (
+        "held back while genomes are still to assess: the newest are assessed first, so this "
+        "subset is weighted to the most recent year"
+    )
+    if verdict is Verdict.FAIL:
+        note += "; setting inclusivity.limits_need_complete_coverage"
+    return Verdict.INCOMPLETE, note
+
+
 def fragment_verdict(
     years: list[FragmentYear], rules: Any, axis: str = "release",
     undated: tuple[int, int] | None = None, coverage_complete: bool = True,
@@ -1430,10 +1454,8 @@ def fragment_verdict(
 
     ``coverage_complete``: whether every listed genome or record has been assessed. While it is
     False, a crossed limit is held back to INCOMPLETE and the sentence names what it would have
-    been (user, 2026-10-07: "Keep incomplete for now"). The records are worked newest
-    publication year first, so a partial run is weighted to the most recent year and a figure
-    that crosses a limit on the way can cross back; setting
-    ``inclusivity.limits_need_complete_coverage``."""
+    been; :func:`hold_back` says which limits wait and which setting releases an Exceeds
+    limit."""
     w = fragment_window(years, rules.verdict_window_years)
     by_collection = axis == "collection"
     done, year_word = ("collected", "Collection") if by_collection else ("released", "Release")
@@ -1505,18 +1527,10 @@ def fragment_verdict(
                         Verdict.WARN,
                         f" (a single {year_word.lower()} year below the limit)",
                     )
-    if (
-        not coverage_complete
-        and getattr(rules, "limits_need_complete_coverage", True)
-        and verdict in (Verdict.FAIL, Verdict.WARN)
-    ):
-        why = (
-            f" ({STATUS_LABEL[verdict]}{why} on the {done} genomes assessed so far, held back "
-            "while genomes are still to assess: the newest are assessed first, so this subset is "
-            "weighted to the most recent year; setting "
-            "inclusivity.limits_need_complete_coverage)"
-        )
-        verdict = Verdict.INCOMPLETE
+    held, note = hold_back(verdict, rules, coverage_complete)
+    if held is not verdict:
+        why = f" ({STATUS_LABEL[verdict]}{why} on the {done} genomes assessed so far, {note})"
+        verdict = held
     # written last, so the sentence always names the status the section ends with
     lines[0] += f" Status: {STATUS_LABEL[verdict]}{why}."
     return verdict, lines
@@ -1774,7 +1788,24 @@ def channels_shown(coverage: ExhaustiveCoverage | None) -> bool:
     return len(rs) > 1 or any(r.target_taxid not in (None, coverage.taxon) for r in rs)
 
 
-def channel_verdict(r: ChannelResult, rules: Any) -> tuple[Verdict, str]:
+def channel_verdict(
+    r: ChannelResult, rules: Any, coverage_complete: bool = True
+) -> tuple[Verdict, str]:
+    """A channel's status, with a crossed limit held back while genomes are still to assess.
+
+    The whole-assay figure and every channel are combined into the inclusivity status, and
+    :func:`combine` ranks a crossed limit above INCOMPLETE, so a channel judging its own limits
+    on a partial run would carry the status past the hold-back (code review, 2026-10-08). See
+    :func:`hold_back`.
+    """
+    verdict, why = _channel_limits(r, rules)
+    held, note = hold_back(verdict, rules, coverage_complete)
+    if held is not verdict:
+        return held, f"{STATUS_LABEL[verdict]} on the genomes assessed so far ({why}), {note}"
+    return verdict, why
+
+
+def _channel_limits(r: ChannelResult, rules: Any) -> tuple[Verdict, str]:
     """A channel's status over all assessed genomes (``inclusivity`` limits): below the FAIL
     limit detected FAIL, below the review limit or any signal outside its target WARN, no
     judged target genome or unknown lineages INCOMPLETE."""

@@ -216,22 +216,26 @@ def evaluate(
         and not variant_coverage.complete
     ):
         # not every genome assessed yet: missing evidence is never "no flags" (code review,
-        # 2026-09-27). A crossed limit is held back in fragment_verdict, which has the limits to
-        # name in its sentence (user, 2026-10-07: "Keep incomplete for now"); here only the
-        # counts are added, for every verdict that is not already a crossed limit the laboratory
-        # chose to keep (inclusivity.limits_need_complete_coverage: false).
+        # 2026-09-27), so a PASS waits here. A crossed limit is held back in exhaustive.hold_back,
+        # which has the limits to name in its sentence; here only the counts are added, and the
+        # last clause follows the verdict, since an Exceeds limit the laboratory chose to keep
+        # (limits_need_complete_coverage: false) is not waiting for anything.
         c = variant_coverage
         left = c.listed_total - c.assessed_total - c.unavailable
         what = "records" if c.source == "blast_partitioned" else "assemblies"
-        held = inclusivity.verdict in (Verdict.PASS, Verdict.WARN)
+        verdict = Verdict.INCOMPLETE if inclusivity.verdict is Verdict.PASS else inclusivity.verdict
+        tail = (
+            "the status stays Incomplete until they are."
+            if verdict is Verdict.INCOMPLETE
+            else "the figures are from the ones assessed."
+        )
         inclusivity = inclusivity.model_copy(
             update={
-                "verdict": Verdict.INCOMPLETE if held else inclusivity.verdict,
+                "verdict": verdict,
                 "rationale": [
                     *inclusivity.rationale,
                     f"{left} of {c.listed_total} listed {what} "
-                    "not assessed yet (run again to continue): the status stays Incomplete "
-                    "until they are.",
+                    f"not assessed yet (run again to continue): {tail}",
                 ],
             }
         )
@@ -239,7 +243,8 @@ def evaluate(
         # every channel counts (overhaul step 6): the inclusivity status is the worst of the
         # whole-assay figure and each channel's own (e.g. an L. pneumophila channel next to a
         # genus channel); never better than before
-        judged = [(r, *channel_verdict(r, cfg.inclusivity))
+        complete = variant_coverage.complete  # type: ignore[union-attr]
+        judged = [(r, *channel_verdict(r, cfg.inclusivity, complete))
                   for r in variant_coverage.channel_results]  # type: ignore[union-attr]  # fmt: skip
         levels = {"all": inclusivity.verdict, **{r.name: v for r, v, _w in judged}}
         worst = combine(levels, list(levels))

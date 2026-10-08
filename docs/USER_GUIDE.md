@@ -376,13 +376,15 @@ genomes without a usable collection date are left out of it and counted (more th
 information. Next to the genome figure the report gives **distinct site
 patterns**: the window's judged genomes with identical sites at all three oligos counted once
 (information only; results.json `inclusivity.distinct`). The coverage section also gives detection per assembly level: for a multi-copy target, escapes that occur mainly in draft assemblies (Scaffold, Contig) and hardly in complete genomes point to repeat copies left unassembled rather than to the strain. Such a draft genome (Scaffold or Contig with more than one sequence, or a copy cut by a contig end) whose best copy fails and that carries fewer than half the median copies of the complete and chromosome-level genomes of the run (at least 5 of them, median 2 or more) counts as undetermined "copies possibly unassembled", not as an escape, unless one of those genomes fails with the same three genome sites; `variants.multicopy_unassembled: off` counts them as escapes. This can hide a real loss of copies, so they are listed (workbook sheet "Unassembled"). A region found by the chain locator counts as a copy when (a) at least `variants.min_anchored_bases` (32) of the fragment are in exact blocks, or (b) at least `variants.min_context_bases` (32) of the flanks around it are, on one side with the fragment touched or cut by a contig end, or on both sides, or (c) it matches the reference fragment over at least `variants.min_copy_identity` (0.75) with at least `variants.min_identity_anchored_bases` (16) anchored; weaker regions (e.g. an unrelated region found through one chance seed) are never judged. A genome whose copies of the region are all cut by a contig end (repeats such as rRNA operons break draft assemblies), or whose best whole copy fails, but that carries a detectable site of every role on the cut copies is "detectable from parts": by default its own class, left out of the percentages, because the sites may come from different copies (`variants.judge_from_parts: undetermined | detectable | off`). While not every genome listed by NCBI has been assessed yet (the per-run budget),
-the status is Incomplete, and since 2026-10-07 that holds for a crossed limit too: the newest
+the status is Incomplete, and since 2026-10-07 that holds for an Exceeds limit too: the newest
 genomes are assessed first, so a partial run is weighted to the most recent year and a figure can
 cross a limit and cross back. The sentence then names what the limit would have made it ("Status:
 Incomplete (Exceeds limit (below 80%) on the genomes assessed so far, held back while genomes are
-still to assess ...)"), so the warning is visible without a filed Review or Exceeds limit. Set
-`inclusivity.limits_need_complete_coverage: false` to judge the genomes assessed so far as they
-stand.
+still to assess ...)"), so the warning is visible without a filed Exceeds limit. The same holds
+for each probe channel, since the status is the worst of the whole-assay figure and the channels.
+Set `inclusivity.limits_need_complete_coverage: false` to file the Exceeds limit on the genomes
+assessed so far; a Review and a no-flags figure wait either way, because missing evidence is
+never "no flags".
 
 Later runs of the same assay reuse the cache: genomes already stored are not downloaded again,
 unless the locus definition or the scan method changed (then that locus is scanned again from

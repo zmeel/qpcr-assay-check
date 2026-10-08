@@ -7,7 +7,7 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
-- **A crossed inclusivity limit is held back to Incomplete while genomes or records are still to
+- **An inclusivity Exceeds limit is held back to Incomplete while genomes or records are still to
   assess** (user, 2026-10-07: "Keep incomplete for now", after an influenza run read Exceeds
   limit at 76.9% on 45,000 of 172,768 records). The analysis works newest publication year first,
   so a partial run is weighted to the most recent year: in that run 2026 was fully assessed at
@@ -15,10 +15,35 @@ All notable changes to this project are documented here. The format follows
   already moved 85.4% → 83.6% → 76.9% as coverage grew. The status is now Incomplete and the
   sentence names what the limit would have made it ("Status: Incomplete (Exceeds limit (below
   80%) on the genomes assessed so far, held back while genomes are still to assess …)"), so the
-  reviewer sees the warning without a filed Review or Exceeds limit. New setting
-  `inclusivity.limits_need_complete_coverage` (default true) turns it off.
+  reviewer sees the warning without a filed Exceeds limit. It applies per probe channel too,
+  since the status is the worst of the whole-assay figure and the channels. New setting
+  `inclusivity.limits_need_complete_coverage` (default true) files the Exceeds limit on the
+  genomes assessed so far instead; a Review and a no-flags figure wait either way, as they have
+  since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **Three faults in that hold-back, and one in the degenerate-oligo Tm estimate**, from a code
+  review of this session's work (2026-10-08):
+  - `limits_need_complete_coverage: false` released only the Exceeds limit while the code,
+    comment and configuration all described it as governing a Review as well. A Review now waits
+    whatever the setting says (as it has since 2026-09-27) and the setting is documented as
+    releasing the Exceeds limit, which is what it does.
+  - **A probe channel could file a crossed limit on partial coverage**: `channel_verdict` knew
+    nothing about coverage and the status is the worst of the whole-assay figure and each
+    channel, so a multi-channel assay carried the status straight past the hold-back. The
+    hold-back now lives in one helper (`variants.exhaustive.hold_back`) that both use, and every
+    caller of `channel_verdict` passes coverage completeness.
+  - The counts line read "the status stays Incomplete until they are" next to a deliberately
+    kept Exceeds limit; its last clause now follows the verdict.
+  - **An ambiguity code in the genome still reached primer3**, which can pair nothing with it:
+    one N in a site read as a 13 °C drop in duplex Tm, and since the degenerate-oligo fix had
+    unblocked the "Tm ≤ annealing" flag, that drop could trip it on a site R6 grades a match.
+    The template is now resolved as well: an ambiguity code compatible with the oligo takes the
+    oligo's base, one it contradicts takes a concrete base of its own.
+- **Three statements corrected**: `grade_probe`'s docstring still described the old probe rule;
+  the deletion note named "1, 3, 4 and 6 nt" as Otwell's measured lengths against 1, 3, 4, 6, 7
+  and 8 everywhere else; and the influenza example put PfluA2's mismatch 3 nt from its 3' end
+  where it is at position 21 of 22, so 2 nt.
 - **The duplex Tm of a degenerate oligo was measured against a baseline about 15 °C too low**
   (found from two influenza rows that were drawn identically but read ΔTm -3.6 and +0.0 °C).
   The perfect-match baseline was the oligo against its own reverse complement with the degenerate

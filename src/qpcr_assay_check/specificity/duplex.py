@@ -6,11 +6,17 @@ the subject bases it is aligned to. It is an *estimate of duplex stability only*
 even though it usually prevents extension. Priming is therefore judged from the mismatch and
 3'-end columns, never from Tm.
 
-A degenerate oligo is resolved against the template before anything is computed (the mix holds
-every member and the best-binding one primes), because primer3 cannot pair a degenerate code with
-its own complement: left in, a Y opposite an R is no pair at all, which made the perfect-match
-baseline about 15 C too low and the ΔTm of a site depend on which member the template happened to
-take (user, 2026-10-07, from two influenza rows that differed in nothing else).
+Degenerate codes are resolved on both sides before anything is computed, because primer3 cannot
+pair one: left in, a Y opposite an R is no pair at all.
+
+- The **oligo**: against the template, since the mix holds every member and the best-binding one
+  primes. Left in, the perfect-match baseline came out about 15 C too low and the ΔTm of a site
+  depended on which member the template happened to take (user, 2026-10-07, from two influenza
+  rows that differed in nothing else).
+- The **template**: an ambiguity code in the genome takes the base that pairs with the oligo
+  where the two are compatible, which is how R6 grades such a position - a match. Left in, a
+  single N read as a 13 C drop and could trip the "Tm <= annealing" flag on a site graded a
+  match (code review, 2026-10-08).
 """
 
 from __future__ import annotations
@@ -56,14 +62,35 @@ def resolved_oligos(oligo: str, q_aln: str | None, s_aln: str) -> list[str]:
         return [oligo]
 
 
+def resolved_template(q_aln: str | None, s_aln: str) -> str:
+    """``s_aln`` with every ambiguity code in the template replaced by one concrete base.
+
+    A code compatible with the oligo's base there takes that base: the position is a match, which
+    is what R6 grades it, and primer3 can pair it. One the oligo contradicts takes the first of
+    its own bases, so the position is a defined mismatch rather than a character that pairs with
+    nothing. Gaps and unaligned positions are left alone.
+    """
+    if q_aln is None:
+        return s_aln
+    out: list[str] = []
+    for qc, sc in zip(q_aln, s_aln, strict=False):
+        if sc in "ACGT-." or sc not in iupac.IUPAC_CODES:
+            out.append(sc)
+            continue
+        members = sorted(iupac.IUPAC_CODES[sc])
+        out.append(next((b for b in members if iupac.compatible(qc, b)), members[0]))
+    return "".join(out) + s_aln[len(out) :]
+
+
 def estimate_duplex(
     oligo: str, s_aln: str, cond: thermo.Conditions, nM: float, q_aln: str | None = None
 ) -> tuple[float | None, float | None, float | None]:
     """Return ``(tm_c, dg_kcal, delta_tm_c)``; ``tm_c`` is None if no duplex is predicted.
 
-    ``q_aln``, the oligo as aligned, resolves a degenerate oligo against this template (see the
-    module docstring); without it a degenerate oligo is used as written, as before.
+    ``q_aln``, the oligo as aligned, resolves the degenerate codes on both sides against each
+    other (see the module docstring); without it both are used as written, as before.
     """
+    s_aln = resolved_template(q_aln, s_aln)
     subject = realign.sanitise_subject(s_aln.replace("-", "").replace(".", ""))
     if len(subject) < 8:
         return None, None, None

@@ -983,9 +983,38 @@ def test_a_crossed_limit_is_held_back_while_genomes_are_still_to_assess():
         assert verdict is Verdict.INCOMPLETE
         assert f"Status: Incomplete ({label}" in lines[0]
         assert "held back while genomes are still to assess" in lines[0]
-        assert "limits_need_complete_coverage" in lines[0]
+    # the setting is named where it applies, and only there (code review 2026-10-08): it releases
+    # an Exceeds limit, while a Review has waited since the code review of 2026-09-27
+    fail_line = fragment_verdict(failing, rules, coverage_complete=False)[1][0]
+    warn_line = fragment_verdict(reviewing, rules, coverage_complete=False)[1][0]
+    assert "limits_need_complete_coverage" in fail_line
+    assert "limits_need_complete_coverage" not in warn_line
     # a figure that crosses no limit is not touched, and neither is PASS
     assert fragment_verdict(passing, rules, coverage_complete=False)[0] is Verdict.PASS
-    # the hold-back is a setting the laboratory can turn off
+    # the setting turns the hold-back off for the Exceeds limit, and only for it
     loose = rules.model_copy(update={"limits_need_complete_coverage": False})
     assert fragment_verdict(failing, loose, coverage_complete=False)[0] is Verdict.FAIL
+    assert fragment_verdict(reviewing, loose, coverage_complete=False)[0] is Verdict.INCOMPLETE
+
+
+def test_a_channel_cannot_file_a_crossed_limit_on_partial_coverage():
+    """Code review 2026-10-08: the inclusivity status is the worst of the whole-assay figure and
+    every channel, and combine ranks a crossed limit above INCOMPLETE, so a channel judging its
+    own limits on a partial run would carry the status straight past the hold-back."""
+    from qpcr_assay_check.variants.exhaustive import channel_verdict
+    from qpcr_assay_check.variants.models import ChannelResult
+
+    rules = load_config().inclusivity
+    low = ChannelResult(name="L. pneumophila", probes=["LEGpneu"], target_taxid=446,
+                        target_genomes=1000, detected=600, not_detected=400)  # fmt: skip
+    assert channel_verdict(low, rules)[0] is Verdict.FAIL  # complete: the limit decides
+    verdict, why = channel_verdict(low, rules, coverage_complete=False)
+    assert verdict is Verdict.INCOMPLETE
+    assert why.startswith("Exceeds limit on the genomes assessed so far (")
+    assert "60.0% detected, below your limit of 80%" in why
+    assert "held back while genomes are still to assess" in why
+    loose = rules.model_copy(update={"limits_need_complete_coverage": False})
+    assert channel_verdict(low, loose, coverage_complete=False)[0] is Verdict.FAIL
+    ok = ChannelResult(name="genus", probes=["LEGgenus"], target_taxid=444,
+                       target_genomes=1000, detected=1000)  # fmt: skip
+    assert channel_verdict(ok, rules, coverage_complete=False) == (Verdict.PASS, "")
