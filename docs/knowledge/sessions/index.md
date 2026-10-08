@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [The first complete influenza A run, and what the per-year tables date](2026-10-08-01-influenza-complete-run.md) - Session log of 2026-10-08.
 * [Influenza A matrix-gene assay file, and the README's knowledge base section](2026-10-07-02-influenza-a-assay.md) - Session log of 2026-10-07 (second page).
 * [Probe rules: a ceiling for unmodified probes, and the scope of R5c](2026-10-07-01-probe-rules.md) - Session log of 2026-10-07.
 * [Strand and orientation; the divergent Neisseria genomes checked](2026-10-06-01-strand-and-orientation.md) - Session log of 2026-10-06.

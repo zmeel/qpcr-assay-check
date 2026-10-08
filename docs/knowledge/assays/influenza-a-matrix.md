@@ -16,6 +16,9 @@ sources:
   - id: run
     resource: ../runs/influenza-a-2026-10-07.md
     title: "Influenza A (matrix), 2026-10-07 (13:08Z)"
+  - id: complete
+    resource: ../runs/influenza-a-2026-10-07-complete.md
+    title: "Influenza A (matrix), 2026-10-07 (17:35Z, complete)"
   - id: r9
     resource: ../rules/r9-probes.md
     title: R9 - probe mismatches
@@ -117,9 +120,12 @@ reverse Tm was about 5.5 C low.
 
 # Runs
 
-[2026-10-07 16:14Z](../runs/influenza-a-2026-10-07-16h.md), the latest: 76.9% detectable of
-35,078 records, Exceeds limit, on 45,000 of 172,768 records assessed; one reverse-primer
-3'-terminal G-A mismatch (17.4% of reverse sites) is 97.6% of the failures.
+[2026-10-07 17:35Z](../runs/influenza-a-2026-10-07-complete.md), the latest and the first
+complete one: all 172,768 records assessed, 69.0% detectable of the 69,688 collected 2023-2026,
+Exceeds limit on the whole population. One reverse-primer 3'-terminal G-A mismatch is 97.0% of
+the failures, and the per-year tables date its sweep: 0.7% of 2021 collections, 6.9% of 2022,
+40.5% of 2023.
+[16:14Z](../runs/influenza-a-2026-10-07-16h.md) was the state at 45,000 records (76.9%).
 [14:01Z](../runs/influenza-a-2026-10-07-corrected.md) was the first with the corrected primer
 (83.6% of 17,058), and [13:08Z](../runs/influenza-a-2026-10-07.md) the only one with the 22-mer,
 so its figures describe that primer and not this assay.
