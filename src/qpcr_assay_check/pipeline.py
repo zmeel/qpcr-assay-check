@@ -209,6 +209,20 @@ def evaluate(
                     note="Skipped (--qc-only)." if qc_only else "No search results were supplied.",
                 )
             )
+    if inclusivity is not None and inclusivity.exhaustive and channels_shown(variant_coverage):
+        # every channel counts (overhaul step 6): the inclusivity status is the worst of the
+        # whole-assay figure and each channel's own (e.g. an L. pneumophila channel next to a
+        # genus channel); never better than before
+        complete = variant_coverage.complete  # type: ignore[union-attr]
+        judged = [(r, *channel_verdict(r, cfg.inclusivity, complete))
+                  for r in variant_coverage.channel_results]  # type: ignore[union-attr]  # fmt: skip
+        levels = {"all": inclusivity.verdict, **{r.name: v for r, v, _w in judged}}
+        worst = combine(levels, list(levels))
+        lines = [f"Channel {r.name}: {why}" for r, v, why in judged if v is not Verdict.PASS]
+        if worst is not inclusivity.verdict or lines:
+            inclusivity = inclusivity.model_copy(
+                update={"verdict": worst, "rationale": [*inclusivity.rationale, *lines]}
+            )
     if (
         inclusivity is not None
         and inclusivity.exhaustive
@@ -217,9 +231,9 @@ def evaluate(
     ):
         # not every genome assessed yet: missing evidence is never "no flags" (code review,
         # 2026-09-27), so a PASS waits here. A crossed limit is held back in exhaustive.hold_back,
-        # which has the limits to name in its sentence; here only the counts are added, and the
-        # last clause follows the verdict, since an Exceeds limit the laboratory chose to keep
-        # (limits_need_complete_coverage: false) is not waiting for anything.
+        # which has the limits to name in its sentence; here only the counts are added. This
+        # runs after the channels, because a channel can raise the verdict and the last clause
+        # follows the verdict the section ends with (code review, 2026-10-08).
         c = variant_coverage
         left = c.listed_total - c.assessed_total - c.unavailable
         what = "records" if c.source == "blast_partitioned" else "assemblies"
@@ -239,20 +253,6 @@ def evaluate(
                 ],
             }
         )
-    if inclusivity is not None and inclusivity.exhaustive and channels_shown(variant_coverage):
-        # every channel counts (overhaul step 6): the inclusivity status is the worst of the
-        # whole-assay figure and each channel's own (e.g. an L. pneumophila channel next to a
-        # genus channel); never better than before
-        complete = variant_coverage.complete  # type: ignore[union-attr]
-        judged = [(r, *channel_verdict(r, cfg.inclusivity, complete))
-                  for r in variant_coverage.channel_results]  # type: ignore[union-attr]  # fmt: skip
-        levels = {"all": inclusivity.verdict, **{r.name: v for r, v, _w in judged}}
-        worst = combine(levels, list(levels))
-        lines = [f"Channel {r.name}: {why}" for r, v, why in judged if v is not Verdict.PASS]
-        if worst is not inclusivity.verdict or lines:
-            inclusivity = inclusivity.model_copy(
-                update={"verdict": worst, "rationale": [*inclusivity.rationale, *lines]}
-            )
     if inclusivity is not None:
         note = (
             inclusivity.sample_scheme

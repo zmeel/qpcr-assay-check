@@ -68,7 +68,8 @@ def resolved_template(q_aln: str | None, s_aln: str) -> str:
     A code compatible with the oligo's base there takes that base: the position is a match, which
     is what R6 grades it, and primer3 can pair it. One the oligo contradicts takes the first of
     its own bases, so the position is a defined mismatch rather than a character that pairs with
-    nothing. Gaps and unaligned positions are left alone.
+    nothing, and so does one with no oligo base opposite it (a gap in the oligo: a base inserted
+    in the template). Gaps and unaligned positions in the template are left alone.
     """
     if q_aln is None:
         return s_aln
@@ -78,6 +79,9 @@ def resolved_template(q_aln: str | None, s_aln: str) -> str:
             out.append(sc)
             continue
         members = sorted(iupac.IUPAC_CODES[sc])
+        if qc not in iupac.IUPAC_CODES:  # a gap or an unaligned column opposite the code
+            out.append(members[0])
+            continue
         out.append(next((b for b in members if iupac.compatible(qc, b)), members[0]))
     return "".join(out) + s_aln[len(out) :]
 

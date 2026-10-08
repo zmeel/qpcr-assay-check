@@ -82,10 +82,24 @@ Three faults in the first build, all fixed:
 - The counts line read "the status stays Incomplete until they are" beside a deliberately kept
   Exceeds limit; its last clause now follows the verdict.
 
+A second review of those fixes found two more faults in them, also fixed:
+
+- A channel Review raised **only by a signal outside its target** was held back as well, although
+  more records cannot take a confirmed signal away, so the hold-back's own justification was false
+  for it. `_channel_limits` now returns whether the detection figure alone crossed a limit, and
+  only that is held back; a figure below the review limit *alongside* a signal keeps its Review.
+- The counts line was still written from the whole-assay verdict, before the channels could raise
+  it, so a channel's kept Exceeds limit could be filed next to "the status stays Incomplete until
+  they are" - the very contradiction the first fix had removed for the whole-assay path. The
+  coverage block now runs after the channel block, so the clause follows the verdict the section
+  ends with.
+
 Covered by `test_a_crossed_limit_is_held_back_while_genomes_are_still_to_assess` (a FAIL and a
 WARN held back with the sentence naming them, the setting cited only where it applies, a PASS
 untouched, the limits deciding again once coverage completes, and the setting releasing the FAIL
-and only the FAIL) and `test_a_channel_cannot_file_a_crossed_limit_on_partial_coverage`.
+and only the FAIL), `test_a_channel_cannot_file_a_crossed_limit_on_partial_coverage` (including
+the signal-only Review and an unknown lineage, neither held back) and
+`test_the_coverage_sentence_follows_the_verdict_a_channel_ends_on`.
 
 [^run]: "Influenza A (matrix), 2026-10-07 (16:14Z)"
 [^rules]: How the inclusivity status is decided

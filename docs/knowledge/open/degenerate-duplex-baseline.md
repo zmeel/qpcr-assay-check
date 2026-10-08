@@ -68,7 +68,11 @@ flag was part of this very fix, that drop could now trip the flag on a site [R6]
 grades a match. `resolved_template` now resolves the template too: an ambiguity code compatible
 with the oligo takes the oligo's base, which is what R6 says it is, and one the oligo contradicts
 takes a concrete base of its own so the position is a defined mismatch rather than a character
-that pairs with nothing. Covered by
+that pairs with nothing.
+
+The first build of that resolution raised `KeyError` on a gap in the oligo opposite an ambiguity
+code - a base inserted in the template, with no oligo base to match - which a second review found
+and which is now a concrete base as well. Covered by
 `test_an_ambiguity_code_in_the_genome_is_resolved_against_the_oligo`.
 
 [^run]: "Influenza A (matrix), 2026-10-07 (14:01Z)"

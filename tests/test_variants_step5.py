@@ -280,3 +280,36 @@ def test_records_with_the_flanks_but_no_locatable_fragment_get_a_worst_case_figu
     assert c.not_located_examples == ["GCF_000000002.1"]
     assert any("if all were escapes, 50.0% would be detectable instead of 100.0%" in line
                for line in res.inclusivity.rationale)  # fmt: skip
+
+
+def test_the_coverage_sentence_follows_the_verdict_a_channel_ends_on(tmp_path):
+    """Code review 2026-10-08: the counts line was written from the whole-assay verdict, before
+    the channels could raise it, so a channel's kept Exceeds limit was filed next to "the status
+    stays Incomplete until they are"."""
+    from qpcr_assay_check.pipeline import evaluate
+    from qpcr_assay_check.verdict import Verdict
+
+    from .test_variants_exhaustive import _empty_specificity
+
+    assay, cfg, res = _two_channels(tmp_path)
+    # the fixture assesses every genome and both channels detect everything: say five more are
+    # listed, as a partial run has, and let the species channel fail its own limit
+    genus, spec = res.coverage.channel_results
+    coverage = res.coverage.model_copy(
+        update={
+            "listed_total": res.coverage.assessed_total + 5,
+            "channel_results": [genus, spec.model_copy(update={"detected": 0, "not_detected": 1})],
+        }
+    )
+    assert not coverage.complete
+    cfg.inclusivity.limits_need_complete_coverage = False  # the laboratory keeps its limits
+    result = evaluate(
+        assay, cfg, now=NOW, target_sites=res.sites, variant_coverage=coverage,
+        release_dates=res.release_dates, inclusivity=res.inclusivity,
+        specificity=_empty_specificity(),
+    )  # fmt: skip
+    assert result.inclusivity.verdict is Verdict.FAIL
+    counts = next(x for x in result.inclusivity.rationale if "not assessed yet" in x)
+    assert counts.endswith("the figures are from the ones assessed.")
+    assert "stays Incomplete" not in counts
+    assert result.inclusivity.rationale[-1] == counts  # written last, after the channels

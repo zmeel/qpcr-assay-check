@@ -109,6 +109,9 @@ def test_an_ambiguity_code_in_the_genome_is_resolved_against_the_oligo():
     assert resolved_template("ACGTA", "ACGTS") == "ACGTC"
     assert resolved_template(None, with_n) == with_n  # no alignment: left as it was
     assert resolved_template("AC-GT", "ACAG.") == "ACAG."  # gaps and unaligned left alone
+    # a gap in the oligo opposite an ambiguity code: a base inserted in the template, with no
+    # oligo base to match, so it takes one of its own and never raises (code review 2026-10-08)
+    assert resolved_template("AC-GT", "ACSGT") == "ACCGT"
 
     cfg = load_config()
     cond = thermo.Conditions.from_reaction(cfg.reaction)

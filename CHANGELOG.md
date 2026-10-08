@@ -40,6 +40,15 @@ All notable changes to this project are documented here. The format follows
     unblocked the "Tm ≤ annealing" flag, that drop could trip it on a site R6 grades a match.
     The template is now resolved as well: an ambiguity code compatible with the oligo takes the
     oligo's base, one it contradicts takes a concrete base of its own.
+- **Three more faults, in the fixes themselves** (a second review of the same work, 2026-10-08):
+  `resolved_template` raised `KeyError` on a gap in the oligo opposite an ambiguity code in the
+  genome (a base inserted in the template: it now takes a concrete base of its own); a channel
+  Review raised only by a **signal outside its target** was held back for coverage, although more
+  records cannot take a confirmed signal away (`_channel_limits` now says whether the detection
+  figure alone crossed a limit, and only that is held back); and the counts line was still written
+  from the whole-assay verdict, before the channels could raise it, so a channel's kept Exceeds
+  limit could be filed next to "the status stays Incomplete until they are" (the coverage block
+  now runs after the channel block).
 - **Three statements corrected**: `grade_probe`'s docstring still described the old probe rule;
   the deletion note named "1, 3, 4 and 6 nt" as Otwell's measured lengths against 1, 3, 4, 6, 7
   and 8 everywhere else; and the influenza example put PfluA2's mismatch 3 nt from its 3' end

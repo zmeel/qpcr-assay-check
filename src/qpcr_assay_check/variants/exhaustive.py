@@ -1798,23 +1798,30 @@ def channel_verdict(
     on a partial run would carry the status past the hold-back (code review, 2026-10-08). See
     :func:`hold_back`.
     """
-    verdict, why = _channel_limits(r, rules)
+    verdict, why, from_figure = _channel_limits(r, rules)
+    if not from_figure:
+        return verdict, why  # a signal outside the target cannot cross back: never held back
     held, note = hold_back(verdict, rules, coverage_complete)
     if held is not verdict:
         return held, f"{STATUS_LABEL[verdict]} on the genomes assessed so far ({why}), {note}"
     return verdict, why
 
 
-def _channel_limits(r: ChannelResult, rules: Any) -> tuple[Verdict, str]:
+def _channel_limits(r: ChannelResult, rules: Any) -> tuple[Verdict, str, bool]:
     """A channel's status over all assessed genomes (``inclusivity`` limits): below the FAIL
     limit detected FAIL, below the review limit or any signal outside its target WARN, no
-    judged target genome or unknown lineages INCOMPLETE."""
+    judged target genome or unknown lineages INCOMPLETE.
+
+    The third value says whether the detection figure alone crossed a limit, which is what more
+    records can still move; a signal outside the target, or an unknown lineage, cannot cross back
+    and so is never held back for coverage (code review, 2026-10-08).
+    """
     pct = r.detected_percent
     if r.target_genomes == 0 or pct is None:
         why = ("no genome of its target was assessed"
                + (f" ({r.membership_unknown:,} genomes without a known lineage)"
                   if r.membership_unknown else ""))  # fmt: skip
-        return Verdict.INCOMPLETE, why
+        return Verdict.INCOMPLETE, why, False
     judged = r.detected + r.not_detected
     total = judged + r.undetermined
     bracket = (
@@ -1829,16 +1836,20 @@ def _channel_limits(r: ChannelResult, rules: Any) -> tuple[Verdict, str]:
             f"{pct:.1f}% detected of {judged:,} judged, but {share:.1f}% of its target genomes "
             f"with the region are undetermined, more than {rules.max_undetermined_percent:g}%"
             f"{bracket}",
+            False,
         )
     if pct < rules.fail_below_percent:
         return (
             Verdict.FAIL,
             f"{pct:.1f}% detected, below your limit of {rules.fail_below_percent:g}%{bracket}",
+            True,
         )
     reasons = []
     level = Verdict.PASS
+    from_figure = False
     if pct < rules.warn_below_percent:
         level = Verdict.WARN
+        from_figure = True
         reasons.append(f"{pct:.1f}% detected, below your review limit of "
                        f"{rules.warn_below_percent:g}%{bracket}")  # fmt: skip
     if r.signal:
@@ -1846,8 +1857,13 @@ def _channel_limits(r: ChannelResult, rules: Any) -> tuple[Verdict, str]:
         reasons.append(f"a signal in {r.signal:,} of {r.nontarget_genomes:,} genomes outside "
                        "its target")  # fmt: skip
     if r.membership_unknown and level is Verdict.PASS:
-        return Verdict.INCOMPLETE, f"{r.membership_unknown:,} genomes without a known lineage"
-    return level, "; ".join(reasons)
+        return (
+            Verdict.INCOMPLETE,
+            f"{r.membership_unknown:,} genomes without a known lineage",
+            False,
+        )
+    # a signal alongside a figure below the limit: the figure can still move, so it is held back
+    return level, "; ".join(reasons), from_figure and not r.signal
 
 
 def _membership(

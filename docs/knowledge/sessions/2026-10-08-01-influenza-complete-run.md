@@ -43,6 +43,12 @@ generated: { by: claude-code/agent, at: 2026-10-08T09:00:00Z }
   ambiguity code, and the test that encoded the setting's wrong contract was corrected.
 - The review also re-derived and confirmed the influenza oligo coordinates, the GT-insertion
   reconstruction of the corrected primer, and the complete run's arithmetic.
+- The reviewer was run again on the fixes and found three faults in them, plus a fair criticism
+  of one test: a `KeyError` on a gap opposite an ambiguity code; a channel Review raised only by
+  a signal outside its target held back although a confirmed signal cannot cross back; and the
+  counts line still written before the channels could raise the verdict. The viewer's tier test,
+  which I had rewritten as a copy of the viewer's own rule, now checks each tier against the
+  YAML on disk instead. All four taken up, with three more regression tests.
 
 # Related
 

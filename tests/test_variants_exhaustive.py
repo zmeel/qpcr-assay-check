@@ -1018,3 +1018,19 @@ def test_a_channel_cannot_file_a_crossed_limit_on_partial_coverage():
     ok = ChannelResult(name="genus", probes=["LEGgenus"], target_taxid=444,
                        target_genomes=1000, detected=1000)  # fmt: skip
     assert channel_verdict(ok, rules, coverage_complete=False) == (Verdict.PASS, "")
+    # a Review raised only by a signal outside the channel's target is never held back: more
+    # records cannot take that signal away (code review 2026-10-08)
+    signal = ChannelResult(name="L. pneumophila", probes=["LEGpneu"], target_taxid=446,
+                           target_genomes=1000, detected=1000, nontarget_genomes=757,
+                           signal=2)  # fmt: skip
+    assert channel_verdict(signal, rules, coverage_complete=False) == channel_verdict(signal, rules)
+    assert channel_verdict(signal, rules)[0] is Verdict.WARN
+    # a figure below the review limit alongside a signal keeps the Review for the signal's sake
+    both = signal.model_copy(update={"detected": 900, "not_detected": 100})
+    assert channel_verdict(both, rules, coverage_complete=False)[0] is Verdict.WARN
+    # an unknown lineage is INCOMPLETE either way, with its own reason
+    unknown = ChannelResult(name="genus", probes=["LEGgenus"], target_taxid=444,
+                            target_genomes=10, detected=10, membership_unknown=3)  # fmt: skip
+    assert channel_verdict(unknown, rules, coverage_complete=False) == channel_verdict(
+        unknown, rules
+    )

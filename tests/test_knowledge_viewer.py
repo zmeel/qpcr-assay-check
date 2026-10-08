@@ -69,15 +69,24 @@ def test_every_concept_is_in_the_viewer_with_resolvable_links():
         assert c["folder"] in kv.FOLDERS
     r9 = next(c for c in data["concepts"] if c["id"] == "rules/r9-probes")
     assert "sources/kutyavin-2000" in r9["links"]
-    # the tier follows the concept's own frontmatter, so it changes as the user marks concepts
-    # verified: assert the mapping, never a particular concept's tier
+    # The tier follows the concept's own frontmatter, so pinning one concept's tier breaks as
+    # soon as the user marks that page verified. Check every tier against the YAML on disk - an
+    # oracle outside the viewer, not a copy of its rule (code review, 2026-10-08).
+    import yaml
+
+    seen = {"unverified": 0, "human": 0}
     for c in data["concepts"]:
-        assert c["tier"] in {"unverified", "machine", "human"}
-        if not c["verified"]:
-            assert c["tier"] == "unverified"
-        else:
-            human = any(v["by"].startswith("human:") for v in c["verified"])
-            assert c["tier"] == ("human" if human else "machine")
+        text = (kv.BUNDLE / f"{c['id']}.md").read_text(encoding="utf-8")
+        meta = yaml.safe_load(text.split("---", 2)[1]) or {}
+        raw = meta.get("verified")
+        entries = raw if isinstance(raw, list) else ([raw] if raw else [])
+        actors = [str(v.get("by", "")) for v in entries]
+        want = "unverified"
+        if actors:
+            want = "human" if any(a.startswith("human:") for a in actors) else "machine"
+        assert c["tier"] == want, c["id"]
+        seen[want] = seen.get(want, 0) + 1
+    assert seen["unverified"] and seen["human"]  # both tiers really occur in the bundle
     assert data["okfVersion"] == "0.2"
 
 
