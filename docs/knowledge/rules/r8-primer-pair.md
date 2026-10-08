@@ -3,7 +3,8 @@ type: Grading Rule
 title: R8 - the primer pair
 description: 3 mismatches in one primer with 2+ in the other, or 4 with 1+, is likely failure for the pair (Lefever 2013).
 tags: [grading, primer, pair, R8]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-08T07:35:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: lefever
