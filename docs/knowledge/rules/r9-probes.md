@@ -3,7 +3,8 @@ type: Grading Rule
 title: R9 - probe mismatches
 description: MGB probe - 1 mismatch under the MGB likely failure, further 5' undetermined, 2+ likely failure; unmodified probe - 1 outside the last 5 tolerated, 2 at risk, 3+ likely failure.
 tags: [grading, probe, MGB, R9]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-08T07:37:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: kutyavin
