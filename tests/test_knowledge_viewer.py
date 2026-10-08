@@ -68,7 +68,16 @@ def test_every_concept_is_in_the_viewer_with_resolvable_links():
         assert set(c["links"]) <= ids and c["id"] not in c["links"]
         assert c["folder"] in kv.FOLDERS
     r9 = next(c for c in data["concepts"] if c["id"] == "rules/r9-probes")
-    assert "sources/kutyavin-2000" in r9["links"] and r9["tier"] == "unverified"
+    assert "sources/kutyavin-2000" in r9["links"]
+    # the tier follows the concept's own frontmatter, so it changes as the user marks concepts
+    # verified: assert the mapping, never a particular concept's tier
+    for c in data["concepts"]:
+        assert c["tier"] in {"unverified", "machine", "human"}
+        if not c["verified"]:
+            assert c["tier"] == "unverified"
+        else:
+            human = any(v["by"].startswith("human:") for v in c["verified"])
+            assert c["tier"] == ("human" if human else "machine")
     assert data["okfVersion"] == "0.2"
 
 
