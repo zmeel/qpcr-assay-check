@@ -4,8 +4,9 @@ title: Influenza A, matrix gene (two NED probes)
 description: One primer pair and two alternative linear NED/BHQ1 probes in segment 7; the reverse primer arrived two bases short and now carries the user's own laboratory's sequence.
 resource: ../../examples/influenza_a_matrix.yaml
 tags: [assay, example, RNA, virus]
-status: draft
-generated: { by: claude-code/agent, at: 2026-10-07T14:00:00Z }
+status: stable
+verified: { by: human:zmeel, at: 2026-10-07T08:00:00Z }
+generated: { by: claude-code/agent, at: 2026-10-08T07:26:00Z }
 sources:
   - id: assay-file
     resource: ../../examples/influenza_a_matrix.yaml
