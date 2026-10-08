@@ -3,7 +3,8 @@ type: Grading Rule
 title: Specificity findings
 description: Off-target sites as critical or warning by mismatches, gaps and clean 3' bases; products paired from facing primer sites; severities per finding.
 tags: [specificity, off-target]
-status: draft
+status: stable
+verified: { by: human:zmeel, at: 2026-10-08T07:41:00Z }
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
 sources:
   - id: config
