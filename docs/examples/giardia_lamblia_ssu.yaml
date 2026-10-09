@@ -1,0 +1,127 @@
+# Example assay: Giardia lamblia (G. duodenalis), SSU rRNA, one FAM/BHQ1 probe.
+# The Giardia channel of the Verweij 2004 faecal multiplex (with Entamoeba histolytica and
+# Cryptosporidium parvum in the same reaction).
+#
+# STATUS
+#   One amplified region in the SSU (18S) rRNA gene, 63 bp. The three oligos tile it almost end
+#   to end: forward 1-20, a 6-nt spacer, probe 27-46, 1 nt, reverse site 48-63. The probe is
+#   linear (FAM/BHQ1, no MGB or other Tm-raising modification), so the unmodified-probe ladder of
+#   R9 applies: one mismatch outside the last 5 nt tolerated, one in the last 5 nt or two
+#   anywhere at risk, three or more likely failure (docs/MISMATCH_CLASSES.md). One probe, so one
+#   channel; no wet-lab evidence entries. No taxa inside G. duodenalis are left out of the
+#   target: assemblages A and B both infect humans and a pan-Giardia assay should detect both.
+#
+# PROVENANCE
+#   Oligos supplied by the user (2026-10-09) with the publication they come from: Verweij JJ,
+#   Blange RA, Templeton K et al. Simultaneous detection of Entamoeba histolytica, Giardia
+#   lamblia, and Cryptosporidium parvum in fecal samples by using multiplex real-time PCR.
+#   J Clin Microbiol 2004; 42: 1220-1223. The sequences are here exactly as the user wrote them
+#   (the spaces in the bases removed); they were NOT read out of the paper, so whether they match
+#   it is unchecked. The names are the user's with the spaces replaced by hyphens, which the
+#   format requires ("RealT G.lamblia F" -> RealT-G.lamblia-F).
+#   The exclusivity panel was suggested in this session and is the user's to edit.
+#
+# THE REFERENCE AMPLICON IS NOT THE ONE SUPPLIED (2026-10-09)
+#   The user gave this 56-nt "reference sequence":
+#       GACGGCTCAGGACAACGGTTCCCGCGGCGGTCCCTGCTAGCGGACACCGCTGGCAA
+#   That is the three oligos concatenated - forward + probe + the reverse primer's binding site -
+#   with nothing between them, and no such sequence exists in Giardia. The real template carries
+#   a 6-nt spacer (GCACCC) between the forward primer and the probe and one C between the probe
+#   and the reverse site, so the product is 63 bp, not 56. Checked live against NCBI on
+#   2026-10-09: of 60 G. duodenalis SSU rRNA records sampled, 55 carry the probe and 41 carry the
+#   whole 63-nt amplicon exactly (37 with G at the primer's R position, 4 with A), while none
+#   carries the 56-nt form. The references below are therefore the real amplicon in both of its
+#   forms, each named after a record that holds it exactly. A stitched reference would have been
+#   worse than useless here: the region is located by exact 16-base seeds, and every seed across
+#   one of its two junctions matches nothing.
+#
+# WHAT WAS CHECKED (2026-10-09, against the references below)
+#   * RealT-G.lamblia-F at 1-20 exactly; its R is G in 37 of the 41 records that carry the whole
+#     amplicon and A in 4, so the degenerate base does real work.
+#   * RealT-G.lamblia-P at 27-46 exactly, in the sense strand, 6 nt behind the forward primer.
+#   * RealT-G.lamblia-R binds 48-63 exactly (reverse complement), 1 nt behind the probe.
+#   * The gene: the probe and the reverse site are in SSU (18S) rRNA records (e.g. LC947396.1
+#     "gene for 18S rRNA", PZ685973.1 "small subunit ribosomal RNA gene"), not in the
+#     beta-giardin, gdh or tpi genes that most other Giardia records cover.
+#   * Taxonomy, verified live: NCBI's scientific name for this organism is **Giardia duodenalis**
+#     (taxid 5741). "Giardia lamblia" and "Giardia intestinalis" resolve to the same taxon only
+#     through the [All Names] synonym fallback, so 5741 is given as the number, not the name.
+#     Every name in exclusivity_organisms below resolves to exactly one taxon by scientific name.
+#   * Template: DNA (a protozoan DNA target), not stated by the user. The annealing temperature
+#     is the default (60 C); Verweij's own cycling protocol was not read.
+#
+# EXCLUSIVITY PANEL, AND WHY (suggested 2026-10-09, the user's to change)
+#   An assay's own exclusivity_organisms REPLACES the packaged clinical organism list, so this
+#   list is the whole tier. Four groups, worst risk first:
+#     1. The co-targets in the same tube. A Giardia oligo that amplifies E. histolytica or
+#        C. parvum breaks the multiplex, not just the specificity: E. histolytica,
+#        Cryptosporidium parvum, and the near neighbours that share a sample with them,
+#        E. dispar and C. hominis.
+#     2. The rest of the genus. SSU rRNA is conserved within Giardia, so this is where
+#        cross-reaction is likeliest, and the species are the ones a stool from a patient with
+#        animal contact can carry: G. muris, G. microti, G. ardeae, G. psittaci, G. agilis,
+#        G. cricetidarum, G. peramelis.
+#     3. The nearest flagellates outside Giardia, by lineage: Spironucleus (the closest
+#        diplomonad genus), Hexamita, Chilomastix mesnili, Retortamonas intestinalis,
+#        Enteromonas hominis, Pentatrichomonas hominis, Trichomonas vaginalis.
+#     4. The rest of the faecal parasite differential, which is simply what else is in the
+#        sample: Dientamoeba fragilis, Blastocystis, Cyclospora cayetanensis, Cystoisospora
+#        belli, Enterocytozoon bieneusi.
+#   Deliberately not here: gut bacteria. The oligos sit in 18S rRNA and the bacterial flora is
+#   the largest mass of DNA in a stool, so the place for it is the background tier, not this one
+#   (see settings: search.background_taxids).
+
+assay_name: Giardia lamblia (SSU rRNA, Verweij 2004 multiplex)
+forward: {name: RealT-G.lamblia-F, sequence: GACGGCTCAGGACRACGGTT}   # R = A or G
+reverse: {name: RealT-G.lamblia-R, sequence: TTGCCAGCGGTGTCCG}
+probe:
+  - {name: RealT-G.lamblia-P, sequence: CCCGCGGCGGTCCCTGCTAG, reporter: FAM, quencher: BHQ1}
+template_type: DNA
+target:
+  taxid: 5741                    # Giardia duodenalis = G. lamblia = G. intestinalis
+  gene: small subunit (18S) rRNA
+reference_amplicons:             # the real 63-nt product, both forms (see the header)
+  - {name: Gl-amplicon-G, sequence: GACGGCTCAGGACGACGGTTGCACCCCCCGCGGCGGTCCCTGCTAGCCGGACACCGCTGGCAA}
+  - {name: Gl-amplicon-A, sequence: GACGGCTCAGGACAACGGTTGCACCCCCCGCGGCGGTCCCTGCTAGCCGGACACCGCTGGCAA}
+exclusivity_organisms:
+  # 1. the co-targets of the same reaction, and their near neighbours
+  - Entamoeba histolytica        # 5759
+  - Entamoeba dispar             # 46681
+  - Cryptosporidium parvum       # 5807
+  - Cryptosporidium hominis      # 237895
+  # 2. the rest of the genus: conserved SSU rRNA, so the likeliest cross-reaction
+  - Giardia muris                # 5742
+  - Giardia microti              # 61965
+  - Giardia ardeae               # 5743
+  - Giardia psittaci             # 187323
+  - Giardia agilis               # 2137164
+  - Giardia cricetidarum         # 2137162
+  - Giardia peramelis            # 1822422
+  # 3. the nearest intestinal flagellates outside Giardia
+  - Spironucleus                 # 39709, the closest diplomonad genus
+  - Hexamita                     # 13567
+  - Chilomastix mesnili          # 472572
+  - Retortamonas intestinalis    # 1476596
+  - Enteromonas hominis          # 460189
+  - Pentatrichomonas hominis     # 5728
+  - Trichomonas vaginalis        # 5722
+  # 4. the rest of the faecal parasite differential
+  - Dientamoeba fragilis         # 43352
+  - Blastocystis                 # 12967, the genus
+  - Cyclospora cayetanensis      # 88456
+  - Cystoisospora belli          # 482538
+  - Enterocytozoon bieneusi      # 31281
+oligo_source: >-
+  Supplied by the user (2026-10-09) with Verweij et al., J Clin Microbiol 2004; 42: 1220-1223;
+  the sequences were not read out of the publication.
+
+settings:                        # only what differs from the defaults, for this assay
+  search:
+    background_taxids: [9606, 562, 816]   # human, plus Escherichia coli and Bacteroides as the
+                                 # abundant faecal flora: in stool that DNA outweighs the human
+                                 # background this setting usually holds
+  variants:
+    source: blast_partitioned    # the rRNA genes are multi-copy and most Giardia records are
+                                 # single genes, so every Nucleotide record, not assemblies
+    nucleotide_query: 'small subunit ribosomal RNA[TITL] OR 18S[TITL] OR SSU[TITL] OR 16S-like[TITL] OR ribosomal[TITL]'
+    blast_max_records_per_run: 3000   # 2,791 records matched that query on 2026-10-09: one run

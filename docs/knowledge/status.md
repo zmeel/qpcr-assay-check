@@ -49,6 +49,10 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
+- Giardia lamblia: confirm the oligos against Verweij 2004 (they were supplied, not read out of
+  the paper) and the suggested exclusivity panel, then run it
+  ([assay](assays/giardia-lamblia-ssu.md)).
+
 - Influenza A (matrix): coverage is complete, so the figure stands. The decision is the
   laboratory's: a wet-lab test of a template with the reverse primer's 3'-terminal G-A would
   settle 97.0% of the failures ([run](runs/influenza-a-2026-10-07-complete.md)).
