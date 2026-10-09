@@ -38,6 +38,13 @@ sources:
   2026-09-30). For each query of a multi-query search NCBI reports `eff_space` 0; the space is
   then derived from the reported alignments.
 - A human-restricted `core_nt` search takes about an hour (one took 61 min).
+- **A RID can be READY and still have no report.** On 2026-10-09 a taxon-restricted exclusivity
+  search (RID CHAN7C89016) polled READY and the `FORMAT_TYPE=JSON2_S` request answered with an
+  HTML page: "SYSTEM CAN'T PROCESS YOUR REQUEST, PLEASE CONTACT blasthelp.RID: CHAN7C89016 INFO:
+  CHAN7C89016-ALIGNMENT-JSON2_S". So READY is not a promise that the formatter will deliver, and
+  a fetched body has to be checked before it is treated, or stored, as a result. Whether the
+  cause was the RID, the format or the load was not established; the retry and the resubmission
+  in `ncbi/runner.py` assume it is transient.
 
 # Consequence
 

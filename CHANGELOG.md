@@ -22,6 +22,15 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **An HTML error page from a READY BLAST search was cached as if it were the result** (live,
+  user 2026-10-09, a Giardia run: NCBI called RID CHAN7C89016 ready and then answered the
+  `JSON2_S` request with "SYSTEM CAN'T PROCESS YOUR REQUEST, PLEASE CONTACT blasthelp"). The
+  runner cached whatever the fetch returned before the caller parsed it, so one transient
+  formatter failure stopped the run and then every later run too, being served the same page from
+  the cache until its TTL expired. The fetch is now retried (`FETCH_ATTEMPTS`, 3) and the search
+  submitted anew once if it was resumed from an earlier run; only a body that can be a report is
+  cached, and a cached page from before this fix is ignored, so a rerun simply searches again. A
+  search that keeps failing now says so with its RID and states that nothing was cached.
 - **Three faults in that hold-back, and one in the degenerate-oligo Tm estimate**, from a code
   review of this session's work (2026-10-08):
   - `limits_need_complete_coverage: false` released only the Exceeds limit while the code,

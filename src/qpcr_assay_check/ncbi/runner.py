@@ -13,12 +13,18 @@ from .blast import BlastApi
 from .cache import Cache
 from .http import NcbiError
 from .jobs import Job, JobStore
+from .parser import is_json_report
 
 log = logging.getLogger(__name__)
 
 
 class SearchTimeout(NcbiError):
     """Waiting for NCBI took longer than allowed. The job stays resumable."""
+
+
+#: Attempts at a finished report before the search is given up on or submitted anew: NCBI can
+#: call a RID READY and then have its formatter return an HTML error page (live, 2026-10-09).
+FETCH_ATTEMPTS = 3
 
 
 def _now() -> datetime:
@@ -48,8 +54,49 @@ class BlastRunner:
         self._sleep = sleep or (lambda s: time.sleep(s))
 
     def cached(self, job: Job) -> str | None:
-        """The stored raw result for this exact request, if present and still fresh."""
-        return self.cache.get("blast", job.key, ttl_days=self.s.blast_cache_ttl_days)
+        """The stored raw result for this exact request, if present, still fresh and a report.
+
+        A cache written before 2026-10-09 can hold an error page NCBI's formatter returned for a
+        READY RID; such an entry is ignored, so the search is simply made again instead of
+        failing the run until the entry expires.
+        """
+        hit = self.cache.get("blast", job.key, ttl_days=self.s.blast_cache_ttl_days)
+        if hit is not None and not self._is_report(hit):
+            log.warning(
+                "Job %s [%s]: the cached result is not a %s report (%s); searching again",
+                job.label, job.key[:8], self.result_format,
+                hit.strip()[:100].replace("\n", " "),
+            )  # fmt: skip
+            return None
+        return hit
+
+    def _is_report(self, text: str) -> bool:
+        """Whether a fetched body could be a report in the format asked for."""
+        if "JSON" in self.result_format.upper():
+            return is_json_report(text)
+        return bool(text.strip())
+
+    def _fetch_report(self, job: Job) -> str | None:
+        """The finished report, or None if NCBI keeps answering with something that is not one.
+
+        NCBI can call a RID READY and then have its formatter fail, returning an HTML error page
+        ("SYSTEM CAN'T PROCESS YOUR REQUEST, PLEASE CONTACT blasthelp"; live, user 2026-10-09,
+        RID CHAN7C89016, FORMAT_TYPE JSON2_S). It is often transient for the same RID, so the
+        fetch is retried before the search is given up on.
+        """
+        assert job.rid is not None
+        for attempt in range(1, FETCH_ATTEMPTS + 1):
+            raw = self.api.fetch(job.rid, self.result_format)
+            if self._is_report(raw):
+                return raw
+            log.warning(
+                "Job %s: RID %s is READY but attempt %d/%d at its %s report is not one: %s",
+                job.label, job.rid, attempt, FETCH_ATTEMPTS, self.result_format,
+                raw.strip()[:120].replace("\n", " "),
+            )  # fmt: skip
+            if attempt < FETCH_ATTEMPTS:
+                self._sleep(self.s.poll_interval_s)
+        return None
 
     def _rid_alive(self, job: Job) -> bool:
         if not job.rid or not job.submitted_at:
@@ -120,7 +167,26 @@ class BlastRunner:
                 waited,
             )
             if status == "READY":
-                break
+                raw = self._fetch_report(job)
+                if raw is not None:
+                    break
+                if fresh:
+                    job.state, job.error = "failed", "the report came back as an error page"
+                    self.store.upsert(job)
+                    raise NcbiError(
+                        f"NCBI called search {job.label!r} (RID {job.rid}) ready, but its "
+                        f"{self.result_format} report came back as an error page "
+                        f"{FETCH_ATTEMPTS} times. Nothing was cached, so running the same "
+                        "command again searches anew; if it persists, the RID is in the log for "
+                        "blasthelp@ncbi.nlm.nih.gov."
+                    )
+                log.warning(
+                    "Job %s: RID %s is ready but its report is an error page; submitting it anew",
+                    job.label, job.rid,
+                )  # fmt: skip
+                self._submit(job, put_params)
+                fresh, first = True, True
+                continue
             if status == "FAILED":
                 job.state, job.error = "failed", "BLAST reported FAILED"
                 self.store.upsert(job)
@@ -148,8 +214,7 @@ class BlastRunner:
 
         job.state = "ready"
         self.store.upsert(job)
-        raw = self.api.fetch(job.rid, self.result_format)
-        self.cache.put("blast", job.key, raw)
+        self.cache.put("blast", job.key, raw)  # a report, checked by _fetch_report
         # provenance for later runs served from the cache (RIDs expire at NCBI after ~36 h)
         self.cache.put(
             "blast_rid", job.key, json.dumps({"rid": job.rid, "submitted_at": job.submitted_at})

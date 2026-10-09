@@ -202,3 +202,44 @@ def test_a_resubmission_counts_as_sending_so_the_user_is_asked(env, monkeypatch)
     assert not env.runner.needs_submission(env.job)
     monkeypatch.setattr(env.cfg.ncbi, "resubmit_after_minutes", 0)
     assert env.runner.needs_submission(env.job)
+
+
+BLASTHELP = (
+    "SYSTEM CAN'T PROCESS YOUR REQUEST, PLEASE CONTACT blasthelp.RID: CHAN7C89016<BR> "
+    "<B>INFO: CHAN7C89016-ALIGNMENT-JSON2_S</B><BR>"
+)
+
+
+def test_an_error_page_for_a_ready_rid_is_retried_and_never_cached(cfg, tmp_path):
+    """Live, user 2026-10-09 (the Giardia run): NCBI called a RID READY and then answered the
+    JSON2_S request with an HTML error page. The page was cached as if it were the result, so
+    every later run was served it from the cache and failed the same way until the entry
+    expired."""
+    from qpcr_assay_check.ncbi.runner import FETCH_ATTEMPTS
+
+    bodies = [BLASTHELP, BLASTHELP]
+    env = Env(cfg, tmp_path, FakeNcbi(lambda p: bodies.pop(0) if bodies else hits_for_payload(p)))
+    raw = env.run()
+    assert raw.lstrip().startswith("{")  # the report, not the error page
+    assert not bodies  # both error pages were served first, then the report
+    assert env.cache.get("blast", env.job.key, ttl_days=None) == raw  # only the report is stored
+
+    # it keeps answering with the page: the search fails, and nothing is left in the cache
+    env2 = Env(cfg, tmp_path / "b", FakeNcbi(BLASTHELP))
+    with pytest.raises(NcbiError, match="came back as an error page"):
+        env2.run()
+    assert env2.cache.get("blast", env2.job.key, ttl_days=None) is None
+    fetches = [c for c in env2.fake.calls if "FORMAT_TYPE" in c["payload"]]
+    assert len(fetches) == FETCH_ATTEMPTS
+
+
+def test_a_cached_error_page_from_an_older_run_is_ignored(cfg, tmp_path):
+    """A cache written before the fix holds such a page: the search is made again instead of
+    failing the run until the entry expires."""
+    env = Env(cfg, tmp_path, FakeNcbi(hits_for_payload))
+    env.cache.put("blast", env.job.key, BLASTHELP)  # as an older run would have left it
+    assert env.runner.cached(env.job) is None  # not served
+    assert env.runner.needs_submission(env.job)  # and the user is asked, as for a new search
+    raw = env.run()
+    assert raw.lstrip().startswith("{")
+    assert env.cache.get("blast", env.job.key, ttl_days=None) == raw  # overwritten by the report

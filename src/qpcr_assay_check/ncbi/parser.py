@@ -213,10 +213,19 @@ def _label_for(title: str, query_id: str, labels: list[str]) -> str:
     )
 
 
+def is_json_report(text: str) -> bool:
+    """Whether a fetched body could be a JSON report at all, i.e. it starts a JSON document.
+
+    NCBI can answer a RID it has just called READY with an HTML error page from its formatter,
+    which must never be mistaken for a result or stored as one (live, 2026-10-09).
+    """
+    return text.lstrip().startswith(("{", "["))
+
+
 def parse_blast_json(text: str, labels: list[str]) -> ParsedSearch:
     """Parse a JSON2 report; ``labels`` are the FASTA identifiers of the submitted queries."""
     stripped = text.lstrip()
-    if not stripped.startswith(("{", "[")):
+    if not is_json_report(text):
         raise ParseError(
             "The response is not JSON (it may be an HTML error page or a different format): "
             + stripped[:160].replace("\n", " ")

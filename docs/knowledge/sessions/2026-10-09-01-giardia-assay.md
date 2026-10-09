@@ -36,7 +36,18 @@ generated: { by: claude-code/agent, at: 2026-10-09T09:00:00Z }
 - Oligo names had to lose their spaces, which the format forbids ("RealT G.lamblia F" ->
   RealT-G.lamblia-F). QC: Review, 0 outside the limit and 8 outside the preferred range, all of
   them the design - a GC-rich rRNA target and a short, hot amplicon.
+- The user's first live Giardia run then failed: NCBI called an exclusivity RID READY and
+  answered the JSON2_S request with "SYSTEM CAN'T PROCESS YOUR REQUEST, PLEASE CONTACT
+  blasthelp" (RID CHAN7C89016). Two things were wrong on our side: the runner cached whatever
+  the fetch returned **before** the caller parsed it, so the page became the stored result and
+  every later run was served it from the cache and failed identically until the TTL expired; and
+  there was no retry, so one formatter hiccup stopped a run outright. Fixed: the fetch is
+  retried three times and the search submitted anew once if it was resumed, only a body that can
+  be a report is cached, and a page cached by an older run is ignored. Written up in
+  [ncbi/blast-url-api](../ncbi/blast-url-api.md) as measured NCBI behaviour: READY is not a
+  promise that the formatter will deliver.
 
 # Related
 
 * [Giardia lamblia, SSU rRNA (Verweij 2004 multiplex)](../assays/giardia-lamblia-ssu.md)
+* [BLAST URL API - what the code relies on](../ncbi/blast-url-api.md)
