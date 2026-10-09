@@ -68,10 +68,13 @@
 #        sample: Dientamoeba fragilis, Blastocystis, Cyclospora cayetanensis, Cystoisospora
 #        belli, Enterocytozoon bieneusi.
 #   Deliberately not here: gut bacteria. The oligos sit in 18S rRNA, so bacterial 16S is not the
-#   likely cross-reactant; the flora is simply the largest mass of DNA in a stool. Putting
-#   Escherichia coli and Bacteroides in the background tier instead was tried on 2026-10-09 and
-#   failed: NCBI cannot format that search (see settings: search.background_taxids). The tier is
-#   human only, as the default has it.
+#   likely cross-reactant; the flora is simply the largest mass of DNA in a stool, which is what
+#   the background tier is for (see settings: search.background_taxids).
+#   WHAT THE FIRST RUN FOUND (2026-10-09 09:45Z): group 2 was the right worry. The assay is
+#   predicted to amplify AND be detected by its probe in Giardia microti (8 records, 0 primer
+#   mismatches, 49-63 bp) and G. psittaci (5 records, 2 mismatches, 63 bp), and to amplify but
+#   not be detected in G. peramelis and G. ardeae. The background tier predicted 31 products and
+#   none detectable by the probe.
 
 assay_name: Giardia lamblia (SSU rRNA, Verweij 2004 multiplex)
 forward: {name: RealT-G.lamblia-F, sequence: GACGGCTCAGGACRACGGTT}   # R = A or G
@@ -119,15 +122,15 @@ oligo_source: >-
 
 settings:                        # only what differs from the defaults, for this assay
   search:
-    background_taxids: [9606]    # human only. Escherichia coli (562) and Bacteroides (816) were
-                                 # suggested here on 2026-10-09 as the abundant faecal flora and
-                                 # had to be taken out again the same day: a background search of
-                                 # (562 OR 816 OR 9606) with these short oligos at word size 7 is
-                                 # one NCBI's JSON2_S formatter will not format. It answered
-                                 # "SYSTEM CAN'T PROCESS YOUR REQUEST" for a cached RID and again
-                                 # for a fresh one (CHCC1S18014), so it is the query, not a
-                                 # hiccup. If the flora has to be covered, give those taxa their
-                                 # own narrower searches, not this tier.
+    background_taxids: [9606, 562, 816]   # human, plus Escherichia coli and Bacteroides as the
+                                 # abundant faecal flora: in a stool that DNA outweighs the human
+                                 # background this setting usually holds. Verified by the run of
+                                 # 2026-10-09 09:45Z: 31 predicted products, none of them
+                                 # detectable by the probe (E. coli 30, human 1), so the flora
+                                 # gives primer-only products. Two things to expect: NCBI's
+                                 # formatter failed twice on this search before delivering it on
+                                 # a retry, and the hit list saturates for both forward-primer
+                                 # forms, so their evidence is partial and the report says so.
   variants:
     source: blast_partitioned    # the rRNA genes are multi-copy and most Giardia records are
                                  # single genes, so every Nucleotide record, not assemblies

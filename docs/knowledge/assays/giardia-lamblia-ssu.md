@@ -22,6 +22,9 @@ sources:
   - id: session
     resource: ../sessions/2026-10-09-01-giardia-assay.md
     title: "Session 2026-10-09: Giardia assay file"
+  - id: run
+    resource: ../runs/giardia-2026-10-09.md
+    title: "Giardia lamblia, 2026-10-09 (09:45Z, complete)"
 stale_after: 2027-04-09T00:00:00Z
 ---
 
@@ -88,11 +91,12 @@ flagellates outside it (*Spironucleus*, *Hexamita*, *Chilomastix mesnili*, *Reto
 intestinalis*, *Enteromonas hominis*, *Pentatrichomonas hominis*, *Trichomonas vaginalis*) and
 the rest of the faecal differential (*Dientamoeba fragilis*, *Blastocystis*, *Cyclospora
 cayetanensis*, *Cystoisospora belli*, *Enterocytozoon bieneusi*). Every name resolves to exactly
-one taxon by scientific name.[^ncbi] Gut bacteria are in neither tier: the oligos sit in 18S
-rRNA, so bacterial 16S is not the likely cross-reactant. Putting *E. coli* (562) and
-*Bacteroides* (816) in the background tier was suggested here on 2026-10-09 and withdrawn the
-same day, because NCBI cannot format that search at all - see
-[the BLAST API page](../ncbi/blast-url-api.md). The tier is human alone, as the default has it.
+one taxon by scientific name.[^ncbi] Gut bacteria are not in this tier but in the background one
+(`search.background_taxids: [9606, 562, 816]`): the oligos sit in 18S rRNA, so bacterial 16S is
+not the likely cross-reactant, and the flora is simply the largest mass of DNA in a stool. The
+[first run](../runs/giardia-2026-10-09.md) bears that out - 31 predicted products there and none
+detectable by the probe - and shows group 2 was the right worry: the probe is predicted to detect
+*G. microti* and *G. psittaci*.[^run]
 
 # Oligo QC (`run --qc-only`, no network)
 
@@ -104,7 +108,10 @@ product is the whole reference, with no flanking bases.
 
 # Runs
 
-None yet.
+[2026-10-09 09:45Z](../runs/giardia-2026-10-09.md), the first and complete: all 2,791 records
+assessed, Exceeds limit because the probe is predicted to detect *G. microti* (8 records, perfect
+primer pair) and *G. psittaci*; 96.0% detectable of the 202 records collected 2023-2026, but
+Incomplete because 67.7% of the records have no usable collection year.
 
 [^assay-file]: docs/examples/giardia_lamblia_ssu.yaml (provenance and checks in its header)
 [^verweij]: Verweij et al. 2004, the faecal multiplex the oligos come from

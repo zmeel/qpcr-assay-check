@@ -45,13 +45,15 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 | Legionella | [2026-10-02 13:16Z](runs/legionella-2026-10-02.md) | Incomplete: 46.1% undetermined, mostly regions cut by contig ends |
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
+| Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
 | Influenza A (matrix) | [2026-10-07 17:35Z](runs/influenza-a-2026-10-07-complete.md) | complete: all 172,768 records. Exceeds limit, 69.0% of 69,688 collected 2023-2026; one reverse-primer terminal G-A is 97.0% of the failures, sweeping in from the 2022 season |
 
 # Next, waiting on the user
 
-- Giardia lamblia: confirm the oligos against Verweij 2004 (they were supplied, not read out of
-  the paper) and the suggested exclusivity panel, then run it
-  ([assay](assays/giardia-lamblia-ssu.md)).
+- Giardia lamblia: decide what the predicted detection of G. microti and G. psittaci means for
+  the laboratory, and whether to put this assay on `status_axis: release` (two thirds of the
+  records have no collection year) ([run](runs/giardia-2026-10-09.md)). The oligos still want
+  confirming against Verweij 2004: they were supplied, not read out of the paper.
 
 - Influenza A (matrix): coverage is complete, so the figure stands. The decision is the
   laboratory's: a wet-lab test of a template with the reverse primer's 3'-terminal G-A would

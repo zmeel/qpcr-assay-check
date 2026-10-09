@@ -46,15 +46,23 @@ generated: { by: claude-code/agent, at: 2026-10-09T09:00:00Z }
   be a report is cached, and a page cached by an older run is ignored. Written up in
   [ncbi/blast-url-api](../ncbi/blast-url-api.md) as measured NCBI behaviour: READY is not a
   promise that the formatter will deliver.
-- The rerun on the fixed code showed the rest: the poisoned entry was refused and the search
-  made again, but the **fresh** RID (CHCC1S18014) answered with the same error page. So it is
-  the query, not a hiccup - and the query was the background tier I had suggested,
-  `(txid562 OR txid816 OR txid9606)`: E. coli and Bacteroides are too large for NCBI's JSON2_S
-  formatter with 16-20 nt oligos at word size 7. The assay file is back to the default
-  `background_taxids: [9606]` and both the assay concept and the BLAST API page say why. My
-  suggestion to put the faecal flora in that tier was wrong.
+- The rerun on the fixed code refused the poisoned entry and searched again; the log the user
+  pasted ended at "attempt 1/3" for the new RID, and I concluded from that the failure was
+  deterministic and the background tier I had suggested was at fault, so I took E. coli and
+  Bacteroides out of the file. **That was wrong, and corrected the same day**: the finished run
+  shows the background search is RID CHCC1S18014, the very one whose first fetch failed, so a
+  later attempt of the retry delivered its report. The tier is restored, and the BLAST API page
+  now says that a repeat failure for one RID still says nothing about the next.
+- The run itself finished: [runs/giardia-2026-10-09](../runs/giardia-2026-10-09.md). Exceeds
+  limit, because the probe is predicted to detect G. microti (8 records, perfect primer pair) and
+  G. psittaci - group 2 of the suggested panel, the rest of the genus, which was the right worry.
+  The background tier predicted 31 products and none probe-detectable, so the flora earns its
+  place in that tier after all. 96.0% detectable of 202 records collected 2023-2026, but
+  Incomplete because 67.7% of the records have no usable collection year; for Giardia
+  `status_axis: release` would suit the records better.
 
 # Related
 
 * [Giardia lamblia, SSU rRNA (Verweij 2004 multiplex)](../assays/giardia-lamblia-ssu.md)
 * [BLAST URL API - what the code relies on](../ncbi/blast-url-api.md)
+* [Giardia lamblia, 2026-10-09 (09:45Z, complete)](../runs/giardia-2026-10-09.md)

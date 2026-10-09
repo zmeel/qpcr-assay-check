@@ -30,12 +30,10 @@ All notable changes to this project are documented here. The format follows
   the cache until its TTL expired. The fetch is now retried (`FETCH_ATTEMPTS`, 3) and the search
   submitted anew once if it was resumed from an earlier run; only a body that can be a report is
   cached, and a cached page from before this fix is ignored, so a rerun simply searches again. A
-  search that keeps failing now says so with its RID and states that nothing was cached. A rerun
-  showed the failure is not always transient: a fresh RID answered the same way for the same
-  query, a background search over Escherichia coli, Bacteroides and human with 16-20 nt oligos at
-  word size 7, which is more than the formatter will render. The retry does not rescue such a
-  search; it stops it poisoning the cache and makes it fail legibly. The Giardia example is back
-  to the default `background_taxids: [9606]`.
+  search that keeps failing now says so with its RID and states that nothing was cached. The retry
+  earns its keep: on the Giardia run of 2026-10-09 the same RID (CHCC1S18014) answered the first
+  fetch with that page and delivered its report to a later attempt, so the run completed where
+  before it would have stopped and poisoned the cache.
 - **Three faults in that hold-back, and one in the degenerate-oligo Tm estimate**, from a code
   review of this session's work (2026-10-08):
   - `limits_need_complete_coverage: false` released only the Exceeds limit while the code,
