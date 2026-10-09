@@ -88,9 +88,11 @@ flagellates outside it (*Spironucleus*, *Hexamita*, *Chilomastix mesnili*, *Reto
 intestinalis*, *Enteromonas hominis*, *Pentatrichomonas hominis*, *Trichomonas vaginalis*) and
 the rest of the faecal differential (*Dientamoeba fragilis*, *Blastocystis*, *Cyclospora
 cayetanensis*, *Cystoisospora belli*, *Enterocytozoon bieneusi*). Every name resolves to exactly
-one taxon by scientific name.[^ncbi] Gut bacteria are deliberately in the background tier
-instead (`search.background_taxids: [9606, 562, 816]`), because the oligos sit in 18S rRNA while
-the bacterial flora is the largest mass of DNA in a stool.
+one taxon by scientific name.[^ncbi] Gut bacteria are in neither tier: the oligos sit in 18S
+rRNA, so bacterial 16S is not the likely cross-reactant. Putting *E. coli* (562) and
+*Bacteroides* (816) in the background tier was suggested here on 2026-10-09 and withdrawn the
+same day, because NCBI cannot format that search at all - see
+[the BLAST API page](../ncbi/blast-url-api.md). The tier is human alone, as the default has it.
 
 # Oligo QC (`run --qc-only`, no network)
 

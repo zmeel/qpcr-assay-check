@@ -42,9 +42,18 @@ sources:
   search (RID CHAN7C89016) polled READY and the `FORMAT_TYPE=JSON2_S` request answered with an
   HTML page: "SYSTEM CAN'T PROCESS YOUR REQUEST, PLEASE CONTACT blasthelp.RID: CHAN7C89016 INFO:
   CHAN7C89016-ALIGNMENT-JSON2_S". So READY is not a promise that the formatter will deliver, and
-  a fetched body has to be checked before it is treated, or stored, as a result. Whether the
-  cause was the RID, the format or the load was not established; the retry and the resubmission
-  in `ncbi/runner.py` assume it is transient.
+  a fetched body has to be checked before it is treated, or stored, as a result.
+- **For some queries it is not transient.** The same run, resubmitted, got a fresh RID
+  (CHCC1S18014), polled READY in 2 minutes and answered the `JSON2_S` request with the same page
+  (2026-10-09). The query was a background search over
+  `(txid562[ORGN] OR txid816[ORGN] OR txid9606[ORGN])` - Escherichia coli, Bacteroides and human
+  - with 16-20 nt oligos at word size 7, EXPECT 1000 and `HITLIST_SIZE` 5000. Two taxa of that
+  size with a 7-base word is evidently more than the formatter will render, and READY after 2
+  minutes (a human-only `core_nt` search takes about an hour) suggests the search did not do the
+  work either. The retry and the resubmission in `ncbi/runner.py` do not rescue such a search;
+  they stop it from poisoning the cache and make it fail with its RID named. **Consequence for
+  an assay file:** keep the background tier to a modest amount of context, which is what the
+  default (human alone) is, and do not put whole bacterial genera in it.
 
 # Consequence
 

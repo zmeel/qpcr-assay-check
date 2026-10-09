@@ -67,9 +67,11 @@
 #     4. The rest of the faecal parasite differential, which is simply what else is in the
 #        sample: Dientamoeba fragilis, Blastocystis, Cyclospora cayetanensis, Cystoisospora
 #        belli, Enterocytozoon bieneusi.
-#   Deliberately not here: gut bacteria. The oligos sit in 18S rRNA and the bacterial flora is
-#   the largest mass of DNA in a stool, so the place for it is the background tier, not this one
-#   (see settings: search.background_taxids).
+#   Deliberately not here: gut bacteria. The oligos sit in 18S rRNA, so bacterial 16S is not the
+#   likely cross-reactant; the flora is simply the largest mass of DNA in a stool. Putting
+#   Escherichia coli and Bacteroides in the background tier instead was tried on 2026-10-09 and
+#   failed: NCBI cannot format that search (see settings: search.background_taxids). The tier is
+#   human only, as the default has it.
 
 assay_name: Giardia lamblia (SSU rRNA, Verweij 2004 multiplex)
 forward: {name: RealT-G.lamblia-F, sequence: GACGGCTCAGGACRACGGTT}   # R = A or G
@@ -117,9 +119,15 @@ oligo_source: >-
 
 settings:                        # only what differs from the defaults, for this assay
   search:
-    background_taxids: [9606, 562, 816]   # human, plus Escherichia coli and Bacteroides as the
-                                 # abundant faecal flora: in stool that DNA outweighs the human
-                                 # background this setting usually holds
+    background_taxids: [9606]    # human only. Escherichia coli (562) and Bacteroides (816) were
+                                 # suggested here on 2026-10-09 as the abundant faecal flora and
+                                 # had to be taken out again the same day: a background search of
+                                 # (562 OR 816 OR 9606) with these short oligos at word size 7 is
+                                 # one NCBI's JSON2_S formatter will not format. It answered
+                                 # "SYSTEM CAN'T PROCESS YOUR REQUEST" for a cached RID and again
+                                 # for a fresh one (CHCC1S18014), so it is the query, not a
+                                 # hiccup. If the flora has to be covered, give those taxa their
+                                 # own narrower searches, not this tier.
   variants:
     source: blast_partitioned    # the rRNA genes are multi-copy and most Giardia records are
                                  # single genes, so every Nucleotide record, not assemblies

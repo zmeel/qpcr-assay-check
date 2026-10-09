@@ -46,6 +46,13 @@ generated: { by: claude-code/agent, at: 2026-10-09T09:00:00Z }
   be a report is cached, and a page cached by an older run is ignored. Written up in
   [ncbi/blast-url-api](../ncbi/blast-url-api.md) as measured NCBI behaviour: READY is not a
   promise that the formatter will deliver.
+- The rerun on the fixed code showed the rest: the poisoned entry was refused and the search
+  made again, but the **fresh** RID (CHCC1S18014) answered with the same error page. So it is
+  the query, not a hiccup - and the query was the background tier I had suggested,
+  `(txid562 OR txid816 OR txid9606)`: E. coli and Bacteroides are too large for NCBI's JSON2_S
+  formatter with 16-20 nt oligos at word size 7. The assay file is back to the default
+  `background_taxids: [9606]` and both the assay concept and the BLAST API page say why. My
+  suggestion to put the faecal flora in that tier was wrong.
 
 # Related
 
