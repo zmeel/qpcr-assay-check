@@ -1,7 +1,7 @@
 ---
 type: Assay
-title: Influenza A, matrix gene (two NED probes)
-description: One primer pair and two alternative linear NED/BHQ1 probes in segment 7; the reverse primer arrived two bases short and now carries the user's own laboratory's sequence.
+title: Influenza A, matrix gene (Erasmus MC Viroscience protocol)
+description: "One forward primer, two reverse primers and two linear FAM/BHQ1 probes in segment 7; the second reverse primer covers the 3'-terminal escape the runs found."
 resource: ../../examples/influenza_a_matrix.yaml
 tags: [assay, example, RNA, virus]
 status: stable
@@ -20,6 +20,9 @@ sources:
   - id: complete
     resource: ../runs/influenza-a-2026-10-07-complete.md
     title: "Influenza A (matrix), 2026-10-07 (17:35Z, complete)"
+  - id: protocol
+    resource: "Protocol for Influenza RT-PCR, Viroscience Erasmus MC (R. Molenkamp), last update 02-02-2026 (supplied by the user 2026-10-16; distribution restricted)"
+    title: Erasmus MC Viroscience influenza RT-PCR protocol"
   - id: r9
     resource: ../rules/r9-probes.md
     title: R9 - probe mismatches
@@ -31,24 +34,49 @@ stale_after: 2027-04-07T00:00:00Z
 
 # Provenance
 
-Oligos, the 141-nt reference sequence and the exclusion (influenza B) passed on by the user on
-2026-10-07, who had them from another laboratory to test this tool with; not checked against a
-publication or kit insert. Oligo names are as received. One sequence was corrected, the reverse
-primer (below); everything else is exactly as received.[^assay-file]
+The five oligos are those of the Erasmus MC Viroscience influenza RT-PCR protocol (R. Molenkamp,
+last update 02-02-2026), which the user supplied on 2026-10-16, with its own names, dyes
+(FAM-BHQ1 on both probes) and cycling (60 C, 45 cycles).[^protocol] It confirms every sequence
+the file already held and adds one.
+
+**That protocol restricts distribution**: it may be used by microbiological and virological
+laboratories in the Netherlands, and distribution outside that network or publication in any
+form needs the author's permission. Whether these sequences belong in a public repository is the
+laboratory's decision, not the tool's; the file says so too.[^assay-file]
+
+How it got here: on 2026-10-07 the user passed on four of the oligos from another laboratory, as
+`FfluA` / `RfluA` / `PfluA1-tq-NED` / `PfluA2-tq-NED`, with the reverse primer two bases short.
+That was found from the data and replaced by the user's own 24-mer; the protocol now confirms it,
+so the 22-mer was a transcription error.
 
 # Design
 
 | Role | Oligo | Position in the 141-nt reference |
 |---|---|---|
-| forward | FfluA (23 nt, R at 6) | 1-23, exact |
-| probe | PfluA1-tq-NED (22 nt, NED, BHQ1) | 43-64, same strand, exact |
-| probe | PfluA2-tq-NED (22 nt, NED, BHQ1) | 43-64, one mismatch at 21 of 22 (2 nt from its 3' end) |
-| reverse | RfluA (24 nt, Y at 16) | binds 118-141, exact |
+| forward | infa_fwd (23 nt, R at 6) | 1-23, exact |
+| probe | infa_probe1 (22 nt, FAM, BHQ1) | 43-64, same strand, exact |
+| probe | infa_probe2 (22 nt, FAM, BHQ1) | 43-64, one mismatch at 21 of 22 (2 nt from its 3' end) |
+| reverse | infa_rev (24 nt, Y at 16) | binds 118-141, exact |
+| reverse | infa_rev2 (24 nt, Y at 16) | binds 118-141, one mismatch at its 3'-terminal base |
 
 Product 141 bp (the whole reference, no flanking bases), GC 49.6%. Both probes sit on one NED
 channel; both are linear (no MGB, LNA or other Tm-raising modification), so the
 unmodified-probe ladder of R9 applies to them.[^r9] Target influenza A virus (11320); template
 RNA.
+
+# The second reverse primer answers the sweep
+
+`infa_rev2` differs from `infa_rev` only in its 3'-terminal base, G to T - exactly the escape the
+[complete run](../runs/influenza-a-2026-10-07-complete.md) was built around. That 3'-terminal
+G-A mismatch, R1 "avoid", accounted for 7,989 of the 8,186 records in "Needs attention" (97.0%)
+and 11.8% of all reverse sites, and its share rose from 0.2-0.7% of samples collected up to 2021
+to 6.9% of 2022 and 40.5% of 2023.[^complete] So the protocol's extra primer is the answer to
+that sweep: a template carrying the variant has a perfectly matched primer again.
+
+A rerun should show it. A copy is judged by the best-binding oligo of each role, so the escapes
+that were likely failure on `infa_rev` alone become detectable on `infa_rev2`. The figures of the
+earlier runs - 69.0% detectable, 30.6% likely failure of the records collected 2023-2026 -
+describe the one-primer assay and are not this one's.
 
 # The reverse primer arrived two bases short
 
@@ -113,11 +141,12 @@ is "Influenza B virus".[^taxonomy]
 
 # Oligo QC (`run --qc-only`, no network)
 
-**Review** with the corrected primer: FfluA Tm 66.4 C above the preferred range, the primers
-3.4 C apart in Tm (within the limit), PfluA2 4.6 C above the mean primer Tm, a run of 5 identical
-bases in each probe, and PfluA2's designed single mismatch against the reference. Under the
-22-mer this was Exceeds limit: the primers were 6.2 C apart, over the limit, because every
-reverse Tm was about 5.5 C low.
+**Review** with the five oligos of the protocol: 0 outside the limit, 8 outside the preferred
+range - `infa_fwd` Tm 66.4 C, `infa_rev2` GC 37.5%, the primers 3.9 C apart in Tm, `infa_probe2`
+4.6 C above the mean primer Tm, a run of 5 identical bases in each probe, and the designed single
+mismatch of `infa_rev2` and `infa_probe2` against the reference, which is the point of those two
+oligos rather than a defect. Under the 22-mer this was Exceeds limit: the primers were 6.2 C
+apart, over the limit, because every reverse Tm was about 5.5 C low.
 
 # Runs
 

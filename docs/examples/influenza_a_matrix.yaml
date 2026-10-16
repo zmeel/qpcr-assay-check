@@ -1,35 +1,53 @@
-# Example assay: Influenza A, matrix (M) gene, one primer pair with two alternative NED probes.
+# Example assay: Influenza A, matrix (M) gene; one forward primer, two reverse primers and two
+# alternative FAM probes.
 #
 # STATUS
 #   Loci and channels format. One amplified region in the M gene (segment 7) with the supplied
-#   reference sequence as its only reference, and both probes on one NED channel whose target is
+#   reference sequence as its only reference, and both probes on one FAM channel whose target is
 #   the assay target (11320). Segment 7 is single-copy per genome, but every strain is its own
 #   Nucleotide record, so the variant analysis works over records, not assemblies
-#   (variants.source: blast_partitioned; see SCOPE below). Both probes are linear (NED/BHQ1, no
+#   (variants.source: blast_partitioned; see SCOPE below). Both probes are linear (FAM/BHQ1, no
 #   MGB or other Tm-raising modification), so the unmodified-probe ladder of R9 applies: one
 #   mismatch outside the last 5 nt is tolerated, one in the last 5 nt or two anywhere is at
 #   risk, three or more is likely failure (docs/MISMATCH_CLASSES.md). No wet-lab evidence
 #   entries. No taxa inside influenza A are left out of the target.
 #
-# PROVENANCE
-#   Oligos, reference sequence and the exclusion passed on by the user (2026-10-07), who had
-#   them from another laboratory to test this tool with; not checked against a publication or
-#   kit insert. Oligo names are as received.
-#   ONE SEQUENCE WAS CORRECTED, and only this one: the reverse primer arrived as the 22-mer
-#   TCTTCTTTAGCCAYTCCATGAG, two bases short, and stands here as the user's own laboratory's
-#   primer for the same influenza A PCR, TCTTGTCTTTAGCCAYTCCATGAG (the user, 2026-10-07: "in the
-#   past we ran the same Influenza A PCR and our reverse primer is ..."). See REVERSE PRIMER
-#   below for how the short form was found and what it did to the run of 13:08Z. Everything else
-#   is exactly as received.
+# PROVENANCE (updated 2026-10-16)
+#   The five oligos are those of "Protocol for Influenza RT-PCR, Viroscience Erasmus MC"
+#   (R. Molenkamp), last update 02-02-2026, which the user supplied: infa_fwd, infa_rev,
+#   infa_rev2, infa_probe1, infa_probe2, with the protocol's own names, dyes (FAM-BHQ1 on both
+#   probes) and cycling (annealing 60 C, 45 cycles). THAT PROTOCOL CARRIES A DISTRIBUTION
+#   RESTRICTION - it may be used by microbiological and virological laboratories in the
+#   Netherlands, and distribution outside that network or publication in any form needs the
+#   author's permission - so whether this file belongs in a public repository is the
+#   laboratory's call, not this tool's. See LICENCE below.
+#
+#   How it got here: on 2026-10-07 the user passed on four of the oligos from another laboratory
+#   to test the tool with, labelled FfluA / RfluA / PfluA1-tq-NED / PfluA2-tq-NED and with the
+#   reverse primer two bases short (TCTTCTTTAGCCAYTCCATGAG). The short form was found from the
+#   data (see REVERSE PRIMER) and replaced by the user's own 24-mer; the protocol now confirms
+#   every one of the five sequences, so the 22-mer was indeed a transcription error, and it
+#   supplies the names, the FAM label and infa_rev2.
+#
+# LICENCE OF THE SOURCE PROTOCOL
+#   "This protocol may be used by microbiological/virological laboratories in the Netherlands.
+#   Distribution of this protocol outside the network and publication in any form are prohibited
+#   without obtaining explicit permission of the original author(s), unless the protocol has
+#   been published in a journal." Keeping these sequences in a public repository is plausibly
+#   publication of part of it. Ask the author, or keep this file out of the public tree.
 #
 # WHAT WAS CHECKED (2026-10-07, against the supplied reference sequence, 141 nt)
-#   * FfluA at 1-23 exactly (its R matches the reference's A at position 6).
-#   * PfluA1-tq-NED at 43-64 exactly, in the sense strand, 19 nt behind the forward primer.
-#   * PfluA2-tq-NED binds the same site with one mismatch at position 21 of 22, i.e. 2 nt from
+#   * infa_fwd at 1-23 exactly (its R matches the reference's A at position 6).
+#   * infa_probe1 at 43-64 exactly, in the sense strand, 19 nt behind the forward primer.
+#   * infa_probe2 binds the same site with one mismatch at position 21 of 22, i.e. 2 nt from
 #     its 3' end (...CCGAGA -> ...CCGAAA): the alternative probe for that variant. It is absent
 #     from the reference as supplied.
-#   * RfluA at 118-141 exactly (reverse complement; its Y matches the reference's T), so the
+#   * infa_rev at 118-141 exactly (reverse complement; its Y matches the reference's T), so the
 #     reference amplicon is the product: no flanking bases left over.
+#   * infa_rev2 binds the same site with one mismatch, at its 3'-terminal base (...CCATGAG ->
+#     ...CCATGAT): the alternative primer for the variant the runs found (see THE SECOND REVERSE
+#     PRIMER). Like infa_probe2 against the reference, that single mismatch is the point of the
+#     oligo, not a defect.
 #   * Taxonomy IDs verified live at NCBI on 2026-10-07: 11320 "Influenza A virus" (a no-rank node
 #     under the species Alphainfluenzavirus influenzae, 2955291, so it covers every subtype and
 #     strain below it), and every name in exclusivity_organisms below, each resolving to exactly
@@ -38,10 +56,10 @@
 #     fallback.
 #
 # REVERSE PRIMER: WHY IT WAS CORRECTED (2026-10-07)
-#   As received, RfluA was TCTTCTTTAGCCAYTCCATGAG (22 nt). Against the supplied reference its
+#   As received, the reverse primer was TCTTCTTTAGCCAYTCCATGAG (22 nt). Against the supplied reference its
 #   site read two mismatches at the primer's 5' end and the reference ran on for 2 more bases:
 #       reference 118-141     CTCATGGAATGGCTAAAGACAAGA
-#       RfluA (22 nt), rev.   CTCATGGAARTGGCTAAAGAAGA-
+#       as received, rev.   CTCATGGAARTGGCTAAAGAAGA-
 #   The reference is in frame for M1 there (CTA AAG ACA AGA = Leu-Lys-Thr-Arg), so the primer,
 #   not the reference, was out of register: inserting GT after its leading TCTT restores it.
 #   The run of 2026-10-07T13:08Z showed the same thing in the data: all 23 reverse site variants,
@@ -49,7 +67,7 @@
 #   in 15,000 matched the primer perfectly. Checked live on two records the user downloaded
 #   (PZ488030.1, PZ641704.1): the 22-mer gives 3 mismatches in both, the 24-mer gives 1, and the
 #   one left is strain variation at a different position in each (3'-terminal G-T in PZ488030.1,
-#   G-A at -3 in PZ641704.1). The forward primer and PfluA1 match both records exactly.
+#   G-A at -3 in PZ641704.1). The forward primer and infa_probe1 match both records exactly.
 #   The user then gave their own laboratory's primer for the same PCR, which is the 24-mer, and
 #   that is what stands above. What the 13:08Z report said under the 22-mer, for the record:
 #   85.4% detectable and 13.0% likely failure of 12,848 records collected 2023-2026; 12,582
@@ -58,6 +76,19 @@
 #   terminal mismatch is "at risk". Every reverse Tm was depressed by about 5.5 C, which is also
 #   where that report's one hard QC failure (primer Tm difference 6.2 C) came from. Those numbers
 #   describe the short primer, not this assay; rerun after clearing the cached regions.
+#
+# THE SECOND REVERSE PRIMER (added to the protocol, in the file since 2026-10-16)
+#   infa_rev2 differs from infa_rev only in its 3'-terminal base, G -> T, and that base is
+#   exactly the escape the complete run of 2026-10-07 was built around: a 3'-terminal G-A
+#   mismatch at the reverse site, R1 "avoid", which accounted for 7,989 of the 8,186 records in
+#   "Needs attention" (97.0%) and 11.8% of all reverse sites. Its share rose from 0.2-0.7% of
+#   samples collected up to 2021 to 6.9% of 2022 and 40.5% of 2023, so the protocol's extra
+#   primer answers precisely that sweep: a template carrying the variant has a perfectly matched
+#   primer again.
+#   A rerun will show it: the escapes that were likely failure on infa_rev alone should become
+#   detectable on infa_rev2, since a copy is judged by the best-binding oligo of each role. The
+#   figures of the earlier runs (69.0% detectable, 30.6% likely failure of the records collected
+#   2023-2026) describe the one-primer assay and are not this one's.
 #
 # EXCLUSIVITY PANEL
 #   The user asked for influenza B only; widened on advice and their go-ahead (2026-10-07).
@@ -81,24 +112,26 @@
 #   matter for the laboratory's question.
 
 assay_name: Influenza A (matrix gene)
-forward: {name: FfluA, sequence: CTTCTRACCGAGGTCGAAACGTA}       # R = A or G
-reverse: {name: RfluA, sequence: TCTTGTCTTTAGCCAYTCCATGAG}      # Y = C or T; see REVERSE PRIMER
+forward: {name: infa_fwd, sequence: CTTCTRACCGAGGTCGAAACGTA}       # R = A or G; 18 pmol
+reverse:                           # two reverse primers in the same mix, 18 pmol each
+  - {name: infa_rev, sequence: TCTTGTCTTTAGCCAYTCCATGAG}          # Y = C or T
+  - {name: infa_rev2, sequence: TCTTGTCTTTAGCCAYTCCATGAT}         # ...GA -> ...AT at the 3' end
 probe:
-  - {name: PfluA1-tq-NED, sequence: TCAGGCCCCCTCAAAGCCGAGA, reporter: NED, quencher: BHQ1}
-  - {name: PfluA2-tq-NED, sequence: TCAGGCCCCCTCAAAGCCGAAA, reporter: NED, quencher: BHQ1}
+  - {name: infa_probe1, sequence: TCAGGCCCCCTCAAAGCCGAGA, reporter: FAM, quencher: BHQ1}
+  - {name: infa_probe2, sequence: TCAGGCCCCCTCAAAGCCGAAA, reporter: FAM, quencher: BHQ1}
 template_type: RNA
 target:
   taxid: 11320                  # Influenza A virus (verified 2026-10-07)
   gene: matrix (M1/M2), segment 7
 loci:
   - name: M gene region
-    primers: [FfluA, RfluA]
-    probes: [PfluA1-tq-NED, PfluA2-tq-NED]
+    primers: [infa_fwd, infa_rev, infa_rev2]
+    probes: [infa_probe1, infa_probe2]
     references:                 # the supplied reference sequence, as given (see WHAT WAS CHECKED)
       - name: fluA-M-fragment
         sequence: CTTCTAACCGAGGTCGAAACGTACGTTCTTTCTATCATCCCGTCAGGCCCCCTCAAAGCCGAGATCGCGCAGAGACTGGAAAGTGTCTTTGCAGGAAAGAACACAGATCTTGAGGCTCTCATGGAATGGCTAAAGACAAGA
 channels:
-  - {name: Influenza A, probes: [PfluA1-tq-NED, PfluA2-tq-NED]}  # reporter NED; target 11320
+  - {name: Influenza A, probes: [infa_probe1, infa_probe2]}      # reporter FAM; target 11320
 exclusivity_organisms:         # all taxa outside influenza A: a specificity search each
   # Orthomyxoviridae, the nearest neighbours of the target (own M gene; C infects humans)
   - Influenza B virus          # 11520, covers both the Victoria and Yamagata lineages
@@ -119,9 +152,13 @@ exclusivity_organisms:         # all taxa outside influenza A: a specificity sea
   - Enterovirus                # 12059, the genus
   - Mastadenovirus             # 10509, the genus (covers the human adenovirus species)
   - Human bocavirus 1          # 689403
-oligo_source: Supplied by the user (2026-10-07); source publication or kit not stated.
+oligo_source: >-
+  Protocol for Influenza RT-PCR, Viroscience Erasmus MC (R. Molenkamp), last update 02-02-2026.
 
 settings:                      # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60       # the protocol's cycling: 50 C 5 min, 95 C 20 s, then 45 x
+                               # (95 C 3 s, 60 C 30 s) on a LightCycler 480
   variants:
     source: blast_partitioned  # segmented RNA virus: every Nucleotide record of segment 7
     nucleotide_query: "980:1100[SLEN] AND segment 7[TITL]"   # near-complete M segment

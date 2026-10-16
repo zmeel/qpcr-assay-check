@@ -50,6 +50,11 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
+- Influenza A: decide whether the Erasmus MC protocol's oligos may stay in a public repository -
+  the protocol restricts distribution outside the Dutch network
+  ([assay](assays/influenza-a-matrix.md)). The second reverse primer is in the file but nothing
+  was pushed on 2026-10-16 pending that answer; a rerun with it is the next run.
+
 - Giardia lamblia: decide what the predicted detection of G. microti and G. psittaci means for
   the laboratory, and whether to put this assay on `status_axis: release` (two thirds of the
   records have no collection year) ([run](runs/giardia-2026-10-09.md)). The oligos still want

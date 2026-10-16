@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [The Erasmus MC influenza protocol, and the primer that answers the sweep](2026-10-16-01-influenza-protocol.md) - Session log of 2026-10-16.
 * [Giardia lamblia assay file, and a reference sequence that was not one](2026-10-09-01-giardia-assay.md) - Session log of 2026-10-09.
 * [The first complete influenza A run, and what the per-year tables date](2026-10-08-01-influenza-complete-run.md) - Session log of 2026-10-08.
 * [Influenza A matrix-gene assay file, and the README's knowledge base section](2026-10-07-02-influenza-a-assay.md) - Session log of 2026-10-07 (second page).
