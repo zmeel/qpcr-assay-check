@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [Permission for the protocol's oligos, and four days of a held-back commit](2026-10-20-01-protocol-permission.md) - Session log of 2026-10-20.
 * [The Erasmus MC influenza protocol, and the primer that answers the sweep](2026-10-16-01-influenza-protocol.md) - Session log of 2026-10-16.
 * [Giardia lamblia assay file, and a reference sequence that was not one](2026-10-09-01-giardia-assay.md) - Session log of 2026-10-09.
 * [The first complete influenza A run, and what the per-year tables date](2026-10-08-01-influenza-complete-run.md) - Session log of 2026-10-08.

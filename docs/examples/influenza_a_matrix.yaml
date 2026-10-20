@@ -19,8 +19,8 @@
 #   probes) and cycling (annealing 60 C, 45 cycles). THAT PROTOCOL CARRIES A DISTRIBUTION
 #   RESTRICTION - it may be used by microbiological and virological laboratories in the
 #   Netherlands, and distribution outside that network or publication in any form needs the
-#   author's permission - so whether this file belongs in a public repository is the
-#   laboratory's call, not this tool's. See LICENCE below.
+#   author's permission. On 2026-10-20 the user reported that R. Molenkamp, the protocol's
+#   author, gave that permission, and this file was published on that basis. See LICENCE below.
 #
 #   How it got here: on 2026-10-07 the user passed on four of the oligos from another laboratory
 #   to test the tool with, labelled FfluA / RfluA / PfluA1-tq-NED / PfluA2-tq-NED and with the
@@ -29,12 +29,20 @@
 #   every one of the five sequences, so the 22-mer was indeed a transcription error, and it
 #   supplies the names, the FAM label and infa_rev2.
 #
-# LICENCE OF THE SOURCE PROTOCOL
+# LICENCE OF THE SOURCE PROTOCOL, AND THE PERMISSION GIVEN
 #   "This protocol may be used by microbiological/virological laboratories in the Netherlands.
 #   Distribution of this protocol outside the network and publication in any form are prohibited
 #   without obtaining explicit permission of the original author(s), unless the protocol has
 #   been published in a journal." Keeping these sequences in a public repository is plausibly
-#   publication of part of it. Ask the author, or keep this file out of the public tree.
+#   publication of part of it, so the author was asked.
+#
+#   PERMISSION GIVEN. The user reported on 2026-10-20 that R. Molenkamp gave permission, and
+#   this file went into the public repository on that basis and not before: the commit holding
+#   infa_rev2 was written on 2026-10-16 and kept out of the remote until then. The wording of
+#   the permission and the form it was given in are not recorded here - the laboratory holds
+#   it, and this line is the user's report of it, not a copy of the permission itself. Only the
+#   five oligos, their names and the reaction conditions are reproduced here; the protocol
+#   itself is not redistributed with them.
 #
 # WHAT WAS CHECKED (2026-10-07, against the supplied reference sequence, 141 nt)
 #   * infa_fwd at 1-23 exactly (its R matches the reference's A at position 6).

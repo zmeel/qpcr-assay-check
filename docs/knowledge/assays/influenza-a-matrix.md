@@ -41,8 +41,11 @@ the file already held and adds one.
 
 **That protocol restricts distribution**: it may be used by microbiological and virological
 laboratories in the Netherlands, and distribution outside that network or publication in any
-form needs the author's permission. Whether these sequences belong in a public repository is the
-laboratory's decision, not the tool's; the file says so too.[^assay-file]
+form needs the author's permission. So the author was asked, and on 2026-10-20 the user reported
+that R. Molenkamp gave permission; the sequences went into the public repository on that basis
+and not before, and the file records the same.[^assay-file] What is published is the five oligos,
+their names and the reaction conditions - not the protocol itself. The wording and the form of
+the permission are held by the laboratory; this is the user's report of it.
 
 How it got here: on 2026-10-07 the user passed on four of the oligos from another laboratory, as
 `FfluA` / `RfluA` / `PfluA1-tq-NED` / `PfluA2-tq-NED`, with the reverse primer two bases short.

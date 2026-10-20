@@ -50,11 +50,10 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
-- Influenza A: the user is obtaining the permission of R. Molenkamp, the protocol's author, to
-  publish its oligos; the protocol restricts distribution outside the Dutch network
+- Influenza A: a rerun with both reverse primers is the next run. The licence question is
+  settled - R. Molenkamp gave permission to publish the protocol's oligos (reported 2026-10-20),
+  so the second reverse primer and its assay file are now in the public repository
   ([open item](open/influenza-protocol-permission.md), [assay](assays/influenza-a-matrix.md)).
-  The second reverse primer is in the file, committed locally and not pushed, since 2026-10-16;
-  it is pushed once that permission is in writing, and a rerun with it is the next run.
 
 - Giardia lamblia: decide what the predicted detection of G. microti and G. psittaci means for
   the laboratory, and whether to put this assay on `status_axis: release` (two thirds of the
