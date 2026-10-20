@@ -8,6 +8,7 @@ Open items: review suggestions not taken up, checks still to do.
 * [Rerun the enterovirus assay](enterovirus-rerun.md) - The enterovirus run predates the MGB region rule, which can change its probe's single-mismatch genomes.
 * [Analyse every locus of a multi-locus assay](every-locus.md) - Only the first locus is analysed; a multi-locus assay would be judged on one region.
 * [Independent validation of the classes](independent-validation.md) - The Otwell comparison is calibration; independent data such as Knight 2025 or the GoPrime templates are needed.
+* [Permission to publish the Erasmus MC influenza oligos](influenza-protocol-permission.md) - The source protocol restricts distribution, so nothing was pushed; the user is asking its author for permission. Opened 2026-10-16, permission being sought 2026-10-20.
 * [Legionella example still has placeholders](legionella-example-sequences.md) - The repository's Legionella example has TODO sequences, while the user runs a complete file on the NAS.
 * [CLAUDE.md says the licence is not chosen](license-note.md) - pyproject.toml and the old progress log say Apache-2.0; CLAUDE.md still says to ask before adding a licence.
 * [Exact Tm of the mismatched duplex](mismatched-duplex-dtm.md) - Compute ΔTm on the actual mismatched duplex instead of the current estimate; check primer3's documentation first.

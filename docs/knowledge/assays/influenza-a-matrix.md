@@ -22,7 +22,7 @@ sources:
     title: "Influenza A (matrix), 2026-10-07 (17:35Z, complete)"
   - id: protocol
     resource: "Protocol for Influenza RT-PCR, Viroscience Erasmus MC (R. Molenkamp), last update 02-02-2026 (supplied by the user 2026-10-16; distribution restricted)"
-    title: Erasmus MC Viroscience influenza RT-PCR protocol"
+    title: Erasmus MC Viroscience influenza RT-PCR protocol
   - id: r9
     resource: ../rules/r9-probes.md
     title: R9 - probe mismatches
