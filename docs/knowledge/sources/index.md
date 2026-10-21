@@ -13,6 +13,7 @@ Papers, reviews and NCBI documentation the rules and facts rest on.
 * [Kutyavin et al. 2000 (Nucleic Acids Res)](kutyavin-2000.md) - 3'-MGB probes: a mismatch under the minor groove binder is far more destabilising; basis of the 7-nt MGB region in R9.
 * [Kwok et al. 1990 (Nucleic Acids Res)](kwok-1990.md) - PCR yield for every terminal primer-template mismatch; terminal G2 and G3 amplified like a match.
 * [Lefever et al. 2013 (Clin Chem)](lefever-2013.md) - Mismatch position beyond the last 5 nt, counts per primer and per pair; basis of R2, R3 and R8.
+* [NCBI BLAST developer information and usage guidelines](ncbi-blast-developer-info.md) - NCBI's page for BLAST API users - the usage guidelines, the slower queue for more than 100 searches in 24 hours, and the advice against large search projects.
 * [NCBI BLAST Common URL API](ncbi-blast-urlapi.md) - The documented BLAST URL API - parameters, report formats, word sizes and usage guidelines.
 * [NCBI Datasets v2 OpenAPI specification](ncbi-datasets-openapi.md) - NCBI's published OpenAPI spec for Datasets v2, the source of the endpoints and parameters the genome download uses.
 * [NCBI E-utilities documentation](ncbi-eutils.md) - Entrez Programming Utilities - ESearch, ESummary, EFetch and their usage rules.

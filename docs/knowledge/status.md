@@ -50,7 +50,13 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
-- Influenza A: a rerun with both reverse primers is the next run. The licence question is
+- NCBI: the answer to case CAS-1714885-G5R3Z2 (asked 2026-10-21, due within 2 to 5 business
+  days) on why BLAST URL API searches were held in the slower queue from 2026-10-20. Until then,
+  one run at a time and no restarts that resubmit
+  ([open item](open/blast-slow-queue.md)). The influenza rerun with both reverse primers is
+  under way: its target search finished after about 19 hours.
+
+- Influenza A: the rerun with both reverse primers is under way (see NCBI above). The licence question is
   settled - R. Molenkamp gave permission to publish the protocol's oligos (reported 2026-10-20),
   so the second reverse primer and its assay file are now in the public repository
   ([open item](open/influenza-protocol-permission.md), [assay](assays/influenza-a-matrix.md)).

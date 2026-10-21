@@ -19,6 +19,12 @@ sources:
   - id: ncbi-settings
     resource: ../settings/ncbi.md
     title: Settings - ncbi
+  - id: devinfo
+    resource: ../sources/ncbi-blast-developer-info.md
+    title: NCBI BLAST developer information and usage guidelines
+  - id: slow-queue
+    resource: ../open/blast-slow-queue.md
+    title: NCBI's slow queue held the influenza run for a day
 ---
 
 # Rules the code follows
@@ -35,7 +41,28 @@ sources:
 The settings that implement this (`blast_min_interval_s` 10, `poll_interval_s` 60, retries with
 exponential backoff) are in [Settings - ncbi](../settings/ncbi.md).[^ncbi-settings]
 
+# The slower queue, seen from the client (2026-10-20/21)
+
+The guidelines were read again on 2026-10-20 from NCBI's developer page, which states them in
+full.[^devinfo] On 2026-10-20 the user's searches were held in the slower queue, and this is what
+it looked like:[^slow-queue]
+
+- **Nothing reports it.** The status stays `WAITING`; no error, no `FAILED`, no message. A held
+  search looks exactly like a slow one, so only a small control search tells them apart
+  (`scripts/blast_queue_check.py`).
+- **The web page is not held.** NCBI gives "priority to interactive users": the same primer
+  returned at once in a browser while the API search waited.
+- **It lasts.** A held target-tier search was READY after 1147 minutes (about 19 hours).
+- **A ready search can still fail to format.** Its first JSON2_S fetch returned HTTP 502 and the
+  "SYSTEM CAN'T PROCESS YOUR REQUEST" page; a retry a minute later worked.
+- **The limiter is per process.** Two runs at once each keep their own 10-second clock.
+
+Why it happened is not known: a run submitted 3 searches and the code follows every guideline.
+NCBI was asked (case CAS-1714885-G5R3Z2, 2026-10-21).
+
 [^arch]: docs/ARCHITECTURE.md, NCBI facts (2026-09-20)
 [^urlapi]: NCBI BLAST Common URL API
 [^eutils]: NCBI E-utilities documentation
 [^ncbi-settings]: Settings - ncbi
+[^devinfo]: NCBI BLAST developer information and usage guidelines
+[^slow-queue]: NCBI's slow queue held the influenza run for a day
