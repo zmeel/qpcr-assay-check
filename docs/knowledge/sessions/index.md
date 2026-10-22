@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [NCBI's answer: a change on their side](2026-10-22-01-ncbi-answer.md) - Session log of 2026-10-22.
 * [The BLAST slow queue](2026-10-21-01-blast-slow-queue.md) - Session log of 2026-10-20 (afternoon) and 2026-10-21.
 * [Permission for the protocol's oligos, and four days of a held-back commit](2026-10-20-01-protocol-permission.md) - Session log of 2026-10-20.
 * [The Erasmus MC influenza protocol, and the primer that answers the sweep](2026-10-16-01-influenza-protocol.md) - Session log of 2026-10-16.

@@ -24,7 +24,7 @@ sources:
     title: NCBI BLAST developer information and usage guidelines
   - id: slow-queue
     resource: ../open/blast-slow-queue.md
-    title: NCBI's slow queue held the influenza run for a day
+    title: BLAST searches held for a day by a change at NCBI
 ---
 
 # Rules the code follows
@@ -41,11 +41,12 @@ sources:
 The settings that implement this (`blast_min_interval_s` 10, `poll_interval_s` 60, retries with
 exponential backoff) are in [Settings - ncbi](../settings/ncbi.md).[^ncbi-settings]
 
-# The slower queue, seen from the client (2026-10-20/21)
+# A held search, seen from the client (2026-10-20/21)
 
 The guidelines were read again on 2026-10-20 from NCBI's developer page, which states them in
-full.[^devinfo] On 2026-10-20 the user's searches were held in the slower queue, and this is what
-it looked like:[^slow-queue]
+full.[^devinfo] From 2026-10-20 the user's API searches were held - by a change at NCBI, which
+NCBI then rolled back, not by the slower queue for heavy users - and this is what it looked
+like:[^slow-queue]
 
 - **Nothing reports it.** The status stays `WAITING`; no error, no `FAILED`, no message. A held
   search looks exactly like a slow one, so only a small control search tells them apart
@@ -57,12 +58,14 @@ it looked like:[^slow-queue]
   "SYSTEM CAN'T PROCESS YOUR REQUEST" page; a retry a minute later worked.
 - **The limiter is per process.** Two runs at once each keep their own 10-second clock.
 
-Why it happened is not known: a run submitted 3 searches and the code follows every guideline.
-NCBI was asked (case CAS-1714885-G5R3Z2, 2026-10-21).
+A run submitted 3 searches and the code follows every guideline. NCBI's answer (case
+CAS-1714885-G5R3Z2): "The developers made a change recently that could account for the slowness
+(long WAITING times) you observed. This change is being rolled back sometime today." The slower
+queue may look the same from the client; that was not tested.
 
 [^arch]: docs/ARCHITECTURE.md, NCBI facts (2026-09-20)
 [^urlapi]: NCBI BLAST Common URL API
 [^eutils]: NCBI E-utilities documentation
 [^ncbi-settings]: Settings - ncbi
 [^devinfo]: NCBI BLAST developer information and usage guidelines
-[^slow-queue]: NCBI's slow queue held the influenza run for a day
+[^slow-queue]: BLAST searches held for a day by a change at NCBI

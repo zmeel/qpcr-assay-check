@@ -1,8 +1,8 @@
 ---
 type: Open Item
-title: NCBI's slow queue held the influenza run for a day
-description: "From 2026-10-20 the user's BLAST URL API searches stayed WAITING for hours, a one-oligo control included, while the same search through the web page returned at once. The code follows NCBI's usage guidelines and a run submits 3 searches, so the cause is unknown. Asked NCBI: case CAS-1714885-G5R3Z2. A real limit on heavy use of the tool."
-tags: [open, question, ncbi, blast, etiquette, influenza]
+title: BLAST searches held for a day by a change at NCBI
+description: "From 2026-10-20 the user's BLAST URL API searches stayed WAITING for hours, a one-oligo control included, while the same search through the web page returned at once. NCBI answered (case CAS-1714885-G5R3Z2): a recent change of theirs, being rolled back - not a limit on the user. Open until a run shows normal search times again."
+tags: [open, question, answered, ncbi, blast, etiquette, influenza]
 status: draft
 generated: { by: claude-code/agent, at: 2026-10-21T08:30:00Z }
 sources:
@@ -43,7 +43,9 @@ first BLAST search.[^assay] The log only ever said `WAITING`: no error, no failu
   not known when this was written.
 
 A search that small cannot be slow on its own merits, and the web page is fast because NCBI
-gives "priority to interactive users".[^devinfo] So the API searches were held in a slower queue.
+gives "priority to interactive users".[^devinfo] So the API searches were being held. This session
+then read that as NCBI's documented slower queue for more than 100 searches in 24 hours; NCBI's
+answer (below) shows the hold was real but the cause was not that.
 
 # What was ruled out
 
@@ -69,27 +71,39 @@ One gap was found: the 10-second limiter is per process. Two runs at the same ti
 clocks, so together they can contact NCBI more often than allowed and their searches add up.
 `scripts/run_assay.sh` starts runs in the background, so a run that was never stopped keeps going.
 
-# What is not known
+# NCBI's answer
 
-Why the searches were held. NCBI documents the 100-searches rule but not how it identifies a user
-(IP address, `email`, `tool`) or what else can put searches in the slower queue.[^devinfo] If the
-NAS shares its public IP address with other people's scripts, their searches might count with
-these; nothing NCBI publishes confirms or rules that out.
+**Asked** on 2026-10-21, through blasthelp@ncbi.nlm.nih.gov: case **CAS-1714885-G5R3Z2**, created
+2026-10-21T07:54:07Z. The questions: is the address being limited, what triggered it, how is a
+user identified, how long does it last, and is a search like `DEPS5BKC014` a problem in itself.
 
-**Asked NCBI** on 2026-10-21, through blasthelp@ncbi.nlm.nih.gov: case **CAS-1714885-G5R3Z2**,
-created 2026-10-21T07:54:07Z, answer expected within 2 to 5 business days. The questions: is the
-address being limited, what triggered it, how is a user identified, how long does it last, and is
-a search like `DEPS5BKC014` a problem in itself.
+**Answered** by the NCBI BLAST Support Team (pasted by the user on 2026-10-22), in full:
 
-# Why it matters: a limit on heavy use
+> "The developers made a change recently that could account for the slowness (long WAITING
+> times) you observed. This change is being rolled back sometime today. Before submitting new
+> searches we suggest that you wait for any currently running searches to complete."
 
-The tool searches only at NCBI; a local BLAST database is excluded by the project rules. So its
-throughput is whatever a shared public service allows, and NCBI says plainly that the servers are
-"not intended for projects that involve a large number of BLAST searches".[^devinfo] A laboratory
-checking many assays, or one assay often, can expect to meet this. When it does, nothing tells the
-user: a held search looks exactly like a slow one.
+So the cause was on NCBI's side, not the user's volume and not the size of the searches. The
+user had said as much on 2026-10-20 ("I think there is something else going on at NCBI").
+The answer does not say what the change was, why it affected API searches and not the web page,
+or address the other questions (how a user is identified; whether `DEPS5BKC014` is a problem in
+itself). Those stay unknown.
 
-What could reduce the exposure - none of it decided:
+**Still to check:** that searches are back to normal. The influenza run was left to finish, as
+NCBI advised; its background and exclusivity searches, submitted after the rollback, should take
+minutes, not hours. This item closes when a run shows that.
+
+# What still matters
+
+This episode was not caused by heavy use, but the worry behind the original question stands: the
+tool searches only at NCBI (a local BLAST database is excluded by the project rules), so its
+throughput is whatever a shared public service allows, and NCBI says the servers are "not intended
+for projects that involve a large number of BLAST searches".[^devinfo] And whatever holds a search
+- a change at NCBI as here, or a real slower queue - nothing tells the user: a held search looks
+exactly like a slow one.
+
+What would make the tool sturdier against that - none of it decided, and less urgent now that the
+cause is known:
 
 - **Fewer searches per run.** The target tier is redundant for an assay whose records are all
   scanned directly (as here), and it is the largest search. Skipping it in that case, or
@@ -103,7 +117,6 @@ What could reduce the exposure - none of it decided:
   an oversized search with one small control search.
 - **A local BLAST.** Against the project rule, so the user's call alone.
 
-NCBI's reply may change all of this; this item is updated when it comes.
 
 [^devinfo]: NCBI BLAST developer information and usage guidelines
 [^etiquette]: NCBI etiquette and limits
