@@ -1,0 +1,105 @@
+---
+type: Assay
+title: HSV-1, glycoprotein G (Ryncarz 1999 typing assay)
+description: Type-common primers in gG (US4) with the HSV-1-specific probe, 166 bp; checked against the paper's PDF. HSV-2 should give a product without a signal. The inosine in the reverse primer is written N.
+resource: ../../examples/hsv1_gg_typing.yaml
+tags: [assay, example, DNA, virus]
+status: draft
+generated: { by: claude-code/agent, at: 2026-10-23T08:00:00Z }
+sources:
+  - id: assay-file
+    resource: ../../examples/hsv1_gg_typing.yaml
+    title: docs/examples/hsv1_gg_typing.yaml (provenance and checks in its header)
+  - id: ryncarz
+    resource: "Ryncarz AJ, Goddard J, Wald A, Huang ML, Roizman B, Corey L. J Clin Microbiol 1999; 37: 1941-1947, doi 10.1128/JCM.37.6.1941-1947.1999"
+    title: Ryncarz et al. 1999, the HSV detection and typing assays
+  - id: ncbi
+    resource: "live ESearch, ESummary and EFetch against NCBI Taxonomy and Nucleotide, 2026-10-23"
+    title: Taxonomy, record counts, NC_001806 and NC_001798, measured live
+  - id: r9
+    resource: ../rules/r9-probes.md
+    title: R9 - probe mismatches
+  - id: session
+    resource: ../sessions/2026-10-23-01-hsv1-assay.md
+    title: "Session 2026-10-23: HSV-1 assay file"
+stale_after: 2027-04-23T00:00:00Z
+---
+
+# Provenance
+
+Oligos supplied by the user on 2026-10-23 with the publication, Ryncarz et al. 1999, and then
+its PDF.[^ryncarz] The sequences were checked against the paper (page 1942) and are identical to
+its HSV typing set in glycoprotein G: primers HSV-1 gG1-FP and gG1-RP and the HSV-1 probe
+gG1-P. Two differences, both kept on purpose: the user's laboratory labels the probe FAM where
+the paper uses HEX, and the paper's deoxyinosine is written N, because the tool accepts IUPAC
+codes only.[^assay-file]
+
+Easy to confuse: the same paper's type-common *detection* assay is a different one, in
+glycoprotein B. These oligos are its typing assay, despite the "HSV-1 gG1" names, which the paper
+also gives the type-common primers.
+
+# Design
+
+The 166-nt reference supplied is HSV-1 strain 17 exactly (NC_001806:137281-137446), inside US4,
+"envelope glycoprotein G".[^ncbi] Against it the reverse primer and the probe are exact, the probe
+on the antisense strand; the forward primer has one mismatch, at its 2nd base from the 5' end.
+
+The design shows against HSV-2 HG52 (NC_001798), where the amplicon is also 166 nt but 47
+positions differ: the primers bind HSV-2 as well as HSV-1, each degenerate base sitting exactly on
+a type difference, while the probe has 10 mismatches in 25 nt. So the primers are type-common and
+the discrimination is the probe's alone. HSV-2 is expected to give a product without a signal,
+which makes it the exclusivity organism that tests the assay.
+
+The probe is linear (FAM/TAMRA), so the unmodified-probe ladder of R9 applies.[^r9]
+
+# The forward primer's second base
+
+The paper prints the forward primer as TCC..., and both reference genomes read TTC there. The
+mismatch is in the published primer, 21 nt from its 3' end, so every genome is expected to grade
+the forward primer "tolerated" rather than "perfect". That is the oligo, not the strains. Worth
+checking against the laboratory's order sheet.
+
+# The inosine
+
+Written N: it matches every base, so it never counts as a mismatch, which is close to how
+inosine behaves. Tm and ΔTm cost it as a full Watson-Crick pair (the best of the four bases), so
+they come out somewhat optimistic for the reverse primer. The position is 18 nt from the 3' end,
+outside every window the grading rules count, so the classes do not depend on it. Real inosine
+in the model would be a code change; not built.
+
+# Taxonomy and the variant source
+
+The target is the species *Simplexvirus humanalpha1* (3050292) rather than the no-rank node
+"Human alphaherpesvirus 1" (10298) below it: the species holds 10,871 Nucleotide records, 7 more
+than the node. The variant analysis takes the genome-sized records (100-200 kb): 618 on
+2026-10-23, one run, scanned directly without BLAST. The ~10,000 shorter records, mostly other
+genes, are left out by that filter.[^ncbi]
+
+# Exclusivity panel
+
+Twenty-five organisms in five groups, each name resolved live to exactly one taxon:[^ncbi]
+HSV-2 and the macaque B virus (amplified by the type-common primers); the other seven human
+herpesviruses; the differential of mucocutaneous and genital lesions (mpox, molluscum,
+*T. pallidum*, *P. ducreyi*, *C. trachomatis*, *N. gonorrhoeae*, *M. genitalium*,
+*T. vaginalis*, *C. albicans*); the DNA-template differential of meningitis and encephalitis;
+and adenovirus D and *Acanthamoeba* for the eye. Enteroviruses are left out on purpose: RNA
+viruses cannot be templates of a DNA assay without RT, and the genus would add 149,419 records to
+the search. The panel is the user's to change.
+
+# Oligo QC (`run --qc-only`, no network)
+
+**Exceeds limit**, on primer Tm alone: 70.2 C forward and 70.5 C reverse (68-73 C over the
+degenerate forms), just above the 70 C limit. The primers are 63.6% GC, the forward one has 4 G/C
+in its last 5 nt, and both form hairpins near the 58 C annealing temperature; the amplicon is
+166 bp. All of it is the published 1999 design, which the paper ran at 58 C, so nothing was
+changed. The forward-primer mismatch to the reference is the second base above.
+
+# Runs
+
+None yet.
+
+[^assay-file]: docs/examples/hsv1_gg_typing.yaml (provenance and checks in its header)
+[^ryncarz]: Ryncarz et al. 1999, the HSV detection and typing assays
+[^ncbi]: Taxonomy, record counts, NC_001806 and NC_001798, measured live
+[^r9]: R9 - probe mismatches
+[^session]: "Session 2026-10-23: HSV-1 assay file"

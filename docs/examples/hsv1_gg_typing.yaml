@@ -1,0 +1,151 @@
+# Example assay: herpes simplex virus 1 (HSV-1), glycoprotein G (US4), one FAM/TAMRA probe.
+# The HSV-1 half of the Ryncarz 1999 HSV typing assay: one primer pair that amplifies gG of
+# both HSV types, and a probe per type; this file holds the HSV-1 probe.
+#
+# STATUS
+#   One amplified region in the gG gene (US4), 166 bp in both HSV-1 and HSV-2. The primers are
+#   type-common by design and the probe is type-specific, so the assay's discrimination rests
+#   on the probe alone: HSV-2 is expected to give a product and must not give a signal (see
+#   EXCLUSIVITY PANEL). The probe is linear (FAM/TAMRA, no MGB or other Tm-raising
+#   modification), so the unmodified-probe ladder of R9 applies: one mismatch outside the last
+#   5 nt tolerated, one in the last 5 nt or two anywhere at risk, three or more likely failure
+#   (docs/MISMATCH_CLASSES.md). One probe, so one channel; no wet-lab evidence entries. No taxa
+#   inside HSV-1 are left out of the target.
+#
+# PROVENANCE
+#   Oligos supplied by the user (2026-10-23) with the publication: Ryncarz AJ, Goddard J, Wald A,
+#   Huang ML, Roizman B, Corey L. Development of a high-throughput quantitative assay for
+#   detecting herpes simplex virus DNA in clinical samples. J Clin Microbiol 1999; 37:
+#   1941-1947, doi 10.1128/JCM.37.6.1941-1947.1999 (PMID 10325351). The user also supplied the
+#   paper's PDF, and the sequences WERE checked against it (page 1942, "PCR primers and probes"):
+#     HSV-1 gG1-FP  5'-TCC TG/CG TTC CTA/C ACG/T GCC TCC C-3'   = TCCTSGTTCCTMACKGCCTCCC
+#     HSV-1 gG1-RP  5'-GCA GIC AC/TA CGT AAC GCA CGC T-3'       = GCAGICAYACGTAACGCACGCT
+#     HSV-1 gG1-P   5'-CGT CTG GAC CAA CCG CCA CAC AGG T-3'
+#   The user's sequences are identical to the paper's. Two differences, both deliberate:
+#     * the probe's reporter: the paper labels gG1-P with HEX (HSV-2's gG2-P carries FAM); the
+#       user's laboratory uses FAM-...-TAMRA. Kept as the user gave it. It does not change any
+#       in silico result: the tool computes no dye chemistry.
+#     * the inosine, written N here (see THE INOSINE).
+#   The names are the paper's with the space replaced by a hyphen, which the format requires
+#   ("HSV-1 gG1-FP" -> HSV-1-gG1-FP). The paper calls the primers "HSV-1 gG1" although they
+#   amplify both types. Caution: the paper's TYPE-COMMON DETECTION assay is a different one, in
+#   glycoprotein B (gB: HSV-FP, HSV-RP, HSV-TCP); this file is NOT that assay.
+#   The exclusivity panel was suggested in this session and is the user's to edit.
+#
+# THE INOSINE (in HSV-1-gG1-RP, 5th base from the 5' end)
+#   The paper and the user both give deoxyinosine (I) there. This tool accepts IUPAC codes
+#   only, and has no inosine, so it is written N. What that means for the analysis:
+#     * matching: N matches every base, so the inosine is never counted as a mismatch. Inosine
+#       does pair with all four bases (I-G weakest), so this is close to how it behaves.
+#     * Tm and dTm: N is expanded into its four bases and the best-pairing one is used, i.e.
+#       the inosine is costed as a full Watson-Crick pair. Real inosine pairs are weaker, so the
+#       primer's Tm, and its dTm at variant sites, come out somewhat optimistic. The QC's Tm
+#       range for this primer covers all four bases at that position.
+#     * the position is 18 nt from the 3' end, outside the last 5 and outside the 3'-most 16 nt
+#       that R1/R3 count, so the grading of the primer does not depend on it either way.
+#   A real inosine in the model would be a code change; not built.
+#
+# WHAT WAS CHECKED (2026-10-23, live against NCBI)
+#   * The supplied reference (166 nt) is HSV-1 strain 17 exactly: NC_001806:137281-137446, plus
+#     strand, inside US4 (gene 136705-137534, CDS 136747-137463, "envelope glycoprotein G").
+#   * HSV-1-gG1-RP at 145-166 of it (reverse complement), 0 mismatches; HSV-1-gG1-P at 101-125,
+#     on the antisense strand, 0 mismatches.
+#   * HSV-1-gG1-FP at 1-22 with ONE mismatch, at its 2nd base from the 5' end: C in the primer,
+#     T in the template (see THE FORWARD PRIMER'S SECOND BASE).
+#   * The same oligos against HSV-2 strain HG52 (NC_001798): the amplicon is at 139799-139964,
+#     166 nt as well, and 47 of its 166 positions differ from HSV-1. Both primers bind with the
+#     same single forward-primer mismatch and nothing else: every degenerate base sits exactly
+#     on an HSV-1/HSV-2 difference (forward S, M, K = C/G, C/A, T/G; reverse Y and the inosine).
+#     The probe has 10 mismatches in 25 nt against HSV-2: an HSV-1-specific probe, as the paper
+#     intends. So HSV-2 should give a product without a signal.
+#   * Taxonomy (2026-10-23): every name below resolves to exactly one taxon by scientific name.
+#     The target is the species Simplexvirus humanalpha1 (3050292), not the no-rank node
+#     "Human alphaherpesvirus 1" (10298) under it: the species holds 10,871 Nucleotide records,
+#     7 more than the node (the 618 genome-sized records are under both). The herpesviruses
+#     below are named by species for the same reason.
+#   * Cycling: the paper's TaqMan PCR is 50 C 2 min, 95 C 2 min, then 45 x (95 C 20 s, 58 C
+#     1 min), with 833 nM of each primer and 100 nM probe; it gives no separate cycling for the
+#     typing assay, so 58 C is used here. Change it if your laboratory runs it otherwise.
+#
+# THE FORWARD PRIMER'S SECOND BASE
+#   HSV-1-gG1-FP begins TCC..., and the paper prints TCC too, but both reference genomes read
+#   TTC there. So the mismatch is in the published primer, not a transcription error, and it
+#   will show in every genome: expect the forward primer to be "tolerated" (one mismatch far
+#   from the 3' end, 21 nt away) rather than "perfect" almost everywhere. That is a property of
+#   the oligo, not a finding about the strains. If your order sheet reads TTC..., change it here.
+#
+# EXCLUSIVITY PANEL, AND WHY (suggested 2026-10-23, the user's to change)
+#   1. Amplified by the type-common primers - the real test of the probe: HSV-2, and the
+#      zoonotic macaque B virus, the other simplexvirus that causes human disease.
+#   2. The other human herpesviruses: they turn up in the same lesion, CSF and eye specimens.
+#   3. The differential of mucocutaneous and genital ulcers and lesions.
+#   4. The DNA-template differential of meningitis and encephalitis in CSF.
+#   5. Keratitis and conjunctivitis: adenovirus D (epidemic keratoconjunctivitis) and
+#      Acanthamoeba.
+#   Left out on purpose: enteroviruses, the main viral CSF differential, because they are RNA
+#   viruses and this is a DNA assay with no RT step, so they cannot be templates (and the genus
+#   holds 149,419 records, which would make the search very large). Human DNA is searched as the
+#   default background.
+#
+# SCOPE
+#   Variant analysis over every HSV-1 Nucleotide record of genome size (100-200 kb): 618 on
+#   2026-10-23, one run. They are below variants.direct_scan_max_length, so they are fetched and
+#   scanned directly, without BLAST. That leaves out the ~10,000 shorter records (single genes,
+#   mostly not gG). Remove nucleotide_query to assess every record instead: most will be "not
+#   found" (a different gene), which the figures leave out, but it takes many runs.
+
+assay_name: HSV-1 (gG, Ryncarz 1999 typing assay)
+forward: {name: HSV-1-gG1-FP, sequence: TCCTSGTTCCTMACKGCCTCCC}   # S = C/G, M = A/C, K = G/T
+reverse: {name: HSV-1-gG1-RP, sequence: GCAGNCAYACGTAACGCACGCT}   # N = deoxyinosine; Y = C/T
+probe:
+  - {name: HSV-1-gG1-P, sequence: CGTCTGGACCAACCGCCACACAGGT, reporter: FAM, quencher: TAMRA}
+template_type: DNA
+target:
+  taxid: 3050292                 # Simplexvirus humanalpha1 = herpes simplex virus 1
+  gene: glycoprotein G (US4)
+reference_amplicons:             # the supplied reference, = NC_001806:137281-137446 (strain 17)
+  - name: HSV1-gG-strain17
+    sequence: TTCTCGTTCCTCACTGCCTCCCCCGCCCTGGACACCCTCTTCGTCGTCAGCACCGTCATCCACACCTTATCGTTTTTGTGTATTGGTGCGATGGCGACACACCTGTGTGGCGGTTGGTCCAGACGCGGGCGACGCACACACCCTAGCGTGCGTTACGTGTGCCTGC
+exclusivity_organisms:
+  # 1. amplified by the type-common primers: the probe must not detect these
+  - Simplexvirus humanalpha2       # 3050293, HSV-2: a product is expected, a signal is not
+  - Simplexvirus macacinealpha1    # 3050305, B virus (macaque), zoonotic
+  # 2. the other human herpesviruses
+  - Varicellovirus humanalpha3     # 3050294, varicella-zoster virus
+  - Cytomegalovirus humanbeta5     # 3050295, cytomegalovirus
+  - Lymphocryptovirus humangamma4  # 3050299, Epstein-Barr virus
+  - Roseolovirus humanbeta6a       # 3050296, HHV-6A
+  - Roseolovirus humanbeta6b       # 3050297, HHV-6B
+  - Roseolovirus humanbeta7        # 3050298, HHV-7
+  - Rhadinovirus humangamma8       # 3050300, HHV-8 (Kaposi sarcoma herpesvirus)
+  # 3. mucocutaneous and genital lesions
+  - Orthopoxvirus monkeypox        # 3431483, mpox
+  - Molluscipoxvirus molluscum     # 3430922, molluscum contagiosum
+  - Treponema pallidum             # 160, syphilis
+  - Pseudactinobacillus ducreyi    # 730, chancroid (formerly Haemophilus ducreyi)
+  - Chlamydia trachomatis          # 813, including lymphogranuloma venereum
+  - Neisseria gonorrhoeae          # 485
+  - Mycoplasmoides genitalium      # 2097 (formerly Mycoplasma genitalium)
+  - Trichomonas vaginalis          # 5722
+  - Candida albicans               # 5476
+  # 4. CSF: meningitis and encephalitis, DNA templates only (see the header)
+  - Neisseria meningitidis         # 487
+  - Streptococcus pneumoniae       # 1313
+  - Listeria monocytogenes         # 1639
+  - Haemophilus influenzae         # 727
+  - Cryptococcus neoformans        # 5207
+  # 5. eye
+  - Mastadenovirus dominans        # 3241420, human adenovirus D (keratoconjunctivitis)
+  - Acanthamoeba castellanii       # 5755
+oligo_source: >-
+  Ryncarz AJ et al., J Clin Microbiol 1999; 37: 1941-1947 (doi 10.1128/JCM.37.6.1941-1947.1999),
+  the HSV typing assay in gG: primers HSV-1 gG1-FP and gG1-RP and the HSV-1 probe gG1-P. Supplied
+  by the user (2026-10-23) and checked against the paper's PDF: identical, except that the probe
+  carries FAM in the user's laboratory (HEX in the paper) and the inosine is written N.
+settings:                        # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 58         # the paper's TaqMan PCR: 45 x (95 C 20 s, 58 C 1 min)
+  variants:
+    source: blast_partitioned    # virus: every Nucleotide record
+    nucleotide_query: "100000:200000[SLEN]"   # genome-sized records: 618 on 2026-10-23
+    blast_max_records_per_run: 1000           # all of them in one run
