@@ -41,6 +41,12 @@ def facing_window(site: SiteResult, max_size: int) -> tuple[int, int]:
     return lo, hi
 
 
+def progress_step(total: int) -> int:
+    """Log a progress line every this many items: about 50 lines per loop, so the GUI's bar
+    moves in steps of about 2% (a line every 200 items gave none for a small scan)."""
+    return max(1, total // 50)
+
+
 class _Known:
     """Sites already known, indexed by tier, record, oligo and strand: a scanned site that
     overlaps one of them is not new (tiers are kept apart, as products are paired per tier)."""
@@ -143,7 +149,10 @@ class PartnerScanner:
         summary.primer_sites = len(ordered)
         known = _Known(sites)
         added: list[SiteResult] = []
+        step = progress_step(len(ordered))
         for n, anchor in enumerate(ordered, start=1):
+            if n > 1 and (n - 1) % step == 0:  # read by the GUI's progress bar
+                log.info("  partner scan: %d / %d primer sites", n - 1, len(ordered))
             if anchor.accession == "unknown":
                 summary.no_accession += 1
                 continue
@@ -179,8 +188,8 @@ class PartnerScanner:
                 s.id = f"S{next(self.ids)}"
                 known.add(s)
                 added.append(s)
-            if n % 200 == 0:
-                log.info("  partner scan: %d / %d primer sites", n, len(ordered))
+        if ordered:
+            log.info("  partner scan: %d / %d primer sites", len(ordered), len(ordered))
         summary.primer_sites_added = len(added)
         return added
 

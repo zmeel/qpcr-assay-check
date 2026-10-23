@@ -21,7 +21,7 @@ from .findings import build_findings, verdict_of
 from .models import Finding, PartnerScan, SiteResult, SpecificityResult, TierCount
 from .pairing import predict_amplicons, primer_can_prime
 from .reach import floor_findings, floors
-from .scan import PartnerScanner
+from .scan import PartnerScanner, progress_step
 from .sites import (
     Candidate,
     can_reach_warning,
@@ -204,6 +204,7 @@ def assess_specificity(
     # ---- fetch windows for the candidates that could still matter, then re-align
     log.info("Re-aligning %d partial hits (windows are cached)", len(pending))
     failed_by_tier: dict[str, int] = defaultdict(int)
+    step = progress_step(len(pending))
     for n, c in enumerate(pending, start=1):
         site_rules = rules.probe_site if c.role == "probe" else rules.primer_site
         window = None
@@ -218,7 +219,7 @@ def assess_specificity(
             oriented = oriented_window(window, c.orientation)
             aln = realign.align_semiglobal(c.oligo, oriented, scoring)
             sites.append(site_from_alignment(c, aln, window, lo, site_rules, f"S{next(ids)}"))
-        if n % 200 == 0:
+        if n % step == 0 or n == len(pending):  # read by the GUI's progress bar
             log.info("  %d / %d windows done", n, len(pending))
 
     # ---- keep every critical/warning site plus the closest minor ones for display

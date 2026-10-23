@@ -138,7 +138,8 @@ each is `qpcr-assay-check run <assay> -o work/results --yes -v` in its own proce
 stands for the confirmation given in the browser), so it writes the same record and log as
 `scripts/run_assay.sh` (`work/runs/<run>.log`). Runs started outside the GUI are not known to
 its queue: avoid starting both at once. A run's page shows the stages and the latest count read
-from the log (e.g. genomes scanned in this year's batch) and the log as it grows. **Cancel**
+from the log, with a progress bar (windows re-aligned, primer sites done by the partner scan,
+genomes scanned in this year's batch), and the log as it grows. **Cancel**
 stops a run as Ctrl-C would (then harder after 30 and 60 seconds); **Start again** queues the
 same confirmed file, and a stopped or interrupted run then continues where it was: stored
 genomes and finished searches are reused, unfinished searches resume. If the GUI stops during

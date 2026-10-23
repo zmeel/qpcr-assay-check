@@ -66,6 +66,36 @@ def test_progress_is_read_from_the_log() -> None:
     assert progress_of("").stage == -1 and progress_of("").percent is None
 
 
+def test_the_re_alignment_and_the_partner_scan_show_their_counts() -> None:
+    log = [
+        "INFO x: Job background: served from cache",
+        "INFO x: Re-aligning 400 partial hits (windows are cached)",
+    ]
+    p = progress_of("\n".join(log))
+    assert p.stage == 2 and p.percent == 0 and p.detail == "Re-alignment: 0 / 400 windows"
+    log.append("INFO qpcr_assay_check.specificity.assess:   328 / 400 windows done")
+    assert progress_of("\n".join(log)).percent == 82
+    log += [
+        "INFO x:   400 / 400 windows done",
+        "INFO x: Partner scan next to 139 unpaired off-target primer sites",
+        "INFO qpcr_assay_check.specificity.scan:   partner scan: 52 / 139 primer sites",
+    ]
+    p = progress_of("\n".join(log))
+    assert p.stage == 2 and p.percent == 37
+    assert p.detail == "Partner scan: 52 / 139 primer sites"
+
+
+def test_a_new_stage_drops_the_last_stage_count() -> None:
+    log = "\n".join([
+        "INFO x: Partner scan next to 139 unpaired off-target primer sites",
+        "INFO x:   partner scan: 139 / 139 primer sites",
+        "INFO x: Variant analysis (Nucleotide records): 173689 listed",
+    ])  # fmt: skip
+    p = progress_of(log)
+    assert p.stage == 3 and p.percent is None and p.detail == ""  # not the scan's 100%
+    assert progress_of("INFO x: Partner scan next to 0 unpaired").percent is None
+
+
 def test_job_ids_and_store(tmp_path: Path) -> None:
     store = JobStore(tmp_path)
     a, b = _job(store), _job(store)

@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **A progress bar for the re-alignment and the partner scan** in the GUI's run page (user,
+  2026-10-23). Both loops now log their count about every 2% (the partner scan logged every 200
+  primer sites, so a scan of 139 sites showed nothing until it ended, and sites skipped at the
+  window limit were never counted); the run page reads those lines as it does the genome scan's,
+  and a new stage clears the previous stage's count.
 - **The intended target is no longer searched as a BLAST tier by default** (user, 2026-10-23,
   after an influenza run in which that search took 19 hours). New setting `search.target_tier`
   (default false). Since the exhaustive variant analysis replaced its hits (2026-09-29) the tier

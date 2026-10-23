@@ -185,3 +185,27 @@ def test_unobserved_bases_count_as_mismatches_in_a_scanned_site():
     sc = realign.Scoring(unobserved_matches=False)
     aln = realign.align_semiglobal("ACGTACGTAC", "TTTT" + "N" * 12 + "TTACGTACGTCCTT", sc)
     assert "N" not in aln.s_aln and aln.s_aln.startswith("ACGTACGT")
+
+
+def test_the_scan_logs_its_progress_also_past_skipped_sites(tmp_path, caplog):
+    """The GUI's progress bar reads these lines; the second site is skipped (window limit) and
+    the count still reaches the end."""
+    import logging
+
+    w = offtarget_genome(f=[10], r=[5, 12], p=[8])
+    offtarget_genome(f=[10], r=[5, 12], p=[8], acc="OT000002.1", world=w)
+    w.hit(NEAR, "forward", F, ACC, F_START, "+")
+    w.hit(NEAR, "forward", F, "OT000002.1", F_START, "+")
+    with caplog.at_level(logging.INFO, logger="qpcr_assay_check.specificity"):
+        run(w, tmp_path, specificity__partner_scan_max_windows=1)
+    lines = [r.getMessage().strip() for r in caplog.records]
+    assert "Partner scan next to 2 unpaired off-target primer sites" in lines
+    assert lines.index("partner scan: 1 / 2 primer sites") < lines.index(
+        "partner scan: 2 / 2 primer sites"
+    )
+
+
+def test_about_fifty_progress_lines_per_loop():
+    from qpcr_assay_check.specificity.scan import progress_step
+
+    assert [progress_step(n) for n in (0, 1, 49, 139, 5000)] == [1, 1, 1, 2, 100]

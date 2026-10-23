@@ -352,6 +352,11 @@ _STAGE_MARKS = [
     (4, re.compile(r"Wrote evaluation record|Record written to")),
 ]
 _SCANNED = re.compile(r"(\d+) / (\d+) assemblies scanned in this run")
+# stage 2: the counts the re-alignment and the partner scan log as they go
+_REALIGN_START = re.compile(r"Re-aligning (\d+) partial hits")
+_REALIGNED = re.compile(r"(\d+) / (\d+) windows done")
+_SCAN_START = re.compile(r"Partner scan next to (\d+) unpaired")
+_SCAN = re.compile(r"partner scan: (\d+) / (\d+) primer sites")
 _YEAR = re.compile(r"^.*?(\d{4}): (\d+) assemblies listed, (\d+) already stored, (\d+) to scan",
                    re.MULTILINE)  # fmt: skip
 
@@ -372,12 +377,27 @@ class Progress:
         return max(0, min(100, round(100 * self.done / self.total)))
 
 
+def _count(p: Progress, what: str, done: int, total: int, unit: str) -> None:
+    p.done, p.total = done, total or None
+    p.detail = f"{what}: {done:,} / {total:,} {unit}"
+
+
 def progress_of(text: str) -> Progress:
     p = Progress()
     for line in text.splitlines():
         for stage, pattern in _STAGE_MARKS:
             if pattern.search(line) and stage >= p.stage:
+                if stage > p.stage:  # a new stage: the last stage's count no longer applies
+                    p.detail, p.done, p.total = "", None, None
                 p.stage = stage
+        if m := _REALIGN_START.search(line):
+            _count(p, "Re-alignment", 0, int(m.group(1)), "windows")
+        elif m := _REALIGNED.search(line):
+            _count(p, "Re-alignment", int(m.group(1)), int(m.group(2)), "windows")
+        elif m := _SCAN_START.search(line):
+            _count(p, "Partner scan", 0, int(m.group(1)), "primer sites")
+        elif m := _SCAN.search(line):
+            _count(p, "Partner scan", int(m.group(1)), int(m.group(2)), "primer sites")
         m = _SCANNED.search(line)
         if m:
             p.done, p.total = int(m.group(1)), int(m.group(2))
