@@ -101,9 +101,13 @@ the search. The panel is the user's to change.
 
 **Exceeds limit**, on primer Tm alone: 70.2 C forward and 70.5 C reverse (68-73 C over the
 degenerate forms), just above the 70 C limit. The primers are 63.6% GC, the forward one has 4 G/C
-in its last 5 nt, and both form hairpins near the 58 C annealing temperature; the amplicon is
-166 bp. All of it is the published 1999 design, which the paper ran at 58 C, so nothing was
-changed. The forward-primer mismatch to the reference is the second base above.
+in its last 5 nt, and the reverse primer forms a hairpin of Tm 56.5 C, a few degrees under the
+60 C annealing temperature; the amplicon is 166 bp. All of it is the published 1999 design, so
+nothing was changed. The forward-primer mismatch to the reference is the second base above.
+
+Annealing: the laboratory runs the assay on the ABI 7500's default program at 60 C (the user,
+2026-10-23), the tool's default; the paper annealed at 58 C, which the file used at first. At
+58 C the forward primer's hairpin (54.2 C) was flagged too; at 60 C it is not.
 
 # Runs
 

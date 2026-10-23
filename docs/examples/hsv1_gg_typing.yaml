@@ -70,9 +70,10 @@
 #     "Human alphaherpesvirus 1" (10298) under it: the species holds 10,871 Nucleotide records,
 #     7 more than the node (the 618 genome-sized records are under both). The herpesviruses
 #     below are named by species for the same reason.
-#   * Cycling: the paper's TaqMan PCR is 50 C 2 min, 95 C 2 min, then 45 x (95 C 20 s, 58 C
-#     1 min), with 833 nM of each primer and 100 nM probe; it gives no separate cycling for the
-#     typing assay, so 58 C is used here. Change it if your laboratory runs it otherwise.
+#   * Cycling: the laboratory runs it on the ABI 7500's default program, annealing at 60 C (the
+#     user, 2026-10-23), which is the tool's default, so no setting is needed. The paper's TaqMan
+#     PCR annealed at 58 C (50 C 2 min, 95 C 2 min, then 45 x (95 C 20 s, 58 C 1 min), with
+#     833 nM of each primer and 100 nM probe); this file used 58 C until the user said otherwise.
 #
 # THE FORWARD PRIMER'S SECOND BASE
 #   HSV-1-gG1-FP begins TCC..., and the paper prints TCC too, but both reference genomes read
@@ -151,8 +152,6 @@ oligo_source: >-
   by the user (2026-10-23) and checked against the paper's PDF: identical, except that the probe
   carries FAM in the user's laboratory (HEX in the paper) and the inosine is written N.
 settings:                        # only what differs from the defaults, for this assay
-  reaction:
-    annealing_temp_C: 58         # the paper's TaqMan PCR: 45 x (95 C 20 s, 58 C 1 min)
   variants:
     source: blast_partitioned    # virus: every Nucleotide record
     nucleotide_query: "100000:200000[SLEN]"   # genome-sized records: 618 on 2026-10-23
