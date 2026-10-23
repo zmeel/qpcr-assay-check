@@ -1,0 +1,100 @@
+# Example assay: herpes simplex virus 2 (HSV-2), glycoprotein D (US6), one FAM/TAMRA probe.
+# The user's laboratory's HSV-2 detection assay, the companion of its HSV-1 assay
+# (hsv1_gg_typing.yaml, which detects HSV-1 only).
+#
+# STATUS
+#   One amplified region in the gD gene (US6), 71 bp. Unlike the HSV-1 assay, all three oligos
+#   are type-specific: against HSV-1 the forward primer has 5 mismatches, the reverse 4 and the
+#   probe 3 (see WHAT WAS CHECKED), so HSV-1 should not even be amplified. The probe is linear
+#   (FAM/TAMRA, no MGB or other Tm-raising modification), so the unmodified-probe ladder of R9
+#   applies: one mismatch outside the last 5 nt tolerated, one in the last 5 nt or two anywhere at
+#   risk, three or more likely failure (docs/MISMATCH_CLASSES.md). One probe, so one channel; no
+#   wet-lab evidence entries. No taxa inside HSV-2 are left out of the target.
+#
+# PROVENANCE
+#   Oligos supplied by the user (2026-10-23) as the laboratory's HSV-2 PCR; their source is not
+#   known, so they are here as given (spaces removed) and NOT checked against a publication.
+#   Dyes FAM-TAMRA and annealing at 60 C (the ABI 7500's default program), both as the user gave
+#   them. The names (HSV-2-F, HSV-2-R, HSV-2-P) were chosen here; the user gave none. The
+#   exclusivity panel was suggested in this session and is the user's to edit.
+#
+# WHAT WAS CHECKED (2026-10-23, live against NCBI)
+#   * The reference below is HSV-2 strain HG52 (NC_001798:141087-141157, plus strand), inside US6
+#     (CDS 141016-142197, "envelope glycoprotein D"); the user gave no reference sequence, so it
+#     was taken from that genome as the product of the three oligos. HSV-2-F at 1-19, HSV-2-P at
+#     25-50 (sense strand), HSV-2-R at 52-71 (reverse complement): all three exact.
+#   * Against HSV-1 strain 17 (NC_001806), the nearest sites are at 138494-138564: forward 5
+#     mismatches, reverse 4, probe 3.
+#   * Taxonomy: every name below resolves to exactly one taxon by scientific name (checked the same
+#     day for the HSV-1 and VZV panels). The target is the species Simplexvirus humanalpha2
+#     (3050293); it holds the same 8,955 Nucleotide records as the node "Human alphaherpesvirus 2"
+#     (10310) under it, and is named by species as the other herpesvirus assays are.
+#
+# EXCLUSIVITY PANEL, AND WHY (suggested 2026-10-23, the user's to change)
+#   1. The closest relatives: HSV-1 first (the other half of the laboratory's HSV testing, and the
+#      organism this assay must not detect above all), and the macaque B virus.
+#   2. The other human herpesviruses: they turn up in the same lesion, CSF and eye specimens.
+#   3. The differential of mucocutaneous and genital ulcers and lesions.
+#   4. The DNA-template differential of meningitis and encephalitis in CSF.
+#   5. Keratitis and conjunctivitis: adenovirus D and Acanthamoeba.
+#   Left out on purpose: enteroviruses, RNA templates of a DNA assay with no RT step. Human DNA is
+#   searched as the default background.
+#
+# SCOPE
+#   Variant analysis over every HSV-2 Nucleotide record of genome size (100-200 kb): 577 on
+#   2026-10-23, one run, scanned directly without BLAST. The ~8,400 shorter records (single
+#   genes, often gG or gD fragments) are left out by that filter; remove nucleotide_query to assess
+#   every record instead (most will be "not found", which the figures leave out).
+
+assay_name: HSV-2 detection (gD)
+forward: {name: HSV-2-F, sequence: CGCCAAATACGCCTTAGCA}
+reverse: {name: HSV-2-R, sequence: GAAGGTTCTTCCCGCGAAAT}
+probe:
+  - {name: HSV-2-P, sequence: CTCGCTTAAGATGGCCGATCCCAATC, reporter: FAM, quencher: TAMRA}
+template_type: DNA
+target:
+  taxid: 3050293                 # Simplexvirus humanalpha2 = herpes simplex virus 2
+  gene: glycoprotein D (US6)
+reference_amplicons:             # = NC_001798:141087-141157 (strain HG52)
+  - name: HSV2-gD-HG52
+    sequence: CGCCAAATACGCCTTAGCAGACCCCTCGCTTAAGATGGCCGATCCCAATCGATTTCGCGGGAAGAACCTTC
+exclusivity_organisms:
+  # 1. the closest relatives
+  - Simplexvirus humanalpha1       # 3050292, HSV-1: must be neither amplified nor detected
+  - Simplexvirus macacinealpha1    # 3050305, B virus (macaque), zoonotic
+  # 2. the other human herpesviruses
+  - Varicellovirus humanalpha3     # 3050294, varicella-zoster virus
+  - Cytomegalovirus humanbeta5     # 3050295, cytomegalovirus
+  - Lymphocryptovirus humangamma4  # 3050299, Epstein-Barr virus
+  - Roseolovirus humanbeta6a       # 3050296, HHV-6A
+  - Roseolovirus humanbeta6b       # 3050297, HHV-6B
+  - Roseolovirus humanbeta7        # 3050298, HHV-7
+  - Rhadinovirus humangamma8       # 3050300, HHV-8 (Kaposi sarcoma herpesvirus)
+  # 3. mucocutaneous and genital lesions
+  - Orthopoxvirus monkeypox        # 3431483, mpox
+  - Molluscipoxvirus molluscum     # 3430922, molluscum contagiosum
+  - Treponema pallidum             # 160, syphilis
+  - Pseudactinobacillus ducreyi    # 730, chancroid (formerly Haemophilus ducreyi)
+  - Chlamydia trachomatis          # 813, including lymphogranuloma venereum
+  - Neisseria gonorrhoeae          # 485
+  - Mycoplasmoides genitalium      # 2097 (formerly Mycoplasma genitalium)
+  - Trichomonas vaginalis          # 5722
+  - Candida albicans               # 5476
+  # 4. CSF: meningitis and encephalitis, DNA templates only (see the header)
+  - Neisseria meningitidis         # 487
+  - Streptococcus pneumoniae       # 1313
+  - Listeria monocytogenes         # 1639
+  - Haemophilus influenzae         # 727
+  - Cryptococcus neoformans        # 5207
+  # 5. eye
+  - Mastadenovirus dominans        # 3241420, human adenovirus D (keratoconjunctivitis)
+  - Acanthamoeba castellanii       # 5755
+oligo_source: >-
+  Supplied by the user (2026-10-23) as the laboratory's HSV-2 PCR; source unknown, not checked
+  against a publication. The reference is HSV-2 strain HG52 NC_001798:141087-141157 (checked
+  live).
+settings:                        # only what differs from the defaults, for this assay
+  variants:
+    source: blast_partitioned    # virus: every Nucleotide record
+    nucleotide_query: "100000:200000[SLEN]"   # genome-sized records: 577 on 2026-10-23
+    blast_max_records_per_run: 1000           # all of them in one run

@@ -46,7 +46,8 @@ names are the paper's, which gives them to the type-common primers too.
 HSV-1 only. HSV-2 is amplified by the same primers but gives no signal, because the probe has
 10 mismatches against it. So an HSV-2 infection is negative in this PCR, which is right for an
 HSV-1 assay and wrong for one meant to detect HSV in general. In an HSV-1/HSV-2 co-infection the
-HSV-2 product also competes for the primers.
+HSV-2 product also competes for the primers. The laboratory detects HSV-2 with a separate PCR,
+in glycoprotein D: [HSV-2 detection](hsv2-gd.md).
 
 # Design
 
