@@ -31,6 +31,10 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **A QC check over its hard limit said "outside the preferred range"** (noticed on the HSV-1
+  example, 2026-10-23: primer Tm 70.2 C against the 70 C limit, status FAIL). The hint text was
+  fixed per check; it now follows the status: "outside the limit" for a FAIL, "outside the
+  preferred range" (or length) for a WARN. The status itself was always right.
 - **A hit from outside a tier's taxa was assessed as that tier's off-target site** (found in the
   influenza A run of 2026-10-21: the influenza A record MW220816.1 came back in the exclusivity
   search, which holds no influenza A, and the report concluded "the forward binds this tier

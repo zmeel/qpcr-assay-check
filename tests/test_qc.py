@@ -122,3 +122,18 @@ def test_primer_sequence_is_not_mutated(cfg):
     a = make_assay(forward=CDC_N1_F)
     run_oligo_qc(a, cfg)
     assert a.oligos["forward"] == CDC_N1_F
+
+
+def test_a_hint_says_limit_for_a_fail_and_preferred_for_a_warning(cfg):
+    """The hint text used to say "outside the preferred range" for a FAIL as well (noticed on the
+    HSV-1 example, 2026-10-23: primer Tm 70.2 C against the 70 C limit)."""
+    hot = make_assay(forward="GCGGCGGCGCCGCGGCCGCCGC")  # far above every Tm and GC limit
+    warm = make_assay(forward="CTTCTGACCGAGGTCGAAACGTA")  # influenza infa_fwd, G form: 66.4 C
+    for assay, status, phrase in (
+        (hot, Status.FAIL, "outside the limit"),
+        (warm, Status.WARN, "outside the preferred range"),
+    ):
+        (tm,) = [c for c in run_oligo_qc(assay, cfg).checks if c.id == "forward.tm"]
+        assert tm.status is status and phrase in tm.message, (tm.status, tm.message)
+    (gc,) = [c for c in run_oligo_qc(hot, cfg).checks if c.id == "forward.gc"]
+    assert gc.status is Status.FAIL and gc.message.endswith("is outside the limit.")

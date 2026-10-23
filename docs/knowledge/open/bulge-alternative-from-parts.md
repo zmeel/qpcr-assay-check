@@ -30,7 +30,7 @@ figure is wrong, not merely surprising.
 In `assess_variants`, a genome whose region is split over contigs but which carries a whole
 detectable site of every role is counted as detected through `judge_from_parts`:
 
-```python
+```text
 n_detectable=sum(all(roles_ok(c, bulges).values()) for c, _a in copies)
 + (parts is not None and parts_rule == "detectable"),
 ```

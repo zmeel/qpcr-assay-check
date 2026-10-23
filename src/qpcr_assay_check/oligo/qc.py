@@ -31,6 +31,13 @@ def _fmt_range(values: Sequence[float], fmt: str = "{:.1f}") -> str:
     return f"{fmt.format(lo)}–{fmt.format(hi)}"
 
 
+def _outside(
+    status: Status, preferred: str = "the preferred range", limit: str = "the limit"
+) -> str:
+    """Where a flagged value lies: beyond the hard limit (FAIL) or only the preferred range."""
+    return f"outside {limit}" if status is Status.FAIL else f"outside {preferred}"
+
+
 def _numeric_check(
     *,
     id: str,
@@ -41,7 +48,7 @@ def _numeric_check(
     unit: str = "",
     rule: str = "",
     fmt: str = "{:.1f}",
-    hint: Callable[[float], str] | None = None,
+    hint: Callable[[float, Status], str] | None = None,
 ) -> CheckResult:
     """Grade every value (one per degenerate variant); the worst status wins."""
     graded = [(grade(v), v) for v in values]
@@ -50,7 +57,9 @@ def _numeric_check(
     message = ""
     if status in (Status.WARN, Status.FAIL):
         offender = next(v for s, v in graded if s is status)
-        message = hint(offender) if hint else f"{name}: {display}{(' ' + unit) if unit else ''}."
+        message = (
+            hint(offender, status) if hint else f"{name}: {display}{(' ' + unit) if unit else ''}."
+        )
     same = abs(max(values) - min(values)) < 1e-9
     return CheckResult(
         id=id,
@@ -100,7 +109,10 @@ def _primer_checks(
             unit="nt",
             rule=t.length_nt.describe("nt"),
             fmt="{:.0f}",
-            hint=lambda v: f"{v:.0f} nt is outside the preferred primer length.",
+            hint=lambda v, s: (
+                f"{v:.0f} nt is "
+                f"{_outside(s, 'the preferred primer length', 'the limit for primer length')}."
+            ),
         ),
         _numeric_check(
             id=f"{role}.gc",
@@ -110,7 +122,7 @@ def _primer_checks(
             grade=t.gc_percent.grade,
             unit="%",
             rule=t.gc_percent.describe("%"),
-            hint=lambda v: f"GC content of {v:.1f}% is outside the preferred range.",
+            hint=lambda v, s: f"GC content of {v:.1f}% is {_outside(s)}.",
         ),
         _numeric_check(
             id=f"{role}.tm",
@@ -120,7 +132,7 @@ def _primer_checks(
             grade=t.tm_c.grade,
             unit="°C",
             rule=t.tm_c.describe("°C"),
-            hint=lambda v: f"Tm of {v:.1f} °C is outside the preferred range.",
+            hint=lambda v, s: f"Tm of {v:.1f} °C is {_outside(s)}.",
         ),
         _numeric_check(
             id=f"{role}.gc_last5",
@@ -131,7 +143,7 @@ def _primer_checks(
             unit="G/C",
             rule=t.gc_in_last5.describe("G/C"),
             fmt="{:.0f}",
-            hint=lambda v: (
+            hint=lambda v, _s: (
                 "No G/C in the last 5 nt: no GC clamp at the 3' end."
                 if v < t.gc_in_last5.min
                 else f"{v:.0f} G/C in the last 5 nt: the 3' end may be too stable "
@@ -157,7 +169,7 @@ def _primer_checks(
             unit="nt",
             rule=t.max_run.describe("nt"),
             fmt="{:.0f}",
-            hint=lambda v: f"A run of {v:.0f} identical bases can cause slippage/mispriming.",
+            hint=lambda v, _s: f"A run of {v:.0f} identical bases can cause slippage/mispriming.",
         ),
         _numeric_check(
             id=f"{role}.max_g_run",
@@ -168,7 +180,7 @@ def _primer_checks(
             unit="nt",
             rule=t.max_g_run.describe("nt"),
             fmt="{:.0f}",
-            hint=lambda v: f"A run of {v:.0f} G can form stable secondary structures.",
+            hint=lambda v, _s: f"A run of {v:.0f} G can form stable secondary structures.",
         ),
     ]
     return out
@@ -195,7 +207,10 @@ def _probe_checks(
             unit="nt",
             rule=t.length_nt.describe("nt"),
             fmt="{:.0f}",
-            hint=lambda v: f"{v:.0f} nt is outside the preferred probe length.",
+            hint=lambda v, s: (
+                f"{v:.0f} nt is "
+                f"{_outside(s, 'the preferred probe length', 'the limit for probe length')}."
+            ),
         ),
         _numeric_check(
             id=f"{pid}.gc",
@@ -205,7 +220,7 @@ def _probe_checks(
             grade=t.gc_percent.grade,
             unit="%",
             rule=t.gc_percent.describe("%"),
-            hint=lambda v: f"GC content of {v:.1f}% is outside the preferred range.",
+            hint=lambda v, s: f"GC content of {v:.1f}% is {_outside(s)}.",
         ),
         _numeric_check(
             id=f"{pid}.tm",
@@ -233,9 +248,9 @@ def _probe_checks(
             unit="°C",
             rule=t.tm_minus_mean_primer_c.describe("°C")
             + ("; at most outside preferred, because the probe is modified" if unreliable else ""),
-            hint=lambda v: (
+            hint=lambda v, s: (
                 f"Probe Tm is {abs(v):.1f} °C {'above' if v >= 0 else 'below'} the mean primer "
-                "Tm, outside the preferred range."
+                f"Tm, {_outside(s)}."
             ),
         )
     )
@@ -249,7 +264,7 @@ def _probe_checks(
             unit="nt",
             rule=t.max_run.describe("nt"),
             fmt="{:.0f}",
-            hint=lambda v: f"A run of {v:.0f} identical bases in the probe.",
+            hint=lambda v, _s: f"A run of {v:.0f} identical bases in the probe.",
         ),
         _numeric_check(
             id=f"{pid}.max_g_run",
@@ -260,7 +275,7 @@ def _probe_checks(
             unit="nt",
             rule=t.max_g_run.describe("nt"),
             fmt="{:.0f}",
-            hint=lambda v: f"A run of {v:.0f} G in the probe.",
+            hint=lambda v, _s: f"A run of {v:.0f} G in the probe.",
         ),
     ]
 
@@ -276,7 +291,7 @@ def _probe_checks(
                 unit="nt",
                 rule="outside preferred if the probe has more G than C",
                 fmt="{:.0f}",
-                hint=lambda v: (
+                hint=lambda v, _s: (
                     f"The probe has {v:.0f} more G than C, which can quench the reporter."
                 ),
             )
@@ -352,7 +367,7 @@ def _pair_checks(fwd_tms: list[float], rev_tms: list[float], cfg: Config) -> lis
             grade=t.grade,
             unit="°C",
             rule=t.describe("°C"),
-            hint=lambda v: f"The primers differ by {v:.1f} °C in Tm; they anneal unevenly.",
+            hint=lambda v, _s: f"The primers differ by {v:.1f} °C in Tm; they anneal unevenly.",
         )
     ]
 
