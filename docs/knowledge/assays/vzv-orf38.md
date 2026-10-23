@@ -25,7 +25,8 @@ stale_after: 2027-04-23T00:00:00Z
 # Provenance
 
 Oligos supplied by the user on 2026-10-23 without a publication, so they are in the file as given
-and not checked against one. No reporter or quencher was given; none is set. The names VZV-F,
+and not checked against one. The probe is FAM-TAMRA, and the laboratory anneals at 60 C (the
+ABI 7500's default program), both given by the user after the file was first written. The names VZV-F,
 VZV-R and VZV-P were chosen here. The exclusivity panel was suggested in the session and is the
 user's to edit.[^assay-file]
 

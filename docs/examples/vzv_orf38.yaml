@@ -1,4 +1,4 @@
-# Example assay: varicella-zoster virus (VZV), ORF38, one probe (dyes not given).
+# Example assay: varicella-zoster virus (VZV), ORF38, one FAM/TAMRA probe.
 #
 # STATUS
 #   One amplified region in ORF38 (tegument protein UL21), 82 bp. The probe is taken as linear
@@ -10,9 +10,8 @@
 #
 # PROVENANCE
 #   Oligos supplied by the user (2026-10-23), with no publication: they are here as given (spaces
-#   removed) and NOT checked against a publication. The user gave no reporter or quencher, so none
-#   is set; fill them in if known (they do not change the in silico results, except the 5' G
-#   check of the QC, which treats an unknown reporter as FAM-type). The names (VZV-F, VZV-R,
+#   removed) and NOT checked against a publication. The probe is FAM-TAMRA (the user, the same
+#   day, after the file was first written without dyes). The names (VZV-F, VZV-R,
 #   VZV-P) were chosen here; the user gave none. The exclusivity panel was suggested in this
 #   session and is the user's to edit.
 #
@@ -30,7 +29,8 @@
 #     the species Varicellovirus humanalpha3 (3050294), not the no-rank node "Human
 #     alphaherpesvirus 3" (10335) under it: the species holds 2,832 Nucleotide records, 52 more
 #     than the node. The herpesviruses below are named by species for the same reason.
-#   * No cycling was given: the default annealing temperature (60 C) is used.
+#   * Cycling: the laboratory runs it on the ABI 7500's default program, annealing at 60 C (the
+#     user), which is the tool's default, so no setting is needed.
 #
 # OLIGO QC (run --qc-only, 2026-10-23): Exceeds limit, on one structure
 #   The probe's G form (CCGCAACAACTGCGGTATATATCGTC, the Oka-lineage form) folds into a hairpin:
@@ -65,7 +65,7 @@ assay_name: VZV (ORF38)
 forward: {name: VZV-F, sequence: AAGTTCCCCCCGTTCGC}
 reverse: {name: VZV-R, sequence: TGGACTTGAAGATGAACTTAATGAAGC}
 probe:
-  - {name: VZV-P, sequence: CCGCAACAACTGCRGTATATATCGTC}   # R = A (Dumas) or G (Oka)
+  - {name: VZV-P, sequence: CCGCAACAACTGCRGTATATATCGTC, reporter: FAM, quencher: TAMRA}  # R = A/G
 template_type: DNA
 target:
   taxid: 3050294                 # Varicellovirus humanalpha3 = varicella-zoster virus

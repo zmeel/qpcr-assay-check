@@ -50,8 +50,8 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
-- VZV (ORF38): assay file ready, no run yet ([assay](assays/vzv-orf38.md)). The probe's G form
-  (Oka lineage) folds into a hairpin; the user may give the probe's dyes and the cycling.
+- VZV (ORF38): first run under way ([assay](assays/vzv-orf38.md)). The probe's G form (Oka
+  lineage) folds into a hairpin: worth a wet-lab check on an Oka template.
 - HSV-2 detection (gD): assay file ready, no run yet ([assay](assays/hsv2-gd.md)).
 - HSV-1 detection (gG, Ryncarz 1999 oligos): first run 2026-10-23 ([run](runs/hsv1-2026-10-23.md)): HSV-2
   amplified but not detected, 96.1% detectable, inclusivity Incomplete (26 dated recent genomes).
