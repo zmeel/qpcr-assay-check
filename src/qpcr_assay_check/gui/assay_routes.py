@@ -1,5 +1,5 @@
-"""Routes of the Assays pages (phase G2): list, new, editor (form and YAML), live validation,
-QC-only runs and deletion. Every POST checks the session's form token."""
+"""Routes of the Assays pages (phase G2): list, new, upload, editor (form and YAML), live
+validation, QC-only runs and deletion. Every POST checks the session's form token."""
 
 from __future__ import annotations
 
@@ -13,9 +13,17 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from starlette.datastructures import UploadFile
 
 from ..errors import QpcrAssayCheckError
-from .assays import AssayFileError, AssayFiles, check_name, parse_mapping, validate_text
+from .assays import (
+    MAX_BYTES,
+    AssayFileError,
+    AssayFiles,
+    check_name,
+    parse_mapping,
+    validate_text,
+)
 from .form import ROLES, TEMPLATE_TYPES, FormValues, OligoRow, apply, values_of
 
 if TYPE_CHECKING:
@@ -33,6 +41,36 @@ def _template_text() -> str:
     return (resources.files("qpcr_assay_check") / "data" / "assay_template.yaml").read_text(
         encoding="utf-8"
     )
+
+
+def _upload_name(given: str, filename: str) -> str:
+    """The name to save an upload as: the one typed in, else the uploaded file's own name.
+
+    Browsers send a bare file name, but some old ones send a client path; only its last part is
+    kept. ``.yaml`` is added when there is no extension, as for a new assay.
+    """
+    name = given.strip() or re.split(r"[/\\]", filename or "")[-1].strip()
+    if not name:
+        raise AssayFileError("the uploaded file has no name; type one under 'Save as'")
+    if not name.endswith((".yaml", ".yml")):
+        name += ".yaml"
+    return check_name(name)
+
+
+def _upload_text(data: bytes) -> str:
+    """The uploaded bytes as assay text: UTF-8 (a byte-order mark is dropped), a YAML mapping."""
+    if len(data) > MAX_BYTES:
+        raise AssayFileError("the file is larger than 1 MB")
+    try:
+        text = data.decode("utf-8-sig").replace("\r\n", "\n")
+    except UnicodeDecodeError as exc:
+        raise AssayFileError(
+            "the file is not UTF-8 text; save it as UTF-8 and upload again"
+        ) from exc
+    if not text.strip():
+        raise AssayFileError("the file is empty")
+    parse_mapping(text)
+    return text
 
 
 def _rows_from_form(form: Any) -> list[OligoRow]:
@@ -123,6 +161,32 @@ def register_assay_routes(
                 request, "assays.html", 400, active="assays", assays=files.list(),
                 examples=files.examples(), error=str(exc), assays_dir=files.dir,
             )  # fmt: skip
+        return RedirectResponse(f"/assays/{name}", status_code=303)
+
+    @app.post("/assays/upload")
+    async def assay_upload(request: Request, user: str = Depends(require_login)) -> Response:
+        """Save an uploaded assay file as it is and open it in the editor; never overwrite."""
+        form = await request.form()
+        if not csrf_ok(request, str(form.get("csrf", ""))):
+            return RedirectResponse("/assays", status_code=303)
+        upload = form.get("file")
+        try:
+            if not isinstance(upload, UploadFile) or not (upload.filename or "").strip():
+                raise AssayFileError("choose a file to upload")
+            name = _upload_name(str(form.get("name", "")), upload.filename or "")
+            text = _upload_text(await upload.read(MAX_BYTES + 1))
+            if files.exists(name):
+                raise AssayFileError(
+                    f"an assay file named {name} already exists, so the upload was not saved: "
+                    "give it another name under 'Save as', or delete the existing one first"
+                )
+            files.create(name, text)
+        except (AssayFileError, OSError) as exc:
+            return page(
+                request, "assays.html", 400, active="assays", assays=files.list(),
+                examples=files.examples(), error=f"Not uploaded: {exc}", assays_dir=files.dir,
+            )  # fmt: skip
+        log.info("GUI: assay file %s uploaded by %s", name, user)
         return RedirectResponse(f"/assays/{name}", status_code=303)
 
     @app.get("/assays/{name}", response_class=HTMLResponse)

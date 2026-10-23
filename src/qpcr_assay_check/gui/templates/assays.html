@@ -48,6 +48,20 @@
     <button class="btn btn-primary" type="submit">Create from the template</button>
   </form>
   <p class="small muted">The template explains every option. Fill in the sequences as given by your source; the editor shows what is still missing.</p>
+  <h3 id="upload-title">Or upload an assay file</h3>
+  <form class="row-form" method="post" action="/assays/upload" enctype="multipart/form-data" aria-labelledby="upload-title">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field grow">
+      <label for="up-file">Assay file (.yaml)</label>
+      <input id="up-file" name="file" type="file" accept=".yaml,.yml" required>
+    </div>
+    <div class="field">
+      <label for="up-name">Save as <span class="muted small">(optional)</span></label>
+      <input id="up-name" name="name" placeholder="the file's own name" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,80}" title="letters, digits, '.', '_' or '-'">
+    </div>
+    <button class="btn btn-primary" type="submit">Upload</button>
+  </form>
+  <p class="small muted">The file is saved as it is and opened in the editor, which shows anything still missing. A file with the name of an existing assay is refused: give it another name under "Save as", or delete the existing one first.</p>
 </section>
 
 {% if examples %}

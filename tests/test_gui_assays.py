@@ -291,3 +291,92 @@ def test_new_from_template(client: TestClient, work: Path) -> None:
     assert "Not valid yet" in page  # the template's empty sequences
     form_values = values_of((work / "assays" / "blank.yaml").read_text())
     assert isinstance(form_values, FormValues)
+
+
+# --- uploading an assay file ----------------------------------------------------------------
+
+
+def _upload(
+    client: TestClient, content: bytes, filename: str = "uploaded.yaml", name: str = ""
+) -> object:
+    token = _csrf(client.get("/assays").text)
+    return client.post(
+        "/assays/upload",
+        data={"csrf": token, "name": name},
+        files={"file": (filename, content, "application/x-yaml")},
+    )
+
+
+def test_upload_saves_the_file_as_it_is_and_opens_it(client: TestClient, work: Path) -> None:
+    assert 'action="/assays/upload"' in client.get("/assays").text  # the button is offered
+    r = _upload(client, SIMPLE.encode("utf-8"), filename="mine.yaml")
+    assert r.status_code == 303 and r.headers["location"] == "/assays/mine.yaml"
+    assert (work / "assays" / "mine.yaml").read_text(encoding="utf-8") == SIMPLE
+    assert client.get("/assays/mine.yaml").status_code == 200
+
+
+def test_upload_name_typed_in_or_from_the_file(client: TestClient, work: Path) -> None:
+    r = _upload(client, SIMPLE.encode(), filename="whatever.yaml", name="renamed")
+    assert r.headers["location"] == "/assays/renamed.yaml"
+    # an old browser's client path: only the last part counts
+    r = _upload(client, SIMPLE.encode(), filename="C:\\Users\\lab\\from_windows.yml")
+    assert r.headers["location"] == "/assays/from_windows.yml"
+    assert (work / "assays" / "from_windows.yml").is_file()
+    # a path in the file name is dropped, so the file stays in the assays folder ...
+    r = _upload(client, SIMPLE.encode(), filename="../evil.yaml")
+    assert r.headers["location"] == "/assays/evil.yaml"
+    assert (work / "assays" / "evil.yaml").is_file() and not (work / "evil.yaml").exists()
+    # ... and a path typed under "Save as" is refused
+    r = _upload(client, SIMPLE.encode(), name="../evil2")
+    assert r.status_code == 400 and "file name of letters" in r.text
+    assert not (work / "evil2.yaml").exists()
+
+
+def test_upload_never_overwrites_an_existing_assay(client: TestClient, work: Path) -> None:
+    (work / "assays").mkdir()
+    (work / "assays" / "a.yaml").write_text("assay_name: the original\n")
+    r = _upload(client, SIMPLE.encode(), filename="a.yaml")
+    assert r.status_code == 400
+    assert "already exists" in r.text and "Not uploaded" in r.text
+    assert (work / "assays" / "a.yaml").read_text() == "assay_name: the original\n"
+    assert not (work / "assays" / ".history").exists()  # not saved over, either
+
+
+@pytest.mark.parametrize(
+    ("content", "filename", "message"),
+    [
+        (b"a: [b", "x.yaml", "not valid YAML"),
+        (b"- just\n- a list\n", "x.yaml", "YAML mapping"),
+        (b"  \n", "x.yaml", "empty"),
+        ("assay_name: caf\u00e9\n".encode("latin-1"), "x.yaml", "not UTF-8"),
+        (b"assay_name: x\n" + b"#" * 1_000_001, "x.yaml", "larger than 1 MB"),
+        (SIMPLE.encode(), "has space.yaml", "file name of letters"),
+    ],
+)
+def test_upload_refuses_what_it_cannot_save(
+    client: TestClient, work: Path, content: bytes, filename: str, message: str
+) -> None:
+    r = _upload(client, content, filename=filename)
+    assert r.status_code == 400 and message in r.text
+    saved = list((work / "assays").glob("*.y*ml")) if (work / "assays").is_dir() else []
+    assert saved == []
+
+
+def test_upload_accepts_a_byte_order_mark_and_windows_lines(client: TestClient, work: Path) -> None:
+    raw = ("\ufeff" + SIMPLE.replace("\n", "\r\n")).encode("utf-8")
+    assert _upload(client, raw, filename="bom.yaml").status_code == 303
+    assert (work / "assays" / "bom.yaml").read_text(encoding="utf-8") == SIMPLE
+
+
+def test_upload_needs_a_login_and_the_form_token(work: Path, client: TestClient) -> None:
+    anon = TestClient(create_app(GuiSettings(work_dir=work)), follow_redirects=False)
+    r = anon.post("/assays/upload", files={"file": ("x.yaml", SIMPLE.encode(), "text/yaml")})
+    assert r.status_code == 303 and r.headers["location"].startswith("/login")
+    r = client.post(
+        "/assays/upload", data={"csrf": "forged"},
+        files={"file": ("x.yaml", SIMPLE.encode(), "text/yaml")},
+    )  # fmt: skip
+    assert r.status_code == 303 and not (work / "assays" / "x.yaml").exists()
+    token = _csrf(client.get("/assays").text)
+    r = client.post("/assays/upload", data={"csrf": token})  # no file chosen
+    assert r.status_code == 400 and "choose a file" in r.text

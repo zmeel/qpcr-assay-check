@@ -95,6 +95,11 @@ All notable changes to this project are documented here. The format follows
   headline, the per-year table, the channel figures and every class are unaffected.
 
 ### Added
+- **Upload an assay file in the GUI** (user, 2026-10-23: "make a button on the web page to
+  upload a (new) assay.yaml"). The Assays page has an Upload form next to "Create from the
+  template": the file is saved under the name typed in or else its own, and opened in the
+  editor. It must be UTF-8 YAML text of at most 1 MB; an upload with the name of an existing
+  assay is refused rather than overwriting it (user decision).
 - **Knowledge viewer** (user, 2026-10-04: "Make the viewer"): `python scripts/knowledge_viewer.py`
   writes `work/knowledge-viewer.html`, one self-contained file without external requests: a map
   of every concept and its links (colour and shape per folder, a ring for concepts verified by a

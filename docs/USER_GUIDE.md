@@ -107,8 +107,12 @@ Without Docker: `pip install 'qpcr-assay-check[gui]'`, then
 
 **Assays page (G2).** Assay files live in `work/assays/`; they are the same YAML files the command
 line runs. The page lists them with their state (valid or needs attention), creates a new one from
-the fully commented template, and copies one of the examples (`docs/examples`, mounted read-only by
-`docker-compose.yml`). The editor has two tabs:
+the fully commented template, copies one of the examples (`docs/examples`, mounted read-only by
+`docker-compose.yml`), and uploads an assay file you already have. An upload must be UTF-8 YAML
+text of at most 1 MB; it is saved as it is, under the name you type or else its own file name,
+and opened in the editor, which shows anything still missing. It never replaces an existing
+assay: a file with the same name is refused, so rename it or delete the old one first. The editor
+has two tabs:
 
 - **Form:** assay name, target taxon, template type, annealing temperature, the oligos (name,
   sequence; reporter, quencher and modifications for probes; add or drop one) and the exclusivity
