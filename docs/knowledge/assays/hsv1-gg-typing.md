@@ -96,7 +96,9 @@ changed. The forward-primer mismatch to the reference is the second base above.
 
 # Runs
 
-None yet.
+[2026-10-23 09:04Z](../runs/hsv1-2026-10-23.md), the first: HSV-2 amplified but not detected,
+no other exclusivity product; 96.1% of 614 genomes detectable, 0% likely failure; inclusivity
+Incomplete for want of dated recent genomes (26 collected 2023-2026).
 
 [^assay-file]: docs/examples/hsv1_gg_typing.yaml (provenance and checks in its header)
 [^ryncarz]: Ryncarz et al. 1999, the HSV detection and typing assays

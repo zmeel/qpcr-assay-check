@@ -52,20 +52,11 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 - VZV (ORF38): assay file ready, no run yet ([assay](assays/vzv-orf38.md)). The probe's G form
   (Oka lineage) folds into a hairpin; the user may give the probe's dyes and the cycling.
-- HSV-1 (gG, Ryncarz 1999): assay file ready, no run yet ([assay](assays/hsv1-gg-typing.md)).
+- HSV-1 (gG, Ryncarz 1999): first run 2026-10-23 ([run](runs/hsv1-2026-10-23.md)): HSV-2
+  amplified but not detected, 96.1% detectable, inclusivity Incomplete (26 dated recent genomes).
+  Decide on `status_axis: release` and on raising the partner-scan limit for the HSV-2 products.
   Check the forward primer's 2nd base (C in the paper, T in both reference genomes) against the
   laboratory's order sheet, and change the exclusivity panel if wanted.
-
-- NCBI answered case CAS-1714885-G5R3Z2: the long WAITING times from 2026-10-20 came from a
-  change of theirs, being rolled back ([open item](open/blast-slow-queue.md)). The influenza
-  rerun with both reverse primers was left to finish, as NCBI advised; if its remaining searches
-  take minutes again, the item closes. The ideas for sturdier handling of held searches in that
-  item are undecided.
-
-- Influenza A: the rerun with both reverse primers is under way (see NCBI above). The licence question is
-  settled - R. Molenkamp gave permission to publish the protocol's oligos (reported 2026-10-20),
-  so the second reverse primer and its assay file are now in the public repository
-  ([open item](open/influenza-protocol-permission.md), [assay](assays/influenza-a-matrix.md)).
 
 - Giardia lamblia: decide what the predicted detection of G. microti and G. psittaci means for
   the laboratory, and whether to put this assay on `status_axis: release` (two thirds of the

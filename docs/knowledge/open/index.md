@@ -2,7 +2,7 @@
 
 Open items: review suggestions not taken up, checks still to do.
 
-* [BLAST searches held for a day by a change at NCBI](blast-slow-queue.md) - From 2026-10-20 the user's BLAST URL API searches stayed WAITING for hours, a one-oligo control included, while the same search through the web page returned at once. NCBI answered (case CAS-1714885-G5R3Z2): a recent change of theirs, being rolled back - not a limit on the user. Open until a run shows normal search times again.
+* [BLAST searches held for a day by a change at NCBI (closed)](blast-slow-queue.md) - From 2026-10-20 the user's BLAST URL API searches stayed WAITING for hours. NCBI answered (case CAS-1714885-G5R3Z2): a change of theirs, rolled back. Searches of 2026-10-23 took 1-2 minutes again. Closed.
 * [The bracketing bulge figure drops the from-parts genomes](bulge-alternative-from-parts.md) - The "x% if run-length differences were tolerated" figure counted a genome judged from parts as not detectable, so it could fall below the headline. Fixed the same day (option 2).
 * [Check N. meningitidis record CP171264.1](cp171264-record-check.md) - A perfect 76-bp product with NG-P1 is predicted on this N. meningitidis record; is the record what it says it is?
 * [Degenerate oligos broke the duplex Tm baseline](degenerate-duplex-baseline.md) - The perfect-match baseline was computed with the degenerate codes left in, which primer3 cannot pair, so every ΔTm of such an oligo was measured against a reference about 15 C too low. Fixed 2026-10-07.

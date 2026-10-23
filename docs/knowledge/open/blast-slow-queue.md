@@ -1,8 +1,8 @@
 ---
 type: Open Item
-title: BLAST searches held for a day by a change at NCBI
-description: "From 2026-10-20 the user's BLAST URL API searches stayed WAITING for hours, a one-oligo control included, while the same search through the web page returned at once. NCBI answered (case CAS-1714885-G5R3Z2): a recent change of theirs, being rolled back - not a limit on the user. Open until a run shows normal search times again."
-tags: [open, question, answered, ncbi, blast, etiquette, influenza]
+title: BLAST searches held for a day by a change at NCBI (closed)
+description: "From 2026-10-20 the user's BLAST URL API searches stayed WAITING for hours. NCBI answered (case CAS-1714885-G5R3Z2): a change of theirs, rolled back. Searches of 2026-10-23 took 1-2 minutes again. Closed."
+tags: [open, question, answered, ncbi, blast, etiquette, influenza, closed]
 status: draft
 generated: { by: claude-code/agent, at: 2026-10-21T08:30:00Z }
 sources:
@@ -89,7 +89,11 @@ The answer does not say what the change was, why it affected API searches and no
 or address the other questions (how a user is identified; whether `DEPS5BKC014` is a problem in
 itself). Those stay unknown.
 
-**Still to check:** that searches are back to normal. The influenza run was left to finish, as
+**Checked, closed 2026-10-23:** the HSV-1 run of that day took 1 minute for its human
+background search and 1-2 minutes for every other search
+([run](../runs/hsv1-2026-10-23.md)). Searches are back to normal.
+
+Before that: **still to check** was that searches are back to normal. The influenza run was left to finish, as
 NCBI advised ([run](../runs/influenza-a-2026-10-21.md)): its human background search, submitted
 on the morning of 2026-10-21, took 481 minutes (about 60 before), and its exclusivity search,
 submitted that afternoon, 2 minutes. That fits a rollback during that day but does not show it.
