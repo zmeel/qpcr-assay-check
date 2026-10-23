@@ -45,6 +45,7 @@ def plan_view(assay: Any, cfg: Any) -> dict[str, Any]:
             for ps in plan.searches
         ],  # fmt: skip
         "tiers": tiers,
+        "searches_something": plan.searches_something,
         "notes": plan.notes,
         "warnings": plan.warnings,
     }
@@ -107,7 +108,7 @@ def register_run_routes(
                 plan = plan_view(check.assay, check.cfg)
             except QpcrAssayCheckError as exc:
                 return new_page(request, 400, chosen=name, error=str(exc))
-            if not plan["searches"] and check.assay.target.taxid is None:
+            if not plan["searches_something"] and check.assay.target.taxid is None:
                 from ..search.planner import NOTHING_TO_EVALUATE
 
                 return new_page(request, 400, chosen=name, error=NOTHING_TO_EVALUATE)

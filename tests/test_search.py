@@ -304,3 +304,11 @@ def test_the_plan_knows_an_unresolved_exclusivity_list_will_be_searched(cfg, n1)
     assert plan.searches == [] and plan.exclusivity_pending and plan.searches_something
     plan = plan_searches(n1, cfg, exclusivity_taxids=[])  # resolved, nothing usable
     assert not plan.exclusivity_pending and not plan.searches_something
+
+
+def test_a_plan_with_only_the_unresolved_list_says_what_happens_if_none_resolves(cfg, n1):
+    cfg.search.background_taxids = []
+    plan = plan_searches(n1, cfg)
+    assert any("the only search planned" in n for n in plan.notes)
+    cfg.search.background_taxids = [9606]
+    assert not any("the only search planned" in n for n in plan_searches(n1, cfg).notes)

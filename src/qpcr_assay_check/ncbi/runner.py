@@ -9,6 +9,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from ..config import NcbiSettings
+from ..errors import InputError
 from .blast import BlastApi
 from .cache import Cache
 from .http import NcbiError
@@ -49,10 +50,10 @@ class BlastRunner:
         self.cache = cache
         self.store = store
         self.s = settings
-        if "JSON" not in result_format.upper():
-            # only JSON reports are parsed (parse_blast_json), and only they can be told apart
-            # from NCBI's HTML error page before they are cached
-            raise ValueError(f"BLAST report format {result_format!r}: only JSON2_S or JSON2")
+        if result_format != "JSON2_S":
+            # the only format parse_blast_json reads (JSON2 is a ZIP archive), and the one told
+            # apart from NCBI's HTML error page before it is cached
+            raise InputError(f"BLAST report format {result_format!r}: only JSON2_S is read")
         self.result_format = result_format
         self._now = now or (lambda: _now())
         self._sleep = sleep or (lambda s: time.sleep(s))

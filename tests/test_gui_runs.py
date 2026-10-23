@@ -258,3 +258,20 @@ def test_a_real_qc_only_run_through_the_queue(client: TestClient, work: Path) ->
 def test_unknown_runs_are_not_found(client: TestClient) -> None:
     assert client.get("/runs/nope").status_code == 404
     assert client.get("/runs/20261002T000000Z-x/status").status_code == 404
+
+
+def test_a_plan_whose_only_search_is_the_unresolved_exclusivity_list_is_offered(
+    client: TestClient, work: Path
+) -> None:
+    """No target taxid, no background, an exclusivity list: the GUI refused it as "nothing to
+    search" while the command line accepted it (review 2026-10-23)."""
+    import yaml
+
+    data = yaml.safe_load(NEISSERIA)
+    data["target"] = {"accession": "NC_002946.2"}  # no taxid: no target tier, no variant analysis
+    data.setdefault("settings", {}).setdefault("search", {})["background_taxids"] = []
+    (work / "assays" / "excl.yaml").write_text(yaml.safe_dump(data, sort_keys=False))
+    token = _csrf(client.get("/runs/new").text)
+    r = client.post("/runs/plan", data={"csrf": token, "assay": "excl.yaml"})
+    assert r.status_code == 200, r.text[:300]
+    assert "the only search planned" in r.text

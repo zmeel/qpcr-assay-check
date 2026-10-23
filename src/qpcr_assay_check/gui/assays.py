@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.ya?ml$")
 MAX_BYTES = 1_000_000  # an assay file is a few kB; refuse anything absurd
+TOO_LARGE = f"the file is larger than {MAX_BYTES / 1_000_000:g} MB"
 
 
 class AssayFileError(ValueError):
@@ -118,7 +119,7 @@ class AssayFiles:
 
     def _write(self, path: Path, text: str) -> None:
         if len(text.encode("utf-8")) > MAX_BYTES:
-            raise AssayFileError("the file is larger than 1 MB")
+            raise AssayFileError(TOO_LARGE)
         self.dir.mkdir(parents=True, exist_ok=True)
         tmp = path.with_name(f".{path.name}.tmp")
         tmp.write_text(text, encoding="utf-8")

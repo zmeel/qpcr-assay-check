@@ -36,6 +36,21 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **The second review of 2026-10-23, of the fixes of the first:**
+  - `search.result_format` still accepted JSON2, which NCBI returns as a ZIP archive (recorded
+    by the smoke test); only JSON2_S is accepted, and BlastRunner raises an `InputError` for
+    anything else rather than a bare `ValueError`.
+  - The GUI's run plan still refused an assay whose only search is an unresolved exclusivity
+    list; it uses the same rule as the command line now.
+  - An upload sent in chunks carries no Content-Length, so the route's check could not stop
+    Starlette spooling it: the GUI now has a request-size limit for every request
+    (`gui/limits.py`, 4 MB), counted as the body arrives, answering 413.
+  - The note for a failed variant analysis blamed `search.target_tier: false` also when the assay
+    has no target taxid; it names the real reason.
+  - A dry run whose only search is the unresolved exclusivity list now says that the run stops if
+    none of its names resolves.
+  - Cleanup: one wording of the 1 MB limit, one relevance rule for hits, a dead condition, and a
+    needless `noqa` in a test.
 - **Nine findings of the code review of 2026-10-23** (everything since the review of
   2026-10-08):
   - `search --dry-run` refused an assay whose only off-target tier is its exclusivity list: a

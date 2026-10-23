@@ -18,6 +18,7 @@ from starlette.datastructures import UploadFile
 from ..errors import QpcrAssayCheckError
 from .assays import (
     MAX_BYTES,
+    TOO_LARGE,
     AssayFileError,
     AssayFiles,
     check_name,
@@ -61,7 +62,7 @@ def _upload_name(given: str, filename: str) -> str:
 def _upload_text(data: bytes) -> str:
     """The uploaded bytes as assay text: UTF-8 (a byte-order mark is dropped), a YAML mapping."""
     if len(data) > MAX_BYTES:
-        raise AssayFileError("the file is larger than 1 MB")
+        raise AssayFileError(TOO_LARGE)
     try:
         text = data.decode("utf-8-sig").replace("\r\n", "\n")
     except UnicodeDecodeError as exc:
@@ -174,11 +175,11 @@ def register_assay_routes(
                 examples=files.examples(), error=f"Not uploaded: {problem}", assays_dir=files.dir,
             )  # fmt: skip
 
-        # refuse a body far over the limit before Starlette spools all of it to a temporary file;
-        # the check after reading stays for a client that sends no Content-Length
+        # a friendlier answer than the app-wide 413 (gui/limits.py) for a file just over the
+        # limit, before Starlette spools it; the check after reading stays as well
         length = request.headers.get("content-length", "")
         if length.isdigit() and int(length) > MAX_BYTES + UPLOAD_FORM_OVERHEAD:
-            return refused("the file is larger than 1 MB")
+            return refused(TOO_LARGE)
         form = await request.form()
         try:
             if not csrf_ok(request, str(form.get("csrf", ""))):

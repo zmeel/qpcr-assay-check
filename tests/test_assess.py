@@ -17,7 +17,7 @@ from .conftest import CDC_N1_F as F
 from .conftest import CDC_N1_P as P
 from .conftest import CDC_N1_R as R
 from .conftest import make_assay
-from .world import World, WorldFake, filler, make_runner, mutate  # noqa: F401
+from .world import World, WorldFake, filler, make_runner, mutate
 
 NEAR, HUMAN, TARGET = 100, 9606, 2697049
 ACC = "OT000001.1"

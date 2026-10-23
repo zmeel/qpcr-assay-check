@@ -272,7 +272,9 @@ class SearchSettings(_Strict):
     gap_open: int
     gap_extend: int
     hitlist_size: int
-    result_format: Literal["JSON2_S", "JSON2"]  # the only formats parse_blast_json reads
+    # the only format parse_blast_json reads: JSON2 (and XML2) come back as ZIP archives
+    # (docs/ARCHITECTURE.md, smoke test), and XML is not parsed at all
+    result_format: Literal["JSON2_S"]
     max_taxids_per_search: int
     max_searches_warn: int
     background_taxids: list[int]

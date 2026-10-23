@@ -430,3 +430,26 @@ def test_a_failed_variant_analysis_says_no_oligo_was_checked_against_the_target(
     text = (run_dir(env) / "results.json").read_text()
     assert "Datasets is unreachable" in text
     assert "nothing in it checked that each oligo matches its target" in text
+
+
+def test_the_failed_variant_note_blames_a_missing_target_taxid_when_there_is_one(env, monkeypatch):
+    """With no target taxid the target tier is never planned, whatever search.target_tier says;
+    the note named the setting anyway (review 2026-10-23)."""
+    import yaml as _yaml
+
+    from qpcr_assay_check.errors import InputError
+
+    def failing(*args, **kwargs):
+        raise InputError("no target taxid")
+
+    monkeypatch.setattr("qpcr_assay_check.variants.exhaustive.run_exhaustive", failing)
+    data = _yaml.safe_load(env.assay.read_text())
+    data["target"] = {k: v for k, v in data["target"].items() if k != "taxid"}
+    env.assay.write_text(_yaml.safe_dump(data, sort_keys=False))
+    env.conf.write_text(env.conf.read_text() + "search:\n  target_tier: true\n")
+    env.install(world_with())
+    r = invoke(env, "--yes")
+    assert r.exception is None or isinstance(r.exception, SystemExit), repr(r.exception)
+    text = (run_dir(env) / "results.json").read_text()
+    assert "the assay has no target taxid" in text
+    assert "search.target_tier: false" not in text

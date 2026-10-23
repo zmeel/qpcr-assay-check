@@ -31,6 +31,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .. import __version__
 from .assay_routes import register_assay_routes
 from .auth import AuthStore, LoginThrottle
+from .limits import BodySizeLimit
 from .records import RecordIndex
 from .results_routes import register_results_routes
 from .run_routes import register_run_routes
@@ -129,6 +130,7 @@ def create_app(settings: GuiSettings) -> FastAPI:
         same_site="strict",
         https_only=settings.secure_cookie,
     )
+    app.add_middleware(BodySizeLimit)  # counts the body before any route or form parser reads it
     app.mount("/static", StaticFiles(directory=str(_package_dir("static"))), name="static")
 
     @app.middleware("http")

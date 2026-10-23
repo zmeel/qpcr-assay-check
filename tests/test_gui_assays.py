@@ -400,3 +400,24 @@ def test_an_oversized_upload_is_refused_before_the_form_is_read(
     )
     assert r.status_code == 400 and "larger than 1 MB" in r.text
     assert not (work / "assays").exists() or not any((work / "assays").iterdir())
+
+
+def test_a_chunked_upload_without_a_length_is_cut_off_by_the_app_wide_limit(
+    client: TestClient, work: Path
+) -> None:
+    """No Content-Length to refuse it by: the body is counted as it arrives (review
+    2026-10-23)."""
+    from qpcr_assay_check.gui.limits import MAX_REQUEST_BYTES
+
+    def body():
+        chunk = b"#" * 65_536
+        for _ in range(MAX_REQUEST_BYTES // len(chunk) + 2):
+            yield chunk
+
+    r = client.post(
+        "/assays/upload", content=body(),
+        headers={"content-type": "multipart/form-data; boundary=x"},
+    )  # fmt: skip
+    assert r.status_code == 413 and b"Request too large" in r.content
+    assert not (work / "assays").exists() or not any((work / "assays").iterdir())
+    assert client.get("/assays").status_code == 200  # a normal request still works

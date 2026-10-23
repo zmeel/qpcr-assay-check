@@ -92,6 +92,12 @@ def _in_tier(hit: Hit, wanted: set[int], lineage: dict[int, set[int]]) -> Hit | 
     return hit.model_copy(update={"descriptions": [keep[0], *rest]})
 
 
+def _relevant(hits: list[Hit], min_identical: int) -> list[Hit]:
+    """The hits with an alignment of at least ``min_identical`` identical bases: the rest give
+    no candidate site, so their organism is neither looked up nor set aside."""
+    return [hit for hit in hits if hit.best_identity >= min_identical]
+
+
 def _lineages(
     plan: SearchPlan,
     parsed: dict[str, ParsedSearch],
@@ -109,8 +115,7 @@ def _lineages(
         for ps in plan.searches
         if ps.tier in assessed and ps.key in parsed
         for q in parsed[ps.key].queries.values()
-        for hit in q.hits
-        if hit.best_identity >= min_identical
+        for hit in _relevant(q.hits, min_identical)
         for d in hit.descriptions
         if d.taxid is not None
     }
@@ -172,13 +177,11 @@ def assess_specificity(
             hits = q.hits
             if lineage is not None and wanted:
                 hits = []
-                for hit in q.hits:
-                    if hit.best_identity < min_identical:
-                        continue  # gives no candidate, so nothing to keep or set aside
+                for hit in _relevant(q.hits, min_identical):
                     kept = _in_tier(hit, wanted, lineage)
                     if kept is not None:
                         hits.append(kept)
-                    elif hit.descriptions:
+                    else:  # only a hit with records can be outside
                         d = hit.descriptions[0]
                         set_aside[ps.tier][d.accession_version or d.accession or "?"] = (
                             d.sciname or "?"

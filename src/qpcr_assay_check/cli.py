@@ -354,10 +354,13 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
             f"the exhaustive variant analysis was not run ({exc}); without it there is no "
             "variant summary and no inclusivity in this run (run again when fixed)"
             + (
-                ", and nothing in it checked that each oligo matches its target: the target is "
-                "not searched as a tier (search.target_tier: false)."
-                if not any(ps.tier == "target" for ps in remote.plan.searches)
-                else "."
+                "."
+                if any(ps.tier == "target" for ps in remote.plan.searches)
+                else ", and nothing in it checked that each oligo matches its target: the assay "
+                "has no target taxid."
+                if assay.target.taxid is None
+                else ", and nothing in it checked that each oligo matches its target: the target "
+                "is not searched as a tier (search.target_tier: false)."
             )
         )
         log.warning("%s", variant_note)

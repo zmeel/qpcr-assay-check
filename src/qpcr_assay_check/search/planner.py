@@ -179,6 +179,12 @@ def plan_searches(
         source = organism_list_source(cfg, assay)
         n_names = len(load_organism_list(cfg, assay).names)
         plan.exclusivity_pending = n_names > 0
+        if plan.exclusivity_pending and not tiers:
+            plan.notes.append(
+                "The exclusivity tier is the only search planned: if none of its names resolves "
+                "to a taxonomy ID other than the target's, there is nothing to search and the run "
+                "says so after resolving them."
+            )
         which = (
             f"this assay's own 'exclusivity_organisms' list ({n_names} name(s))"
             if source == "assay"
