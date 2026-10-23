@@ -50,6 +50,8 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 # Next, waiting on the user
 
+- VZV (ORF38): assay file ready, no run yet ([assay](assays/vzv-orf38.md)). The probe's G form
+  (Oka lineage) folds into a hairpin; the user may give the probe's dyes and the cycling.
 - HSV-1 (gG, Ryncarz 1999): assay file ready, no run yet ([assay](assays/hsv1-gg-typing.md)).
   Check the forward primer's 2nd base (C in the paper, T in both reference genomes) against the
   laboratory's order sheet, and change the exclusivity panel if wanted.

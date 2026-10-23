@@ -1,0 +1,112 @@
+# Example assay: varicella-zoster virus (VZV), ORF38, one probe (dyes not given).
+#
+# STATUS
+#   One amplified region in ORF38 (tegument protein UL21), 82 bp. The probe is taken as linear
+#   (26 nt, no MGB or other Tm-raising modification declared), so the unmodified-probe ladder of R9
+#   applies: one mismatch outside the last 5 nt tolerated, one in the last 5 nt or two anywhere at
+#   risk, three or more likely failure (docs/MISMATCH_CLASSES.md). If the probe is an MGB probe,
+#   say so: the MGB rules are stricter and the classes change. One probe, so one channel; no
+#   wet-lab evidence entries. No taxa inside VZV are left out of the target.
+#
+# PROVENANCE
+#   Oligos supplied by the user (2026-10-23), with no publication: they are here as given (spaces
+#   removed) and NOT checked against a publication. The user gave no reporter or quencher, so none
+#   is set; fill them in if known (they do not change the in silico results, except the 5' G
+#   check of the QC, which treats an unknown reporter as FAM-type). The names (VZV-F, VZV-R,
+#   VZV-P) were chosen here; the user gave none. The exclusivity panel was suggested in this
+#   session and is the user's to edit.
+#
+# WHAT WAS CHECKED (2026-10-23, live against NCBI)
+#   * The reference (82 nt) is VZV strain Dumas exactly: NC_001348:69313-69394, plus strand,
+#     inside ORF38 (gene 68647-70293 on the minus strand, "tegument protein UL21"). The user's
+#     first reference stopped one base short (81 nt, without the final A, so the reverse primer's
+#     5' base had no template); the user then gave the 82-nt sequence, which is the one below.
+#   * VZV-F at 1-17, VZV-P at 24-49 (sense strand), VZV-R at 56-82 (reverse complement): all three
+#     exact against Dumas, so the product is the whole reference.
+#   * The probe's R (A or G, 14th base) reads A in Dumas (NC_001348) and G in both Oka strains,
+#     the vaccine vOka (AB097932) and its parent pOka (AB097933). So the R lets the probe fit both
+#     main lineages; it does not tell vaccine from wild-type virus.
+#   * Taxonomy: every name below resolves to exactly one taxon by scientific name. The target is
+#     the species Varicellovirus humanalpha3 (3050294), not the no-rank node "Human
+#     alphaherpesvirus 3" (10335) under it: the species holds 2,832 Nucleotide records, 52 more
+#     than the node. The herpesviruses below are named by species for the same reason.
+#   * No cycling was given: the default annealing temperature (60 C) is used.
+#
+# OLIGO QC (run --qc-only, 2026-10-23): Exceeds limit, on one structure
+#   The probe's G form (CCGCAACAACTGCGGTATATATCGTC, the Oka-lineage form) folds into a hairpin:
+#   CCGCA pairs with TGCGG around the loop ACAAC, predicted Tm 73.6 C, above the 60 C annealing
+#   temperature; the A form (Dumas) does not. A folded probe binds its target less well, so this
+#   is the one point a wet-lab check on an Oka-lineage template (the vaccine strain) would settle.
+#   The rest is outside the preferred range only: a 17-nt forward primer at 64.7% GC with a run of
+#   six C, a reverse primer at 37.0% GC, and a probe only 1-3 C above the primers in Tm (65.4-67.3
+#   against 64.0-64.7 C), where 5-10 C is usual for a hydrolysis probe.
+#
+# EXCLUSIVITY PANEL, AND WHY (suggested 2026-10-23, the user's to change)
+#   1. The closest relatives: simian varicella virus (VZV's nearest relative, the same genus) and
+#      the simplexviruses that cause human disease: HSV-1, HSV-2 and the macaque B virus. HSV-1
+#      and HSV-2 are also the main differential of vesicular lesions.
+#   2. The other human herpesviruses: they turn up in the same lesion, CSF and eye specimens.
+#   3. The differential of vesicular and pustular rash: mpox, smallpox (variola), molluscum,
+#      bullous impetigo and its streptococcal form, syphilis, candidiasis.
+#   4. The DNA-template differential of meningitis and encephalitis in CSF.
+#   5. Eye (herpes zoster ophthalmicus, keratitis): adenovirus D and Acanthamoeba.
+#   Left out on purpose: enteroviruses (hand, foot and mouth disease; viral meningitis), because
+#   they are RNA viruses and this is a DNA assay with no RT step. Human DNA is searched as the
+#   default background.
+#
+# SCOPE
+#   Variant analysis over every VZV Nucleotide record: 2,832 on 2026-10-23, one run. All are below
+#   variants.direct_scan_max_length, so they are fetched and scanned directly, without BLAST. Most
+#   records shorter than a genome hold other genes (e.g. the ORF22/ORF62 genotyping fragments) and
+#   will be "not found", which the figures leave out. To assess the 352 genome-sized records only,
+#   add nucleotide_query: "100000:200000[SLEN]".
+
+assay_name: VZV (ORF38)
+forward: {name: VZV-F, sequence: AAGTTCCCCCCGTTCGC}
+reverse: {name: VZV-R, sequence: TGGACTTGAAGATGAACTTAATGAAGC}
+probe:
+  - {name: VZV-P, sequence: CCGCAACAACTGCRGTATATATCGTC}   # R = A (Dumas) or G (Oka)
+template_type: DNA
+target:
+  taxid: 3050294                 # Varicellovirus humanalpha3 = varicella-zoster virus
+  gene: ORF38 (tegument protein UL21)
+reference_amplicons:             # = NC_001348:69313-69394 (strain Dumas), as the user gave it
+  - name: VZV-ORF38-Dumas
+    sequence: AAGTTCCCCCCGTTCGCCATATACCGCAACAACTGCAGTATATATCGTCTCACGGGCTTCATTAAGTTCATCTTCAAGTCCA
+exclusivity_organisms:
+  # 1. the closest relatives
+  - Varicellovirus cercopithecinealpha9   # 3050257, simian varicella virus
+  - Simplexvirus humanalpha1       # 3050292, HSV-1
+  - Simplexvirus humanalpha2       # 3050293, HSV-2
+  - Simplexvirus macacinealpha1    # 3050305, B virus (macaque), zoonotic
+  # 2. the other human herpesviruses
+  - Cytomegalovirus humanbeta5     # 3050295, cytomegalovirus
+  - Lymphocryptovirus humangamma4  # 3050299, Epstein-Barr virus
+  - Roseolovirus humanbeta6a       # 3050296, HHV-6A
+  - Roseolovirus humanbeta6b       # 3050297, HHV-6B
+  - Roseolovirus humanbeta7        # 3050298, HHV-7
+  - Rhadinovirus humangamma8       # 3050300, HHV-8 (Kaposi sarcoma herpesvirus)
+  # 3. vesicular and pustular rash
+  - Orthopoxvirus monkeypox        # 3431483, mpox
+  - Orthopoxvirus variola          # 3431487, smallpox
+  - Molluscipoxvirus molluscum     # 3430922, molluscum contagiosum
+  - Staphylococcus aureus          # 1280, bullous impetigo
+  - Streptococcus pyogenes         # 1314, impetigo
+  - Treponema pallidum             # 160, secondary syphilis
+  - Candida albicans               # 5476
+  # 4. CSF: meningitis and encephalitis, DNA templates only (see the header)
+  - Neisseria meningitidis         # 487
+  - Streptococcus pneumoniae       # 1313
+  - Listeria monocytogenes         # 1639
+  - Haemophilus influenzae         # 727
+  - Cryptococcus neoformans        # 5207
+  # 5. eye
+  - Mastadenovirus dominans        # 3241420, human adenovirus D (keratoconjunctivitis)
+  - Acanthamoeba castellanii       # 5755
+oligo_source: >-
+  Supplied by the user (2026-10-23) without a publication; not checked against one. The reference
+  is VZV strain Dumas NC_001348:69313-69394 exactly (checked live).
+settings:                        # only what differs from the defaults, for this assay
+  variants:
+    source: blast_partitioned    # virus: every Nucleotide record
+    blast_max_records_per_run: 3000   # 2,832 records on 2026-10-23: all of them in one run
