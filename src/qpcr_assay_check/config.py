@@ -272,7 +272,7 @@ class SearchSettings(_Strict):
     gap_open: int
     gap_extend: int
     hitlist_size: int
-    result_format: Literal["JSON2_S", "JSON2", "XML2_S", "XML2"]
+    result_format: Literal["JSON2_S", "JSON2"]  # the only formats parse_blast_json reads
     max_taxids_per_search: int
     max_searches_warn: int
     background_taxids: list[int]

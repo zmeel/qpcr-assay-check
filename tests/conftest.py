@@ -30,8 +30,10 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(skip)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def cfg() -> Config:
+    """A fresh default configuration per test: tests change it (was session-scoped, so a change
+    leaked into every later test, e.g. search.target_tier = True; found 2026-10-23)."""
     return load_config()
 
 

@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 
 QC_LABEL = {"PASS": "within", "WARN": "outside preferred", "FAIL": "outside limit", "INFO": "info"}
 QC_CSS = {"PASS": "ok", "WARN": "review", "FAIL": "exceeds", "INFO": "incomplete"}
+UPLOAD_FORM_OVERHEAD = 64_000  # bytes of multipart framing and the form's other fields
 _SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$")
 
 
@@ -166,11 +167,23 @@ def register_assay_routes(
     @app.post("/assays/upload")
     async def assay_upload(request: Request, user: str = Depends(require_login)) -> Response:
         """Save an uploaded assay file as it is and open it in the editor; never overwrite."""
+
+        def refused(problem: str) -> Response:
+            return page(
+                request, "assays.html", 400, active="assays", assays=files.list(),
+                examples=files.examples(), error=f"Not uploaded: {problem}", assays_dir=files.dir,
+            )  # fmt: skip
+
+        # refuse a body far over the limit before Starlette spools all of it to a temporary file;
+        # the check after reading stays for a client that sends no Content-Length
+        length = request.headers.get("content-length", "")
+        if length.isdigit() and int(length) > MAX_BYTES + UPLOAD_FORM_OVERHEAD:
+            return refused("the file is larger than 1 MB")
         form = await request.form()
-        if not csrf_ok(request, str(form.get("csrf", ""))):
-            return RedirectResponse("/assays", status_code=303)
-        upload = form.get("file")
         try:
+            if not csrf_ok(request, str(form.get("csrf", ""))):
+                return RedirectResponse("/assays", status_code=303)
+            upload = form.get("file")
             if not isinstance(upload, UploadFile) or not (upload.filename or "").strip():
                 raise AssayFileError("choose a file to upload")
             name = _upload_name(str(form.get("name", "")), upload.filename or "")
@@ -182,10 +195,9 @@ def register_assay_routes(
                 )
             files.create(name, text)
         except (AssayFileError, OSError) as exc:
-            return page(
-                request, "assays.html", 400, active="assays", assays=files.list(),
-                examples=files.examples(), error=f"Not uploaded: {exc}", assays_dir=files.dir,
-            )  # fmt: skip
+            return refused(str(exc))
+        finally:
+            await form.close()  # releases the spooled temporary file
         log.info("GUI: assay file %s uploaded by %s", name, user)
         return RedirectResponse(f"/assays/{name}", status_code=303)
 

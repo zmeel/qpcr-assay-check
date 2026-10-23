@@ -380,3 +380,23 @@ def test_upload_needs_a_login_and_the_form_token(work: Path, client: TestClient)
     token = _csrf(client.get("/assays").text)
     r = client.post("/assays/upload", data={"csrf": token})  # no file chosen
     assert r.status_code == 400 and "choose a file" in r.text
+
+
+def test_an_oversized_upload_is_refused_before_the_form_is_read(
+    client: TestClient, work: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Starlette would spool the whole body to a temporary file before the 1 MB check (review
+    2026-10-23): the Content-Length decides first."""
+    token = _csrf(client.get("/assays").text)
+
+    def never(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the form was read")
+
+    monkeypatch.setattr("starlette.requests.Request.form", never)
+    r = client.post(
+        "/assays/upload",
+        data={"csrf": token},
+        files={"file": ("big.yaml", b"#" * 1_200_000, "application/x-yaml")},
+    )
+    assert r.status_code == 400 and "larger than 1 MB" in r.text
+    assert not (work / "assays").exists() or not any((work / "assays").iterdir())

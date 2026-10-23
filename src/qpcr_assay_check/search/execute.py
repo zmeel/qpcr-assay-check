@@ -21,7 +21,7 @@ from ..pipeline import inputs_hash
 from ..taxonomy.plan import OrganismListResolution, resolve_organism_list
 from ..taxonomy.resolve import outside_target
 from .orchestrate import SearchOutcome, run_search
-from .planner import PlannedSearch, SearchPlan, plan_searches
+from .planner import NOTHING_TO_SEARCH, PlannedSearch, SearchPlan, plan_searches
 
 
 class Aborted(InputError):
@@ -119,10 +119,7 @@ def run_remote_search(
     if on_plan:
         on_plan(plan)
     if not plan.searches and not allow_no_searches:
-        raise InputError(
-            "Nothing to search: configure off-target taxa (search.background_taxids, an "
-            "exclusivity list or near neighbours), or set search.target_tier: true."
-        )
+        raise InputError(NOTHING_TO_SEARCH)
     search_dir, digest = search_dir_for(assay, cfg, outdir)
     store = JobStore(search_dir / "jobs.json")
     runner = BlastRunner(

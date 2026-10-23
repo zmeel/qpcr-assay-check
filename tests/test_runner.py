@@ -243,3 +243,22 @@ def test_a_cached_error_page_from_an_older_run_is_ignored(cfg, tmp_path):
     raw = env.run()
     assert raw.lstrip().startswith("{")
     assert env.cache.get("blast", env.job.key, ttl_days=None) == raw  # overwritten by the report
+
+
+def test_only_json_report_formats_are_accepted(tmp_path):
+    """Only JSON reports are parsed, and only they can be told apart from NCBI's HTML error page
+    before caching; an XML format would have cached that page (review 2026-10-23)."""
+    import pytest
+
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.ncbi.cache import Cache
+    from qpcr_assay_check.ncbi.jobs import JobStore
+    from qpcr_assay_check.ncbi.runner import BlastRunner
+
+    conf = tmp_path / "xml.yaml"
+    conf.write_text("search:\n  result_format: XML2_S\n")
+    with pytest.raises(Exception, match="JSON2"):
+        load_config(conf)
+    cfg = load_config()
+    with pytest.raises(ValueError, match="only JSON2_S or JSON2"):
+        BlastRunner(None, Cache(tmp_path / "c"), JobStore(tmp_path / "j.json"), cfg.ncbi, "XML2")

@@ -45,12 +45,33 @@ class PlannedSearch:
 
 @dataclass
 class SearchPlan:
-    """Everything that would be sent to NCBI, before anything is sent."""
+    """Everything that would be sent to NCBI, before anything is sent.
+
+    ``exclusivity_pending``: an organism list is configured but not resolved to taxonomy IDs yet
+    (``--dry-run`` plans without the network), so its tier is missing from ``searches`` although
+    the real run will search it.
+    """
 
     queries: dict[str, str]
     searches: list[PlannedSearch]
     notes: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    exclusivity_pending: bool = False
+
+    @property
+    def searches_something(self) -> bool:
+        """Whether the run will send at least one search."""
+        return bool(self.searches) or self.exclusivity_pending
+
+
+NOTHING_TO_SEARCH = (
+    "Nothing to search: configure off-target taxa (search.background_taxids, an exclusivity "
+    "list or near neighbours), or set search.target_tier: true."
+)
+NOTHING_TO_EVALUATE = (
+    "Nothing to search and no target taxon for the variant analysis: give the assay a target "
+    "taxid or configure off-target taxa."
+)
 
 
 def is_offpeak(now: datetime) -> bool:
@@ -157,6 +178,7 @@ def plan_searches(
     elif exclusivity_taxids is None:
         source = organism_list_source(cfg, assay)
         n_names = len(load_organism_list(cfg, assay).names)
+        plan.exclusivity_pending = n_names > 0
         which = (
             f"this assay's own 'exclusivity_organisms' list ({n_names} name(s))"
             if source == "assay"

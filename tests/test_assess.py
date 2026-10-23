@@ -17,7 +17,7 @@ from .conftest import CDC_N1_F as F
 from .conftest import CDC_N1_P as P
 from .conftest import CDC_N1_R as R
 from .conftest import make_assay
-from .world import World, WorldFake, filler, make_runner, mutate
+from .world import World, WorldFake, filler, make_runner, mutate  # noqa: F401
 
 NEAR, HUMAN, TARGET = 100, 9606, 2697049
 ACC = "OT000001.1"
@@ -406,3 +406,29 @@ def test_a_failed_lineage_lookup_keeps_every_hit_and_says_so(tmp_path):
     assert any(
         "could not be checked" in f.message and "HTTP 502" in f.message for f in res.findings
     )
+
+
+def test_a_hit_without_records_counts_as_inside_its_tier():
+    from qpcr_assay_check.ncbi.parser import Hit, Hsp
+    from qpcr_assay_check.specificity.assess import _in_tier
+
+    hsp = Hsp(num=1, bit_score=40, evalue=1, identity=20, align_len=20, query_from=1,
+              query_to=20, hit_from=1, hit_to=20)  # fmt: skip
+    hit = Hit(num=1, descriptions=[], hsps=[hsp])
+    assert _in_tier(hit, {NEAR}, lineage_of([NEAR])) is hit  # was silently dropped
+
+
+def test_only_relevant_hits_have_their_organism_looked_up(tmp_path):
+    w = leaked_world()
+    w.genome("WEAK1.1", 4242, "Weakly hit organism", filler(400, 9))
+    w.hit(NEAR, "forward", F, "WEAK1.1", 101, "+", realistic=False)  # 0-2 identical bases
+    asked: list[int] = []
+
+    def recording(taxids):
+        asked.extend(taxids)
+        return lineage_of(taxids)
+
+    res, _, _ = run(w, tmp_path, ancestors_of=recording)
+    assert 4242 not in asked and NEAR in asked and TARGET in asked
+    (f,) = [f for f in res.findings if "set aside" in f.message]
+    assert "WEAK1.1" not in f.message  # an irrelevant hit is not reported as set aside

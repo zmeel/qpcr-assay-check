@@ -92,12 +92,16 @@ def resolve_names(
     ]
 
 
-def parse_taxonomy_xml(text: str) -> dict[int, Lineage]:
-    """Parse a Taxonomy EFetch (``retmode=xml``) response into one :class:`Lineage` per taxon."""
+def _taxa_root(text: str) -> ET.Element:
+    """A Taxonomy EFetch response as XML; a truncated or garbled one is an :class:`NcbiError`,
+    so every caller's network-error handling covers it (a raw ``ParseError`` aborted a run)."""
     try:
-        root = ET.fromstring(text)
+        return ET.fromstring(text)
     except ET.ParseError as exc:
         raise NcbiError(f"Unparseable Taxonomy EFetch response: {exc}") from exc
+
+
+def _lineages_of(root: ET.Element) -> dict[int, Lineage]:
     out: dict[int, Lineage] = {}
     for taxon in root.findall("Taxon"):
         taxid_text = taxon.findtext("TaxId")
@@ -122,6 +126,46 @@ def parse_taxonomy_xml(text: str) -> dict[int, Lineage]:
     return out
 
 
+def _ancestors_of(root: ET.Element) -> dict[int, set[int]]:
+    out: dict[int, set[int]] = {}
+    for taxon in root.findall("Taxon"):
+        tid = int(taxon.findtext("TaxId") or 0)
+        out[tid] = {int(x.findtext("TaxId") or 0) for x in taxon.iterfind("LineageEx/Taxon")}
+    return out
+
+
+def parse_taxonomy_xml(text: str) -> dict[int, Lineage]:
+    """Parse a Taxonomy EFetch (``retmode=xml``) response into one :class:`Lineage` per taxon."""
+    return _lineages_of(_taxa_root(text))
+
+
+def _lineage_key(taxid: int) -> str:
+    return content_key({"kind": "lineage", "taxid": taxid})
+
+
+def _ancestors_key(taxid: int) -> str:
+    return content_key({"ancestors": taxid})
+
+
+def _fetch_taxa(
+    eutils: Eutils, cache: Cache, taxids: list[int]
+) -> tuple[dict[int, set[int]], dict[int, Lineage]]:
+    """EFetch ``taxids`` (200 per request) and cache what each response says both ways, as
+    ancestors and as a lineage: the specificity tiers ask for the one and the taxonomy summary
+    for the other, about the same organisms, so each is fetched once."""
+    anc: dict[int, set[int]] = {}
+    lin: dict[int, Lineage] = {}
+    for i in range(0, len(taxids), 200):  # keep individual EFetch id lists moderate
+        root = _taxa_root(eutils.fetch_taxonomy(taxids[i : i + 200]))
+        for tid, ids in _ancestors_of(root).items():
+            anc[tid] = ids | {tid}
+            cache.put("taxonomy_ancestors", _ancestors_key(tid), json.dumps(sorted(ids)))
+        for tid, lineage in _lineages_of(root).items():
+            lin[tid] = lineage
+            cache.put("taxonomy_lineage", _lineage_key(tid), lineage.model_dump_json())
+    return anc, lin
+
+
 def fetch_lineages(
     eutils: Eutils, cache: Cache, taxids: list[int], *, ttl_days: float
 ) -> dict[int, Lineage]:
@@ -129,20 +173,13 @@ def fetch_lineages(
     out: dict[int, Lineage] = {}
     missing: list[int] = []
     for t in taxids:
-        key = content_key({"kind": "lineage", "taxid": t})
-        cached = cache.get("taxonomy_lineage", key, ttl_days=ttl_days)
+        cached = cache.get("taxonomy_lineage", _lineage_key(t), ttl_days=ttl_days)
         if cached is not None:
             out[t] = Lineage.model_validate_json(cached)
         else:
             missing.append(t)
-    for i in range(0, len(missing), 200):  # keep individual EFetch id lists moderate
-        chunk = missing[i : i + 200]
-        for t, lin in parse_taxonomy_xml(eutils.fetch_taxonomy(chunk)).items():
-            out[t] = lin
-            cache.put(
-                "taxonomy_lineage", content_key({"kind": "lineage", "taxid": t}),
-                lin.model_dump_json(),
-            )  # fmt: skip
+    if missing:
+        out.update(_fetch_taxa(eutils, cache, missing)[1])
     return out
 
 
@@ -153,20 +190,13 @@ def ancestors(
     out: dict[int, set[int]] = {}
     missing: list[int] = []
     for t in taxids:
-        cached = cache.get("taxonomy_ancestors", content_key({"ancestors": t}), ttl_days=ttl_days)
+        cached = cache.get("taxonomy_ancestors", _ancestors_key(t), ttl_days=ttl_days)
         if cached is None:
             missing.append(t)
         else:
             out[t] = set(json.loads(cached)) | {t}
-    for i in range(0, len(missing), 200):  # keep individual EFetch id lists moderate
-        root = ET.fromstring(eutils.fetch_taxonomy(missing[i : i + 200]))
-        for taxon in root.findall("Taxon"):
-            tid = int(taxon.findtext("TaxId") or 0)
-            ids = {int(x.findtext("TaxId") or 0) for x in taxon.iterfind("LineageEx/Taxon")}
-            out[tid] = ids | {tid}
-            cache.put(
-                "taxonomy_ancestors", content_key({"ancestors": tid}), json.dumps(sorted(ids))
-            )
+    if missing:
+        out.update(_fetch_taxa(eutils, cache, missing)[0])
     return out
 
 

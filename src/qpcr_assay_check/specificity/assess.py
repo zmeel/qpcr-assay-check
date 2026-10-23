@@ -72,15 +72,17 @@ def _in_tier(hit: Hit, wanted: set[int], lineage: dict[int, set[int]]) -> Hit | 
 
     NCBI's ``ENTREZ_QUERY`` restriction is not airtight (an influenza A record came back in an
     exclusivity search without influenza A, 2026-10-21), so each hit is checked against the
-    lineage of its own organism. A record without a taxid, or whose lineage could not be read,
-    counts as inside: nothing shows it is outside. When the first record of a merged hit is
-    outside and another is inside, the inside one is moved first, since the site is reported
-    under the first record.
+    lineage of its own organism. A hit without records, a record without a taxid, or one whose
+    lineage could not be read counts as inside: nothing shows it is outside. When the first
+    record of a merged hit is outside and another is inside, the inside one is moved first,
+    since the site is reported under the first record.
     """
 
     def inside(taxid: int | None) -> bool:
         return taxid is None or taxid not in lineage or bool(wanted & lineage[taxid])
 
+    if not hit.descriptions:
+        return hit
     keep = [d for d in hit.descriptions if inside(d.taxid)]
     if not keep:
         return None
@@ -95,8 +97,11 @@ def _lineages(
     parsed: dict[str, ParsedSearch],
     assessed: list[str],
     ancestors_of: Callable[[list[int]], dict[int, set[int]]] | None,
+    min_identical: int,
 ) -> tuple[dict[int, set[int]] | None, str]:
-    """The NCBI ancestors of every hit organism of the assessed tiers, and a problem if any."""
+    """The NCBI ancestors of the organisms of the assessed tiers' relevant hits (those with an
+    alignment of at least ``min_identical`` identical bases: the rest give no site anyway), and
+    a problem if the lookup failed."""
     if ancestors_of is None:
         return None, ""
     taxids = {
@@ -105,6 +110,7 @@ def _lineages(
         if ps.tier in assessed and ps.key in parsed
         for q in parsed[ps.key].queries.values()
         for hit in q.hits
+        if hit.best_identity >= min_identical
         for d in hit.descriptions
         if d.taxid is not None
     }
@@ -149,7 +155,7 @@ def assess_specificity(
     tally: dict[tuple[str, str], TierCount] = {}
     off_tiers_seen: list[str] = []
 
-    lineage, lineage_problem = _lineages(plan, parsed, assessed, ancestors_of)
+    lineage, lineage_problem = _lineages(plan, parsed, assessed, ancestors_of, min_identical)
     set_aside: dict[str, dict[str, str]] = defaultdict(dict)  # tier -> accession -> organism
 
     for ps in plan.searches:
@@ -167,6 +173,8 @@ def assess_specificity(
             if lineage is not None and wanted:
                 hits = []
                 for hit in q.hits:
+                    if hit.best_identity < min_identical:
+                        continue  # gives no candidate, so nothing to keep or set aside
                     kept = _in_tier(hit, wanted, lineage)
                     if kept is not None:
                         hits.append(kept)

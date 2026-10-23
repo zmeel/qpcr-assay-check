@@ -256,7 +256,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     from .ncbi.jobs import JobStore
     from .ncbi.runner import BlastRunner
     from .search.execute import run_remote_search
-    from .search.planner import plan_searches
+    from .search.planner import NOTHING_TO_EVALUATE, plan_searches
     from .specificity.assess import assess_specificity
     from .specificity.fetch import WindowFetcher
     from .variants.datasets import DatasetsClient
@@ -267,11 +267,8 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         plan = plan_searches(assay, cfg)
         for line in _describe_plan(plan):
             typer.echo(line)
-        if not plan.searches and assay.target.taxid is None:
-            raise InputError(
-                "Nothing to search and no target taxon for the variant analysis: give the assay "
-                "a target taxid or configure off-target taxa."
-            )
+        if not plan.searches_something and assay.target.taxid is None:
+            raise InputError(NOTHING_TO_EVALUATE)
         typer.echo("Dry run: nothing was sent to NCBI.")
         return None
 
@@ -355,7 +352,13 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     except (InputError, NcbiError) as exc:
         variant_note = (
             f"the exhaustive variant analysis was not run ({exc}); without it there is no "
-            "variant summary and no inclusivity in this run (run again when fixed)."
+            "variant summary and no inclusivity in this run (run again when fixed)"
+            + (
+                ", and nothing in it checked that each oligo matches its target: the target is "
+                "not searched as a tier (search.target_tier: false)."
+                if not any(ps.tier == "target" for ps in remote.plan.searches)
+                else "."
+            )
         )
         log.warning("%s", variant_note)
     return evaluate(
@@ -439,7 +442,7 @@ def search(
     """
     from .ncbi.http import NcbiError
     from .search.execute import run_remote_search
-    from .search.planner import plan_searches
+    from .search.planner import NOTHING_TO_SEARCH, plan_searches
 
     _setup_logging(verbose)
     try:
@@ -459,11 +462,8 @@ def search(
             return
         for line in _describe_plan(plan):
             typer.echo(line)
-        if not plan.searches:
-            _fail(
-                "Nothing to search: configure off-target taxa (search.background_taxids, an "
-                "exclusivity list or near neighbours), or set search.target_tier: true."
-            )
+        if not plan.searches_something:
+            _fail(NOTHING_TO_SEARCH)
             return
         typer.echo("Dry run: nothing was sent to NCBI.")
         return

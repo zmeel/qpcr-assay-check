@@ -412,3 +412,21 @@ def test_the_report_shows_the_score_floor_and_a_product_found_by_the_partner_sca
     assert (floor["min_score"], floor["max_mismatches_reported"]) == (10, 1)  # 20-nt primer
     html = (d / "report.html").read_text()
     assert "Reported down to" in html and "score 10" in html and "partner scan" in html
+
+
+def test_a_failed_variant_analysis_says_no_oligo_was_checked_against_the_target(env, monkeypatch):
+    """With the target tier off by default, the variant analysis is the only check that each
+    oligo matches its target; when it fails, the record must say that check is missing (review
+    2026-10-23)."""
+    from qpcr_assay_check.errors import InputError
+
+    def failing(*args, **kwargs):
+        raise InputError("Datasets is unreachable")
+
+    monkeypatch.setattr("qpcr_assay_check.variants.exhaustive.run_exhaustive", failing)
+    env.install(world_with())
+    r = invoke(env, "--yes")
+    assert r.exception is None or isinstance(r.exception, SystemExit), repr(r.exception)
+    text = (run_dir(env) / "results.json").read_text()
+    assert "Datasets is unreachable" in text
+    assert "nothing in it checked that each oligo matches its target" in text

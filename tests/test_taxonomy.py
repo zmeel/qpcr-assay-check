@@ -13,6 +13,7 @@ from qpcr_assay_check.ncbi.eutils import Eutils
 from qpcr_assay_check.ncbi.http import NcbiHttp
 from qpcr_assay_check.ncbi.settings import Credentials
 from qpcr_assay_check.taxonomy.resolve import (
+    ancestors,
     fetch_lineages,
     parse_taxonomy_xml,
     resolve_name,
@@ -155,3 +156,27 @@ def test_fetch_lineages_batches_and_caches_per_taxid(tmp_path):
     assert out2[813].genus == "Chlamydia" and out2[485].genus == "Neisseria"
     assert len(fake2.calls) == 1
     assert fake2.calls[0]["params"]["id"] == "485"
+
+
+def test_a_truncated_taxonomy_response_is_an_ncbi_error_for_ancestors_too(tmp_path):
+    """It passed fetch_taxonomy's "<TaxaSet" check and then raised a raw ParseError, which no
+    caller catches: the lineage check of the specificity tiers aborted the run (review
+    2026-10-23)."""
+    import pytest
+
+    from qpcr_assay_check.ncbi.http import NcbiError
+
+    http, _ = make_http(["<TaxaSet><Taxon><TaxId>813</TaxId>"])
+    eu = Eutils(http, "https://eutils.example/entrez/eutils")
+    with pytest.raises(NcbiError, match="Unparseable"):
+        ancestors(eu, Cache(tmp_path / "cache"), [813], ttl_days=30)
+
+
+def test_one_fetch_fills_both_the_ancestors_and_the_lineage_cache(tmp_path):
+    cache = Cache(tmp_path / "cache")
+    http, fake = make_http([CT_XML])
+    eu = Eutils(http, "https://eutils.example/entrez/eutils")
+    anc = ancestors(eu, cache, [813], ttl_days=30)
+    assert 813 in anc[813] and len(anc[813]) > 1 and len(fake.calls) == 1
+    out = fetch_lineages(eu, cache, [813], ttl_days=30)  # no second EFetch for the same taxon
+    assert out[813].genus == "Chlamydia" and len(fake.calls) == 1

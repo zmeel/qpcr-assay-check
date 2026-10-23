@@ -70,9 +70,9 @@ def test_large_query_sets_are_split_into_batches_of_at_most_1000_bases():
     assert split_batches({"a": "A" * 1500}) == [{"a": "A" * 1500}]  # oversized query still sent
 
 
-def test_search_budget_warning(cfg, n1):
+def test_search_budget_warning(cfg):
     cfg.search.max_searches_warn = 1
-    plan = plan_searches(n1, cfg)
+    plan = plan_searches(make_assay(near_neighbour_taxids=[1]), cfg)  # 2 searches
     assert any("03:00-11:00" in w for w in plan.warnings)
 
 
@@ -266,7 +266,7 @@ def test_empty_background_list_drops_the_tier_and_warns_that_human_is_not_search
     cfg = cfg.model_copy(deep=True)
     cfg.search.background_taxids = []
     plan = plan_searches(n1, cfg)
-    assert [s.tier for s in plan.searches] == ["target"]
+    assert plan.searches == []  # the target is not a tier by default either
     assert any("Human (taxid 9606)" in w for w in plan.warnings)
 
 
@@ -284,3 +284,23 @@ def test_search_with_nothing_to_search_names_the_settings(cli_env, tmp_path):
     )
     assert r.exit_code == 64 and "search.target_tier: true" in r.output
     assert cli_env.h["fake"].n_put == 0
+
+
+def test_a_dry_run_with_only_an_exclusivity_list_plans_it(cli_env, tmp_path):
+    """The dry run cannot resolve the organism names, so the plan's searches were empty and it
+    told the user to configure the list they had (review 2026-10-23)."""
+    conf = tmp_path / "excl.yaml"
+    conf.write_text(f"ncbi:\n  cache_dir: {tmp_path / 'c5'}\nsearch:\n  background_taxids: []\n")
+    r = runner.invoke(
+        app, ["search", str(ROOT_EXAMPLE), "-c", str(conf), "-o", str(cli_env.out), "--dry-run"]
+    )
+    assert r.exit_code == 0, r.output
+    assert "exclusivity tier will search" in r.output and "Dry run" in r.output
+
+
+def test_the_plan_knows_an_unresolved_exclusivity_list_will_be_searched(cfg, n1):
+    cfg.search.background_taxids = []
+    plan = plan_searches(n1, cfg)  # names not resolved: no network
+    assert plan.searches == [] and plan.exclusivity_pending and plan.searches_something
+    plan = plan_searches(n1, cfg, exclusivity_taxids=[])  # resolved, nothing usable
+    assert not plan.exclusivity_pending and not plan.searches_something

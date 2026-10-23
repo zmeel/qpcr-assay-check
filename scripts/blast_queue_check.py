@@ -145,6 +145,11 @@ def _poll_running(api: BlastApi, rids: list[str], report: Report) -> None:
             report.running_searches.append({"rid": rid, "status": "unreadable", "error": str(exc)})
 
 
+def _records(subjects: int | None) -> str:
+    """The control's subject count for a sentence, or an estimate when the count failed."""
+    return f"{subjects:,}" if subjects is not None else "about 10,000"
+
+
 def _run_control(
     api: BlastApi,
     cfg: Any,
@@ -178,6 +183,9 @@ def _run_control(
     deadline = submitted + max_wait * 60
     # NCBI asks that a single RID is not polled more often than once a minute.
     interval = max(cfg.ncbi.poll_interval_s, 60.0)
+    # first wait for NCBI's own estimate (at most one interval), as the runner does: a RID asked
+    # about the moment it is issued can read UNKNOWN, which would waste the one submission
+    time.sleep(min(max(rtoe or 0, 0), interval))
     while True:
         status, has_hits = api.status(rid)
         elapsed = (time.monotonic() - submitted) / 60
@@ -190,22 +198,21 @@ def _run_control(
             if elapsed <= HEALTHY_MINUTES:
                 report.verdict = "queue_looks_healthy"
                 report.verdict_reason = (
-                    f"A single oligo against {subjects if subjects is not None else 'about 10,000'}"
-                    f" records came back in {elapsed:.1f} min, so searches are not being held in a"
-                    " slow queue. The target tier is slow because of its size:"
-                    f" {TARGET_TAXID} covered 1,680,151 records on 2026-10-20."
+                    f"A single oligo against {_records(subjects)} records came back in"
+                    f" {elapsed:.1f} min, so searches are not being held. A slow run is slow"
+                    " because of the size of its searches."
                 )
                 report.guidance = [
-                    "Shrink or skip the target-tier search; the queue is not the problem.",
-                    "The inclusivity analysis of this assay needs no BLAST at all"
-                    " (variants.direct_scan_max_length covers the ~1,000 nt segment 7 records).",
+                    "The queue is not the problem. The largest search of a run used to be the"
+                    " target tier (influenza A: 1,680,151 records); it is off by default since"
+                    " 2026-10-23 (search.target_tier). Look at the slowest search in the log.",
                 ]
             else:
                 report.verdict = "inconclusive"
                 report.verdict_reason = (
                     f"The control took {elapsed:.1f} min, which is slow for one oligo against"
-                    f" {subjects} records but did finish. Either the queue is mildly degraded or"
-                    " NCBI is simply busy; re-run this check off-peak to compare."
+                    f" {_records(subjects)} records but did finish. Either the queue is mildly"
+                    " degraded or NCBI is simply busy; re-run this check off-peak to compare."
                 )
                 report.guidance = ["Re-run this check between 9 pm and 5 am Eastern to compare."]
             return
@@ -214,6 +221,9 @@ def _run_control(
             report.verdict_reason = f"NCBI reported that the control search {rid} FAILED."
             report.errors.append(f"control search {rid} FAILED")
             return
+        if str(status) == "UNKNOWN" and len(report.control["polls"]) == 1:
+            time.sleep(interval)  # once: a RID can take a moment to become known everywhere
+            continue
         if str(status) == "UNKNOWN":
             report.verdict = "inconclusive"
             report.verdict_reason = f"NCBI does not know RID {rid} (expired or never queued)."
@@ -222,12 +232,15 @@ def _run_control(
         if time.monotonic() >= deadline:
             report.verdict = "slow_queue_likely"
             report.verdict_reason = (
-                f"A single oligo against {subjects if subjects is not None else 'about 10,000'}"
-                f" records was still {status} after {elapsed:.1f} min. A search that small cannot"
-                " be slow on its own merits, so the searches are very likely in the slower queue"
-                " NCBI documents for submitters of more than 100 searches in 24 hours."
+                f"A single oligo against {_records(subjects)} records was still {status} after"
+                f" {elapsed:.1f} min. A search that small cannot be slow on its own merits, so"
+                " NCBI is holding the searches: either the slower queue it documents for more"
+                " than 100 searches in 24 hours, or a problem on its side - on 2026-10-20 it"
+                " was a change of NCBI's, rolled back after a few days (case CAS-1714885-G5R3Z2)."
+                " Only NCBI can say which."
             )
             report.guidance = [
+                "Ask blasthelp@ncbi.nlm.nih.gov, giving this RID: they answered within days.",
                 "Submit nothing to BLAST for 24 hours: the limit is a rolling 24-hour window."
                 " Do not restart the run, and do not run the smoke test.",
                 "Every restart of a run is a new submission (ncbi.resubmit_after_minutes), so"

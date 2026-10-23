@@ -36,6 +36,30 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **Nine findings of the code review of 2026-10-23** (everything since the review of
+  2026-10-08):
+  - `search --dry-run` refused an assay whose only off-target tier is its exclusivity list: a
+    dry run cannot resolve the organism names, and with the target tier off the plan looked
+    empty. The plan now knows an unresolved list will be searched.
+  - A truncated Taxonomy EFetch response raised a raw XML `ParseError` from the new lineage check,
+    aborting a run after all its searches; it is an `NcbiError` now, which every caller handles.
+    The ancestors and the lineages of a taxon now come from one EFetch, cached both ways, and only
+    the organisms of hits that can become a site are looked up.
+  - When the variant analysis fails, the record now says that nothing checked whether each oligo
+    matches its target (the target tier being off).
+  - A BLAST hit without any record description was silently dropped by the lineage check; it now
+    counts as inside its tier, as the rule says.
+  - `search.result_format` accepted XML2 and XML2_S, which nothing parses and which let NCBI's
+    HTML error page be cached as the result; only JSON2_S and JSON2 are accepted now.
+  - `scripts/blast_queue_check.py` polled its control search the moment it was issued (a first
+    UNKNOWN wasted the one submission) and could print "None records"; its guidance also still
+    blamed the slower queue alone, after NCBI named its own change as the cause.
+  - The upload form spooled any body before the 1 MB check and never closed the form; an
+    oversized body is refused from its Content-Length, and the form is closed. The "Nothing to
+    search" messages are shared constants instead of three copies.
+  - Tests: the `cfg` fixture was session-scoped, so a test that changed it changed it for every
+    later test (since 2026-10-23 the target tier was on in tests that assumed the default); it is
+    per test now, which showed two tests passing only through that leak.
 - **A QC check over its hard limit said "outside the preferred range"** (noticed on the HSV-1
   example, 2026-10-23: primer Tm 70.2 C against the 70 C limit, status FAIL). The hint text was
   fixed per check; it now follows the status: "outside the limit" for a FAIL, "outside the

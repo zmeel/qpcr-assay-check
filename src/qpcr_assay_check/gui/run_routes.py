@@ -108,9 +108,9 @@ def register_run_routes(
             except QpcrAssayCheckError as exc:
                 return new_page(request, 400, chosen=name, error=str(exc))
             if not plan["searches"] and check.assay.target.taxid is None:
-                return new_page(request, 400, chosen=name, error=(
-                    "Nothing to search and no target taxon for the variant analysis: give the "
-                    "assay a target taxid or configure off-target taxa."))  # fmt: skip
+                from ..search.planner import NOTHING_TO_EVALUATE
+
+                return new_page(request, 400, chosen=name, error=NOTHING_TO_EVALUATE)
         return page(request, "run_plan.html", active="newrun", name=name, check=check,
                     plan=plan, qc_only=qc_only, resubmit=resubmit, digest=digest(text),
                     current=runner.current(), queued=runner.queued())  # fmt: skip

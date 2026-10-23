@@ -49,6 +49,10 @@ class BlastRunner:
         self.cache = cache
         self.store = store
         self.s = settings
+        if "JSON" not in result_format.upper():
+            # only JSON reports are parsed (parse_blast_json), and only they can be told apart
+            # from NCBI's HTML error page before they are cached
+            raise ValueError(f"BLAST report format {result_format!r}: only JSON2_S or JSON2")
         self.result_format = result_format
         self._now = now or (lambda: _now())
         self._sleep = sleep or (lambda s: time.sleep(s))
@@ -71,10 +75,8 @@ class BlastRunner:
         return hit
 
     def _is_report(self, text: str) -> bool:
-        """Whether a fetched body could be a report in the format asked for."""
-        if "JSON" in self.result_format.upper():
-            return is_json_report(text)
-        return bool(text.strip())
+        """Whether a fetched body is a JSON report (and not NCBI's HTML error page)."""
+        return is_json_report(text)
 
     def _fetch_report(self, job: Job) -> str | None:
         """The finished report, or None if NCBI keeps answering with something that is not one.
