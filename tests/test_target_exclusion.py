@@ -39,7 +39,9 @@ def test_the_target_tier_excludes_them_and_the_near_neighbours_search_them():
     assay = make_assay(target=TARGET)
     assert assay.target.excluded_taxids == [200, 300]  # sorted, unique
     assert assay.target.must_not_detect_taxids == [200, 300]  # exclude_taxids = must_not_detect
-    plan = plan_searches(assay, load_config(), exclusivity_taxids=[])
+    cfg = load_config()
+    cfg.search.target_tier = True  # the target tier is off by default since 2026-10-23
+    plan = plan_searches(assay, cfg, exclusivity_taxids=[])
     target = {ps.entrez_query for ps in plan.searches if ps.tier == "target"}
     near = [ps for ps in plan.searches if ps.tier == "near_neighbours"]
     assert target == {"(txid100[ORGN] NOT (txid200[ORGN] OR txid300[ORGN]))"}
@@ -127,7 +129,9 @@ def test_roles_split_the_searches_must_not_detect_near_out_of_scope_own_tier():
     t = assay.target
     assert t.must_not_detect_taxids == [200, 300] and t.out_of_scope_taxids == [400]
     assert t.exclude_taxids == [] and t.excluded_taxids == [200, 300, 400]
-    plan = plan_searches(assay, load_config(), exclusivity_taxids=[])
+    cfg = load_config()
+    cfg.search.target_tier = True  # to check the target tier's NOT clause as well
+    plan = plan_searches(assay, cfg, exclusivity_taxids=[])
     by_tier = {ps.tier: ps for ps in plan.searches}
     assert by_tier["near_neighbours"].taxids == [200, 300]
     assert by_tier["out_of_scope"].taxids == [400]

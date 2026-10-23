@@ -115,6 +115,8 @@ settings:                                  # only what differs from the defaults
 #     max_site_mismatches: 2       # when placing oligos in the reference amplicon
 # search:                          # the remote BLAST searches
 #   background_taxids: [9606]      # [9606] = human; [] skips the background search
+#   target_tier: false             # true: also search the target itself (a positive control,
+#                                  # redundant with the variant analysis; slow for a big target)
 #   hitlist_size: 5000             # hits per oligo; a full list is reported as saturated
 #   max_taxids_per_search: 20
 #   max_searches_warn: 50          # NCBI asks for off-peak runs above this

@@ -276,6 +276,7 @@ class SearchSettings(_Strict):
     max_taxids_per_search: int
     max_searches_warn: int
     background_taxids: list[int]
+    target_tier: bool
     relevance: RelevanceSettings
 
     @model_validator(mode="after")

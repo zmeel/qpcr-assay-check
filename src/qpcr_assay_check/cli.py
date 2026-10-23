@@ -267,9 +267,10 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         plan = plan_searches(assay, cfg)
         for line in _describe_plan(plan):
             typer.echo(line)
-        if not plan.searches:
+        if not plan.searches and assay.target.taxid is None:
             raise InputError(
-                "Nothing to search: give the assay a target taxid or configure background taxa."
+                "Nothing to search and no target taxon for the variant analysis: give the assay "
+                "a target taxid or configure off-target taxa."
             )
         typer.echo("Dry run: nothing was sent to NCBI.")
         return None
@@ -285,6 +286,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         confirm=_make_confirm(yes),
         keep_tiers=set(cfg.specificity.off_target_tiers) | {"out_of_scope"},
         on_plan=show,
+        allow_no_searches=assay.target.taxid is not None,  # the variant analysis still runs
     )
     from .ncbi.http import NcbiError
     from .taxonomy.resolve import ancestors, fetch_lineages
@@ -293,8 +295,11 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
     eutils = Eutils(remote.http, cfg.ncbi.eutils_url)
     fetcher = WindowFetcher(eutils, remote.cache)
     specificity = assess_specificity(
-        assay, cfg, remote.plan, remote.parsed, remote.outcome, fetcher
-    )
+        assay, cfg, remote.plan, remote.parsed, remote.outcome, fetcher,
+        ancestors_of=lambda taxids: ancestors(
+            eutils, remote.cache, taxids, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
+        ),
+    )  # fmt: skip
     try:
         breakdown = taxonomy_breakdown(
             specificity.sites, eutils, remote.cache, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
@@ -455,7 +460,10 @@ def search(
         for line in _describe_plan(plan):
             typer.echo(line)
         if not plan.searches:
-            _fail("Nothing to search: give the assay a target taxid or configure background taxa.")
+            _fail(
+                "Nothing to search: configure off-target taxa (search.background_taxids, an "
+                "exclusivity list or near neighbours), or set search.target_tier: true."
+            )
             return
         typer.echo("Dry run: nothing was sent to NCBI.")
         return

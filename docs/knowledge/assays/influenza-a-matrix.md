@@ -153,8 +153,12 @@ apart, over the limit, because every reverse Tm was about 5.5 C low.
 
 # Runs
 
-[2026-10-07 17:35Z](../runs/influenza-a-2026-10-07-complete.md), the latest and the first
-complete one: all 172,768 records assessed, 69.0% detectable of the 69,688 collected 2023-2026,
+[2026-10-21 15:42Z](../runs/influenza-a-2026-10-21.md), the latest, the first with `infa_rev2`:
+complete, **99.6% detectable** of the 70,606 records collected 2023-2026, likely failure 0.0%,
+Review with no limit crossed; `infa_rev2` is the only working reverse primer for 23,595 records
+(13.6%).
+[2026-10-07 17:35Z](../runs/influenza-a-2026-10-07-complete.md), the first complete one, with
+`infa_rev` alone: all 172,768 records assessed, 69.0% detectable of the 69,688 collected 2023-2026,
 Exceeds limit on the whole population. One reverse-primer 3'-terminal G-A mismatch is 97.0% of
 the failures, and the per-year tables date its sweep: 0.7% of 2021 collections, 6.9% of 2022,
 40.5% of 2023.

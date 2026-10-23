@@ -191,8 +191,8 @@ Each run writes `results/<assay>/<run-id>/` containing:
 
 ### Specificity assessment (v0.3.0)
 
-A full `run` sends the oligos to NCBI in tiers (intended target, near neighbours and exclusion
-taxa, background taxa such as human), each restricted to its taxa, with short-oligo BLAST settings
+A full `run` sends the oligos to NCBI in tiers (near neighbours and exclusion taxa, background taxa
+such as human, the exclusivity list), each restricted to its taxa, with short-oligo BLAST settings
 (word size 7, E-value 1000, filtering off, reward 1 / penalty -3, gap costs 5/2, database
 `core_nt`). For every hit that could plausibly reach a reportable level, it fetches the subject
 window (`efetch`, padded for gaps) and semi-globally re-aligns the *whole* oligo, so mismatches
@@ -733,10 +733,17 @@ pruning logic changes, rather than treating this one result as permanent proof.
 - Duplex Tm/ΔG for a mismatched site ignore a mismatch at the very 3' terminal base (treated as an
   unpaired overhang); priming risk is judged from the mismatch positions and clean-3'-nt count,
   never from Tm alone.
-- Specificity covers only the tiers actually searched (intended target, near neighbours,
-  background, exclusivity).
+- Specificity covers only the tiers actually searched (near neighbours, background,
+  exclusivity). The intended target is not searched as a tier unless `search.target_tier: true`
+  (off since 2026-10-23): the variant analysis assesses every record of the target, which also
+  shows whether each oligo matches it, and for a large target this search was the slowest of a run
+  (influenza A, 1.68 million records: 19 hours). Its only output was a positive-control line.
 - `ENTREZ_QUERY` taxon restriction is effective, not airtight: one "synthetic construct" record
-  leaked into 3,715 live human-restricted hits (it carries a human source feature).
+  leaked into 3,715 live human-restricted hits (it carries a human source feature), and an
+  influenza A record came back in an exclusivity search without influenza A (2026-10-21). Since
+  2026-10-23 every hit is checked against the NCBI lineage of its own organism: a hit outside the
+  taxa its tier searched is set aside, not assessed as an off-target site of that tier, and the
+  findings list it. If the lineages cannot be read, every hit counts and the findings say so.
 - The clinical organism list ships as a small, hand-picked, non-authoritative starting point (see
   `src/qpcr_assay_check/data/clinical_organisms.yaml`'s own header); every laboratory must review
   and edit it, or supply its own file, before relying on the exclusivity report.

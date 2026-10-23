@@ -5,11 +5,13 @@ from __future__ import annotations
 import itertools
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 
 from ..align import realign
 from ..config import Config
 from ..models import Assay
-from ..ncbi.parser import ParsedSearch
+from ..ncbi.http import NcbiError
+from ..ncbi.parser import Hit, ParsedSearch
 from ..oligo import thermo
 from ..search.orchestrate import SearchOutcome
 from ..search.planner import OUT_OF_SCOPE_TIER, SearchPlan
@@ -65,6 +67,56 @@ NO_SCAN_LIMITATION = (
 )
 
 
+def _in_tier(hit: Hit, wanted: set[int], lineage: dict[int, set[int]]) -> Hit | None:
+    """``hit`` if one of its records is of an organism under the tier's taxa, else None.
+
+    NCBI's ``ENTREZ_QUERY`` restriction is not airtight (an influenza A record came back in an
+    exclusivity search without influenza A, 2026-10-21), so each hit is checked against the
+    lineage of its own organism. A record without a taxid, or whose lineage could not be read,
+    counts as inside: nothing shows it is outside. When the first record of a merged hit is
+    outside and another is inside, the inside one is moved first, since the site is reported
+    under the first record.
+    """
+
+    def inside(taxid: int | None) -> bool:
+        return taxid is None or taxid not in lineage or bool(wanted & lineage[taxid])
+
+    keep = [d for d in hit.descriptions if inside(d.taxid)]
+    if not keep:
+        return None
+    if keep[0] is hit.descriptions[0]:
+        return hit
+    rest = [d for d in hit.descriptions if d is not keep[0]]
+    return hit.model_copy(update={"descriptions": [keep[0], *rest]})
+
+
+def _lineages(
+    plan: SearchPlan,
+    parsed: dict[str, ParsedSearch],
+    assessed: list[str],
+    ancestors_of: Callable[[list[int]], dict[int, set[int]]] | None,
+) -> tuple[dict[int, set[int]] | None, str]:
+    """The NCBI ancestors of every hit organism of the assessed tiers, and a problem if any."""
+    if ancestors_of is None:
+        return None, ""
+    taxids = {
+        d.taxid
+        for ps in plan.searches
+        if ps.tier in assessed and ps.key in parsed
+        for q in parsed[ps.key].queries.values()
+        for hit in q.hits
+        for d in hit.descriptions
+        if d.taxid is not None
+    }
+    if not taxids:
+        return {}, ""
+    try:
+        return ancestors_of(sorted(taxids)), ""
+    except NcbiError as exc:
+        log.warning("Could not read the lineages of the hit organisms: %s", exc)
+        return None, str(exc)
+
+
 def assess_specificity(
     assay: Assay,
     cfg: Config,
@@ -72,8 +124,14 @@ def assess_specificity(
     parsed: dict[str, ParsedSearch],
     outcome: SearchOutcome,
     fetcher: WindowFetcher,
+    ancestors_of: Callable[[list[int]], dict[int, set[int]]] | None = None,
 ) -> SpecificityResult:
-    """Assess the off-target tiers of a completed search."""
+    """Assess the off-target tiers of a completed search.
+
+    ``ancestors_of``: NCBI lineages of taxa (``taxonomy.resolve.ancestors``). When given, a hit
+    whose organism is outside the taxa its tier searched is set aside rather than assessed under
+    that tier, and the findings say so; without it every hit counts, as before.
+    """
     rules = cfg.specificity
     assessed = [*rules.off_target_tiers, OUT_OF_SCOPE_TIER]  # out of scope: reported, not judged
     scoring = realign.Scoring(
@@ -91,19 +149,35 @@ def assess_specificity(
     tally: dict[tuple[str, str], TierCount] = {}
     off_tiers_seen: list[str] = []
 
+    lineage, lineage_problem = _lineages(plan, parsed, assessed, ancestors_of)
+    set_aside: dict[str, dict[str, str]] = defaultdict(dict)  # tier -> accession -> organism
+
     for ps in plan.searches:
         if ps.tier not in assessed or ps.key not in parsed:
             continue
         if ps.tier not in off_tiers_seen:
             off_tiers_seen.append(ps.tier)
+        wanted = set(ps.taxids)
         for label in ps.labels:
             q = parsed[ps.key].queries[label]
             oligo = plan.queries[label]
             role = assay.role_of(label)
             site_rules = rules.probe_site if role == "probe" else rules.primer_site
+            hits = q.hits
+            if lineage is not None and wanted:
+                hits = []
+                for hit in q.hits:
+                    kept = _in_tier(hit, wanted, lineage)
+                    if kept is not None:
+                        hits.append(kept)
+                    elif hit.descriptions:
+                        d = hit.descriptions[0]
+                        set_aside[ps.tier][d.accession_version or d.accession or "?"] = (
+                            d.sciname or "?"
+                        )
             cands = [
                 make_candidate(ps.tier, label, oligo, hit, hsp, role)
-                for hit in q.hits
+                for hit in hits
                 for hsp in hit.hsps
                 if hsp.identity >= min_identical
             ]
@@ -229,6 +303,7 @@ def assess_specificity(
         amplicons_truncated=amp_truncated,
         rules=rules,
     )
+    findings.extend(_set_aside_findings(set_aside, lineage_problem))
     score_floors = floors(outcome.searches, plan.queries, assessed, cfg.search)
     findings.extend(floor_findings(score_floors, cfg.search.expect))
     scan = scanner.state.summary if scanning else None
@@ -349,3 +424,37 @@ _RANK = {"FAIL": 0, "INCOMPLETE": 1, "WARN": 2, "INFO": 3}
 
 def _order(f: Finding) -> tuple[int, str]:
     return _RANK[f.severity], f.message
+
+
+def _set_aside_findings(set_aside: dict[str, dict[str, str]], problem: str) -> list[Finding]:
+    """Say which hits were left out of a tier for being outside its taxa, or that none could be
+    checked."""
+    out: list[Finding] = []
+    if problem:
+        out.append(
+            Finding(
+                severity="INFO",
+                message=(
+                    "The organisms of the hits could not be checked against the taxa each tier "
+                    f"searched (lineage lookup failed: {problem}); a hit outside a tier's taxa, "
+                    "which NCBI's taxon restriction lets through occasionally, may be counted in "
+                    "that tier."
+                ),
+                topic="search",
+            )
+        )
+    for tier, records in set_aside.items():
+        shown = "; ".join(f"{acc} ({name})" for acc, name in sorted(records.items())[:5])
+        more = f" and {len(records) - 5} more" if len(records) > 5 else ""
+        out.append(
+            Finding(
+                severity="INFO",
+                message=(
+                    f"Tier '{tier}': {len(records)} hit record(s) set aside, their organism being "
+                    "outside the taxa this tier searched (NCBI's taxon restriction is not "
+                    f"airtight): {shown}{more}. They are not assessed as off-target sites here."
+                ),
+                topic="search",
+            )
+        )
+    return out

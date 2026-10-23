@@ -94,6 +94,12 @@ search:
   max_taxids_per_search: 20        # conservative until the smoke test verifies the real limit
   max_searches_warn: 50            # NCBI asks for off-peak scheduling above this
   background_taxids: [9606]        # human; add your own background taxa
+  target_tier: false               # also BLAST the intended target as a tier: a positive control
+                                   #   (perfect hits per oligo) that the variant analysis makes
+                                   #   redundant, since it assesses every record of the target;
+                                   #   for a large target the slowest search of a run (influenza A,
+                                   #   1.68 million records: 19 hours, 2026-10-20). Off since
+                                   #   2026-10-23 (user decision).
   relevance:
     min_identical_bases: 14        # a hit with fewer identical bases is not a relevant off-target
 

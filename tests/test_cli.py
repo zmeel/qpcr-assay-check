@@ -57,7 +57,9 @@ def test_full_run_dry_run_needs_no_credentials_and_sends_nothing(tmp_path, monke
     monkeypatch.delenv("NCBI_EMAIL", raising=False)
     r = runner.invoke(app, ["run", str(EXAMPLE), "-o", str(tmp_path), "--dry-run"])
     assert r.exit_code == 0, r.output
-    assert "Dry run" in r.output and "txid2697049[ORGN]" in r.output
+    assert "Dry run" in r.output and "txid9606[ORGN]" in r.output
+    assert "txid2697049[ORGN]" not in r.output  # the target is not a search tier by default
+    assert "not searched as a tier" in r.output
     assert not list(tmp_path.rglob("results.json"))
 
 

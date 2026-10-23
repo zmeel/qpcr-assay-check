@@ -101,7 +101,8 @@ def plan_searches(
     exclusivity_taxids: list[int] | None = None,
     exclusivity_unresolved: int = 0,
 ) -> SearchPlan:
-    """Tiered, taxon-restricted searches: target, near neighbours, background, exclusivity.
+    """Tiered, taxon-restricted searches: near neighbours, background, exclusivity, and the
+    target itself only when ``search.target_tier`` is set.
 
     ``exclusivity_taxids`` are the clinical organism list's names already resolved to taxonomy
     IDs (see ``taxonomy.resolve``); resolution needs the network, so callers that must plan
@@ -116,12 +117,21 @@ def plan_searches(
     exclude = assay.target.excluded_taxids
     plan = SearchPlan(queries=queries, searches=[])
 
-    if assay.target.taxid is not None:
-        tiers.append(("target", "Intended target", [assay.target.taxid]))
-    else:
+    if assay.target.taxid is None:
         plan.notes.append(
             "The target tier was skipped: the assay has no taxonomy ID. "
             "From v0.4.0 it is derived from the reference accession."
+        )
+    elif cfg.search.target_tier:
+        tiers.append(("target", "Intended target", [assay.target.taxid]))
+    else:
+        # its hits fed the variant tables until the exhaustive analysis replaced them
+        # (2026-09-29); since then only a positive-control line, at the cost of what was the
+        # slowest search of a run for a large target (user decision 2026-10-23)
+        plan.notes.append(
+            "The intended target is not searched as a tier (search.target_tier: false): the "
+            "variant analysis assesses every record of the target itself, which also shows "
+            "whether each oligo matches it."
         )
     # taxa inside the target that the assay must not detect are near neighbours; taxa that are
     # only out of scope get their own tier, reported as information ("also detects")

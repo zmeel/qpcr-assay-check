@@ -43,7 +43,7 @@ def offtarget_genome(
     return w
 
 
-def run(world, tmp_path, cfg=None, assay=None, **cfg_changes):
+def run(world, tmp_path, cfg=None, assay=None, ancestors_of=None, **cfg_changes):
     cfg = cfg or load_config()
     cfg_changes.setdefault("specificity__partner_scan_max_windows", 0)  # scan: tests below
     for key, value in cfg_changes.items():
@@ -55,7 +55,10 @@ def run(world, tmp_path, cfg=None, assay=None, **cfg_changes):
     plan = plan_searches(assay, cfg)
     parsed: dict = {}
     outcome = run_search(plan, cfg, runner, store, tmp_path / "s", inputs_hash="h", keep=parsed)
-    return assess_specificity(assay, cfg, plan, parsed, outcome, fetcher), fetcher, fake
+    result = assess_specificity(
+        assay, cfg, plan, parsed, outcome, fetcher, ancestors_of=ancestors_of
+    )
+    return result, fetcher, fake
 
 
 def add_all(w, f=(F_START, "+"), r=(R_START, "-"), p=(P_START, "+"), taxid=NEAR, acc=ACC, **trim):
@@ -266,7 +269,7 @@ def test_without_any_off_target_tier_the_result_is_incomplete(tmp_path):
 def test_the_intended_target_tier_is_a_positive_control_not_an_off_target(tmp_path):
     w = offtarget_genome()
     add_target_hits(w)
-    res, _, _ = run(w, tmp_path)
+    res, _, _ = run(w, tmp_path, search__target_tier=True)
     assert res.intended_target == {"forward": 1, "reverse": 1, "probe": 1}
     assert not res.sites  # target hits are not assessed as off-target
     assert res.verdict is Verdict.PASS
@@ -274,9 +277,22 @@ def test_the_intended_target_tier_is_a_positive_control_not_an_off_target(tmp_pa
 
 def test_an_oligo_without_any_perfect_hit_on_its_own_target_is_flagged(tmp_path):
     w = offtarget_genome()  # the target search finds nothing at all
-    res, _, _ = run(w, tmp_path)
+    res, _, _ = run(w, tmp_path, search__target_tier=True)
     assert res.verdict is Verdict.WARN
     assert any("no perfect full-length hit for forward, probe, reverse" in m for m in res.rationale)
+
+
+def test_the_target_is_not_searched_as_a_tier_by_default(tmp_path):
+    """search.target_tier is off (user decision 2026-10-23): the variant analysis assesses every
+    record of the target, and for influenza A the target search took 19 hours."""
+    plan = plan_searches(make_assay(near_neighbour_taxids=[NEAR]), load_config())
+    assert "target" not in {ps.tier for ps in plan.searches}
+    assert any("not searched as a tier" in n for n in plan.notes)
+    w = offtarget_genome()
+    add_target_hits(w)  # would be the positive control, but nothing searches for it
+    res, _, fake = run(w, tmp_path)
+    assert not any("Intended target" in f.message for f in res.findings)
+    assert all("txid2697049" not in c.get("data", {}).get("ENTREZ_QUERY", "") for c in fake.calls)
 
 
 def test_no_target_search_means_no_positive_control_finding(tmp_path):
@@ -335,3 +351,58 @@ def test_windows_are_cached_so_a_second_run_needs_no_network_fetches(tmp_path):
         make_assay(near_neighbour_taxids=[NEAR]), cfg, plan, parsed2, outcome2, fetcher2
     )
     assert (fetcher2.n_network, fetcher2.n_cached) == (0, 1)
+
+
+# ------------------------------------------------------------------ hits outside a tier's taxa
+LEAK_ACC = "MW220816.1"
+
+
+def leaked_world():
+    """A near-neighbour search that also returns a record of the intended target, as NCBI's
+    ENTREZ_QUERY restriction occasionally does (live: an influenza A record in an exclusivity
+    search without influenza A, 2026-10-21)."""
+    w = offtarget_genome()  # the genuine near neighbour, taxid NEAR, all three sites perfect
+    add_all(w)
+    offtarget_genome(acc=LEAK_ACC, taxid=TARGET, name="Leaked target virus", world=w)
+    add_all(w, taxid=NEAR, acc=LEAK_ACC)  # filed under NEAR's search, carrying TARGET's taxid
+    return w
+
+
+def lineage_of(taxids):
+    """NCBI ancestors, themselves included; 101 is a strain below the near neighbour 100."""
+    parents = {101: {100, 1}, NEAR: {1}, TARGET: {1}}
+    return {t: {t, *parents.get(t, {1})} for t in taxids}
+
+
+def test_a_hit_outside_the_tier_taxa_is_set_aside_with_a_finding(tmp_path):
+    res, _, _ = run(leaked_world(), tmp_path, ancestors_of=lineage_of)
+    assert {s.accession for s in res.sites} == {ACC}  # the near neighbour only
+    (f,) = [f for f in res.findings if "set aside" in f.message]
+    assert f.severity == "INFO" and "near_neighbours" in f.message
+    assert LEAK_ACC in f.message and "Leaked target virus" in f.message
+
+
+def test_a_descendant_of_the_tier_taxon_is_kept(tmp_path):
+    w = offtarget_genome(taxid=101, name="Bacterium exemplum strain X")
+    add_all(w, taxid=NEAR)  # returned by the search for NEAR, organism a strain below it
+    res, _, _ = run(w, tmp_path, ancestors_of=lineage_of)
+    assert {s.accession for s in res.sites} == {ACC}
+    assert not any("set aside" in f.message for f in res.findings)
+
+
+def test_without_lineages_every_hit_counts_as_before(tmp_path):
+    res, _, _ = run(leaked_world(), tmp_path)
+    assert {s.accession for s in res.sites} == {ACC, LEAK_ACC}
+
+
+def test_a_failed_lineage_lookup_keeps_every_hit_and_says_so(tmp_path):
+    from qpcr_assay_check.ncbi.http import NcbiError
+
+    def failing(taxids):
+        raise NcbiError("HTTP 502")
+
+    res, _, _ = run(leaked_world(), tmp_path, ancestors_of=failing)
+    assert {s.accession for s in res.sites} == {ACC, LEAK_ACC}
+    assert any(
+        "could not be checked" in f.message and "HTTP 502" in f.message for f in res.findings
+    )

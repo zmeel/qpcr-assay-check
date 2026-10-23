@@ -100,6 +100,7 @@ def run_remote_search(
     keep_tiers: set[str] | None = None,
     only_tiers: set[str] | None = None,
     on_plan: Callable[[SearchPlan], None] | None = None,
+    allow_no_searches: bool = False,
 ) -> RemoteSearch:
     """Plan (resolving the exclusivity tier), ask for confirmation, execute, keep parsed results.
 
@@ -107,7 +108,9 @@ def run_remote_search(
     show exactly what will be searched -- including the resolved exclusivity taxids -- rather than
     a plan built before resolution. ``confirm`` is called only when at least one search has to be
     submitted; searches that are cached or still resumable send nothing. Returning False from
-    ``confirm`` aborts before anything is sent.
+    ``confirm`` aborts before anything is sent. ``allow_no_searches``: an empty plan is not an
+    error (a full run still has its variant analysis; the specificity verdict then says that no
+    off-target tier was searched).
     """
     creds = credentials_from_env()
     http = NcbiHttp(cfg.ncbi, creds)
@@ -115,9 +118,10 @@ def run_remote_search(
     plan, resolution = _resolve_and_plan(assay, cfg, http, cache, only_tiers=only_tiers)
     if on_plan:
         on_plan(plan)
-    if not plan.searches:
+    if not plan.searches and not allow_no_searches:
         raise InputError(
-            "Nothing to search: give the assay a target taxid or configure background taxa."
+            "Nothing to search: configure off-target taxa (search.background_taxids, an "
+            "exclusivity list or near neighbours), or set search.target_tier: true."
         )
     search_dir, digest = search_dir_for(assay, cfg, outdir)
     store = JobStore(search_dir / "jobs.json")

@@ -90,8 +90,11 @@ or address the other questions (how a user is identified; whether `DEPS5BKC014` 
 itself). Those stay unknown.
 
 **Still to check:** that searches are back to normal. The influenza run was left to finish, as
-NCBI advised; its background and exclusivity searches, submitted after the rollback, should take
-minutes, not hours. This item closes when a run shows that.
+NCBI advised ([run](../runs/influenza-a-2026-10-21.md)): its human background search, submitted
+on the morning of 2026-10-21, took 481 minutes (about 60 before), and its exclusivity search,
+submitted that afternoon, 2 minutes. That fits a rollback during that day but does not show it.
+The HSV-1 run of 2026-10-23, with its own human background search, is the clean test; this item
+closes when a run shows normal times.
 
 # What still matters
 

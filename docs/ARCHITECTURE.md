@@ -121,7 +121,15 @@ report and nothing else this project didn't already improve on.
   unaligned base must itself be a mismatch. `scripts/validate_assessment.py` checks both bounds
   against real hits before they are trusted (see "Still unverified" below).
 - **A target tier without a perfect full-length hit is a WARN**, not silence: it is the assay's own
-  positive control, so its absence is itself informative.
+  positive control, so its absence is itself informative. The target tier is searched only with
+  `search.target_tier: true` (off since 2026-10-23, user decision): the exhaustive variant analysis
+  assesses every record of the target and shows the same, and for influenza A the target search
+  took 19 hours.
+- **Hits outside a tier's taxa are set aside** (2026-10-23): `ENTREZ_QUERY` is not airtight, so
+  `assess_specificity` checks the organism of each hit against the tier's taxa by NCBI lineage
+  (`taxonomy.resolve.ancestors`, cached). A merged hit counts as inside if any of its records is;
+  a record without a taxid, or whose lineage is unknown, counts as inside. The set-aside records
+  are listed as an INFO finding; a failed lineage lookup keeps every hit and says so.
 - **Saturation, site-cap truncation and failed fetches are never silently dropped**: they make the
   specificity verdict INCOMPLETE rather than a false PASS.
 - **Exclusivity reuses the specificity tier machinery, not a parallel implementation** (phase 4a):

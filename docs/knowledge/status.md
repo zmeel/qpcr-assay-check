@@ -46,7 +46,7 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
 | Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
-| Influenza A (matrix) | [2026-10-07 17:35Z](runs/influenza-a-2026-10-07-complete.md) | complete: all 172,768 records. Exceeds limit, 69.0% of 69,688 collected 2023-2026; one reverse-primer terminal G-A is 97.0% of the failures, sweeping in from the 2022 season |
+| Influenza A (matrix) | [2026-10-21 15:42Z](runs/influenza-a-2026-10-21.md) | complete: all 173,689 records, both reverse primers. Review, no limit crossed: 99.6% of 70,606 collected 2023-2026 (69.0% with infa_rev alone); infa_rev2 alone covers 13.6% |
 
 # Next, waiting on the user
 
@@ -70,9 +70,8 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
   records have no collection year) ([run](runs/giardia-2026-10-09.md)). The oligos still want
   confirming against Verweij 2004: they were supplied, not read out of the paper.
 
-- Influenza A (matrix): coverage is complete, so the figure stands. The decision is the
-  laboratory's: a wet-lab test of a template with the reverse primer's 3'-terminal G-A would
-  settle 97.0% of the failures ([run](runs/influenza-a-2026-10-07-complete.md)).
+- Influenza A (matrix): with `infa_rev2` the terminal G-A failures are covered: 99.6%
+  detectable, no limit crossed ([run](runs/influenza-a-2026-10-21.md)). Nothing waits on it.
 - Entamoeba histolytica: a decision on the 62
   predicted products in other Entamoeba species (a wet-lab check against E. dispar and
   E. moshkovskii is the way to settle the probe's discrimination).

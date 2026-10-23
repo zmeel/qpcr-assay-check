@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **The intended target is no longer searched as a BLAST tier by default** (user, 2026-10-23,
+  after an influenza run in which that search took 19 hours). New setting `search.target_tier`
+  (default false). Since the exhaustive variant analysis replaced its hits (2026-09-29) the tier
+  fed only one line, "Intended target: hits with a perfect full-length match per oligo", while for
+  a large target it was the slowest search of a run (influenza A: 1.68 million records). The
+  variant analysis assesses every record of the target and shows whether each oligo matches it.
+  A full run with no off-target taxa configured now runs its variant analysis instead of stopping
+  with "Nothing to search"; the `search` command and the GUI still refuse an empty plan, and say
+  which settings to change. The smoke test keeps its positive control by switching the tier on.
 - **An inclusivity Exceeds limit is held back to Incomplete while genomes or records are still to
   assess** (user, 2026-10-07: "Keep incomplete for now", after an influenza run read Exceeds
   limit at 76.9% on 45,000 of 172,768 records). The analysis works newest publication year first,
@@ -22,6 +31,14 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **A hit from outside a tier's taxa was assessed as that tier's off-target site** (found in the
+  influenza A run of 2026-10-21: the influenza A record MW220816.1 came back in the exclusivity
+  search, which holds no influenza A, and the report concluded "the forward binds this tier
+  perfectly"). NCBI's `ENTREZ_QUERY` restriction is not airtight. Every hit is now checked against
+  the NCBI lineage of its own organism (cached), and one outside the taxa its tier searched is set
+  aside and listed in the findings rather than assessed. Without lineages (a failed lookup) every
+  hit counts, as before, and the findings say so. In that run it was harmless (no product), but a
+  leaked target record could have shown as a false exclusivity product.
 - **An HTML error page from a READY BLAST search was cached as if it were the result** (live,
   user 2026-10-09, a Giardia run: NCBI called RID CHAN7C89016 ready and then answered the
   `JSON2_S` request with "SYSTEM CAN'T PROCESS YOUR REQUEST, PLEASE CONTACT blasthelp"). The

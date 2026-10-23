@@ -23,13 +23,17 @@ runner = CliRunner()
 
 
 # ---------------------------------------------------------------- planner
-def test_default_plan_has_target_and_background_tiers(cfg, n1):
+def test_default_plan_has_the_background_tier_and_no_target_tier(cfg, n1):
+    plan = plan_searches(n1, cfg)
+    assert [(s.tier, s.entrez_query) for s in plan.searches] == [("background", "txid9606[ORGN]")]
+    assert plan.searches[0].labels == ["forward", "reverse", "probe"]
+    assert any("search.target_tier: false" in n for n in plan.notes)
+    cfg.search.target_tier = True
     plan = plan_searches(n1, cfg)
     assert [(s.tier, s.entrez_query) for s in plan.searches] == [
         ("target", "txid2697049[ORGN]"),
         ("background", "txid9606[ORGN]"),
     ]
-    assert plan.searches[0].labels == ["forward", "reverse", "probe"]
     assert len({s.key for s in plan.searches}) == 2
     # exclusivity_taxids=None (the default): resolution needs the network, so a plain
     # plan_searches() call (as --dry-run makes) cannot show the exclusivity tier's taxids yet.
@@ -144,7 +148,8 @@ def test_restriction_summary_counts_taxa_and_flags_missing_taxonomy():
 def cli_env(tmp_path, monkeypatch):
     cache = tmp_path / "cache"
     conf = tmp_path / "config.yaml"
-    conf.write_text(f"ncbi:\n  cache_dir: {cache}\n")
+    # these tests exercise the target tier, which is off by default since 2026-10-23
+    conf.write_text(f"ncbi:\n  cache_dir: {cache}\nsearch:\n  target_tier: true\n")
     monkeypatch.setenv("NCBI_EMAIL", "lab@example.org")
     monkeypatch.delenv("NCBI_API_KEY", raising=False)
     monkeypatch.setattr(time, "sleep", lambda s: None)
@@ -240,7 +245,7 @@ def test_target_tier_saturation_is_informational_not_a_warning(cli_env, tmp_path
     conf = tmp_path / "small_target.yaml"
     conf.write_text(
         f"ncbi:\n  cache_dir: {tmp_path / 'c3'}\n"
-        "search:\n  hitlist_size: 3\n  background_taxids: []\n"
+        "search:\n  hitlist_size: 3\n  background_taxids: []\n  target_tier: true\n"
     )
     r = runner.invoke(
         app, ["search", str(ROOT_EXAMPLE), "-c", str(conf), "-o", str(cli_env.out), "--yes"]
@@ -267,3 +272,15 @@ def test_empty_background_list_drops_the_tier_and_warns_that_human_is_not_search
 
 def test_default_background_list_does_not_warn_about_human(cfg, n1):
     assert not any("Human (taxid 9606)" in w for w in plan_searches(n1, cfg).warnings)
+
+
+def test_search_with_nothing_to_search_names_the_settings(cli_env, tmp_path):
+    """With the target tier off and no off-target taxa there is nothing to BLAST: the search
+    command says what to configure (a full run still does its variant analysis)."""
+    conf = tmp_path / "empty.yaml"
+    conf.write_text(f"ncbi:\n  cache_dir: {tmp_path / 'c4'}\nsearch:\n  background_taxids: []\n")
+    r = runner.invoke(
+        app, ["search", str(ROOT_EXAMPLE), "-c", str(conf), "-o", str(cli_env.out), "--yes"]
+    )
+    assert r.exit_code == 64 and "search.target_tier: true" in r.output
+    assert cli_env.h["fake"].n_put == 0

@@ -548,7 +548,11 @@ def main() -> int:
             "template_type": "RNA", "target": {"taxid": SARS2, "accession": REFERENCE},
         }
     )  # fmt: skip
-    plan = plan_searches(assay, cfg)
+    # the positive control searches the target on purpose (off by default since 2026-10-23)
+    with_target = cfg.model_copy(
+        update={"search": cfg.search.model_copy(update={"target_tier": True})}
+    )
+    plan = plan_searches(assay, with_target)
     by_tier = {s.tier: s for s in plan.searches}
     labels = list(OLIGOS)
 

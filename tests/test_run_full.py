@@ -153,9 +153,9 @@ def test_a_second_run_reuses_the_cache_and_sends_no_new_searches(env):
     first = invoke(env, "--yes")
     assert first.exit_code in (20, 30)
     puts, fetches = fake.n_put, len(fake.efetch_calls)
-    # a re-alignment window, the partner-scan window next to the primer site, and the target
-    # record once for the context
-    assert puts == 2 and fetches == 3
+    # one search (background; the target is not a tier by default); a re-alignment window, the
+    # partner-scan window next to the primer site, and the target record once for the context
+    assert puts == 1 and fetches == 3
     second = invoke(env, "--yes")
     assert second.exit_code == first.exit_code
     assert (
