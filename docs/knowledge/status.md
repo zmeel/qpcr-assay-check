@@ -52,7 +52,7 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 
 - VZV (ORF38): assay file ready, no run yet ([assay](assays/vzv-orf38.md)). The probe's G form
   (Oka lineage) folds into a hairpin; the user may give the probe's dyes and the cycling.
-- HSV-1 (gG, Ryncarz 1999): first run 2026-10-23 ([run](runs/hsv1-2026-10-23.md)): HSV-2
+- HSV-1 detection (gG, Ryncarz 1999 oligos): first run 2026-10-23 ([run](runs/hsv1-2026-10-23.md)): HSV-2
   amplified but not detected, 96.1% detectable, inclusivity Incomplete (26 dated recent genomes).
   Decide on `status_axis: release` and on raising the partner-scan limit for the HSV-2 products.
   Check the forward primer's 2nd base (C in the paper, T in both reference genomes) against the

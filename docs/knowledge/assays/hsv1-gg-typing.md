@@ -1,7 +1,7 @@
 ---
 type: Assay
-title: HSV-1, glycoprotein G (Ryncarz 1999 typing assay)
-description: Type-common primers in gG (US4) with the HSV-1-specific probe, 166 bp; checked against the paper's PDF. HSV-2 should give a product without a signal. The inosine in the reverse primer is written N.
+title: HSV-1 detection, glycoprotein G (Ryncarz 1999 typing oligos)
+description: The laboratory's HSV-1 detection assay of about 20 years, built from the paper's typing oligos - type-common primers in gG (US4) with the HSV-1-specific probe, 166 bp; checked against the paper's PDF. It detects HSV-1 only - HSV-2 gives a product without a signal. The inosine in the reverse primer is written N.
 resource: ../../examples/hsv1_gg_typing.yaml
 tags: [assay, example, DNA, virus]
 status: draft
@@ -34,9 +34,19 @@ gG1-P. Two differences, both kept on purpose: the user's laboratory labels the p
 the paper uses HEX, and the paper's deoxyinosine is written N, because the tool accepts IUPAC
 codes only.[^assay-file]
 
-Easy to confuse: the same paper's type-common *detection* assay is a different one, in
-glycoprotein B. These oligos are its typing assay, despite the "HSV-1 gG1" names, which the paper
-also gives the type-common primers.
+In the laboratory these oligos are the **HSV-1 detection assay**, run for about 20 years. They
+came from another laboratory, which took them from this paper; why it chose the paper's typing
+oligos and not its type-common *detection* assay (a different one, in glycoprotein B) is not
+known. The paper designed the gG primers for typing, with one probe per type in the same
+reaction; used with the HSV-1 probe alone they make an HSV-1 detection assay. The "HSV-1 gG1"
+names are the paper's, which gives them to the type-common primers too.
+
+# What it detects
+
+HSV-1 only. HSV-2 is amplified by the same primers but gives no signal, because the probe has
+10 mismatches against it. So an HSV-2 infection is negative in this PCR, which is right for an
+HSV-1 assay and wrong for one meant to detect HSV in general. In an HSV-1/HSV-2 co-infection the
+HSV-2 product also competes for the primers.
 
 # Design
 

@@ -1,12 +1,14 @@
 # Example assay: herpes simplex virus 1 (HSV-1), glycoprotein G (US4), one FAM/TAMRA probe.
-# The HSV-1 half of the Ryncarz 1999 HSV typing assay: one primer pair that amplifies gG of
-# both HSV types, and a probe per type; this file holds the HSV-1 probe.
+# The user's laboratory's HSV-1 DETECTION assay, built from the oligos of the Ryncarz 1999 HSV
+# typing assay: the paper's primer pair, which amplifies gG of both HSV types, with the paper's
+# HSV-1 probe only. It detects HSV-1, not HSV-2 (see STATUS).
 #
 # STATUS
 #   One amplified region in the gG gene (US4), 166 bp in both HSV-1 and HSV-2. The primers are
-#   type-common by design and the probe is type-specific, so the assay's discrimination rests
-#   on the probe alone: HSV-2 is expected to give a product and must not give a signal (see
-#   EXCLUSIVITY PANEL). The probe is linear (FAM/TAMRA, no MGB or other Tm-raising
+#   type-common (the paper designed them for typing, with a probe per type) and the probe is
+#   HSV-1-specific, so this assay detects HSV-1 only: HSV-2 is amplified without a signal, and
+#   the assay's specificity against it rests on the probe alone (see EXCLUSIVITY PANEL). In an
+#   HSV-1/HSV-2 co-infection the HSV-2 product also competes for the primers. The probe is linear (FAM/TAMRA, no MGB or other Tm-raising
 #   modification), so the unmodified-probe ladder of R9 applies: one mismatch outside the last
 #   5 nt tolerated, one in the last 5 nt or two anywhere at risk, three or more likely failure
 #   (docs/MISMATCH_CLASSES.md). One probe, so one channel; no wet-lab evidence entries. No taxa
@@ -31,6 +33,11 @@
 #   amplify both types. Caution: the paper's TYPE-COMMON DETECTION assay is a different one, in
 #   glycoprotein B (gB: HSV-FP, HSV-RP, HSV-TCP); this file is NOT that assay.
 #   The exclusivity panel was suggested in this session and is the user's to edit.
+#
+#   HOW THE LABORATORY CAME BY IT (the user, 2026-10-23): the laboratory has run these oligos as
+#   its HSV-1 detection assay for about 20 years. They came from another laboratory, which took
+#   them from this paper; why that laboratory chose the paper's typing oligos rather than its gB
+#   detection assay is not known.
 #
 # THE INOSINE (in HSV-1-gG1-RP, 5th base from the 5' end)
 #   The paper and the user both give deoxyinosine (I) there. This tool accepts IUPAC codes
@@ -94,7 +101,7 @@
 #   mostly not gG). Remove nucleotide_query to assess every record instead: most will be "not
 #   found" (a different gene), which the figures leave out, but it takes many runs.
 
-assay_name: HSV-1 (gG, Ryncarz 1999 typing assay)
+assay_name: HSV-1 detection (gG, Ryncarz 1999 typing oligos)
 forward: {name: HSV-1-gG1-FP, sequence: TCCTSGTTCCTMACKGCCTCCC}   # S = C/G, M = A/C, K = G/T
 reverse: {name: HSV-1-gG1-RP, sequence: GCAGNCAYACGTAACGCACGCT}   # N = deoxyinosine; Y = C/T
 probe:
@@ -139,7 +146,8 @@ exclusivity_organisms:
   - Acanthamoeba castellanii       # 5755
 oligo_source: >-
   Ryncarz AJ et al., J Clin Microbiol 1999; 37: 1941-1947 (doi 10.1128/JCM.37.6.1941-1947.1999),
-  the HSV typing assay in gG: primers HSV-1 gG1-FP and gG1-RP and the HSV-1 probe gG1-P. Supplied
+  the oligos of its HSV typing assay in gG, used by the user's laboratory as its HSV-1 detection
+  assay: primers HSV-1 gG1-FP and gG1-RP and the HSV-1 probe gG1-P. Supplied
   by the user (2026-10-23) and checked against the paper's PDF: identical, except that the probe
   carries FAM in the user's laboratory (HEX in the paper) and the inosine is written N.
 settings:                        # only what differs from the defaults, for this assay
