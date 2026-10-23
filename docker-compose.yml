@@ -24,4 +24,8 @@ services:
       - ./docs/examples:/examples:ro   # offered for copying on the Assays page
     ports:
       - "${QAC_PORT:-8080}:8080"   # port on the NAS (QAC_PORT in .env); 8080 inside
+    # Docker's default network, as `docker run` (scripts/run_assay.sh) uses: on a NAS on
+    # 2026-10-23 the compose network's DNS forwarder (127.0.0.11) stopped resolving NCBI's hosts
+    # after the container was recreated, while the default network kept working
+    network_mode: bridge
     restart: unless-stopped

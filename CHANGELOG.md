@@ -36,6 +36,12 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **The GUI container could not resolve NCBI's hosts** (user's NAS, 2026-10-23: "Temporary
+  failure in name resolution" from the GUI right after the container was recreated, while the NAS
+  itself and a plain `docker run` of the same image resolved them). The compose network answers
+  name lookups through Docker's own forwarder (127.0.0.11), and that is what failed; the GUI
+  service now uses Docker's default network (`network_mode: bridge`), the route `run_assay.sh`
+  uses. The port mapping is unchanged. The cause on the NAS side is not known.
 - **The second review of 2026-10-23, of the fixes of the first:**
   - `search.result_format` still accepted JSON2, which NCBI returns as a ZIP archive (recorded
     by the smoke test); only JSON2_S is accepted, and BlastRunner raises an `InputError` for
