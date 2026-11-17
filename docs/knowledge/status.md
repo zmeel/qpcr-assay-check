@@ -48,13 +48,13 @@ been decided.
 | Enterovirus | [2026-09-30](runs/enterovirus-2026-09-30.md) | 91.6% detectable; Review; specificity Exceeds limit; predates the MGB rule |
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
 | Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
-| VZV (ORF38) | [2026-10-23 14:53Z](runs/vzv-2026-10-23.md) | 2,831 of 2,832 records; 99.7% of 599 with the region detectable; no off-target product; Exceeds limit on oligo QC only (probe G-form hairpin); inclusivity Incomplete (91 collected 2022-2025) |
+| VZV (ORF38) | [2026-11-17 14:31Z](runs/vzv-2026-11-17.md) | coverage complete (2,831 assessed, 1 unavailable); 99.7% of 599 with the region detectable; no off-target product; Exceeds limit on oligo QC only (probe G-form hairpin); inclusivity Incomplete (75 collected 2023-2026) |
 | HSV-1 (gG) | [2026-10-23 09:04Z](runs/hsv1-2026-10-23.md) | 96.1% of 614 genomes detectable; HSV-2 amplified, not detected; Exceeds limit (oligo QC, products); inclusivity Incomplete (26 collected 2020-2023); made before the fixes of 2026-11-17 |
 | Influenza A (matrix) | [2026-10-21 15:42Z](runs/influenza-a-2026-10-21.md) | complete: all 173,689 records, both reverse primers. Review, no limit crossed: 99.6% of 70,606 collected 2023-2026 (69.0% with infa_rev alone); infa_rev2 alone covers 13.6% |
 
 # Next, waiting on the user
 
-- VZV (ORF38): first run 2026-10-23 ([run](runs/vzv-2026-10-23.md)): 99.7% detectable, no
+- VZV (ORF38): runs 2026-10-23 and 2026-11-17 ([latest](runs/vzv-2026-11-17.md)): 99.7% detectable, no
   off-target product. The probe's G form (Oka lineage, 10.5% of the records, the vaccine strain
   among them) folds into a hairpin: worth a wet-lab check on an Oka template. Decide on
   `status_axis: release` (109 records released 2023-2026, 75 collected).

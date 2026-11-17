@@ -71,6 +71,10 @@ out: RNA templates of a DNA assay.
 597 of 599 records with the region detectable (99.7%); Exceeds limit on oligo QC only (the G
 form hairpin); inclusivity Incomplete (91 records collected 2022-2025).
 
+[2026-11-17 14:31Z](../runs/vzv-2026-11-17.md), the first with the review fixes: coverage complete
+(2,831 assessed, 1 unavailable), the same figures; inclusivity Incomplete on 75 records collected
+2023-2026.
+
 [^assay-file]: docs/examples/vzv_orf38.yaml (provenance and checks in its header)
 [^ncbi]: Taxonomy, record counts, and the Dumas and Oka genomes, measured live
 [^r9]: R9 - probe mismatches

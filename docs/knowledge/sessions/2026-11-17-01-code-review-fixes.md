@@ -67,3 +67,5 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   1": a worst-case site from a gapped partial BLAST hit had strings of different length, which
   the P3 grading did not expect. Fixed: the strings line up, worst-case sites keep the level rule,
   and an unequal pair is graded by level instead of stopping the run.
+- The VZV rerun on the fixed code (14:31Z) recorded ([run](../runs/vzv-2026-11-17.md)): coverage
+  complete, the same figures, the window now 2023-2026 (75 records collected, Incomplete).
