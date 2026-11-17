@@ -63,3 +63,7 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   back to draft (its rule changed). Stale statements corrected; the HSV-1 run page marked as made
   before these fixes. A first version of P3 let a run of N, and a distant site with 6 mismatches
   and a gap, prime; both caught by tests and fixed before the push.
+- The user's VZV rerun on the new code stopped with "zip() argument 2 is longer than argument
+  1": a worst-case site from a gapped partial BLAST hit had strings of different length, which
+  the P3 grading did not expect. Fixed: the strings line up, worst-case sites keep the level rule,
+  and an unequal pair is graded by level instead of stopping the run.

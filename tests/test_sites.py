@@ -193,3 +193,24 @@ def test_roles_come_from_the_assay_s_oligo_names():
     assert [assay.role_of(x) for x in labels] == [
         "forward", "forward", "reverse", "probe", "probe",
     ]  # fmt: skip
+
+
+def test_a_gapped_partial_hit_gives_strings_of_one_length_and_keeps_its_level_rule():
+    # live VZV run 2026-11-17: a worst-case site from a partial hit with a gap had a genome
+    # string longer than its oligo string, and the off-target grading crashed on it
+    from qpcr_assay_check.models import Assay
+    from qpcr_assay_check.specificity.pairing import grade_site, primer_can_prime
+
+    from .conftest import make_assay
+
+    c = cand("human_forward_partial_minus")
+    q, h = c.hsp.qseq, c.hsp.hseq
+    cut = len(q) // 2  # one subject base inserted mid-alignment: a gap in the query
+    c.hsp = c.hsp.model_copy(update={"qseq": q[:cut] + "-" + q[cut:],
+                                     "hseq": h[:cut] + "A" + h[cut:]})  # fmt: skip
+    s = S.site_from_bound(c, RULES.primer_site, "S9")
+    assert len(s.q_aln) == len(s.s_aln) and s.q_aln.replace("-", "") == c.oligo
+    assay: Assay = make_assay()
+    grade_site(s, assay)  # no error
+    assert s.grade is None  # worst case: the levels decide, as before
+    assert primer_can_prime(s) is (s.level != "minor")

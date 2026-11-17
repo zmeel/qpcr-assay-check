@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import defaultdict
 
@@ -9,6 +10,8 @@ from ..config import SpecificitySettings
 from ..models import Assay, TemplateType
 from .models import AmpliconResult, SiteResult
 from .sites import record_type
+
+log = logging.getLogger(__name__)
 
 
 def oligo_of(label: str) -> str:
@@ -97,6 +100,15 @@ def grade_site(site: SiteResult, assay: Assay) -> None:
     though R1 grades some of those tolerated, and let a probe with 3 mismatches bind, MGB probes
     included). A site that already has a class keeps it."""
     if site.grade is not None or not site.q_aln or not site.s_aln:
+        return
+    if site.source == "blast_partial_worst_case":
+        # its unaligned bases are assumed to fit as well as possible (risk-conservative);
+        # grading them as unknown mismatches would hide a possible cross-reaction, so the
+        # levels decide, as before
+        return
+    if len(site.q_aln) != len(site.s_aln):
+        log.warning("Site %s: alignment strings of different length; graded by level only",
+                    site.id)  # fmt: skip
         return
     from ..oligo.grade import grade_fields
 

@@ -295,7 +295,9 @@ def site_from_bound(c: Candidate, rules: SiteRules, site_id: str) -> SiteResult:
         source="blast_partial_worst_case",
         start=lo,
         end=hi,
-        q_aln=c.oligo,
+        # the oligo with BLAST's own gapped query in the middle, so both strings line up when
+        # the partial alignment has a gap (live VZV run, 2026-11-17: they did not)
+        q_aln=c.oligo[: c.u5] + h.qseq + c.oligo[c.qlen - c.u3 :],
         s_aln="." * c.u5 + h.hseq + "." * c.u3,
         mid=" " * c.u5 + realign.midline(h.qseq, h.hseq) + " " * c.u3,
         m=est,

@@ -69,6 +69,11 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **A run crashed on a gapped partial BLAST hit** (live VZV run, 2026-11-17, after the review
+  fixes): its worst-case site carried an oligo string shorter than the genome string, and the new
+  off-target grading zipped them strictly. The strings now line up, worst-case sites keep the
+  level rule (their unread bases are assumed to fit, so grading them would hide a cross-reaction),
+  and a site with unequal strings is graded by level instead of stopping the run.
 - **The code review of 2026-11-17, of the whole project:**
   - A RID NCBI called UNKNOWN (also how a status page without a status reads, e.g. an error
     page) was resubmitted every minute with no deadline; now once per run, then an error.
