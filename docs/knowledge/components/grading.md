@@ -21,6 +21,11 @@ R1-R3, R5, R5b, R5c, R6, R8, R9 and LAB. Constants name their sources (`KWOK`, `
 `KUTYAVIN`, `OTWELL`, `MGB_REGION = 7`). `specificity/duplex.py` gives the ΔTm/ΔG shown next
 to a class (information only; not applicable to MGB/LNA oligos).
 
+A probe is graded as MGB when MGB is declared as a modification or named in its reporter or
+quencher (e.g. `MGBNFQ`); before 2026-11-17 only the modification counted, so a quencher written
+MGBNFQ gave the Tm warning but the lenient unmodified-probe grading (whole-project review, P5).
+An LNA probe is graded by the unmodified-probe rules, as no LNA rule exists; the record says so.
+
 # Code
 
 [`oligo/grade.py`](../../../src/qpcr_assay_check/oligo/grade.py), [`specificity/duplex.py`](../../../src/qpcr_assay_check/specificity/duplex.py)[^code0][^code1]

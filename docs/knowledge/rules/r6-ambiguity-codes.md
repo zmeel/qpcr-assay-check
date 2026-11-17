@@ -1,7 +1,7 @@
 ---
 type: Grading Rule
 title: R6 - ambiguity codes in the genome
-description: A code is graded both ways in the last 5 nt (anywhere in an MGB probe); only when it decides between detectable and not is the site undetermined.
+description: A code is graded both ways over a primer's 3'-most 16 nt and the whole probe; only when it decides between detectable and not is the site undetermined.
 tags: [grading, IUPAC, R6]
 status: draft
 generated: { by: claude-code/agent, at: 2026-10-04T04:30:00Z }
@@ -21,10 +21,12 @@ and the genome undetermined. A code that cannot pair is a mismatch. An ambiguity
 never hides a real failure. No source: a presentation of uncertainty, not a
 prediction.[^mismatch-classes]
 
-In an MGB probe a code anywhere in the site is graded both ways (2026-11-17, code review): one
-mismatch anywhere changes an MGB probe's class under [R9](r9-probes.md) (likely failure under
-the MGB, the 3'-most 7 nt; undetermined outside it), so a code at -6 or -7 read as a match
-could hide a likely failure. The page was verified on 2026-10-08 for the rule without this
-addition, so it is back to draft.
+Changed 2026-11-17 (code review, then the whole-project review): a code is now graded both ways
+wherever the rules count mismatches, in a primer's 3'-most 16 nt ([R3](r3-several-mismatches.md))
+and anywhere in a probe ([R9](r9-probes.md)). Read as a match beyond the last 5 nt, a code at -8
+with a real mismatch at -12 gave tolerated where R3 gives at risk, and an R at -6 under an MGB
+hid a likely failure. A lone code beyond the last 5 nt now reads tolerated rather than perfect:
+detectable either way. The page was verified on 2026-10-08 for the rule without this change, so
+it is back to draft.
 
 [^mismatch-classes]: docs/MISMATCH_CLASSES.md, R6

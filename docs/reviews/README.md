@@ -7,6 +7,7 @@ decisions: this file records how they compare and what was taken up.
 |---|---|---|
 | `2026-10-01-theory-review-molecular-biologist.md` | senior theoretical molecular biologist and bioinformatician | 2026-10-01 |
 | `2026-10-01-theory-review-advisor.md` | methods advisor (diagnostic qPCR, quality systems) | 2026-10-01 |
+| `2026-11-17-whole-project-advisor.md` | independent advisor (molecular diagnostics, scientific software), whole project | 2026-11-17 |
 
 Both assessed the theoretical background of the tool at the same time, independently, from the
 same documentation (SPEC, ARCHITECTURE, MISMATCH_CLASSES, the wiki pages, PROGRESS) and the code,
@@ -94,3 +95,20 @@ search cannot find (word size 7 and the E-value against Primer-BLAST's default, 
 an RNA note for one-step RT-PCR assays (Christopherson et al. 1997, abstract checked in PubMed),
 and the status figure under the other homopolymer setting. Both sources were checked against
 their text (Ye 2012 full text in Europe PMC, PMC3412702).
+
+## Whole-project evaluation (2026-11-17)
+
+The advisor's ten problems were checked against the code before acting. Taken up the same day
+(user: "fix 1, 2, 4, 5"):
+
+- **P1** every record names its code: a fingerprint of the installed package and the git commit.
+- **P2** a configured off-target tier that was not searched, or an organism name that did not
+  resolve, no longer reads as No flags. The other part of the advisor's priority 2 (a cap on the
+  share of unavailable records; complete genomes without the region in the main status, P6) was
+  not taken up.
+- **P4** R6 over a primer's 3'-most 16 nt and the whole probe.
+- **P5** MGB recognised from the dye names; LNA probes graded as unmodified, and said so.
+
+Left for the user: P3 (one rule set for off-target sites: it changes results), P6-P10, the stale
+statements listed under F, and the release (tag) before records are filed.
+

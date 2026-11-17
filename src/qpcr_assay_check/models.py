@@ -205,6 +205,14 @@ class Oligo(BaseModel):
     def _mods(cls, v: Any) -> list[str]:
         return _modification_list(v)
 
+    def has_mgb(self) -> bool:
+        """An MGB probe: MGB declared as a modification, or named in the reporter or quencher
+        (e.g. "MGBNFQ", "NFQ-MGB"). Grading follows the same reading as the Tm warning, so a
+        quencher named MGB is never graded by the far more lenient unmodified-probe rules
+        (whole-project review, 2026-11-17, P5)."""
+        labels = f"{self.reporter or ''} {self.quencher or ''}".upper()
+        return any(m.upper() == "MGB" for m in self.modifications) or "MGB" in labels
+
     def declared_modifications(self, unreliable_tokens: Iterable[str]) -> list[str]:
         """Modifications that make nearest-neighbour Tm unreliable (declared or in dye names)."""
         found: dict[str, None] = dict.fromkeys(self.modifications)
@@ -671,11 +679,11 @@ class Assay(BaseModel):
 
     def graded(self, site: Any) -> Any:
         """A target-tier SiteResult with its graded mismatch class (docs/MISMATCH_CLASSES.md)."""
-        from .oligo.grade import grade_fields, is_mgb, lab_fields
+        from .oligo.grade import grade_fields, lab_fields
 
         name = _DEGENERATE_SUFFIX.sub("", site.query)
         o = next((x for x in self.oligo_list if x.name == name), None)
-        mgb = o is not None and is_mgb(o.modifications)
+        mgb = o is not None and o.has_mgb()
         fields = grade_fields(site.q_aln, site.s_aln, site.role, mgb=mgb)
         lab = self.evidence_for(name, site.q_aln, site.s_aln)
         if lab is not None:

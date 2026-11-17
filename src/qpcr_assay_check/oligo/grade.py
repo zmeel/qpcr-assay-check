@@ -192,10 +192,10 @@ def _mismatches(
 def _with_ambiguity(
     grade: Callable[[list[_Mismatch]], Grade], mm: list[_Mismatch], amb: list[_Mismatch]
 ) -> Grade:
-    """R6: grade with the ambiguity codes in the last 5 nt (anywhere in an MGB probe) read as
-    matches and as mismatches. Only when that decides between detectable and not is the site
-    indeterminate; a class that holds either way is kept, so an ambiguity code never hides a
-    real failure."""
+    """R6: grade with the ambiguity codes in the region the rules count (a primer's 3'-most
+    ``TESTED_REGION`` nt, the whole probe) read as matches and as mismatches. Only when that
+    decides between detectable and not is the site indeterminate; a class that holds either way
+    is kept, so an ambiguity code never hides a real failure."""
     as_match = grade(mm)
     if not amb:
         return as_match
@@ -320,7 +320,10 @@ def _homopolymer_bulge(q_aln: str, s_aln: str, min_run: int = 3) -> _Bulge | Non
 
 def grade_primer(q_aln: str, s_aln: str) -> Grade:
     """The class of one primer site (rules R1-R3, R5, R6)."""
-    mm, amb, gap = _mismatches(q_aln, s_aln)
+    # R3 counts mismatches over the tested region, so an ambiguity code anywhere in it may decide
+    # the class (whole-project review, 2026-11-17, P4: a code at -8 with a mismatch at -12 read
+    # tolerated, at risk if the code is a mismatch)
+    mm, amb, gap = _mismatches(q_aln, s_aln, amb_region=TESTED_REGION)
     if gap:
         bulge = _homopolymer_bulge(q_aln, s_aln)
         if bulge is None:
@@ -350,10 +353,10 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
     probes: 1 mismatch outside the last 5 nt tolerated; 1 in the last 5 nt or 2 anywhere at risk
     (Klungthong 2010 measured two, still detected); ``UNMODIFIED_PROBE_FAIL`` (3) or more likely
     failure (user decision 2026-10-07; expert judgement, no quantitative source)."""
-    # an MGB probe changes class on one mismatch anywhere (likely failure under the MGB,
-    # undetermined outside it), so an ambiguity code anywhere in its site may decide the class
-    # (code review, 2026-11-17: an R at -6 under the MGB read as a match)
-    mm, amb, gap = _mismatches(q_aln, s_aln, amb_region=len(q_aln) if mgb else 5)
+    # the probe rules count mismatches anywhere in the probe (an MGB probe changes class on one,
+    # an unmodified probe on a second), so an ambiguity code anywhere in its site may decide the
+    # class (code review and whole-project review, 2026-11-17)
+    mm, amb, gap = _mismatches(q_aln, s_aln, amb_region=len(q_aln))
 
     def by_mismatches(mm: list[_Mismatch]) -> Grade:
         if not mm:
@@ -486,6 +489,7 @@ def grade_fields(q_aln: str, s_aln: str, role: str, *, mgb: bool) -> dict[str, s
 
 
 def is_mgb(modifications: list[str]) -> bool:
+    """MGB among declared modifications (an oligo's dye names count too: ``Oligo.has_mgb``)."""
     return any(m.upper() == "MGB" for m in modifications)
 
 

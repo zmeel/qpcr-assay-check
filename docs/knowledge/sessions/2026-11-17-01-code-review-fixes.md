@@ -43,4 +43,14 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
 - A candidate finding was dropped on checking: N bases in re-aligned partial hits are already
   measured as mismatches.
 - The advisor's whole-project evaluation stopped twice on the usage limit and then because the
-  model asked for needs usage credits; no report.
+  model asked for needs usage credits. Restarted on another model at the user's request, it
+  reported ten problems ([review](../../reviews/2026-11-17-whole-project-advisor.md), kept
+  verbatim). The user asked to fix P1, P2, P4 and P5: every record names its code (a fingerprint
+  of the package and the git commit); an unsearched configured tier or an unresolved organism
+  name never reads as No flags; R6 grades codes over a primer's 16 nt and the whole probe; MGB
+  is recognised from the dye names, LNA probes are said to be graded as unmodified. Not done:
+  P3 (off-target rules), P6-P10, the stale texts.
+- A rules review on another model was asked for, then called off by the user.
+- The VZV run of 2026-10-23 recorded ([run](../runs/vzv-2026-10-23.md)): 99.7% detectable, no
+  off-target product, Exceeds limit on the probe's G-form hairpin only. The HSV-1 report the
+  user uploaded again is the run already recorded.

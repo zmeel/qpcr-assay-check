@@ -11,11 +11,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .. import __version__
 from ..config import Config
 from ..ncbi.jobs import Job, JobStore
 from ..ncbi.parser import ParsedSearch, QueryResult, SearchStat, parse_blast_json
 from ..ncbi.runner import BlastRunner
+from ..provenance import tool_info
 from .assess import QuerySaturation, RestrictionSummary, assess_saturation, summarise_restriction
 from .planner import PlannedSearch, SearchPlan
 
@@ -187,7 +187,7 @@ def run_search(
 
     stamp = (now or datetime.now(UTC)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     outcome = SearchOutcome(
-        tool={"name": "qpcr-assay-check", "version": __version__},
+        tool=tool_info(),
         generated_at=stamp,
         inputs_hash=inputs_hash,
         oligos=plan.queries,

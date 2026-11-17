@@ -66,6 +66,18 @@ def test_an_unresolved_name_is_reported_not_silently_dropped():
     assert {r.name for r in out.unresolved} == {"Mycoplasma pneumoniae", "Some genus sp."}
     assert {row.resolution for row in out.rows} == {"unresolved", "ambiguous"}
     assert all(row.taxid is None and row.n_sites == 0 for row in out.rows)
+    # nothing was searched for them: missing evidence, never a pass (review 2026-11-17, P2)
+    assert out.verdict is Verdict.INCOMPLETE
+
+
+def test_one_unresolved_name_among_clean_rows_is_incomplete_not_a_pass():
+    res = resolution(
+        Resolution(name="Neisseria gonorrhoeae", status="resolved", taxid=NG),
+        Resolution(name="Mycoplasma pneumoniae", status="unresolved"),
+    )
+    assert build_exclusivity(res, [], [], SEV, tier_searched=True).verdict is Verdict.INCOMPLETE
+    found = build_exclusivity(res, [site(NG, "forward", "critical")], [], SEV, tier_searched=True)
+    assert found.verdict is Verdict.WARN  # a flag found among the others still shows
 
 
 def test_the_best_site_is_the_most_severe_not_the_first():

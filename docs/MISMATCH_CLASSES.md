@@ -211,9 +211,11 @@ probe mismatches (R9) and homopolymer bulges (R5b), where no published data exis
 matches no site is flagged in the report.
 
 **R6. Ambiguity codes in the genome sequence** (R, Y, ... in a consensus). Built: a code that can
-pair with the oligo base counts as a match when it lies beyond the last 5 nt. In the last 5 nt the
-site is graded twice (in an MGB probe anywhere in the site, since one mismatch anywhere changes
-an MGB probe's class under R9: code review, 2026-11-17), with the code as a match and as a mismatch: when both give a detectable
+pair with the oligo base is graded twice wherever the rules count mismatches, in a primer's
+3'-most 16 nt (R1-R3) and anywhere in a probe (R9): code review and whole-project review,
+2026-11-17; before, only the last 5 nt were, so a code at -8 with a real mismatch at -12 read
+tolerated where R3 says at risk. Further from the 3' end of a primer it counts as a match. The site
+is graded with the code as a match and as a mismatch: when both give a detectable
 class (or both do not), that class is kept (the worse one if both are detectable; the note says
 when the code could make a failing site worse); only when the code decides between detectable
 and not is the site `indeterminate` (R6). So an ambiguity code never hides a real failure. A

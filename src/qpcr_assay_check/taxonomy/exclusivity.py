@@ -174,6 +174,10 @@ def build_exclusivity(
             if "WARN" in severities
             else Verdict.PASS
         )
+        if verdict is Verdict.PASS and resolution is not None and resolution.unresolved:
+            # a name that did not resolve was never searched: missing evidence, never no flags
+            # (whole-project review, 2026-11-17, P2)
+            verdict = Verdict.INCOMPLETE
 
     return ExclusivityResult(
         tier_searched=tier_searched,

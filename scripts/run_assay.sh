@@ -21,6 +21,13 @@ opts=""
 [ -f .env ] && opts="--env-file .env"
 [ -n "${NCBI_EMAIL:-}" ] && opts="$opts -e NCBI_EMAIL=$NCBI_EMAIL"
 [ -n "${NCBI_API_KEY:-}" ] && opts="$opts -e NCBI_API_KEY=$NCBI_API_KEY"
+# which code ran: the checkout's commit and whether src/ has local changes (in the record)
+commit=$(git rev-parse HEAD 2>/dev/null || echo unknown)
+dirty=unknown
+if [ "$commit" != unknown ]; then
+    if [ -n "$(git status --porcelain --untracked-files=no -- src 2>/dev/null)" ]; then dirty=yes; else dirty=no; fi
+fi
+opts="$opts -e QAC_GIT_COMMIT=$commit -e QAC_GIT_DIRTY=$dirty"
 conf=""
 [ -f work/config.yaml ] && conf="-c /work/config.yaml"
 docker_run="docker run --rm --user $(id -u):$(id -g) $opts -v $PWD/work:/work \

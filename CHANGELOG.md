@@ -7,6 +7,22 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **Every record names the code that made it** (whole-project review of 2026-11-17, P1): the
+  `tool` block of `results.json` and `search.json` carries a code fingerprint (SHA-256 over every
+  file of the installed package: code, report templates, default limits) and the git commit with
+  a local-changes flag when it can be read; the report header and Methods, the workbook and the
+  GUI show them. `scripts/run_assay.sh` passes the checkout's commit into the container. The
+  version string alone did not tell unreleased code from the release.
+- **Missing evidence no longer reads as No flags** (P2): a configured off-target tier that no
+  search of the run covered (e.g. near neighbours without taxa, or human background) holds a
+  clean result at Incomplete and says how to resolve it; an organism-list name that did not
+  resolve keeps the exclusivity section from passing.
+- **R6 over the region the rules count** (P4): an ambiguity code in the genome is graded both
+  ways over a primer's 3'-most 16 nt and anywhere in a probe, not only in the last 5 nt. A lone
+  code beyond the last 5 nt now reads tolerated instead of perfect (detectable either way).
+- **MGB in the dye names** (P5): a probe whose reporter or quencher names MGB (e.g. MGBNFQ) is
+  graded as an MGB probe; an LNA probe is graded by the unmodified-probe rules and the record
+  says so.
 - **A progress bar for the re-alignment and the partner scan** in the GUI's run page (user,
   2026-10-23). Both loops now log their count about every 2% (the partner scan logged every 200
   primer sites, so a scan of 139 sites showed nothing until it ended, and sites skipped at the

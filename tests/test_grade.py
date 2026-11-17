@@ -124,8 +124,11 @@ def test_an_ambiguity_code_never_hides_a_real_failure():
     assert grade.cls == g.FAILURE and "ambiguity" in grade.note
     # the code decides between detectable and not: undetermined
     assert g.grade_primer(PRIMER, site_with({2: "Y"})).rule == "R6"
-    # beyond the last 5 nt a compatible code is a match
-    assert g.grade_primer(PRIMER, site_with({6: "Y"})).cls == g.PERFECT  # -6 is C
+    # beyond the last 5 nt a compatible code is graded both ways too (review 2026-11-17, P4):
+    # alone it is detectable either way, and the worse reading is kept
+    assert g.grade_primer(PRIMER, site_with({6: "Y"})).cls == g.TOLERATED  # -6 is C
+    assert g.grade_primer(PRIMER, site_with({17: "R"} if PRIMER[-17] in "AG" else {17: "Y"})
+                          ).cls == g.PERFECT  # beyond the tested region: a match  # fmt: skip
     # a code that cannot pair with the primer base is a plain mismatch
     assert g.grade_primer(PRIMER, site_with({1: "Y"})).rule == "R1"  # -1 is A
 
@@ -335,7 +338,64 @@ def test_an_ambiguity_code_under_the_mgb_is_not_read_as_a_match():
     probe = "CCGCAACAACTGCAGTATAT"
     at6 = probe[:-6] + "R" + probe[-5:]  # A at -6; R pairs with it or not
     assert g.grade_probe(probe, at6, mgb=True).cls == g.INDETERMINATE
-    assert g.grade_probe(probe, at6, mgb=False).cls == g.PERFECT  # beyond the last 5 nt
+    assert g.grade_probe(probe, at6, mgb=False).cls == g.TOLERATED  # detectable either way
     far = probe[:2] + "R" + probe[3:]  # G at -18 (R = A/G): outside the MGB region
     assert probe[2] == "G" and g.grade_probe(probe, far, mgb=True).cls == g.INDETERMINATE
-    assert g.grade_probe(probe, far, mgb=False).cls == g.PERFECT
+    assert g.grade_probe(probe, far, mgb=False).cls == g.TOLERATED
+
+
+def test_an_ambiguity_code_with_one_real_mismatch_is_undetermined():
+    # whole-project review 2026-11-17, P4: a code at -8 plus a mismatch at -12 read tolerated,
+    # though with the code as a mismatch R3 says at risk; the genome does not say which
+    primer = PRIMER
+    code = "R" if primer[-8] in "AG" else "Y"
+    s = site_with({8: code}, base=mutated(12))
+    graded = g.grade_primer(primer, s)
+    assert graded.cls == g.INDETERMINATE and graded.rule == "R6"
+    # an unmodified probe: one code and one real mismatch, both outside the last 5 nt
+    probe = "CCGCAACAACTGCAGTATATCGTC"
+    one = probe[:5] + ("T" if probe[5] != "T" else "A") + probe[6:]  # a mismatch at -19
+    both = one[:-10] + ("R" if probe[-10] in "AG" else "Y") + one[-9:]
+    assert g.grade_probe(probe, one, mgb=False).cls == g.TOLERATED
+    assert g.grade_probe(probe, both, mgb=False).cls == g.INDETERMINATE
+
+
+def test_mgb_named_in_the_quencher_is_graded_as_an_mgb_probe():
+    # whole-project review 2026-11-17, P5: "MGBNFQ" triggered the Tm warning but the probe was
+    # graded by the far more lenient unmodified-probe rules
+    from qpcr_assay_check.models import Oligo
+
+    from .conftest import make_assay
+
+    assert Oligo(name="P", sequence="ACGTACGTACGT", quencher="MGBNFQ").has_mgb()
+    assert Oligo(name="P", sequence="ACGTACGTACGT", modifications=["mgb"]).has_mgb()
+    assert not Oligo(name="P", sequence="ACGTACGTACGT", quencher="BHQ1").has_mgb()
+    plain, mgb = make_assay(), make_assay(probe_quencher="MGBNFQ")
+    probe = mgb.by_role("probe")[0].sequence
+    one = probe[:-2] + ("A" if probe[-2] != "A" else "C") + probe[-1]  # one mismatch at -2
+    from qpcr_assay_check.specificity.models import SiteResult
+
+    site = SiteResult(
+        id="S1", tier="target", query="probe", role="probe", oligo=probe, accession="X.1",
+        taxid=1, organism="o", title="t", orientation="+", subject_start=1,
+        subject_end=len(probe), source="blast_full", q_aln=probe, s_aln=one, midline="",
+        n_match=len(probe) - 1, n_mismatch=1, n_gap=0, n_ambiguous=0, defect_positions=[],
+        mismatches_last5=1, mismatches_last3=1, terminal_defect=False, clean_3prime_nt=1,
+        level="critical",
+    )  # fmt: skip
+    assert plain.graded(site).grade == "at_risk"  # unmodified: one mismatch in the last 5 nt
+    assert mgb.graded(site).grade == "likely_failure"  # under the MGB
+
+
+def test_an_lna_probe_is_said_to_be_graded_as_unmodified():
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.pipeline import evaluate
+
+    from .conftest import make_assay
+    from .test_variants_exhaustive import _empty_specificity
+
+    lna = make_assay(probe_quencher="BHQ1-LNA")
+    res = evaluate(lna, load_config(), specificity=_empty_specificity(), target_sites=[])
+    assert any("carries LNA" in x for x in res.overall.rationale)
+    plain = evaluate(make_assay(), load_config(), specificity=_empty_specificity(), target_sites=[])
+    assert not any("carries LNA" in x for x in plain.overall.rationale)

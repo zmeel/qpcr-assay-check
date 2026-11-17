@@ -18,7 +18,7 @@
     <article class="card stack-12">
       <div class="stack-4">
         <h3>{{ r.assay_name }}</h3>
-        <span class="small muted">Last run {{ r.date }} · {{ r.mode }} · version {{ r.tool_version }}</span>
+        <span class="small muted">Last run {{ r.date }} · {{ r.mode }} · version {{ r.tool_version }}{% if r.code %} · code <span class="mono">{{ r.code }}</span>{% endif %}</span>
       </div>
       <span class="chip chip-{{ r.css }}">{{ r.status }}</span>
       {% if r.checks %}

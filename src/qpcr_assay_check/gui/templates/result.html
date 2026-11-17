@@ -6,7 +6,7 @@
   <div class="stack-4">
     <a class="back" href="/results/{{ rec.assay_slug }}">← All runs of this assay</a>
     <h1>{{ rec.assay_name }}</h1>
-    <span class="small muted">{{ rec.generated_at[:16] | replace("T", " ") }} UTC · {{ rec.mode }} · version {{ rec.tool_version }} · record <span class="mono">{{ rec.run_id }}</span></span>
+    <span class="small muted">{{ rec.generated_at[:16] | replace("T", " ") }} UTC · {{ rec.mode }} · version {{ rec.tool_version }}{% if rec.code %} · code <span class="mono">{{ rec.code }}</span>{% endif %} · record <span class="mono">{{ rec.run_id }}</span></span>
   </div>
   <span class="chip chip-{{ rec.css }}">{{ rec.status }}</span>
 </header>

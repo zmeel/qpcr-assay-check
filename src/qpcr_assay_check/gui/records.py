@@ -55,6 +55,7 @@ class RunRecord:
     inclusivity_css: str = ""
     assessed: int | None = None  # genomes or records assessed so far (exhaustive analysis)
     listed: int | None = None
+    code: str = ""  # the first 12 characters of the code fingerprint ('' before it existed)
 
     @property
     def date(self) -> str:
@@ -98,6 +99,7 @@ def read_record(path: Path) -> RunRecord | None:
             generated_at=str(data.get("generated_at") or ""),
             mode=str(data.get("mode") or ""),
             tool_version=str((data.get("tool") or {}).get("version") or ""),
+            code=str((data.get("tool") or {}).get("code_fingerprint") or "")[:12],
             status=status,
             css=css,
             checks=checks,

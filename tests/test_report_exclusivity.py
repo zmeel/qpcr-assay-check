@@ -191,3 +191,28 @@ def test_only_primers_get_the_3prime_underline():
     assert 'class="tail"' not in _seq_html("ACGTACGTAC", 0)
     assert "tail" in _alignment_html(mk_site("forward"))
     assert "tail" not in _alignment_html(mk_site("probe"))
+
+
+def test_an_unsearched_configured_tier_never_reads_as_no_flags(n1, monkeypatch):
+    # whole-project review 2026-11-17, P2: near neighbours and human background were not
+    # searched, yet the headline could read No flags; every other section is made to pass here
+    from qpcr_assay_check import pipeline
+
+    monkeypatch.setattr(pipeline, "combine", lambda *_a, **_k: Verdict.PASS)
+    result = evaluate(
+        n1, load_config(), now=NOW, specificity=_specificity_with_exclusivity(),
+        organism_resolution=_resolution(), search_outcome=_search_outcome(),
+    )  # fmt: skip
+    assert result.overall.verdict is Verdict.INCOMPLETE
+    line = next(x for x in result.overall.rationale if "not searched in this run" in x)
+    assert "near_neighbours, background" in line and "off_target_tiers" in line
+    outcome = _search_outcome()
+    for tier in ("near_neighbours", "background"):
+        outcome.searches.append(
+            outcome.searches[0].model_copy(update={"tier": tier, "taxids": [9606]})
+        )
+    clean = evaluate(
+        n1, load_config(), now=NOW, specificity=_specificity_with_exclusivity(),
+        organism_resolution=_resolution(), search_outcome=outcome,
+    )  # fmt: skip
+    assert clean.overall.verdict is Verdict.PASS

@@ -11,11 +11,11 @@ from pathlib import Path
 
 import primer3
 
-from . import __version__
 from .config import Config
 from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
 from .oligo.qc import TM_UNRELIABLE_TOKENS, run_oligo_qc
+from .provenance import tool_info
 from .results import OverallResult, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
 from .search.planner import HUMAN_TAXID
@@ -55,6 +55,13 @@ def _inclusivity_title(inclusivity: InclusivityResult | None) -> str:
             return "Inclusivity across the intended target (all Nucleotide records)"
         return "Inclusivity across the intended target (all genome assemblies)"
     return "Inclusivity across the intended target (sampled)"
+
+
+def _unsearched_tiers(cfg: Config, outcome: SearchOutcome | None) -> list[str]:
+    """Configured off-target tiers no search of this run covered (the out-of-scope tier is
+    information only and never counts)."""
+    seen = {r.tier for r in outcome.searches} if outcome is not None else set()
+    return [t for t in cfg.specificity.off_target_tiers if t not in seen and t != "out_of_scope"]
 
 
 def _rationale(qc_findings: list[str], not_evaluated: list[str]) -> list[str]:
@@ -285,6 +292,14 @@ def evaluate(
     required = ["oligo_qc"] if qc_only else [s.key for s in sections]
     by_key: dict[str, Verdict | None] = {s.key: s.verdict for s in sections}
     verdict = combine(by_key, required)
+    unsearched = _unsearched_tiers(cfg, search_outcome) if specificity is not None else []
+    gaps = list(unsearched)
+    if human_not_searched:
+        gaps.append("human background (taxid 9606)")
+    if verdict is Verdict.PASS and gaps:
+        # missing evidence never reads as no flags (whole-project review, 2026-11-17, P2): a
+        # configured off-target tier that was not searched holds a clean result at Incomplete
+        verdict = Verdict.INCOMPLETE
     not_evaluated = [s.title for s in sections if s.key in required and s.verdict is None]
 
     if specificity is not None:
@@ -345,6 +360,13 @@ def evaluate(
         )
     if variant_note:
         findings.append(f"Variant analysis: {variant_note}")
+    if unsearched:
+        findings.append(
+            "Specificity: configured off-target tier(s) not searched in this run: "
+            f"{', '.join(unsearched)}. No flags needs every configured tier: give the assay the "
+            "taxa (e.g. near_neighbour_taxids), or remove the tier from "
+            "'specificity.off_target_tiers' if another tier covers those organisms."
+        )
     if human_not_searched:
         findings.append(
             f"Human background: no search in this run covered human (taxid {HUMAN_TAXID}), so "
@@ -362,6 +384,19 @@ def evaluate(
         )
     if inclusivity is not None and inclusivity.verdict is not Verdict.PASS:
         findings += [f"Inclusivity: {line}" for line in inclusivity.rationale]
+    lna = [
+        o.name
+        for o in assay.by_role("probe")
+        if "LNA" in o.declared_modifications(TM_UNRELIABLE_TOKENS) and not o.has_mgb()
+    ]
+    if lna and (inclusivity is not None or target_sites is not None):
+        # no rule exists for LNA probes (whole-project review, 2026-11-17, P5): say so
+        findings.append(
+            f"Probe grading: {', '.join(lna)} carries LNA and is graded with the rules for "
+            "unmodified probes, as no rule for LNA probes exists here. LNA is used to raise the "
+            "Tm and the mismatch discrimination, so these classes may be too lenient; a wet-lab "
+            "check decides."
+        )
     if not findings and verdict is Verdict.PASS:
         findings = ["No oligo QC check was outside the preferred range or the limit."]
     overall = OverallResult(
@@ -373,7 +408,7 @@ def evaluate(
     )
 
     return RunResult(
-        tool={"name": "qpcr-assay-check", "version": __version__},
+        tool=tool_info(),
         run_id=f"{assay.slug}-{now:%Y%m%dT%H%M%SZ}-{digest[:8]}",
         generated_at=now.isoformat().replace("+00:00", "Z"),
         inputs_hash=digest,

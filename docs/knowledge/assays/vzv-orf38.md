@@ -67,7 +67,9 @@ out: RNA templates of a DNA assay.
 
 # Runs
 
-None yet.
+[2026-10-23 14:53Z](../runs/vzv-2026-10-23.md), the first: no predicted off-target product;
+597 of 599 records with the region detectable (99.7%); Exceeds limit on oligo QC only (the G
+form hairpin); inclusivity Incomplete (91 records collected 2022-2025).
 
 [^assay-file]: docs/examples/vzv_orf38.yaml (provenance and checks in its header)
 [^ncbi]: Taxonomy, record counts, and the Dumas and Oka genomes, measured live

@@ -108,6 +108,12 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             ["Run ID", result.run_id],
             ["Generated (UTC)", result.generated_at],
             ["Tool version", result.tool["version"]],
+            ["Code fingerprint (SHA-256)", result.tool.get("code_fingerprint", "not recorded")],
+            [
+                "Git commit",
+                result.tool.get("git_commit", "not recorded")
+                + (" (local changes)" if result.tool.get("git_dirty") == "yes" else ""),
+            ],
             ["Inputs hash (SHA-256)", result.inputs_hash],
             ["Data sent to NCBI", "yes" if result.network_used else "no"],
             *(
