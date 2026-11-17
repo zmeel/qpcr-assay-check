@@ -74,3 +74,7 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   `qpcr-assay-check fingerprint` prints the installed code's fingerprint, which each release
   entry in CHANGELOG.md will list from v2.2.0 on, so another laboratory can confirm it runs a
   release unchanged. The image build itself was not tested here (no Docker daemon).
+- Release v2.2.0 prepared (user: "Make the release V2.2.0"): version 2.2.0, the Unreleased
+  CHANGELOG entries merged into one 2.2.0 entry (Added, Changed, Fixed) with a summary and the
+  code fingerprint `b68fa8fe...e44455`, the same as the NAS image built from commit 6085892. The
+  user sets and pushes the annotated tag.

@@ -2,6 +2,7 @@
 
 Released versions (generated from CHANGELOG.md).
 
+* [v2.2.0 (2026-11-17)](v2.2.0.md) - The analysis after two code reviews and an independent whole-project evaluation (2026-11-17).
 * [v2.1.0 (2026-10-02)](v2.1.0.md) - A browser interface for one user, behind a password, for a LAN or VPN (steps G1-G5 below): edit assay files with live checks, see the search plan and confirm it, run one assay at a time and follow its log, read the reports and download the records, and change the password and the configuration.
 * [v2.0.0 (2026-10-02)](v2.0.0.md) - A generic assay model and an exhaustive, genome-by-genome analysis replace the sampled inclusivity of 1.x.
 * [v1.5.0 (2026-09-27)](v1.5.0.md) - Release 1.5.0 of 2026-09-27.

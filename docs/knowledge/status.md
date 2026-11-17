@@ -25,18 +25,16 @@ session page (see [About this bundle](about.md)).
 
 # Released
 
-v2.1.0 (2026-10-02): the browser interface on top of the v2.0.0 analysis. Tags are pushed by the
-user; this environment cannot push tags.[^changelog]
+v2.2.0 (2026-11-17): the analysis after two code reviews and the whole-project evaluation of
+2026-11-17; every record names its code (code fingerprint
+`b68fa8fe6c8946a15c1bc1bc7a49362b868c1484327fbb56ad9c3d9348e44455`). Off-target and inclusivity
+results change against 2.1.0. Tags are set and pushed by the user.[^changelog]
+
+v2.1.0 (2026-10-02): the browser interface on top of the v2.0.0 analysis.
 
 # On main, not yet released
 
-From CHANGELOG "Unreleased":[^changelog] why each escape fails; distinct site patterns; the
-collection year as an optional status axis with the 25% undated limit; why a cut genome has no
-judged site; a fragment not in the assembly counts as region not found; terminal G2 at risk;
-one mismatch under the MGB likely failure; narrower whole-fragment tables; search limits, RNA
-note and homopolymer range in the report; this knowledge bundle; the seven fixes of the code
-review of 2026-11-17 ([session](sessions/2026-11-17-01-code-review-fixes.md)). No release has
-been decided.
+Nothing since v2.2.0.
 
 # Latest runs
 
