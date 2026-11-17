@@ -83,3 +83,29 @@ def test_an_old_record_without_a_fingerprint_still_renders():
     result = evaluate(make_assay(), cfg, qc_only=True)
     old = result.model_copy(update={"tool": {"name": "qpcr-assay-check", "version": "2.1.0"}})
     assert "code fingerprint not recorded" in render_report(old, cfg)
+
+
+def test_the_fingerprint_command_prints_what_the_records_carry(monkeypatch):
+    from typer.testing import CliRunner
+
+    from qpcr_assay_check.cli import app
+
+    monkeypatch.setenv("QAC_GIT_COMMIT", "abc123")
+    monkeypatch.setenv("QAC_GIT_DIRTY", "no")
+    provenance.code_fingerprint.cache_clear()
+    provenance.git_revision.cache_clear()
+    out = CliRunner().invoke(app, ["fingerprint"])
+    assert out.exit_code == 0
+    assert provenance.code_fingerprint() in out.output and "commit:           abc123" in out.output
+
+
+def test_the_image_takes_the_commit_from_the_build():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    docker = (root / "Dockerfile").read_text()
+    compose = (root / "docker-compose.yml").read_text()
+    assert "ENV QAC_GIT_COMMIT=$QAC_GIT_COMMIT QAC_GIT_DIRTY=$QAC_GIT_DIRTY" in docker
+    assert "QAC_GIT_COMMIT: ${QAC_GIT_COMMIT:-unknown}" in compose
+    script = (root / "scripts" / "build_gui.sh").read_text()
+    assert "QAC_GIT_COMMIT=$commit QAC_GIT_DIRTY=$dirty docker compose build" in script

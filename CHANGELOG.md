@@ -4,7 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/). Every release is tagged `vX.Y.Z`.
 
+From v2.2.0 on, each release entry names its **code fingerprint**: the SHA-256 over every file of
+the installed package (code, report templates, default limits) that every evaluation record
+carries. `qpcr-assay-check fingerprint` prints the fingerprint of an installation; when it equals
+a release's, that installation is the release, unchanged, wherever it runs.
+
 ## [Unreleased]
+
+### Added
+- **`qpcr-assay-check fingerprint`**: version, code fingerprint and commit of the installed code,
+  to compare with the fingerprint a release lists here.
+- **`scripts/build_gui.sh`**: builds the GUI image with the commit it comes from (Docker build
+  arguments `QAC_GIT_COMMIT`, `QAC_GIT_DIRTY`), so GUI records name the commit too, then
+  restarts the GUI and prints the fingerprint. A plain `docker compose build` still works; its
+  records say "commit not known".
 
 ### Changed
 - **The rest of the whole-project review of 2026-11-17:**

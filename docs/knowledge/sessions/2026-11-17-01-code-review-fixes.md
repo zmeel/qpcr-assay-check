@@ -69,3 +69,8 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   and an unequal pair is graded by level instead of stopping the run.
 - The VZV rerun on the fixed code (14:31Z) recorded ([run](../runs/vzv-2026-11-17.md)): coverage
   complete, the same figures, the window now 2023-2026 (75 records collected, Incomplete).
+- Code identity for GUI runs and other laboratories (user: "build both"): `scripts/build_gui.sh`
+  builds the GUI image with the commit (Docker build arguments), so GUI records name it; and
+  `qpcr-assay-check fingerprint` prints the installed code's fingerprint, which each release
+  entry in CHANGELOG.md will list from v2.2.0 on, so another laboratory can confirm it runs a
+  release unchanged. The image build itself was not tested here (no Docker daemon).

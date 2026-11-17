@@ -14,6 +14,13 @@ RUN pip install --no-cache-dir --no-compile ".[gui]"
 
 FROM python:3.12-slim
 
+# Which commit the image was built from, for every record it makes (scripts/build_gui.sh passes
+# them; a plain `docker compose build` leaves "unknown", and the code fingerprint still names the
+# code). Read by qpcr_assay_check.provenance.
+ARG QAC_GIT_COMMIT=unknown
+ARG QAC_GIT_DIRTY=unknown
+ENV QAC_GIT_COMMIT=$QAC_GIT_COMMIT QAC_GIT_DIRTY=$QAC_GIT_DIRTY
+
 # Match the build stage's installed site-packages and console script without repeating the build.
 COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=build /usr/local/bin/qpcr-assay-check /usr/local/bin/qpcr-assay-check

@@ -81,13 +81,20 @@ record per assay and the recent records under `work/results`) and the Assays pag
 echo "QAC_UID=$(id -u)" >> .env; echo "QAC_GID=$(id -g)" >> .env
 # optional: another port on the NAS when 8080 is taken (the GUI is then at :8880)
 echo "QAC_PORT=8880" >> .env
-docker compose build
+sh scripts/build_gui.sh   # docker compose build with the commit for the records, then up -d
 # set the password once (asked twice; at least 10 characters). Only a salted scrypt hash is kept,
 # with the session key, in work/gui/auth.json (mode 0600; work/ is not in git)
 docker compose run --rm gui gui set-password --work /work
 docker compose up -d
 # open http://<nas-address>:8080 (or the QAC_PORT you chose)
 ```
+
+After a `git pull`, `sh scripts/build_gui.sh` rebuilds and restarts the GUI. Every record names
+the code that made it: a code fingerprint (SHA-256 over the installed package) and the commit the
+image was built from. A plain `docker compose build` works too, but its records say "commit not
+known". `qpcr-assay-check fingerprint` (in the container: `docker compose run --rm gui
+fingerprint`) prints the installed code's fingerprint; from v2.2.0 on CHANGELOG.md lists each
+release's, so a laboratory can confirm it runs a release unchanged.
 
 Without Docker: `pip install 'qpcr-assay-check[gui]'`, then
 `qpcr-assay-check gui set-password --work work` and `qpcr-assay-check gui serve --work work`

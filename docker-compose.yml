@@ -3,7 +3,7 @@
 #
 #   echo "QAC_UID=$(id -u)" >> .env; echo "QAC_GID=$(id -g)" >> .env   # once: run as you
 #   echo "QAC_PORT=8880" >> .env   # optional: another port when 8080 is taken on the NAS
-#   docker compose build
+#   sh scripts/build_gui.sh          # docker compose build, with the commit for the records
 #   docker compose run --rm gui gui set-password --work /work
 #   docker compose up -d
 #
@@ -11,7 +11,11 @@
 # Then open http://<nas-address>:8080 (or QAC_PORT). NCBI_EMAIL / NCBI_API_KEY come from .env (gitignored).
 services:
   gui:
-    build: .
+    build:
+      context: .
+      args:  # the commit the image is built from (scripts/build_gui.sh sets them)
+        QAC_GIT_COMMIT: ${QAC_GIT_COMMIT:-unknown}
+        QAC_GIT_DIRTY: ${QAC_GIT_DIRTY:-unknown}
     image: qpcr-assay-check
     command: ["gui", "serve", "--host", "0.0.0.0", "--port", "8080", "--work", "/work",
               "--examples", "/examples"]

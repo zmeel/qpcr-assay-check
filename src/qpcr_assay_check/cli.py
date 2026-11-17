@@ -88,6 +88,24 @@ def build_assay(path: Path | None, overrides: dict[str, Any]) -> Assay:
 
 
 @app.command()
+def fingerprint() -> None:
+    """Show which code is installed: version, code fingerprint and commit.
+
+    The fingerprint is a SHA-256 over every file of the installed package (code, report
+    templates, default limits); every record carries it. Compare it with the fingerprint listed
+    for a release in CHANGELOG.md to confirm that this installation is that release, unchanged.
+    """
+    from .provenance import PACKAGE_DIR, tool_info
+
+    info = tool_info()
+    dirty = {"yes": " (with local changes)", "no": ""}.get(info["git_dirty"], "")
+    typer.echo(f"qpcr-assay-check {info['version']}")
+    typer.echo(f"code fingerprint: {info['code_fingerprint']}")
+    typer.echo(f"commit:           {info['git_commit']}{dirty}")
+    typer.echo(f"installed at:     {PACKAGE_DIR}")
+
+
+@app.command()
 def validate(
     assay_file: Annotated[
         Path, typer.Argument(exists=True, dir_okay=False, help="Assay YAML file.")

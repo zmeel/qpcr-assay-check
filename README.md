@@ -111,7 +111,7 @@ the same Docker image behind a password:
 
 ```bash
 echo "QAC_UID=$(id -u)" >> .env; echo "QAC_GID=$(id -g)" >> .env
-docker compose build
+sh scripts/build_gui.sh     # docker compose build, with the commit each record names
 docker compose run --rm gui gui set-password --work /work
 docker compose up -d        # http://<host>:8080 (QAC_PORT in .env for another port)
 ```
