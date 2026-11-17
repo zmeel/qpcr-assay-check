@@ -146,9 +146,10 @@ settings:                                  # only what differs from the defaults
 #   probe_site:
 #     critical: {max_mismatches: 3, max_gaps: 0, min_clean_3prime_nt: 0}
 #     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
-#   probe_binds_if: critical       # site level a probe needs for 'likely detected'
+#   graded_off_target: true        # R1-R9 classes also decide off-target priming/binding
+#   probe_binds_if: critical       # level a probe needs when its class does not decide
 #   severity:                      # FAIL | WARN | INFO per finding
-#     primer_site_critical: FAIL           # in a predicted product
+#     primer_site_critical: WARN           # in a predicted product (FAIL: as for detection)
 #     primer_site_critical_no_product: WARN
 #     primer_site_warning: WARN
 #     probe_site_critical: INFO            # a probe signals only inside a product

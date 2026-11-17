@@ -360,6 +360,7 @@ class SpecificitySettings(_Strict):
     primer_site: SiteRules
     probe_site: SiteRules
     probe_binds_if: Literal["critical", "warning"]
+    graded_off_target: bool = True  # R1-R9 decide off-target priming and binding (P3)
     severity: SeverityMap
     eukaryote_taxids: list[int]
     partner_scan_max_windows: int = 1000

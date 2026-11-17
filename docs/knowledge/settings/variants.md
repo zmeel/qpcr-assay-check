@@ -57,7 +57,7 @@ variants:
                                    #   and chromosome-level genomes of the run (median; at least 5
                                    #   of them, median 2 or more), counts as undetermined "copies
                                    #   possibly unassembled" unless one of those fails the same
-                                   #   way (also in the panel command);
+                                   #   way (also in the panel command). off = the class decides
   # A located region counts as a copy of the locus when ANY of (a), (b), (c) holds; weaker
   # regions are listed, never judged. Measured (2026-09-28/29): chance regions reach at most 18
   # anchored bases and identity 0.54-0.60; true copies of a divergent species 114+ bases.
@@ -79,7 +79,6 @@ variants:
                                    #   off = "cut by a contig end" (undetermined). The sites may
                                    #   come from different copies, so this is never proof of one
                                    #   amplicon
-                                   #   off = counted as an escape
 ```
 
 [^default-config]: Packaged default configuration

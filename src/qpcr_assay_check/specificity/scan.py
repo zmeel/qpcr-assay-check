@@ -23,7 +23,7 @@ from ..config import SpecificitySettings
 from ..models import Assay
 from .fetch import WindowFetcher
 from .models import AmpliconResult, PartnerScan, SiteResult
-from .pairing import oligo_of, site_quality
+from .pairing import grade_site, oligo_of, primer_can_prime, probe_binds, site_quality
 from .sites import oriented_window, site_from_scan
 
 log = logging.getLogger(__name__)
@@ -76,6 +76,12 @@ def _quality(s: SiteResult) -> tuple[int, int]:
     """Best scanned site first (new sites have no id yet): fewest mismatches and gaps, then the
     longest clean 3' end."""
     return site_quality(s)[:2]
+
+
+def _acts(s: SiteResult, rules: SpecificitySettings) -> bool:
+    """A scanned site worth adding: one that can prime or bind (its graded class), or one of at
+    least warning level (shown even when it cannot act)."""
+    return s.level != "minor" or primer_can_prime(s) or probe_binds(s, rules)
 
 
 def _faces(anchor: SiteResult, other: SiteResult) -> bool:
@@ -145,6 +151,8 @@ class PartnerScanner:
                 anchor, label=label, role=role, oligo=self.queries[label], orientation=o,
                 aln=aln, w_lo=w_lo, w_len=len(window), rules=site_rules, site_id="S0", note=note,
             )  # fmt: skip
+            if self.rules.graded_off_target:
+                grade_site(s, self.assay)
             if not accept(s):
                 continue
             key = (_LEVEL_RANK[s.level], s.n_mismatch + s.n_gap)
@@ -198,7 +206,7 @@ class PartnerScanner:
                     s for s in (
                         self._best(
                             label, part, p_lo, (facing,), anchor, partner_role, note,
-                            accept=lambda s, a=anchor: s.level != "minor" and _faces(a, s),
+                            accept=lambda s, a=anchor: _acts(s, self.rules) and _faces(a, s),
                         ) for label in labels
                     ) if s is not None
                 ]  # fmt: skip
@@ -253,7 +261,7 @@ class PartnerScanner:
                     s for s in (
                         self._best(
                             label, product, a.start, ("+", "-"), anchor, "probe", note,
-                            accept=lambda s: s.level != "minor",
+                            accept=lambda s: _acts(s, self.rules),
                         ) for label in labels
                     ) if s is not None
                 ]  # fmt: skip

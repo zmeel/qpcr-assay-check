@@ -301,8 +301,7 @@ the classes. Read since (2026-10-02):
   classes; homopolymer bulges follow `homopolymer_bulges_detectable`. An MGB probe with 2 or more
   mismatches is `likely_failure` (R9).
 - Copies/escapes: a genome's best copy is chosen by the class (then as now).
-- History: a class change for a known variant is a history event (not built yet; the history
-  compares the per-year detectable percentages).
+- History: dropped in the overhaul (user, 2026-09-29); each record stands on its own.
 - No switch back to the old rule (kept simple). Records made before the classes still load: their
   inclusivity windows have no class counts and keep the old "0-1 mismatch, clean 3' end" figure,
   so the first comparison with such a record shows a change once.
@@ -318,9 +317,9 @@ the classes. Read since (2026-10-02):
   is `at_risk` and poly-A 9 (two bases) `likely_failure` (R5b), with the count under both
   homopolymer settings. Live 2026-09-25: 68.9% detectable strict, 85.7% with bulges tolerated.
 - **Enterovirus forward primer F2 on Poliovirus 2 UGA_22 records (3 mismatches, 3' end intact)**:
-  R3 -> `at_risk` if none in the last 5 nt (our encoding; Lefever's 3-mismatch median is about 15
-  dCq, so this may understate). The positions of the 3 mismatches within F2 still have to be
-  shown from the records.
+  three mismatches within the 3'-most 16 nt are `likely_failure` under R3 (since 2026-09-30;
+  Lefever's 3-mismatch median is about 15 dCq); mismatches beyond -16 are counted apart (R3b).
+  The positions of the 3 mismatches within F2 still have to be shown from the records.
 
 ## 9. Built, and still open
 
@@ -332,9 +331,11 @@ the class on every variant row, tests per rule.
 Still open:
 1. Check Table 1 once more against the PDF (the encoded cells are in `oligo/grade.py`).
 2. Kutyavin 2000 (MGB probes): done 2026-10-02 (R9 position-aware).
-3. R7 (degenerate primers) is only a note; the pair flag at >= 4 mismatches in total is not shown
-   yet.
-4. A live rerun of the NG and enterovirus assays to see the classes on real data.
+3. R7 (degenerate primers) is only a note. The pair flag: since 3 mismatches in one primer are
+   already `likely_failure` (R3), the one case it adds is 2 + 2, flagged in the rationale since
+   2026-11-17 (class unchanged).
+4. Live reruns: Neisseria (2026-10-02) and others show the classes on real data; an enterovirus
+   rerun with the MGB region rule is still open.
 
 ## 11. Calibration against wet-lab data (Otwell et al. 2025)
 
@@ -382,7 +383,10 @@ validation of the software for a laboratory's own conditions.
 
 ## 10. Stadhouders Table 1 (p. 116), as the lookup to encode
 
-Checked against the PDF by the advisor (2026-09-25). Mismatches are primer-template. `taq_dna`
+Recorded on 2026-09-25 as checked against the PDF by an advisor subagent; the theory reviews of
+2026-10-01 could not obtain the PDF, so a cell-by-cell check by the user stays open
+(`docs/knowledge/open/stadhouders-table-check.md`) until it is confirmed. Mismatches are
+primer-template. `taq_dna`
 ("standard") applies to both primers; `taq_mmlv` is the column "Real-time RT-PCR using specific
 reverse primer (Taq DNA polymerase)", `rtth` the column "rTth DNA polymerase-based real-time PCR
 using specific reverse primer". Footnote as printed: "Mismatches were designated as acceptable

@@ -74,6 +74,12 @@ class FragmentYear(BaseModel):
         description="of the undetermined: region there, but cut by a contig end or hidden by N, "
         "so no site could be judged",
     )
+    possible_deletion: int = Field(
+        default=0,
+        description="genomes without the region that should have it: a complete assembly, or a "
+        "record with the sequence on both sides of the region; not in with_region, but counted "
+        "as not detected in the status (whole-project review 2026-11-17, P6)",
+    )
     label: str = Field(default="", description="row name when not a year (collection axis)")
 
 
@@ -135,11 +141,18 @@ class FragmentWindow:
     unassembled: int = 0  # of the undetermined: copies possibly unassembled
     from_parts: int = 0  # of the undetermined: detectable from parts
     unjudged: int = 0  # of the undetermined: region cut by a contig end or hidden by N
+    possible_deletion: int = 0  # without the region where it should be: not detected
 
     @property
     def n(self) -> int:
-        """The base of the percentages: records with the region, undetermined left out."""
-        return self.with_region - self.undetermined
+        """The base of the percentages: records with the region, undetermined left out, and the
+        possible deletions, counted as not detected."""
+        return self.with_region - self.undetermined + self.possible_deletion
+
+    @property
+    def not_detected(self) -> int:
+        """Likely failures and possible deletions: the share the status counts as escapes."""
+        return self.likely_failure + self.possible_deletion
 
     @property
     def percent(self) -> float | None:
@@ -156,7 +169,7 @@ def fragment_window(
     that is no longer sequenced is not judged on old years (code review, 2026-11-17: the HSV-1
     status was judged on genomes collected 2020-2023). A window without data has ``n`` 0.
     """
-    if not any(y.with_region for y in years):
+    if not any(y.with_region or y.possible_deletion for y in years):
         return None
     if last is None:
         last = max(y.year for y in years)
@@ -173,6 +186,7 @@ def fragment_window(
         unassembled=sum(y.unassembled for y in window),
         from_parts=sum(y.from_parts for y in window),
         unjudged=sum(y.unjudged for y in window),
+        possible_deletion=sum(y.possible_deletion for y in window),
     )
 
 

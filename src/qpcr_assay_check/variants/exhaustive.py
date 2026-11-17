@@ -34,6 +34,7 @@ from ..inclusivity.aggregate import _stats
 from ..inclusivity.models import (
     CollectionAxis,
     DistinctPatterns,
+    FragmentWindow,
     FragmentYear,
     InclusivityOligoResult,
     InclusivityResult,
@@ -1178,9 +1179,11 @@ def _fragment_years(
     sites: list[SiteResult], year_of: dict[str, int | None], listed: dict[int, int],
     shown: list[int], bulges: bool, unassembled: set[str] | None = None,
     from_parts: set[str] | None = None, unjudged: set[str] | None = None,
+    deletions: set[str] | None = None,
 ) -> list[FragmentYear]:  # fmt: skip
     """Per year, each genome's outcome from its three best-copy sites together, as in the
-    whole-fragment table (user, 2026-09-25: one summary next to the per-oligo tables)."""
+    whole-fragment table (user, 2026-09-25: one summary next to the per-oligo tables).
+    ``deletions``: genomes without the region where it should be (possible deletions)."""
     by_genome: dict[str, dict[str, SiteResult]] = defaultdict(dict)
     for s in sites:
         by_genome[s.accession][s.role] = s
@@ -1214,6 +1217,10 @@ def _fragment_years(
             row.with_region += 1
             row.undetermined += 1
             row.unjudged += 1
+    for acc in deletions or ():
+        row = out.get(year_of.get(acc))  # type: ignore[arg-type]
+        if row is not None:
+            row.possible_deletion += 1
     return [out[y] for y in shown]
 
 
@@ -1352,7 +1359,7 @@ def collection_bucket(items: list[StoredAssembly], shown: list[int]) -> dict[str
 def collection_axis(
     sites: list[SiteResult], items: list[StoredAssembly], shown: list[int], bulges: bool,
     unassembled: set[str] | None = None, from_parts: set[str] | None = None,
-    unjudged: set[str] | None = None,
+    unjudged: set[str] | None = None, deletions: set[str] | None = None,
 ) -> CollectionAxis | None:  # fmt: skip
     """The genomes released in the window ``shown``, by collection year (user, 2026-09-30: a
     batch of old samples uploaded late must not make an old lineage look new)."""
@@ -1362,7 +1369,7 @@ def collection_axis(
     bucket = collection_bucket(items, shown)
     keys = [*range(first, last + 1), _EARLIER, _UNDATED, _NOT_READ]
     rows = {r.year: r for r in _fragment_years(sites, bucket, {}, keys, bulges, unassembled,
-                                                from_parts, unjudged)}  # fmt: skip
+                                                from_parts, unjudged, deletions)}  # fmt: skip
     for key, label in ((_EARLIER, f"before {first}"), (_UNDATED, "no usable date"),
                        (_NOT_READ, "not read yet")):  # fmt: skip
         rows[key].label = label
@@ -1468,14 +1475,22 @@ def fragment_verdict(
     if w is None:
         return Verdict.INCOMPLETE, ["No genome with the target region in the years shown."]
     n, undet = w.n, w.undetermined
-    det, risk, fail = w.detectable, w.at_risk, w.likely_failure
+    det, risk, fail = w.detectable, w.at_risk, w.not_detected
     span = f"{w.first}-{w.last}"
     if n < rules.min_genomes_for_verdict:
-        return Verdict.INCOMPLETE, [
-            f"Too few recent genomes to judge: {n} with the target region {done} {span} "
-            f"(at least {rules.min_genomes_for_verdict} needed; setting "
-            "inclusivity.min_genomes_for_verdict)."
-        ]
+        return (
+            Verdict.INCOMPLETE,
+            [
+                f"Too few recent genomes to judge: {n} with the target region {done} {span} "
+                + (
+                    f"({w.possible_deletion} of them without the region where it should be) "
+                    if w.possible_deletion
+                    else ""
+                )  # fmt: skip
+                + f"(at least {rules.min_genomes_for_verdict} needed; setting "
+                "inclusivity.min_genomes_for_verdict)."
+            ],
+        )
     pct = 100.0 * det / n
     total = n + undet
     share = 100.0 * undet / total if total else 0.0
@@ -1487,7 +1502,15 @@ def fragment_verdict(
         + (f", of which {w.unassembled} with copies possibly unassembled" if w.unassembled else "")
         + (f", {w.from_parts} detectable from parts" if w.from_parts else "")
         + (f", {w.unjudged} with the region cut or hidden by N" if w.unjudged else "")
-        + "). The per-oligo and per-year figures are "
+        + ")"
+        + (
+            f"; {w.possible_deletion} without the region where it should be (possible deletions:"
+            " a complete assembly, or the sequence on both sides of the region) are counted as"
+            " likely failure"
+            if w.possible_deletion
+            else ""
+        )
+        + ". The per-oligo and per-year figures are "
         "diagnostics; the status uses the whole fragment over this window."
     ]
     if undet:
@@ -1520,7 +1543,7 @@ def fragment_verdict(
         verdict, why = Verdict.PASS, ""
     if verdict is Verdict.PASS:  # only a year inside the window, and only when it changes things
         for y in w.years:
-            n_y = y.with_region - y.undetermined
+            n_y = y.with_region - y.undetermined + y.possible_deletion
             if n_y >= rules.min_genomes_per_year:
                 p_y = 100.0 * y.detectable / n_y
                 if p_y < rules.fail_below_percent:
@@ -1542,6 +1565,53 @@ def fragment_verdict(
     return verdict, lines
 
 
+def _pair_lines(
+    sites: list[SiteResult], year_of: dict[str, int], w: FragmentWindow,
+    unassembled: set[str], from_parts: set[str], *, rna: bool, unit: str,
+) -> list[str]:  # fmt: skip
+    """Two information lines over the status window (whole-project review, 2026-11-17).
+
+    P10: a primer pair with 2 + 2 mismatches in the 3'-most 16 nt. Each primer alone is at risk
+    (R3), and R8 names no rule for it, but Lefever 2013 Fig. 6 shows a median of about 15 dCq for
+    2/2 (read from the figure, docs/MISMATCH_CLASSES.md R8): flagged, the class unchanged.
+    P9 (RNA assays): genomes that fail through the reverse primer alone. In one-step RT-PCR the
+    reverse primer also primes the reverse transcription; Stadhouders 2010 found all 24 tested
+    reverse-primer mismatches cost under 0.7 Ct with Taq + MMLV (R4, not encoded)."""
+    by_genome: dict[str, dict[str, SiteResult]] = defaultdict(dict)
+    for s in sites:
+        if w.first <= year_of.get(s.accession, _NOT_READ) <= w.last:
+            by_genome[s.accession][s.role] = s
+    two_two = reverse_only = 0
+    for acc, roles in by_genome.items():
+        if len(roles) < len(ROLES) or acc in from_parts or acc in unassembled:
+            continue
+        f, r = roles["forward"], roles["reverse"]
+        if grade.tested_mismatches(f) == 2 and grade.tested_mismatches(r) == 2:
+            two_two += 1
+        ok = {role: s.grade in grade.DETECTABLE for role, s in roles.items()}
+        if ok["forward"] and ok["probe"] and not ok["reverse"]:
+            reverse_only += 1
+    out = []
+    if two_two:
+        out.append(
+            f"Primer pair: {two_two} {unit} in the status window carry 2 mismatches in each "
+            "primer's 3'-most 16 nt. Each primer alone is at risk (R3) and R8 states no rule for "
+            "2 + 2, but Lefever 2013 (Fig. 6) shows a median of about 15 dCq for such pairs (read "
+            "from the figure): their class may understate the effect; a wet-lab check decides."
+        )
+    if rna and reverse_only and w.n:
+        better = 100.0 * (w.detectable + reverse_only) / w.n
+        out.append(
+            f"RNA assay: {reverse_only} {unit} in the status window fail through the reverse "
+            "primer alone (forward primer and probe detectable). The classes come from PCR on "
+            "DNA; in one-step RT-PCR the reverse primer also primes the reverse transcription, "
+            "and Stadhouders 2010 found all 24 tested reverse-primer mismatches cost under 0.7 Ct "
+            f"with Taq and MMLV (R4, not encoded). If they all amplified, {better:.1f}% would be "
+            f"detectable instead of {w.percent:.1f}%; the laboratory's mix decides."
+        )
+    return out
+
+
 def exhaustive_inclusivity(
     sites: list[SiteResult],
     items: list[StoredAssembly],
@@ -1555,8 +1625,12 @@ def exhaustive_inclusivity(
     unjudged: set[str] | None = None,
     other_rule: set[str] | None = None,
     coverage_complete: bool = True,
+    possible_deletions: set[str] | None = None,
+    current_year: int | None = None,
 ) -> InclusivityResult:
     """Per-release-year inclusivity over every assessed assembly (not a sample).
+    ``possible_deletions``: genomes without the region where it should be (a complete assembly,
+    or a record with the sequence on both sides), counted as not detected in the status.
     ``other_rule``: genomes with a copy detectable under the other homopolymer-bulge setting,
     for the status window's figure under both settings (theory reviews 2026-10-01).
     ``unassembled``: genomes whose copies are possibly unassembled (:func:`mark_unassembled`),
@@ -1565,6 +1639,11 @@ def exhaustive_inclusivity(
     too, as in the channels."""
     year_of = {it.accession: it.year for it in items}
     listed = {y.year: y.listed for y in years}
+    if listed and current_year is not None and current_year > max(listed):
+        # the listing has rows only for years with records: the run's own year is added, so
+        # the status window ends at the current year even when nothing was released in it
+        # (whole-project review, 2026-11-17, P8)
+        listed[current_year] = 0
     lookback = cfg.inclusivity.lookback_years
     shown = sorted(listed)[-lookback:] if listed else []
     oligos: list[InclusivityOligoResult] = []
@@ -1579,13 +1658,15 @@ def exhaustive_inclusivity(
         oligo = " / ".join(o.sequence for o in assay.by_role(role))
         oligos.append(InclusivityOligoResult(role=role, oligo=oligo, windows=windows))
     bulges = cfg.variants.homopolymer_bulges_detectable
+    deleted = possible_deletions or set()
     fragment_years = _fragment_years(
         sites, year_of, listed, shown, bulges,
-        unassembled or set(), from_parts or set(), unjudged or set(),
+        unassembled or set(), from_parts or set(), unjudged or set(), deleted,
     )  # fmt: skip
     collection = collection_axis(
-        sites, items, shown, bulges, unassembled or set(), from_parts or set(), unjudged or set()
-    )
+        sites, items, shown, bulges, unassembled or set(), from_parts or set(), unjudged or set(),
+        deleted,
+    )  # fmt: skip
     axis = cfg.inclusivity.status_axis
     by_collection = axis == "collection"
     status_rows = (collection.years if collection else []) if by_collection else fragment_years
@@ -1624,6 +1705,11 @@ def exhaustive_inclusivity(
                 from_parts or set(), other_rule,
             )  # fmt: skip
             rationale += _bulge_line(alternative, w.percent, bulges)
+        rationale += _pair_lines(
+            sites, axis_year, w, unassembled or set(), from_parts or set(),
+            rna=assay.template_type.value == "RNA", unit="assemblies" if source == "datasets"
+            else "records",
+        )  # fmt: skip
     rationale += [
         f"{y.year}: {y.listed} "
         + (
@@ -2016,6 +2102,13 @@ def run_exhaustive(
     parts_undetermined = {a for a, o in outcomes.items() if o == GenomeOutcome.FROM_PARTS}
     not_found = [it for it in items if it.status == "not_found" and it.accession not in related]
     not_located = set(flanked)
+    # without the region where it should be: counted as not detected in the status, as the
+    # channels already did (whole-project review, 2026-11-17, P6). A complete assembly without
+    # it, or any record with the sequence on both sides of the region but no copy of it.
+    possible_deletions = not_located | {
+        it.accession for it in not_found
+        if source == "datasets" and it.assembly_level in COMPLETE_LEVELS
+    }  # fmt: skip
     by_fallback = [it.accession for it in items if it.status == "found" and it.loci
                    and all(lc.fallback for lc in it.loci)]  # fmt: skip
     found_loci = [it.loci[0] for it in items if it.status == "found" and it.loci]
@@ -2039,6 +2132,7 @@ def run_exhaustive(
         listed_total=total,
         assessed_total=len(items),
         listing_complete=store.listing_complete,
+        unavailable_limit_percent=cfg.inclusivity.max_undetermined_percent,
         not_listed_now=not_listed,
         not_listed_examples=sorted(set(store.items) - set(pool))[:10],
         processed_this_run=processed,
@@ -2095,6 +2189,8 @@ def run_exhaustive(
         unassembled=unassembled, from_parts=parts_undetermined, unjudged=unjudged,
         other_rule={c.accession for c in calls if c.n_detectable_other_rule > 0},
         coverage_complete=coverage.complete,
+        possible_deletions=possible_deletions,
+        current_year=(now or datetime.now(UTC)).year,
     )  # fmt: skip
     missing = coverage.not_found + coverage.related_only
     if coverage.contig_break or coverage.masked:
@@ -2135,13 +2231,12 @@ def run_exhaustive(
             year_of = {it.accession: int(it.release_date[:4]) for it in items}
         k = sum(1 for acc in not_located if w.first <= year_of.get(acc, _NOT_READ) <= w.last)
         if k:
-            worst = 100.0 * w.detectable / (w.n + k)
             inclusivity.rationale.append(
                 f"{k} {'record' if source != 'datasets' else 'genome'}(s) "
                 f"{'collected' if by_collection else 'released'} "
                 f"{w.first}-{w.last} carry the sequence either side of the region but no "
-                "locatable copy of the fragment (not in the counts above): if all were escapes, "
-                f"{worst:.1f}% would be detectable instead of {w.percent:.1f}%."
+                "locatable copy of the fragment: counted as likely failure in the status "
+                "(possible deletions), so the figure above is the worst case for them."
             )
     if coverage.target_on_plasmid and coverage.not_found_with_plasmid:
         inclusivity.rationale.append(

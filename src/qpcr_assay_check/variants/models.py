@@ -255,6 +255,11 @@ class ExhaustiveCoverage(BaseModel):
         "replaced, or outside variants.nucleotide_query): left out of the figures",
     )
     not_listed_examples: list[str] = Field(default_factory=list)
+    unavailable_limit_percent: float = Field(
+        default=100.0,
+        description="the most unavailable records, in % of those listed, coverage can carry and "
+        "still be complete (inclusivity.max_undetermined_percent; review 2026-11-17, P6)",
+    )
     processed_this_run: int
     download_failed_this_run: int
     unavailable: int = Field(
@@ -353,4 +358,14 @@ class ExhaustiveCoverage(BaseModel):
     def complete(self) -> bool:
         """Every listed record assessed (or unavailable), counted over a whole listing: a
         listing cut short by the per-run budget may hide records not yet assessed."""
-        return self.listing_complete and self.assessed_total + self.unavailable >= self.listed_total
+        return (
+            self.listing_complete
+            and self.assessed_total + self.unavailable >= self.listed_total
+            and not self.too_many_unavailable
+        )
+
+    @property
+    def too_many_unavailable(self) -> bool:
+        """More records could not be downloaded than the undetermined limit allows: missing
+        evidence, so the coverage is never complete (whole-project review, 2026-11-17, P6)."""
+        return 100.0 * self.unavailable > self.unavailable_limit_percent * self.listed_total

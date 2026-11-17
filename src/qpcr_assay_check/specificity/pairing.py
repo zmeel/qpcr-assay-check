@@ -72,18 +72,69 @@ def _who(site: SiteResult) -> str:
     return site.role if name == site.role else name
 
 
+#: Classes under which an off-target site acts whatever its level: the grading expects little
+#: or no effect (e.g. a terminal G3 mismatch, R1 tolerated, which the count-based levels called
+#: minor because no 3' base is clean).
+GOOD = frozenset({"perfect", "tolerated"})
+
+
+def _acts_by_grade(site: SiteResult, strong: bool) -> bool:
+    """Both rule sets together (whole-project review, 2026-11-17, P3): a site graded likely
+    failure never acts (e.g. 3 primer mismatches in the 3'-most 16 nt, R3; one mismatch under an
+    MGB, R9); a site graded perfect or tolerated always does; at risk and indeterminate act at a
+    level that acted before (``strong``). The R1-R9 classes rest on near-identical target
+    sequences and count primer mismatches only in the 3'-most 16 nt, so for a distant off-target
+    sequence the level still bounds the rest."""
+    if site.grade == "likely_failure":
+        return False
+    return site.grade in GOOD or strong
+
+
+def grade_site(site: SiteResult, assay: Assay) -> None:
+    """Give an off-target site the class the assay's own target sites get (R1-R9; MGB rules for
+    an MGB probe), so one rule set decides priming and binding everywhere (whole-project review,
+    2026-11-17, P3: the count-based levels called a single mismatch at -1 to -3 unable to prime,
+    though R1 grades some of those tolerated, and let a probe with 3 mismatches bind, MGB probes
+    included). A site that already has a class keeps it."""
+    if site.grade is not None or not site.q_aln or not site.s_aln:
+        return
+    from ..oligo.grade import grade_fields
+
+    name = oligo_of(site.query)
+    o = next((x for x in assay.oligo_list if x.name == name), None)
+    # an unread base (N) is no evidence of binding off target: a mismatch, as in the partner
+    # scan, not an ambiguity code to grade both ways (a run of N would otherwise "prime")
+    s_aln = site.s_aln.upper().replace("N", ".")
+    fields = grade_fields(site.q_aln, s_aln, site.role, mgb=o is not None and o.has_mgb())
+    for key, value in fields.items():
+        setattr(site, key, value)
+
+
 def primer_can_prime(site: SiteResult) -> bool:
-    """A primer site at critical or warning level is assumed able to prime."""
-    return site.role in ("forward", "reverse") and site.level != "minor"
+    """Can an off-target primer site prime? With a graded class: never when likely failure,
+    always when perfect or tolerated, else at critical or warning level (:func:`_acts_by_grade`);
+    without one (``specificity.graded_off_target: false``), by level alone."""
+    if site.role not in ("forward", "reverse"):
+        return False
+    if site.grade is not None:
+        return _acts_by_grade(site, site.level != "minor")
+    return site.level != "minor"
 
 
 def probe_binds(site: SiteResult, rules: SpecificitySettings) -> bool:
-    """Does a probe site reach the level configured as 'binds well enough to give signal'?"""
+    """Does a probe site give signal inside a product? With a graded class (R9, MGB rules
+    included): never when likely failure, always when perfect or tolerated, else at the level set
+    in ``probe_binds_if``; without one, by that level alone."""
     if site.role != "probe":
         return False
-    if rules.probe_binds_if == "critical":
-        return site.level == "critical"
-    return site.level in ("critical", "warning")
+    strong = (
+        site.level == "critical"
+        if rules.probe_binds_if == "critical"
+        else site.level in ("critical", "warning")
+    )
+    if site.grade is not None:
+        return _acts_by_grade(site, strong)
+    return strong
 
 
 def _note(assay: Assay, rules: SpecificitySettings, site: SiteResult, rtype: str) -> str:

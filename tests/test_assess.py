@@ -119,7 +119,14 @@ def test_a_partial_hit_is_completed_by_fetching_and_re_aligning_the_window(tmp_p
     assert call["db"] == "nuccore" and int(call["seq_start"]) <= F_START <= F_START + 19 <= int(
         call["seq_stop"]
     )
-    assert res.verdict is Verdict.FAIL  # warning primer + critical primer + probe -> still detected
+    # the re-aligned forward site has 3 mismatches in its 3'-most 16 nt: R3 grades it likely
+    # failure, so it cannot prime and no product forms (one rule set, review 2026-11-17, P3)
+    assert f.grade == "likely_failure" and res.amplicons == []
+    # by the count-based levels alone (the earlier rule) the warning site still primed
+    cfg = load_config()
+    cfg.specificity.graded_off_target = False
+    old, _, _ = run(w, tmp_path / "levels", cfg=cfg)
+    assert old.verdict is Verdict.FAIL and len(old.amplicons) == 1
 
 
 def test_a_partial_minus_strand_hit_is_re_aligned_in_the_right_orientation(tmp_path):
@@ -199,11 +206,16 @@ def test_a_weak_probe_gives_an_amplified_but_not_detected_product(tmp_path):
     (amp,) = res.amplicons
     assert amp.classification == "amplified_not_detected"
     assert res.verdict_amplicons is Verdict.WARN
-    # ...unless the laboratory decides a 'warning'-level probe site is enough for signal
+    # 4 mismatches in an unmodified probe are graded likely failure (R9), so a looser level does
+    # not make it bind...
     cfg = load_config()
     cfg.specificity.probe_binds_if = "warning"
     res2, _, _ = run(w, tmp_path / "b", cfg=cfg)
-    assert res2.amplicons[0].classification == "likely_detected" and res2.verdict is Verdict.FAIL
+    assert res2.amplicons[0].classification == "amplified_not_detected"
+    # ...unless the levels alone decide (graded_off_target: false), the earlier rule
+    cfg.specificity.graded_off_target = False
+    res3, _, _ = run(w, tmp_path / "c", cfg=cfg)
+    assert res3.amplicons[0].classification == "likely_detected" and res3.verdict is Verdict.FAIL
 
 
 def test_a_missing_probe_site_also_means_not_detected(tmp_path):

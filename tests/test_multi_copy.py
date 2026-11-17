@@ -354,3 +354,29 @@ def test_a_stored_assembly_no_longer_listed_is_left_out(tmp_path):
     c = run(tmp_path, both[:1]).coverage
     assert (c.listed_total, c.assessed_total, c.complete) == (1, 1, True)
     assert c.not_listed_now == 1 and c.not_listed_examples == ["GCA_000000132.1"]
+
+
+def test_a_complete_assembly_without_the_region_is_a_possible_deletion(tmp_path):
+    # whole-project review 2026-11-17, P6: it was left out of the whole-fragment denominator
+    # and only the channels counted it; a draft (contig-level) assembly still is not counted
+    gone = FakeAssembly("GCA_000000142.1", "2026-03-01", {"c": filler(3000, 142)},
+                        level="Complete Genome")  # fmt: skip
+    draft = FakeAssembly("GCA_000000143.1", "2026-03-01", {"c": filler(3000, 143)})
+    res = run(tmp_path, [FakeAssembly("GCA_000000141.1", "2026-02-01", copies(41, AMP)),
+                         gone, draft])  # fmt: skip
+    (y2026,) = [y for y in res.inclusivity.fragment_years if y.year == 2026]
+    assert (y2026.with_region, y2026.detectable, y2026.possible_deletion) == (1, 1, 1)
+    from qpcr_assay_check.inclusivity.models import fragment_window
+
+    w = fragment_window(res.inclusivity.fragment_years, 3)
+    assert (w.n, w.not_detected, w.percent) == (2, 1, 50.0)
+
+
+def test_too_many_unavailable_records_keep_the_coverage_incomplete(tmp_path):
+    c = run(tmp_path, [FakeAssembly("GCA_000000151.1", "2026-02-01", copies(51, AMP))]).coverage
+    assert c.complete and c.unavailable_limit_percent == 25.0
+    many = c.model_copy(update={"listed_total": 4, "assessed_total": 2, "unavailable": 2})
+    assert many.assessed_total + many.unavailable >= many.listed_total
+    assert many.too_many_unavailable and not many.complete  # 50% > 25%
+    few = c.model_copy(update={"listed_total": 4, "assessed_total": 3, "unavailable": 1})
+    assert few.complete  # 25%: at the limit

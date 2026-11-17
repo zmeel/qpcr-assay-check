@@ -47,7 +47,9 @@ Genomes without a whole copy: **cut by a contig end** or **hidden by N** count a
 both the whole-fragment table and the channels;[^d-parts] the report breaks the cut ones down by
 which sites are cut (`cut_kind()`). A genome whose fragment is not in the assembly at all (every
 copy cut with no seed of the fragment) counts as **region not found**.[^d-cut] In a complete
-genome, no locus is **not detected** (a possible deletion).[^d-model]
+genome, no locus is **not detected** (a possible deletion).[^d-model] Until 2026-11-17 only the
+channel figures counted it; since the whole-project review (P6) the whole-fragment status does
+too, with every record that carries the sequence on both sides of the region but no copy of it.
 
 [^exhaustive-py]: variants/exhaustive.py (genome_outcome, mark_unassembled, cut_kind)
 [^d-parts]: Decision on genomes judged from parts and cut genomes

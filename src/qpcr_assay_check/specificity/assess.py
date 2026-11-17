@@ -19,7 +19,13 @@ from .duplex import estimate_duplex
 from .fetch import WindowFetcher
 from .findings import build_findings, verdict_of
 from .models import Finding, PartnerScan, SiteResult, SpecificityResult, TierCount
-from .pairing import best_of_each_site, predict_amplicons, primer_can_prime
+from .pairing import (
+    best_of_each_site,
+    grade_site,
+    predict_amplicons,
+    primer_can_prime,
+    probe_binds,
+)
 from .reach import floor_findings, floors
 from .scan import PartnerScanner, progress_step
 from .sites import (
@@ -53,6 +59,11 @@ LIMITATIONS = [
     "primer that binds an off-target organism perfectly this is unlikely but not excluded.",
     "Only the tiers named in the scope statement were searched; a passing result says nothing "
     "about organisms outside them. Primer-BLAST remains a useful manual cross-check.",
+    "The searches run against the database named under Searches (core_nt by default). core_nt "
+    "holds no whole-genome-shotgun (WGS) draft assemblies, and the newest records reach it only "
+    "after a delay (seen live on 2026-09-23: none of the 300 newest SARS-CoV-2 records had a hit "
+    "there). For organisms known mostly from draft genomes, most bacteria among them, the "
+    "off-target evidence covers only their complete genomes and other records in core_nt.",
 ]
 
 
@@ -233,11 +244,20 @@ def assess_specificity(
         if n % step == 0 or n == len(pending):  # read by the GUI's progress bar
             log.info("  %d / %d windows done", n, len(pending))
 
-    # ---- keep every critical/warning site plus the closest minor ones for display
-    keep = [s for s in sites if s.level != "minor"]
+    # ---- the graded class decides priming and binding (one rule set, review 2026-11-17, P3)
+    if rules.graded_off_target:
+        for s in sites:
+            grade_site(s, assay)
+
+    def acts(s: SiteResult) -> bool:
+        return primer_can_prime(s) or probe_binds(s, rules)
+
+    # ---- keep every critical/warning site and every site that can act, plus the closest minor
+    # ones for display
+    keep = [s for s in sites if s.level != "minor" or acts(s)]
     minor: dict[tuple[str, str], list[SiteResult]] = defaultdict(list)
     for s in sites:
-        if s.level == "minor":
+        if s.level == "minor" and not acts(s):
             minor[(s.tier, s.query)].append(s)
     for group in minor.values():
         group.sort(key=lambda s: (s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id))

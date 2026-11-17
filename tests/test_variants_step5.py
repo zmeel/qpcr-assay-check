@@ -272,14 +272,18 @@ def test_records_with_the_flanks_but_no_locatable_fragment_get_a_worst_case_figu
                      {"c2": filler(900, 3) + left + filler(900, 4)}),
     ])  # fmt: skip
     cfg, _f, client, _a = setup(tmp_path, fake=fake)
+    cfg.inclusivity.min_genomes_for_verdict = 1
     assay = make_assay(reference_amplicon=AMP, target={"taxid": 813, "accession": "NC_000001.1"})
     context = ">NC_000001.1 context\n" + filler(200, 5) + left + AMP + right + filler(200, 6)
     res = run_exhaustive(assay, cfg, client, tmp_path / "cache", lambda acc: context, now=NOW)
     c = res.coverage
     assert (c.found, c.not_found, c.not_located) == (1, 1, 1)
     assert c.not_located_examples == ["GCF_000000002.1"]
-    assert any("if all were escapes, 50.0% would be detectable instead of 100.0%" in line
-               for line in res.inclusivity.rationale)  # fmt: skip
+    # since the whole-project review (2026-11-17, P6) such a record is a possible deletion,
+    # counted as likely failure in the status itself, not only in a worst-case line
+    lines = res.inclusivity.rationale
+    assert "50.0% detectable" in lines[0] and "possible deletions" in lines[0]
+    assert any("counted as likely failure in the status (possible deletions)" in x for x in lines)
 
 
 def test_the_coverage_sentence_follows_the_verdict_a_channel_ends_on(tmp_path):

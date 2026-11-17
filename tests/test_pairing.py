@@ -206,3 +206,48 @@ def test_max_amplicons_counts_products_not_variant_pairs():
                   for i in range(1, 5)]  # fmt: skip
     amps, _, truncated = pair(*sites, rules=rules)
     assert len(amps) == 2 and not truncated
+
+
+def test_a_terminal_mismatch_graded_tolerated_now_primes_off_target():
+    # whole-project review 2026-11-17, P3: one mismatch at -1 left no clean 3' base, so the
+    # count-based levels made the site minor and unable to prime, though R1 grades this T-G
+    # (G3) mismatch tolerated (Stadhouders 2010, Kwok 1990)
+    from qpcr_assay_check.specificity.pairing import grade_site
+
+    q = "GACCCCAAAATCAGCGAAAT"
+    f = mk("forward", "+", 100, 119, level="minor").model_copy(
+        update={"q_aln": q, "s_aln": q[:-1] + "C", "clean_3prime_nt": 0}
+    )
+    r = mk("reverse", "-", 200, 223)
+    assert not primer_can_prime(f) and pair(f, r)[0] == []  # levels alone: no product
+    grade_site(f, ASSAY)
+    assert f.grade == "tolerated" and primer_can_prime(f)
+    assert len(pair(f, r)[0]) == 1
+
+
+def test_a_site_graded_likely_failure_never_primes_whatever_its_level():
+    from qpcr_assay_check.specificity.pairing import grade_site
+
+    q = "GACCCCAAAATCAGCGAAAT"
+    three = q[:6] + "T" + q[7:9] + "C" + q[10:15] + "T" + q[16:]  # 3 mismatches in 16 nt
+    f = mk("forward", "+", 100, 119).model_copy(update={"q_aln": q, "s_aln": three})
+    assert primer_can_prime(f)  # critical by the levels
+    grade_site(f, ASSAY)
+    assert f.grade == "likely_failure" and not primer_can_prime(f)
+
+
+def test_an_mgb_probe_with_one_mismatch_under_the_mgb_gives_no_signal():
+    from qpcr_assay_check.specificity.pairing import grade_site
+    from qpcr_assay_check.specificity.pairing import probe_binds as binds
+
+    from .conftest import make_assay
+
+    mgb = make_assay(probe_quencher="MGBNFQ")
+    p_seq = mgb.by_role("probe")[0].sequence
+    one = p_seq[:-3] + ("A" if p_seq[-3] != "A" else "C") + p_seq[-2:]  # a mismatch at -3
+    p = mk("probe", "+", 150, 150 + len(p_seq) - 1).model_copy(
+        update={"query": "probe", "q_aln": p_seq, "s_aln": one}
+    )
+    assert binds(p, RULES)  # critical by the levels (1 mismatch)
+    grade_site(p, mgb)
+    assert p.grade == "likely_failure" and not binds(p, RULES)

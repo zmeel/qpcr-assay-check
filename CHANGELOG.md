@@ -7,6 +7,23 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- **The rest of the whole-project review of 2026-11-17:**
+  - P3, one rule set: off-target sites also get the R1-R9 classes
+    (`specificity.graded_off_target`, on by default). A site graded likely failure never primes
+    or binds, one graded perfect or tolerated always does, at risk and indeterminate ones need
+    the old level. A critical primer site in a product is now Review
+    (`primer_site_critical: WARN`); Exceeds limit comes from a product the probe detects.
+    Off-target results change accordingly.
+  - P6: a complete assembly without the region, or a record with the sequence on both sides but
+    no copy of it, counts as likely failure in the whole-fragment status (possible deletions);
+    more unavailable records than `max_undetermined_percent` keep the coverage Incomplete.
+  - P7: the report's specificity limitations say what core_nt leaves out.
+  - P8: the status window ends at the run's year even when no record was released in it.
+  - P9: RNA assays say how many genomes fail through the reverse primer alone.
+  - P10: a primer pair with 2 + 2 mismatches is flagged; the report no longer presents R8 as
+    deciding outcomes.
+  - Stale statements corrected in MISMATCH_CLASSES.md, the default configuration's comments,
+    the README and the knowledge bundle; the HSV-1 run page says it predates these fixes.
 - **Every record names the code that made it** (whole-project review of 2026-11-17, P1): the
   `tool` block of `results.json` and `search.json` carries a code fingerprint (SHA-256 over every
   file of the installed package: code, report templates, default limits) and the git commit with

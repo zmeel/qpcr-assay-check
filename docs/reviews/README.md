@@ -109,6 +109,13 @@ The advisor's ten problems were checked against the code before acting. Taken up
 - **P4** R6 over a primer's 3'-most 16 nt and the whole probe.
 - **P5** MGB recognised from the dye names; LNA probes graded as unmodified, and said so.
 
-Left for the user: P3 (one rule set for off-target sites: it changes results), P6-P10, the stale
-statements listed under F, and the release (tag) before records are filed.
+The rest was taken up the same day (user: "fix the remaining issues"): P3 (off-target sites graded
+by R1-R9 together with the levels), P6 (possible deletions in the status, a cap on unavailable
+records), P7 (core_nt in the limitations), P8 (the window ends at the run's year), P9 (RNA:
+failures through the reverse primer alone), P10 (2 + 2 pairs flagged, class unchanged), and the
+stale statements under F.
+
+Not done, as they are not code defects: a laboratory verification pack (priority 6), oligo QC as
+information only for assays in use (priority 9), a count of searches per 24 h across runs, the
+LICENSE / CLAUDE.md question, and the release (tag) before records are filed: the user's.
 

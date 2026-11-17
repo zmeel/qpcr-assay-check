@@ -206,7 +206,8 @@ politely and caches every result. See [docs/USER_GUIDE.md](docs/USER_GUIDE.md#nc
 - Sequencing errors and consensus ambiguity codes appear as variants; homopolymer runs are
   especially error-prone.
 - The mismatch classes come from primer studies on DNA with one polymerase. The probe rules rest
-  on far less: a single mismatch in an MGB probe has no published outcome at all (shown as
+  on far less: a single mismatch under the MGB (the probe's 3'-most 7 nt) is graded likely failure
+  after Kutyavin 2000, one further toward the 5' end has no published outcome (shown as
   undetermined), and the deletion thresholds come from one study of 25-28 nt linear probes, so a
   shorter or MGB probe is graded but flagged as outside the measured range
   ([rules](docs/knowledge/rules/index.md) names the evidence per rule).

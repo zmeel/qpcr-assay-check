@@ -250,15 +250,21 @@ def evaluate(
             if verdict is Verdict.INCOMPLETE
             else "the figures are from the ones assessed."
         )
+        lines = []
+        if left > 0 or not c.listing_complete:
+            lines.append(
+                f"{max(left, 0)} of {c.listed_total} listed {what} "
+                f"not assessed yet (run again to continue): {tail}"
+            )
+        if c.too_many_unavailable:
+            lines.append(
+                f"{c.unavailable} of {c.listed_total} listed {what} "
+                f"({100.0 * c.unavailable / c.listed_total:.1f}%) could not be downloaded, more "
+                f"than {c.unavailable_limit_percent:g}% (inclusivity.max_undetermined_percent): "
+                f"{tail}"
+            )
         inclusivity = inclusivity.model_copy(
-            update={
-                "verdict": verdict,
-                "rationale": [
-                    *inclusivity.rationale,
-                    f"{left} of {c.listed_total} listed {what} "
-                    f"not assessed yet (run again to continue): {tail}",
-                ],
-            }
+            update={"verdict": verdict, "rationale": [*inclusivity.rationale, *lines]}
         )
     if inclusivity is not None:
         note = (

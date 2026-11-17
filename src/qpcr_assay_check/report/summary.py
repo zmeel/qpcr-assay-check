@@ -203,7 +203,7 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
     pct = w.percent
     res = (
         f"{pct:.1f}% detectable, {100.0 * (w.detectable + w.at_risk) / w.n:.1f}% including at "
-        f"risk, {100.0 * w.likely_failure / w.n:.1f}% likely failure"
+        f"risk, {100.0 * w.not_detected / w.n:.1f}% likely failure"
     )
     d = inc.distinct
     if d is not None and d.percent is not None:

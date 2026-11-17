@@ -18,4 +18,4 @@ How a primer or probe site is graded and how a genome counts, rule by rule.
 * [R7 - degenerate primers](r7-degenerate-primers.md) - The best-matching variant of a degenerate oligo is graded; no source for partially matching pools.
 * [R8 - the primer pair](r8-primer-pair.md) - 3 mismatches in one primer with 2+ in the other, or 4 with 1+, is likely failure for the pair (Lefever 2013).
 * [R9 - probe mismatches](r9-probes.md) - MGB probe - 1 mismatch under the MGB likely failure, further 5' undetermined, 2+ likely failure; unmodified probe - 1 outside the last 5 tolerated, 2 at risk, 3+ likely failure.
-* [Specificity findings](specificity-findings.md) - Off-target sites as critical or warning by mismatches, gaps and clean 3' bases; products paired from facing primer sites; severities per finding.
+* [Specificity findings](specificity-findings.md) - Off-target sites as critical or warning by counts, and graded by R1-R9; a site graded likely failure never primes or binds; products paired from facing primer sites; severities per finding.

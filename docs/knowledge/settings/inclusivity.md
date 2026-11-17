@@ -24,7 +24,7 @@ inclusivity:
   # starting points, not acceptance criteria.
   lookback_years: 10               # how many years back from today to report (0 records is a
                                     # valid, honestly-reported answer for an early year, not skipped)
-  warn_below_percent: 95           # % of genomes detected (0-1 mismatch, no 3' mismatch)
+  warn_below_percent: 95           # % of genomes detectable (perfect or tolerated, all 3 sites)
   fail_below_percent: 80           # below this, WARN/FAIL: applied to the whole-fragment genome
                                     # outcome over the verdict window below
   verdict_window_years: 3          # exhaustive: the last N complete release years + this year

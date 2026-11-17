@@ -20,6 +20,6 @@ Open items: review suggestions not taken up, checks still to do.
 * [Check the encoded Stadhouders Table 1](stadhouders-table-check.md) - Compare the Table 1 cells encoded in oligo/grade.py with the printed table; needs the PDF.
 * [Süss 2009 for unmodified probes](suss-2009.md) - The one source on single mismatches in unmodified probes could not be obtained.
 * [Split taxon lists per tier, not per search](taxid-split-per-tier.md) - max_taxids_per_search 1 split every tier into many searches; a per-tier split is the proper fix.
-* [One rule set for off-target sites](unified-off-target-rules.md) - Specificity uses its own mismatch heuristics instead of the graded classes; a per-tier amplicon BLAST is not built.
+* [One rule set for off-target sites (partly done)](unified-off-target-rules.md) - Since 2026-11-17 the graded classes decide off-target priming and binding together with the levels; a per-tier amplicon BLAST is still not built.
 * [Wet-lab tests the reviews propose](wet-lab-tests.md) - Test variants the tool cannot judge from literature, e.g. NG-R on an A8 template, and record results as evidence entries.
 * [Publish docs/wiki to the GitHub wiki](wiki-publication.md) - The session cannot reach the wiki repository; the user publishes the pages.

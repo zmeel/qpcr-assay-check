@@ -40,7 +40,11 @@ whose region was found, the share **detectable** by the
 | below 95% (`warn_below_percent`), or one year of 30+ genomes below 80% | Review |
 | otherwise | No flags |
 
-Not every listed genome assessed yet: Incomplete, unless already below the limit. The statuses
+Not every listed genome assessed yet: Incomplete, and a crossed limit (Review or Exceeds limit)
+is held back until coverage is complete (`limits_need_complete_coverage`, since 2026-10-07);
+more unavailable records than `max_undetermined_percent` also keep it Incomplete. Possible
+deletions (a complete assembly without the region, or a record with the sequence on both sides
+but no copy of it) count as likely failure (since 2026-11-17). The statuses
 are flag levels, not pass/fail: the tool is not a test that fails or passes.[^d-summary]
 
 # Axis

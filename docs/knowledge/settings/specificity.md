@@ -36,9 +36,16 @@ specificity:
   probe_site:
     critical: {max_mismatches: 3, max_gaps: 0, min_clean_3prime_nt: 0}
     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
-  probe_binds_if: critical         # site level the probe needs for an amplicon to be 'likely detected'
+  # Both rule sets (whole-project review 2026-11-17, P3): off-target sites also get the classes
+  # of R1-R9. A site graded likely failure never primes or gives signal; one graded perfect or
+  # tolerated always does; at risk and indeterminate ones need the level below. false: the
+  # levels alone decide, as before.
+  graded_off_target: true
+  probe_binds_if: critical         # the level a probe site needs when its class does not decide
   severity:                        # verdict contribution of each finding: FAIL | WARN | INFO
-    primer_site_critical: FAIL     # a critical primer site that is part of a predicted product
+    primer_site_critical: WARN     # a critical primer site that is part of a predicted product;
+                                   #   Exceeds limit comes from a product the probe detects
+                                   #   (amplicon_likely_detected), not from priming alone (P3)
     primer_site_critical_no_product: WARN  # ... that forms no predicted product (no facing
                                    #   partner): off-target priming, not a product
     primer_site_warning: WARN

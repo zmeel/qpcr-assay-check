@@ -54,3 +54,12 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
 - The VZV run of 2026-10-23 recorded ([run](../runs/vzv-2026-10-23.md)): 99.7% detectable, no
   off-target product, Exceeds limit on the probe's G-form hairpin only. The HSV-1 report the
   user uploaded again is the run already recorded.
+- Then the remaining review problems (user: "fix the remaining issue brought up by the
+  advisor"): P3 off-target sites graded by R1-R9 together with the levels (a primer site graded
+  likely failure never primes, one graded perfect or tolerated always does; detection, not
+  priming, gives Exceeds limit); P6 possible deletions counted as likely failure and a cap on
+  unavailable records; P7 core_nt in the limitations; P8 the window ends at the run's year; P9
+  RNA reverse-primer-only failures named; P10 2 + 2 pairs flagged. The specificity rule page is
+  back to draft (its rule changed). Stale statements corrected; the HSV-1 run page marked as made
+  before these fixes. A first version of P3 let a run of N, and a distant site with 6 mismatches
+  and a gap, prime; both caught by tests and fixed before the push.

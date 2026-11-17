@@ -121,9 +121,16 @@ specificity:
   probe_site:
     critical: {max_mismatches: 3, max_gaps: 0, min_clean_3prime_nt: 0}
     warning: {max_mismatches: 5, max_gaps: 1, min_clean_3prime_nt: 0}
-  probe_binds_if: critical         # site level the probe needs for an amplicon to be 'likely detected'
+  # Both rule sets (whole-project review 2026-11-17, P3): off-target sites also get the classes
+  # of R1-R9. A site graded likely failure never primes or gives signal; one graded perfect or
+  # tolerated always does; at risk and indeterminate ones need the level below. false: the
+  # levels alone decide, as before.
+  graded_off_target: true
+  probe_binds_if: critical         # the level a probe site needs when its class does not decide
   severity:                        # verdict contribution of each finding: FAIL | WARN | INFO
-    primer_site_critical: FAIL     # a critical primer site that is part of a predicted product
+    primer_site_critical: WARN     # a critical primer site that is part of a predicted product;
+                                   #   Exceeds limit comes from a product the probe detects
+                                   #   (amplicon_likely_detected), not from priming alone (P3)
     primer_site_critical_no_product: WARN  # ... that forms no predicted product (no facing
                                    #   partner): off-target priming, not a product
     primer_site_warning: WARN
@@ -164,7 +171,7 @@ inclusivity:
   # starting points, not acceptance criteria.
   lookback_years: 10               # how many years back from today to report (0 records is a
                                     # valid, honestly-reported answer for an early year, not skipped)
-  warn_below_percent: 95           # % of genomes detected (0-1 mismatch, no 3' mismatch)
+  warn_below_percent: 95           # % of genomes detectable (perfect or tolerated, all 3 sites)
   fail_below_percent: 80           # below this, WARN/FAIL: applied to the whole-fragment genome
                                     # outcome over the verdict window below
   verdict_window_years: 3          # exhaustive: the last N complete release years + this year
@@ -231,7 +238,7 @@ variants:
                                    #   and chromosome-level genomes of the run (median; at least 5
                                    #   of them, median 2 or more), counts as undetermined "copies
                                    #   possibly unassembled" unless one of those fails the same
-                                   #   way (also in the panel command);
+                                   #   way (also in the panel command). off = the class decides
   # A located region counts as a copy of the locus when ANY of (a), (b), (c) holds; weaker
   # regions are listed, never judged. Measured (2026-09-28/29): chance regions reach at most 18
   # anchored bases and identity 0.54-0.60; true copies of a divergent species 114+ bases.
@@ -253,7 +260,6 @@ variants:
                                    #   off = "cut by a contig end" (undetermined). The sites may
                                    #   come from different copies, so this is never proof of one
                                    #   amplicon
-                                   #   off = counted as an escape
 
 report:
   include_charts: true                       # oligo Tm chart (inline SVG, a few kB)

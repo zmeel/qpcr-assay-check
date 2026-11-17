@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-10-05T08:30:00Z }
+generated: { by: claude-code/agent, at: 2026-11-17T16:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md

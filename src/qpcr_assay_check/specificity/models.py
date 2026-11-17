@@ -56,7 +56,8 @@ class SiteResult(BaseModel):
     level: Level
     grade: str | None = Field(
         default=None,
-        description="graded mismatch class on the assay's own target (docs/MISMATCH_CLASSES.md): "
+        description="graded mismatch class (docs/MISMATCH_CLASSES.md), on the target and, with "
+        "specificity.graded_off_target, on off-target sites: "
         "perfect | tolerated | at_risk | likely_failure | indeterminate",
     )
     grade_rule: str = ""
