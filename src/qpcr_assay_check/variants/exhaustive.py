@@ -38,6 +38,7 @@ from ..inclusivity.models import (
     InclusivityOligoResult,
     InclusivityResult,
     fragment_window,
+    status_last_year,
     status_years,
 )
 from ..models import Assay, Channel, Oligo
@@ -309,10 +310,12 @@ def collect(
         if n_year:
             listed += n_year
             pending: list[AssemblyRecord] = []
+            year_listed: set[str] = set()
             if processed < budget:
                 dates: dict[str, str] = {}
                 for rec in client.year(taxon, year, **flt):
                     dates[rec.accession] = rec.collection_date
+                    year_listed.add(rec.accession)
                     if store.done(rec.accession):
                         continue
                     pending.append(rec)
@@ -329,11 +332,13 @@ def collect(
                 p, f, accs = _process(client, store, pending, references, cfg)
                 processed, failed = processed + p, failed + f
                 failed_accessions += accs
-            assessed = sum(1 for r in store.items.values() if r.year == year)
+            store.listed |= year_listed
+            assessed = store.assessed_in(year, year_listed, n_year)
             unavailable = sum(1 for r in pending if store.unavailable(r.accession))
             years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year),
                                       unavailable=unavailable))  # fmt: skip
         year -= 1
+    store.finish_listing(total)
     log.info(
         "Variant analysis: %d assemblies listed, %d processed this run (%d failed downloads)",
         total, processed, failed,
@@ -1438,6 +1443,7 @@ def hold_back(verdict: Verdict, rules: Any, coverage_complete: bool) -> tuple[Ve
 def fragment_verdict(
     years: list[FragmentYear], rules: Any, axis: str = "release",
     undated: tuple[int, int] | None = None, coverage_complete: bool = True,
+    last: int | None = None,
 ) -> tuple[Verdict, list[str]]:  # fmt: skip
     """The inclusivity verdict from the whole-fragment genome outcome (advisor subagent,
     2026-09-26): pooled over the last ``verdict_window_years`` complete release years plus the
@@ -1455,8 +1461,8 @@ def fragment_verdict(
     ``coverage_complete``: whether every listed genome or record has been assessed. While it is
     False, a crossed limit is held back to INCOMPLETE and the sentence names what it would have
     been; :func:`hold_back` says which limits wait and which setting releases an Exceeds
-    limit."""
-    w = fragment_window(years, rules.verdict_window_years)
+    limit. ``last``: the year the window ends (:func:`fragment_window`)."""
+    w = fragment_window(years, rules.verdict_window_years, last)
     by_collection = axis == "collection"
     done, year_word = ("collected", "Collection") if by_collection else ("released", "Release")
     if w is None:
@@ -1588,8 +1594,9 @@ def exhaustive_inclusivity(
         apart = collection.undated.with_region + collection.not_read.with_region
         placed = sum(r.with_region for r in collection.years) + collection.earlier.with_region
         undated = (apart, apart + placed)
+    window_end = collection.last_year if by_collection and collection is not None else None
     verdict, rationale = fragment_verdict(
-        status_rows, cfg.inclusivity, axis, undated, coverage_complete
+        status_rows, cfg.inclusivity, axis, undated, coverage_complete, window_end
     )
     unit = "assemblies" if source == "datasets" else "records"
     if by_collection:
@@ -1601,7 +1608,7 @@ def exhaustive_inclusivity(
                 f"(undetermined, not counted: {rw.undetermined})."
             )
     rationale += _collection_line(collection, unit, axis)
-    w = fragment_window(status_rows, cfg.inclusivity.verdict_window_years)
+    w = fragment_window(status_rows, cfg.inclusivity.verdict_window_years, window_end)
     distinct = None
     alternative = None
     if w is not None:
@@ -1975,9 +1982,14 @@ def run_exhaustive(
             f"There are no {what} for taxon {taxon} with the configured filters, so there is "
             "nothing to analyse exhaustively."
         )
-    items, related, related_ignored, flanked = as_items(
-        latest(store.items), copy_rule(cfg), store.dates
-    )
+    pool = store.listed_items()
+    not_listed = len(store.items) - len(pool)
+    if not_listed:
+        log.info(
+            "Variant analysis: %d stored record(s) are no longer listed by NCBI under the current "
+            "filters and are left out of the figures", not_listed,
+        )  # fmt: skip
+    items, related, related_ignored, flanked = as_items(latest(pool), copy_rule(cfg), store.dates)
     items, unassembled_fragment = fragment_not_assembled(items)
     calls: list[GenomeCall] = []
     cut: list[str] = []
@@ -2026,6 +2038,9 @@ def run_exhaustive(
         | ({"excluded_taxids": ", ".join(map(str, exclude))} if exclude else {}),
         listed_total=total,
         assessed_total=len(items),
+        listing_complete=store.listing_complete,
+        not_listed_now=not_listed,
+        not_listed_examples=sorted(set(store.items) - set(pool))[:10],
         processed_this_run=processed,
         download_failed_this_run=failed,
         unavailable=sum(y.unavailable for y in years),
@@ -2107,7 +2122,10 @@ def run_exhaustive(
             + " "
             f"(see the Variant summary). Per year, '{col}' minus 'With region' is that gap."
         )
-    w = fragment_window(status_years(inclusivity), cfg.inclusivity.verdict_window_years)
+    w = fragment_window(
+        status_years(inclusivity), cfg.inclusivity.verdict_window_years,
+        status_last_year(inclusivity),
+    )  # fmt: skip
     if w is not None and w.percent is not None and not_located:
         by_collection = inclusivity.status_axis == "collection"
         if by_collection:

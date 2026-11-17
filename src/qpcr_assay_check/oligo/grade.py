@@ -151,12 +151,14 @@ def _terminal_gap_columns(q_aln: str, s_aln: str) -> set[int]:
     return cols
 
 
-def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], list[_Mismatch], bool]:
+def _mismatches(
+    q_aln: str, s_aln: str, *, amb_region: int = 5
+) -> tuple[list[_Mismatch], list[_Mismatch], bool]:
     """Mismatches by position from the 3' end; ambiguity codes in the site that are compatible
-    with the oligo and fall in the last 5 nt (a match or a mismatch, the genome does not say);
-    whether there is a gap. An ambiguity code further from the 3' end is read as a match; one
-    that cannot pair with the oligo base is a mismatch. An unaligned end of a worst-case site
-    ('.', the window could not be fetched) is a mismatch of unknown type."""
+    with the oligo and fall in the last ``amb_region`` nt (a match or a mismatch, the genome
+    does not say); whether there is a gap. An ambiguity code further from the 3' end is read as
+    a match; one that cannot pair with the oligo base is a mismatch. An unaligned end of a
+    worst-case site ('.', the window could not be fetched) is a mismatch of unknown type."""
     length = sum(c != "-" for c in q_aln)
     ends = _terminal_gap_columns(q_aln, s_aln)
     pos = 0
@@ -179,7 +181,7 @@ def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], list[_Mismatch
             out.append(_Mismatch(from_3, ""))
             continue
         if iupac.compatible(qc, sc):
-            if sc not in "ACGT" and from_3 <= 5:
+            if sc not in "ACGT" and from_3 <= amb_region:
                 amb.append(_Mismatch(from_3, ""))
             continue
         kind = f"{qc}-{_COMPLEMENT[sc]}" if qc in "ACGT" and sc in "ACGT" else ""
@@ -190,20 +192,21 @@ def _mismatches(q_aln: str, s_aln: str) -> tuple[list[_Mismatch], list[_Mismatch
 def _with_ambiguity(
     grade: Callable[[list[_Mismatch]], Grade], mm: list[_Mismatch], amb: list[_Mismatch]
 ) -> Grade:
-    """R6: grade with the ambiguity codes in the last 5 nt read as matches and as mismatches.
-    Only when that decides between detectable and not is the site indeterminate; a class that
-    holds either way is kept, so an ambiguity code never hides a real failure."""
+    """R6: grade with the ambiguity codes in the last 5 nt (anywhere in an MGB probe) read as
+    matches and as mismatches. Only when that decides between detectable and not is the site
+    indeterminate; a class that holds either way is kept, so an ambiguity code never hides a
+    real failure."""
     as_match = grade(mm)
     if not amb:
         return as_match
     as_mismatch = grade(sorted(mm + amb, key=lambda m: m.pos))
     if as_match.cls not in DETECTABLE:
         return Grade(as_match.cls, as_match.rule, as_match.note
-                     + "; an ambiguity code in the last 5 nt may make it worse")  # fmt: skip
+                     + "; an ambiguity code in the site may make it worse")  # fmt: skip
     if as_mismatch.cls in DETECTABLE:
         return as_mismatch
-    return Grade(INDETERMINATE, "R6", "ambiguity code in the genome in the last 5 nt decides "
-                 "whether the site is detectable")  # fmt: skip
+    return Grade(INDETERMINATE, "R6", "an ambiguity code in the genome decides whether the "
+                 "site is detectable")  # fmt: skip
 
 
 def _with_gap(by_mismatches: Grade, note: str) -> Grade:
@@ -347,7 +350,10 @@ def grade_probe(q_aln: str, s_aln: str, *, mgb: bool) -> Grade:
     probes: 1 mismatch outside the last 5 nt tolerated; 1 in the last 5 nt or 2 anywhere at risk
     (Klungthong 2010 measured two, still detected); ``UNMODIFIED_PROBE_FAIL`` (3) or more likely
     failure (user decision 2026-10-07; expert judgement, no quantitative source)."""
-    mm, amb, gap = _mismatches(q_aln, s_aln)
+    # an MGB probe changes class on one mismatch anywhere (likely failure under the MGB,
+    # undetermined outside it), so an ambiguity code anywhere in its site may decide the class
+    # (code review, 2026-11-17: an R at -6 under the MGB read as a match)
+    mm, amb, gap = _mismatches(q_aln, s_aln, amb_region=len(q_aln) if mgb else 5)
 
     def by_mismatches(mm: list[_Mismatch]) -> Grade:
         if not mm:

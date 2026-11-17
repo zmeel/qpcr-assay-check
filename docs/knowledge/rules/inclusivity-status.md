@@ -26,7 +26,9 @@ sources:
 # Rule
 
 Over the genomes of the **status window** (the last `verdict_window_years` = 3 complete years
-plus the current one) whose region was found, the share **detectable** by the
+plus the current one: the latest release year listed, on either axis; never the last year that
+has data, so a target no longer sequenced is not judged on old years, code review 2026-11-17)
+whose region was found, the share **detectable** by the
 [genome outcome](genome-outcome.md) decides:[^config][^d-window]
 
 | Condition | Status |

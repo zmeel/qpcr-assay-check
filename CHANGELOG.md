@@ -36,6 +36,24 @@ All notable changes to this project are documented here. The format follows
   since the code review of 2026-09-27, because missing evidence is never "no flags".
 
 ### Fixed
+- **The code review of 2026-11-17, of the whole project:**
+  - A RID NCBI called UNKNOWN (also how a status page without a status reads, e.g. an error
+    page) was resubmitted every minute with no deadline; now once per run, then an error.
+  - The degenerate variants of a primer that reach one site are one site: one off-target product
+    is counted once (it was counted once per pair of variants, up to 64 times with the HSV-1
+    primers, and filled `max_amplicons` and the partner-scan windows).
+  - The variant figures and the coverage check count the stored records NCBI lists in the run;
+    records no longer listed (withdrawn, replaced, or outside a narrowed
+    `variants.nucleotide_query`) are left out and counted in the report, and a listing cut by the
+    per-run budget is never complete.
+  - R6 in an MGB probe: an ambiguity code anywhere in the site is graded both ways (one at -6 or
+    -7 read as a match, though one mismatch under the MGB is likely failure).
+  - A record whose window around a BLAST hit could not be fetched is tried again on the next run
+    instead of being stored as "not found"; after two failed runs it counts as unavailable.
+  - Nucleotide UIDs looked up once are kept beside the store: a later run summarises only new
+    records instead of every listed one.
+  - The inclusivity status window ends at the latest release year listed (the current year), not
+    at the last year with data, as the rule and the report say; window spans name the whole window.
 - **The GUI container could not resolve NCBI's hosts** (user's NAS, 2026-10-23: "Temporary
   failure in name resolution" from the GUI right after the container was recreated, while the NAS
   itself and a plain `docker run` of the same image resolved them). The compose network answers

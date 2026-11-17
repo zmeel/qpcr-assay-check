@@ -11,16 +11,64 @@ from .models import AmpliconResult, SiteResult
 from .sites import record_type
 
 
+def oligo_of(label: str) -> str:
+    """The oligo a query label stands for: a degenerate variant (``forward_v3``) counts as its
+    oligo (``forward``)."""
+    return re.sub(r"_v\d+$", "", label)
+
+
+def site_quality(site: SiteResult) -> tuple[int, int, int, str]:
+    """Sort key, best site first: fewest mismatches and gaps, longest clean 3' end, first id."""
+    num = site.id[1:]
+    return (
+        site.n_mismatch + site.n_gap, -site.clean_3prime_nt,
+        int(num) if num.isdigit() else 0, site.id,
+    )  # fmt: skip
+
+
+def same_site_groups(sites: list[SiteResult]) -> list[list[SiteResult]]:
+    """Sites of one oligo on one record, tier and strand whose spans overlap, best first.
+
+    Each degenerate variant is a query of its own, so one binding site is reported once per
+    variant that reaches it; a group is that one site (code review, 2026-11-17: the HSV-1
+    primers, 8 variants each, counted one HSV-2 product up to 64 times).
+    """
+    by: dict[tuple[str, str, str, str, str], list[SiteResult]] = defaultdict(list)
+    for s in sites:
+        by[(s.tier, s.accession, s.role, oligo_of(s.query), s.orientation)].append(s)
+    groups: list[list[SiteResult]] = []
+    for key in sorted(by):
+        members = sorted(by[key], key=lambda s: (s.subject_start, s.subject_end, s.id))
+        current: list[SiteResult] = []
+        end = 0
+        for s in members:
+            if current and s.subject_start <= end:
+                current.append(s)
+                end = max(end, s.subject_end)
+            else:
+                if current:
+                    groups.append(current)
+                current, end = [s], s.subject_end
+        if current:
+            groups.append(current)
+    return [sorted(g, key=site_quality) for g in groups]
+
+
+def best_of_each_site(sites: list[SiteResult]) -> list[SiteResult]:
+    """One site per binding site: the best variant of each :func:`same_site_groups` group."""
+    return [g[0] for g in same_site_groups(sites)]
+
+
 def _channels(assay: Assay, binding: list[SiteResult]) -> list[str]:
     """The channels whose probes bind inside a product (a degenerate variant counts as its
     oligo), in the assay's channel order."""
-    names = {re.sub(r"_v\d+$", "", p.query) for p in binding}
+    names = {oligo_of(p.query) for p in binding}
     return [ch.name for ch in assay.channels if names & set(ch.probes)]
 
 
 def _who(site: SiteResult) -> str:
     """The oligo's name for a named oligo, else its role (unchanged for single-oligo assays)."""
-    name = re.sub(r"_v\d+$", "", site.query)
+    name = oligo_of(site.query)
     return site.role if name == site.role else name
 
 
@@ -64,9 +112,17 @@ def predict_amplicons(
     The probe counts as binding if a probe site of sufficient level lies inside the product.
     Pairing uses the *primary* record of each BLAST hit group: identical sequences merged into one
     hit are not expanded, so a product on a merged record can be missed.
+
+    The degenerate variants of a primer that reach the same site are one site: the best variant
+    pairs, and every variant of a site that pairs counts as used, so one product is one product.
     """
+    same: dict[str, list[str]] = {}
+    primers: list[SiteResult] = []
+    for g in same_site_groups([s for s in sites if primer_can_prime(s)]):
+        same[g[0].id] = [s.id for s in g]
+        primers.append(g[0])
     groups: dict[tuple[str, str], list[SiteResult]] = defaultdict(list)
-    for s in sites:
+    for s in [*primers, *(s for s in sites if s.role == "probe")]:
         groups[(s.tier, s.accession)].append(s)
 
     out: list[AmpliconResult] = []
@@ -126,5 +182,5 @@ def predict_amplicons(
                         note=_note(assay, rules, left, rtype),
                     )
                 )
-                used.update({left.id, right.id})
+                used.update([*same[left.id], *same[right.id]])
     return out, used, truncated

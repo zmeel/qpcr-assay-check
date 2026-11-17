@@ -2,7 +2,12 @@
 reviews 2026-10-01, user 2026-10-02)."""
 
 from qpcr_assay_check.config import load_config
-from qpcr_assay_check.inclusivity.models import FragmentYear, fragment_window, status_years
+from qpcr_assay_check.inclusivity.models import (
+    FragmentYear,
+    fragment_window,
+    status_last_year,
+    status_years,
+)
 from qpcr_assay_check.pipeline import evaluate
 from qpcr_assay_check.report.html import render_report
 from qpcr_assay_check.report.summary import summary_rows
@@ -30,14 +35,15 @@ def test_the_status_counts_collection_years_when_asked(tmp_path):
     _, _, rel = _run(tmp_path / "r", "release")
     cfg, _, col = _run(tmp_path / "c", "collection")
     assert rel.inclusivity.status_axis == "release" and col.inclusivity.status_axis == "collection"
-    # by release year: GCF_1, GCF_2 and the variant GCA_3 (a likely failure), 2024-2026
+    # by release year: GCF_1, GCF_2 and the variant GCA_3 (a likely failure); the window is
+    # the 3 complete years plus the current one, 2023-2026, though 2023 holds no genome
     assert rel.inclusivity.verdict is Verdict.FAIL
-    assert rel.inclusivity.rationale[0].startswith("Whole fragment, genomes released 2024-2026")
+    assert rel.inclusivity.rationale[0].startswith("Whole fragment, genomes released 2023-2026")
     # by collection year only GCF_1 (2024) is placed; GCF_2 was collected in 2012, GCA_3 has
     # 'missing', GCA_5 (cut) no BioSample: left out, and said so
     lines = col.inclusivity.rationale
     assert col.inclusivity.verdict is Verdict.PASS
-    assert lines[0].startswith("Whole fragment, genomes collected 2024-2024: 100.0% detectable")
+    assert lines[0].startswith("Whole fragment, genomes collected 2023-2026: 100.0% detectable")
     assert any(x.startswith("By release year (information only; the status uses the "
                             "collection year): 66.7% detectable of 3") for x in lines)  # fmt: skip
     apart = next(x for x in lines if x.startswith("Left out of the status by collection year"))
@@ -52,8 +58,10 @@ def test_the_status_counts_collection_years_when_asked(tmp_path):
         "50.0% of the genomes with the region have no usable collection year, more than 25%"
         in few.inclusivity.rationale[0]
     )
-    w = fragment_window(status_years(col.inclusivity), cfg.inclusivity.verdict_window_years)
-    assert (w.first, w.last, w.n) == (2024, 2024, 1)
+    w = fragment_window(status_years(col.inclusivity), cfg.inclusivity.verdict_window_years,
+                        status_last_year(col.inclusivity))  # fmt: skip
+    # the window ends at the latest release year, not at the last collection year with data
+    assert (w.first, w.last, w.n) == (2023, 2026, 1)
 
 
 def test_a_collection_year_below_the_limit_names_the_collection_year():
@@ -105,14 +113,30 @@ def test_report_and_summary_follow_the_axis(tmp_path):
         assert "distinct site patterns, information" in row.result
         assert "<strong>Distinct site patterns</strong>" in html
         if axis == "collection":
-            assert "1 genomes collected 2024–2024" in row.scope
+            assert "1 genomes collected 2023–2026" in row.scope
             assert "by collection year</strong> (the status uses this table)" in html
             assert "complete collection years" in html
         else:
-            assert "genomes released 2024–2026" in row.scope
+            assert "genomes released 2023–2026" in row.scope
             # the cut genome GCA_5 is named among the undetermined, as in the rationale
             assert (
                 "(1 undetermined, not counted, of which 1 with the region cut or hidden by N)"
                 in row.scope
             )
             assert "by collection year</strong> (information only)" in html
+
+
+def test_a_target_no_longer_sequenced_is_not_judged_on_old_years():
+    # code review 2026-11-17: the window ended at the last year with data, so HSV-1 was judged
+    # on genomes collected 2020-2023 in a 2026 run
+    rules = load_config().inclusivity.model_copy(update={"min_genomes_for_verdict": 1})
+    old = [FragmentYear(year=y, with_region=50, detectable=50) for y in range(2018, 2023)]
+    empty = [FragmentYear(year=y, with_region=0) for y in range(2023, 2027)]
+    w = fragment_window(old + empty, rules.verdict_window_years)
+    assert (w.first, w.last, w.n) == (2023, 2026, 0)
+    verdict, lines = fragment_verdict(old + empty, rules)
+    assert verdict is Verdict.INCOMPLETE
+    assert "0 with the target region released 2023-2026" in lines[0]
+    # by collection year the window ends at the last release year shown, passed in
+    w = fragment_window(old, rules.verdict_window_years, last=2026)
+    assert (w.first, w.last, w.n) == (2023, 2026, 0)

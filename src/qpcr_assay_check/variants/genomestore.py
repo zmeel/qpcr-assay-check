@@ -169,7 +169,15 @@ class GenomeStore:
         self.path = Path(path)
         self.key = key
         self.items: dict[str, GenomeRecord] = {}
-        self.aliases: set[str] = set()  # Nucleotide UIDs already looked up in this run
+        # this run's listing: the accessions NCBI lists now under the current filters, and
+        # whether that is all of them (False when the per-run budget stopped the listing)
+        self.listed: set[str] = set()
+        self.listing_complete = False
+        # Nucleotide UID -> accession.version, kept beside the store: a UID names one sequence
+        # version, so a record looked up once needs no ESummary on later runs (code review,
+        # 2026-11-17: every run summarised every listed record again)
+        self.uids_path = self.path.with_name(self.path.name + ".uids.json")
+        self.uid_accession: dict[str, str] = {}
         self.failures_path = self.path.with_name(self.path.name + ".failures.json")
         self.failures: dict[str, dict[str, Any]] = {}
         # collection dates per accession, read while listing (every run lists): kept beside the
@@ -199,6 +207,11 @@ class GenomeStore:
                 self.dates = json.loads(self.dates_path.read_text("utf-8"))
             except ValueError:
                 log.warning("Ignoring unreadable %s (read again while listing)", self.dates_path)
+        if self.uids_path.exists():
+            try:
+                self.uid_accession = json.loads(self.uids_path.read_text("utf-8"))
+            except ValueError:
+                log.warning("Ignoring unreadable %s (looked up again)", self.uids_path)
 
     def _load(self) -> bool:
         """Read the records; False when the header is missing or its key differs."""
@@ -244,6 +257,35 @@ class GenomeStore:
         tmp = self.dates_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(self.dates, separators=(",", ":")), encoding="utf-8")
         tmp.replace(self.dates_path)
+
+    def note_uids(self, uids: dict[str, str]) -> None:
+        """Remember UID -> accession lookups and save them when anything is new."""
+        new = {u: a for u, a in uids.items() if self.uid_accession.get(u) != a}
+        if not new:
+            return
+        self.uid_accession.update(new)
+        tmp = self.uids_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.uid_accession, separators=(",", ":")), encoding="utf-8")
+        tmp.replace(self.uids_path)
+
+    def finish_listing(self, total: int) -> None:
+        """Mark the listing whole when it named as many records as NCBI counts."""
+        self.listing_complete = total > 0 and len(self.listed) >= total
+
+    def listed_items(self) -> dict[str, GenomeRecord]:
+        """The stored records NCBI lists now; every stored record when this run's listing was
+        cut short (code review, 2026-11-17: withdrawn records, and records outside a narrowed
+        ``variants.nucleotide_query``, stayed in the figures and in the count of assessed)."""
+        if not self.listing_complete:
+            return self.items
+        return {a: r for a, r in self.items.items() if a in self.listed}
+
+    def assessed_in(self, year: int, year_listed: set[str], n_year: int) -> int:
+        """Stored records of one release year: those listed now when the year's listing was
+        whole, else every stored record of that year."""
+        if len(year_listed) >= n_year:
+            return sum(1 for a in year_listed if a in self.items)
+        return sum(1 for r in self.items.values() if r.year == year)
 
     def record_failure(self, accession: str, reason: str) -> None:
         """Count a failed download, with its reason (tried again on the next run)."""

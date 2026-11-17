@@ -27,6 +27,12 @@ class SearchTimeout(NcbiError):
 #: call a RID READY and then have its formatter return an HTML error page (live, 2026-10-09).
 FETCH_ATTEMPTS = 3
 
+#: Resubmissions per run of a search whose RID NCBI calls UNKNOWN. UNKNOWN is also what a status
+#: page without a ``Status=`` line reads as (an HTML error or limit page), so it is not retried in
+#: a loop: one new submission for an expired RID, then the search stops (code review,
+#: 2026-11-17: without a limit a persistent error page meant a new search every minute).
+UNKNOWN_RESUBMITS = 1
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -155,6 +161,7 @@ class BlastRunner:
 
         deadline = self._now().timestamp() + self.s.max_wait_minutes * 60
         first = True
+        unknown = 0  # UNKNOWN answers resubmitted in this run
         while True:
             assert job.rid is not None
             if first:
@@ -195,9 +202,20 @@ class BlastRunner:
                 self.store.upsert(job)
                 raise NcbiError(f"NCBI reported that search {job.label!r} (RID {job.rid}) failed.")
             if status == "UNKNOWN":
+                if unknown >= UNKNOWN_RESUBMITS or self._now().timestamp() >= deadline:
+                    job.error = "NCBI called the RID UNKNOWN again after a new submission"
+                    self.store.upsert(job)
+                    raise NcbiError(
+                        f"NCBI called search {job.label!r} UNKNOWN (RID {job.rid}) again after "
+                        "submitting it anew, or its status page had no status (an error page). "
+                        "Nothing more is submitted in this run; run the same command again "
+                        "later. If it persists, the RID is in the log for "
+                        "blasthelp@ncbi.nlm.nih.gov."
+                    )
+                unknown += 1
                 log.warning("Job %s: RID %s is unknown/expired; resubmitting", job.label, job.rid)
                 self._submit(job, put_params)
-                first = True
+                fresh, first = True, True
                 continue
             if not fresh and waited >= self.s.resubmit_after_minutes:
                 log.warning(

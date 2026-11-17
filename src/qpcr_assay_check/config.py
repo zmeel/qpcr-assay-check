@@ -397,6 +397,7 @@ class InclusivitySettings(_Strict):
     fail_below_percent: float
     # exhaustive analysis (advisor subagent, 2026-09-26): the verdict uses the whole-fragment
     # genome outcome over the last `verdict_window_years` complete years plus the current year
+    # (the latest release year listed; never the last year with data)
     verdict_window_years: int = 3
     min_genomes_for_verdict: int = 100
     min_genomes_per_year: int = 30

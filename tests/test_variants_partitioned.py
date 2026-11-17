@@ -210,3 +210,65 @@ def test_a_record_efetch_returns_under_a_pipe_identifier_is_still_assessed(tmp_p
     res = setup(tmp_path, FakeNuccore([pdb]), direct_scan_max_length=100000)()
     assert (res.coverage.assessed_total, res.coverage.found) == (1, 1)
     assert [s.accession for s in res.sites if s.role == "forward"] == ["9V29_sa"]
+
+
+def test_records_looked_up_once_need_no_summary_on_later_runs(tmp_path):
+    # code review 2026-11-17: every run summarised every listed record again
+    fake = FakeNuccore(records())
+    run = setup(tmp_path, fake)
+    first = run().coverage
+    assert first.complete and len(fake.esummary_ids) == 5
+    fake.esummary_ids.clear()
+    again = run().coverage
+    assert fake.esummary_ids == [] and again.complete
+    assert (again.listed_total, again.assessed_total) == (5, 5)
+
+
+def test_a_stored_record_no_longer_listed_is_left_out_of_the_figures(tmp_path):
+    # code review 2026-11-17: a withdrawn record, or one outside a narrowed nucleotide_query,
+    # stayed in the figures and in the count that decides "complete"
+    fake = FakeNuccore(records())
+    run = setup(tmp_path, fake)
+    assert run().coverage.assessed_total == 5
+    fake.records = [r for r in fake.records if r.uid != "5"]
+    res = run()
+    c = res.coverage
+    assert (c.listed_total, c.assessed_total, c.complete) == (4, 4, True)
+    assert c.not_listed_now == 1 and c.not_listed_examples == ["MZ000005.1"]
+    assert not any(s.accession == "MZ000005.1" for s in res.sites)
+
+
+def test_a_listing_cut_by_the_budget_is_never_complete(tmp_path):
+    fake = FakeNuccore(records())
+    run = setup(tmp_path, fake)
+    run()
+    fake.records = [r for r in fake.records if r.uid != "5"]
+    fake.records.append(FakeRecord("6", "MZ000006.1", "2026/06/01",
+                                   filler(300, 6) + AMP + filler(300, 56)))  # fmt: skip
+    capped = setup(tmp_path, fake, blast_max_records_per_run=1)()
+    # the new record is the one processed; with the budget spent, the listing is not trusted
+    # to be whole, so the five stored records are all counted and nothing reads as complete
+    assert capped.coverage.processed_this_run == 1 and not capped.coverage.complete
+
+
+def test_a_failed_window_fetch_leaves_the_record_for_the_next_run(tmp_path):
+    # code review 2026-11-17: the record was stored as 'not found' for good
+    class Flaky(FakeNuccore):
+        down = True
+
+        def _efetch(self, p):
+            if self.down and p.get("id") == "MZ000003.1" and "seq_start" in p:
+                self.efetch_ids.append(str(p["id"]))
+                return FakeResponse(400, "Error: temporarily unavailable")
+            return super()._efetch(p)
+
+    from .fake_ncbi import FakeResponse
+
+    fake = Flaky(records())
+    run = setup(tmp_path, fake, direct_scan_max_length=0)
+    first = run().coverage
+    assert first.assessed_total == 4 and not first.complete
+    fake.down = False
+    second = run().coverage
+    assert second.complete and second.processed_this_run == 1
+    assert second.found == 4  # MZ000003.1 found once its window could be fetched

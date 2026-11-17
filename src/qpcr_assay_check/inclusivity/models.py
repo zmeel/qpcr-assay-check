@@ -121,7 +121,8 @@ class DistinctPatterns(BaseModel):
 @dataclass(frozen=True)
 class FragmentWindow:
     """The whole-fragment outcome pooled over the verdict window: the last ``window_years``
-    complete release years plus the most recent year with data."""
+    complete years plus the latest year of the listing (the current year whenever anything was
+    released in it), on the release or the collection axis."""
 
     first: int
     last: int
@@ -145,15 +146,23 @@ class FragmentWindow:
         return 100.0 * self.detectable / self.n if self.n > 0 else None
 
 
-def fragment_window(years: list[FragmentYear], window_years: int) -> FragmentWindow | None:
-    """Pool the per-year whole-fragment outcome over the verdict window (None without data)."""
-    with_data = [y for y in years if y.with_region]
-    if not with_data:
+def fragment_window(
+    years: list[FragmentYear], window_years: int, last: int | None = None
+) -> FragmentWindow | None:
+    """Pool the per-year whole-fragment outcome over the verdict window (None without data).
+
+    The window ends at ``last`` (the collection axis passes its last year, as its rows hold only
+    years with data), else at the latest row: never at the last year with data, so a target
+    that is no longer sequenced is not judged on old years (code review, 2026-11-17: the HSV-1
+    status was judged on genomes collected 2020-2023). A window without data has ``n`` 0.
+    """
+    if not any(y.with_region for y in years):
         return None
-    last = max(y.year for y in with_data)
+    if last is None:
+        last = max(y.year for y in years)
     window = [y for y in years if last - window_years <= y.year <= last]
     return FragmentWindow(
-        first=min(y.year for y in window),
+        first=last - window_years,
         last=last,
         years=window,
         with_region=sum(y.with_region for y in window),
@@ -210,3 +219,10 @@ def status_years(inc: InclusivityResult) -> list[FragmentYear]:
     if inc.status_axis == "collection":
         return inc.collection.years if inc.collection is not None else []
     return inc.fragment_years
+
+
+def status_last_year(inc: InclusivityResult) -> int | None:
+    """The year the status window ends (None: the latest row, on the release axis)."""
+    if inc.status_axis == "collection" and inc.collection is not None:
+        return inc.collection.last_year
+    return None

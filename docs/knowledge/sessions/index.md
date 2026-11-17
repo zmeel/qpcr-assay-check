@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [Whole-project code review: seven fixes](2026-11-17-01-code-review-fixes.md) - Session log of 2026-11-17.
 * [Upload button, and the HSV-1 assay file](2026-10-23-01-hsv1-assay.md) - Session log of 2026-10-23.
 * [NCBI's answer: a change on their side](2026-10-22-01-ncbi-answer.md) - Session log of 2026-10-22.
 * [The BLAST slow queue](2026-10-21-01-blast-slow-queue.md) - Session log of 2026-10-20 (afternoon) and 2026-10-21.

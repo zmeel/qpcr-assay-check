@@ -50,7 +50,9 @@ Tiers: target, near neighbours, background (human by default), exclusivity organ
 out-of-scope taxa, each a taxon-restricted remote BLAST. Hits are re-aligned semi-globally over
 the whole oligo, classified ([specificity findings](../rules/specificity-findings.md)) and
 paired into products; the partner scan fetches the window next to an unpaired primer site and
-aligns the partner primers and the probe; `reach.py` computes what each search could have
+aligns the partner primers and the probe (the degenerate variants of an oligo that reach one
+site are one site: the best variant pairs and is scanned, so one product counts once against
+`max_amplicons` and one window against `partner_scan_max_windows`, 2026-11-17); `reach.py` computes what each search could have
 reported ([BLAST facts](../ncbi/blast-url-api.md)). Taxonomy resolves names to IDs, lineages
 and the exclusivity table.
 

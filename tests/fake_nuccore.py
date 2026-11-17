@@ -38,6 +38,7 @@ class FakeNuccore:
     unlisted: list[FakeRecord] = field(default_factory=list)  # EFetch only (e.g. a context record)
     blast_puts: list[str] = field(default_factory=list)
     efetch_ids: list[str] = field(default_factory=list)
+    esummary_ids: list[str] = field(default_factory=list)
     headers: dict = field(default_factory=dict)
     _queries: dict[str, tuple[str, list[str]]] = field(default_factory=dict)
 
@@ -84,6 +85,7 @@ class FakeNuccore:
     def _esummary(self, p: dict) -> FakeResponse:
         by_uid = {r.uid: r for r in self.records}
         ids = [i for i in str(p.get("id", "")).split(",") if i in by_uid]
+        self.esummary_ids += ids
         result: dict = {"uids": ids}
         for uid in ids:
             r = by_uid[uid]

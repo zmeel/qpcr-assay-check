@@ -34,7 +34,9 @@ From CHANGELOG "Unreleased":[^changelog] why each escape fails; distinct site pa
 collection year as an optional status axis with the 25% undated limit; why a cut genome has no
 judged site; a fragment not in the assembly counts as region not found; terminal G2 at risk;
 one mismatch under the MGB likely failure; narrower whole-fragment tables; search limits, RNA
-note and homopolymer range in the report; this knowledge bundle. No release has been decided.
+note and homopolymer range in the report; this knowledge bundle; the seven fixes of the code
+review of 2026-11-17 ([session](sessions/2026-11-17-01-code-review-fixes.md)). No release has
+been decided.
 
 # Latest runs
 
@@ -54,8 +56,10 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
   lineage) folds into a hairpin: worth a wet-lab check on an Oka template.
 - HSV-2 detection (gD): assay file ready, no run yet ([assay](assays/hsv2-gd.md)).
 - HSV-1 detection (gG, Ryncarz 1999 oligos): first run 2026-10-23 ([run](runs/hsv1-2026-10-23.md)): HSV-2
-  amplified but not detected, 96.1% detectable, inclusivity Incomplete (26 dated recent genomes).
-  Decide on `status_axis: release` and on raising the partner-scan limit for the HSV-2 products.
+  amplified but not detected, 96.1% detectable, inclusivity Incomplete (26 dated genomes, collected
+  2020-2023). A rerun now judges 2023-2026 and counts each HSV-2 product once (fixes of
+  2026-11-17), so the partner-scan limit may no longer be reached. Decide on
+  `status_axis: release`.
   Check the forward primer's 2nd base (C in the paper, T in both reference genomes) against the
   laboratory's order sheet, and change the exclusivity panel if wanted.
 
@@ -74,7 +78,10 @@ note and homopolymer range in the report; this knowledge bundle. No release has 
 - The Stadhouders PDF for the Table 1 check, if available.
 - Confirm the licence (Apache-2.0 in pyproject.toml; CLAUDE.md still says to ask)
   ([open](open/license-note.md)).
-- Read and mark concepts in this bundle as verified.
+- Read and mark concepts in this bundle as verified. R6 is back to draft: an MGB addition
+  (2026-11-17) changed the rule you verified on 2026-10-08.
+- The advisor's whole-project evaluation did not finish (usage limit, then no credits for
+  the model asked for).
 
 # Working setup
 

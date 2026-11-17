@@ -34,6 +34,9 @@ sources:
   should run off-peak (weekends or 9 pm-5 am US Eastern); merge short queries into one search of
   up to 1,000 bases.[^urlapi][^arch]
 - RIDs are kept for about 36 hours (NCBI training material, not the API page).
+- A RID NCBI calls UNKNOWN (expired, or a status page without a status, such as an error page)
+  is submitted anew once per run; a second UNKNOWN stops the search with an error, never a new
+  search every minute (code review, 2026-11-17).
 - E-utilities: 3 requests per second without an API key, 10 with one.[^eutils]
 - Datasets: with an API key the response header read `X-Ratelimit-Limit: 10` (2026-09-23).
 - Credentials only from the environment (`NCBI_EMAIL`, `NCBI_API_KEY`), never from files.

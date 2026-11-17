@@ -212,7 +212,8 @@ matches no site is flagged in the report.
 
 **R6. Ambiguity codes in the genome sequence** (R, Y, ... in a consensus). Built: a code that can
 pair with the oligo base counts as a match when it lies beyond the last 5 nt. In the last 5 nt the
-site is graded twice, with the code as a match and as a mismatch: when both give a detectable
+site is graded twice (in an MGB probe anywhere in the site, since one mismatch anywhere changes
+an MGB probe's class under R9: code review, 2026-11-17), with the code as a match and as a mismatch: when both give a detectable
 class (or both do not), that class is kept (the worse one if both are detectable; the note says
 when the code could make a failing site worse); only when the code decides between detectable
 and not is the site `indeterminate` (R6). So an ambiguity code never hides a real failure. A

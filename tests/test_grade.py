@@ -327,3 +327,15 @@ def test_probe_deletions_say_where_the_measured_data_stop():
     assert mgb.cls == g.AT_RISK and "no study measured a deletion under an MGB probe" in mgb.note
     short = g.grade_probe(short_probe, deleted(short_probe, 3), mgb=False)
     assert short.cls == g.AT_RISK and "no measured data for a probe of 19 nt" in short.note
+
+
+def test_an_ambiguity_code_under_the_mgb_is_not_read_as_a_match():
+    # code review 2026-11-17: an R at -6 read as a match, though one mismatch there under the
+    # MGB is likely failure; the genome does not say which, so the site is indeterminate
+    probe = "CCGCAACAACTGCAGTATAT"
+    at6 = probe[:-6] + "R" + probe[-5:]  # A at -6; R pairs with it or not
+    assert g.grade_probe(probe, at6, mgb=True).cls == g.INDETERMINATE
+    assert g.grade_probe(probe, at6, mgb=False).cls == g.PERFECT  # beyond the last 5 nt
+    far = probe[:2] + "R" + probe[3:]  # G at -18 (R = A/G): outside the MGB region
+    assert probe[2] == "G" and g.grade_probe(probe, far, mgb=True).cls == g.INDETERMINATE
+    assert g.grade_probe(probe, far, mgb=False).cls == g.PERFECT

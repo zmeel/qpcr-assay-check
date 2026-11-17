@@ -292,9 +292,12 @@ def test_each_escape_says_why_its_best_copy_fails(tmp_path):
     assert "1 mismatch(es)" in mism.detail and "in the last 5 nt" in mism.detail
     assert {r.kind: r.genomes for r in c.escape_reasons} == {"run_length": 1, "mismatch": 1}
     assert all(r.label and r.examples for r in c.escape_reasons)
-    # tolerated bulges (same stored genomes): the run-length escape is detected, the other stays
+    # tolerated bulges (same stored genomes, listed again: a stored genome NCBI no longer lists
+    # is left out): the run-length escape is detected, the other stays
     tolerant = run(tmp_path, [
         FakeAssembly("GCA_000000121.1", "2026-02-01", copies(21, AMP.replace(F, longer_run))),
+        FakeAssembly("GCA_000000122.1", "2026-03-01", copies(22, both_bad)),
+        FakeAssembly("GCA_000000123.1", "2026-04-01", copies(23, AMP)),
     ], variants={"homopolymer_bulges_detectable": True}).coverage.copies  # fmt: skip
     assert [(r.accession, r.kind) for r in tolerant.escape_rows] == [("GCA_000000122.1",
                                                                       "mismatch")]  # fmt: skip
@@ -341,3 +344,13 @@ def test_the_status_figure_is_also_given_under_the_other_homopolymer_setting(tmp
     assert round(tolerant.inclusivity.bulge_alternative, 1) == 33.3
     assert any("were not tolerated (strict), against 66.7%" in x
                for x in tolerant.inclusivity.rationale)  # fmt: skip
+
+
+def test_a_stored_assembly_no_longer_listed_is_left_out(tmp_path):
+    # code review 2026-11-17: a suppressed or replaced assembly stayed in the figures
+    both = [FakeAssembly("GCA_000000131.1", "2026-02-01", copies(31, AMP)),
+            FakeAssembly("GCA_000000132.1", "2026-03-01", copies(32, AMP))]  # fmt: skip
+    assert run(tmp_path, both).coverage.assessed_total == 2
+    c = run(tmp_path, both[:1]).coverage
+    assert (c.listed_total, c.assessed_total, c.complete) == (1, 1, True)
+    assert c.not_listed_now == 1 and c.not_listed_examples == ["GCA_000000132.1"]

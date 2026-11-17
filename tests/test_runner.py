@@ -111,6 +111,16 @@ def test_unknown_status_triggers_one_resubmission(cfg, tmp_path):
     assert fake.n_put == 2 and env.job.rid == "RID0002" and env.job.attempts == 2
 
 
+def test_unknown_again_after_resubmission_stops_the_search(cfg, tmp_path):
+    # an error page without a Status= line reads as UNKNOWN: never a new search every minute
+    fake = FakeNcbi(hits_for_payload, statuses=["UNKNOWN"])
+    env = Env(cfg, tmp_path, fake)
+    with pytest.raises(NcbiError, match="UNKNOWN"):
+        env.run()
+    assert fake.n_put == 2 and env.job.error
+    assert env.fc.t < cfg.ncbi.max_wait_minutes * 60
+
+
 def test_failed_search_raises_and_is_recorded(cfg, tmp_path):
     env = Env(cfg, tmp_path, FakeNcbi(hits_for_payload, statuses=["FAILED"]))
     with pytest.raises(NcbiError, match="failed"):

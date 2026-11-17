@@ -23,6 +23,7 @@ from ..config import SpecificitySettings
 from ..models import Assay
 from .fetch import WindowFetcher
 from .models import AmpliconResult, PartnerScan, SiteResult
+from .pairing import oligo_of, site_quality
 from .sites import oriented_window, site_from_scan
 
 log = logging.getLogger(__name__)
@@ -49,7 +50,8 @@ def progress_step(total: int) -> int:
 
 class _Known:
     """Sites already known, indexed by tier, record, oligo and strand: a scanned site that
-    overlaps one of them is not new (tiers are kept apart, as products are paired per tier)."""
+    overlaps one of them is not new (tiers are kept apart, as products are paired per tier). A
+    degenerate variant counts as its oligo, so one site is added once, not once per variant."""
 
     def __init__(self, sites: list[SiteResult]) -> None:
         self._by: dict[tuple[str, str, str, str], list[tuple[int, int]]] = {}
@@ -58,7 +60,7 @@ class _Known:
 
     @staticmethod
     def _key(s: SiteResult) -> tuple[str, str, str, str]:
-        return s.tier, s.accession, s.query, s.orientation
+        return s.tier, s.accession, oligo_of(s.query), s.orientation
 
     def add(self, s: SiteResult) -> None:
         self._by.setdefault(self._key(s), []).append((s.subject_start, s.subject_end))
@@ -68,6 +70,12 @@ class _Known:
             lo <= s.subject_end and s.subject_start <= hi
             for lo, hi in self._by.get(self._key(s), ())
         )
+
+
+def _quality(s: SiteResult) -> tuple[int, int]:
+    """Best scanned site first (new sites have no id yet): fewest mismatches and gaps, then the
+    longest clean 3' end."""
+    return site_quality(s)[:2]
 
 
 def _faces(anchor: SiteResult, other: SiteResult) -> bool:
@@ -107,6 +115,13 @@ class PartnerScanner:
 
     def _labels(self, role: str) -> list[str]:
         return [lb for lb in self.queries if self.assay.role_of(lb) == role]
+
+    def _by_oligo(self, role: str) -> list[list[str]]:
+        """The query labels of a role, one list per oligo (its degenerate variants together)."""
+        out: dict[str, list[str]] = {}
+        for lb in self._labels(role):
+            out.setdefault(oligo_of(lb), []).append(lb)
+        return list(out.values())
 
     def _best(
         self,
@@ -178,11 +193,16 @@ class PartnerScanner:
             partner_role = "reverse" if anchor.role == "forward" else "forward"
             facing: Literal["+", "-"] = "-" if anchor.orientation == "+" else "+"
             note = f"found by the partner scan next to {anchor.id}; not reported by BLAST"
-            for label in self._labels(partner_role):
-                s = self._best(
-                    label, part, p_lo, (facing,), anchor, partner_role, note,
-                    accept=lambda s, a=anchor: s.level != "minor" and _faces(a, s),
-                )  # fmt: skip
+            for labels in self._by_oligo(partner_role):  # the best variant of each oligo
+                found = [
+                    s for s in (
+                        self._best(
+                            label, part, p_lo, (facing,), anchor, partner_role, note,
+                            accept=lambda s, a=anchor: s.level != "minor" and _faces(a, s),
+                        ) for label in labels
+                    ) if s is not None
+                ]  # fmt: skip
+                s = min(found, key=_quality) if found else None
                 if s is None or known.overlaps(s):
                     continue
                 s.id = f"S{next(self.ids)}"
@@ -228,11 +248,16 @@ class PartnerScanner:
                 continue
             anchor = by_id[a.left_site]
             note = f"found by re-aligning the probe inside product {a.id}; not reported by BLAST"
-            for label in self._labels("probe"):
-                s = self._best(
-                    label, product, a.start, ("+", "-"), anchor, "probe", note,
-                    accept=lambda s: s.level != "minor",
-                )  # fmt: skip
+            for labels in self._by_oligo("probe"):  # the best variant of each probe
+                found = [
+                    s for s in (
+                        self._best(
+                            label, product, a.start, ("+", "-"), anchor, "probe", note,
+                            accept=lambda s: s.level != "minor",
+                        ) for label in labels
+                    ) if s is not None
+                ]  # fmt: skip
+                s = min(found, key=_quality) if found else None
                 if s is None or known.overlaps(s):
                     continue
                 s.id = f"S{next(self.ids)}"

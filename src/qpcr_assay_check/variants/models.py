@@ -244,6 +244,17 @@ class ExhaustiveCoverage(BaseModel):
     filters: dict[str, bool | str]
     listed_total: int
     assessed_total: int
+    listing_complete: bool = Field(
+        default=True,
+        description="this run listed every record NCBI counts (False when the per-run budget "
+        "stopped the listing); figures and completeness then count only the records listed now",
+    )
+    not_listed_now: int = Field(
+        default=0,
+        description="stored records NCBI no longer lists under the current filters (withdrawn, "
+        "replaced, or outside variants.nucleotide_query): left out of the figures",
+    )
+    not_listed_examples: list[str] = Field(default_factory=list)
     processed_this_run: int
     download_failed_this_run: int
     unavailable: int = Field(
@@ -340,4 +351,6 @@ class ExhaustiveCoverage(BaseModel):
 
     @property
     def complete(self) -> bool:
-        return self.assessed_total + self.unavailable >= self.listed_total
+        """Every listed record assessed (or unavailable), counted over a whole listing: a
+        listing cut short by the per-run budget may hide records not yet assessed."""
+        return self.listing_complete and self.assessed_total + self.unavailable >= self.listed_total

@@ -315,6 +315,20 @@ def evaluate(
             "could not be downloaded after repeated attempts and are left out (tried again on "
             f"each run; e.g. {', '.join(c.unavailable_examples[:5])})."
         )
+    if variant_coverage is not None and variant_coverage.not_listed_now:
+        c = variant_coverage
+        one = c.not_listed_now == 1
+        what = (
+            ("record" if one else "records") if c.source == "blast_partitioned"
+            else ("assembly" if one else "assemblies")
+        )  # fmt: skip
+        findings.append(
+            f"Variant analysis: {c.not_listed_now} stored {what} "
+            f"{'is' if one else 'are'} no longer listed by NCBI under the current filters "
+            "(withdrawn, replaced, or outside variants.nucleotide_query) and "
+            f"{'is' if one else 'are'} left out of the figures (e.g. "
+            f"{', '.join(c.not_listed_examples[:5])})."
+        )
     if (
         variant_coverage is not None
         and variant_coverage.target_on_plasmid

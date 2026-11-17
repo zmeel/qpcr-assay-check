@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..config import Config
-from ..inclusivity.models import FragmentWindow, fragment_window, status_years
+from ..inclusivity.models import (
+    FragmentWindow,
+    fragment_window,
+    status_last_year,
+    status_years,
+)
 from ..results import RunResult
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL, Verdict
@@ -181,7 +186,7 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
     if inc is None or not inc.tier_searched:
         return _row("Target detection", "–", section.note, None, "", "inclusivity")
     rules = cfg.inclusivity
-    w = fragment_window(status_years(inc), rules.verdict_window_years)
+    w = fragment_window(status_years(inc), rules.verdict_window_years, status_last_year(inc))
     if not inc.exhaustive or w is None or w.percent is None:
         res = inc.rationale[0] if inc.rationale else section.note
         return _row(

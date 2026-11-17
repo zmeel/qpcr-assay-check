@@ -171,3 +171,38 @@ def test_a_product_names_the_channels_whose_probes_bind_in_it():
     p1 = mk("probe", "+", 150, 173, mm=0).model_copy(update={"query": "P-species_v2"})
     (a,), _, _ = predict_amplicons([f, r, p1], RULES, assay)
     assert a.classification == "likely_detected" and a.channels == ["FAM"]
+
+
+def _variant(site, label, mm):
+    return site.model_copy(update={"query": label, "n_mismatch": mm})
+
+
+def test_degenerate_variants_at_one_site_make_one_product_from_the_best_variants():
+    # each degenerate variant is a query of its own and reports the same site (code review,
+    # 2026-11-17: the HSV-1 primers counted one HSV-2 product up to 64 times)
+    fwd = [_variant(mk("forward", "+", 100 + (i == 1), 119), f"forward_v{i}", mm=3 - i)
+           for i in range(1, 4)]  # fmt: skip
+    rev = [_variant(mk("reverse", "-", 200, 223), f"reverse_v{i}", mm=i) for i in range(1, 3)]
+    amps, used, truncated = pair(*fwd, *rev)
+    (a,) = amps
+    assert a.left_site == fwd[2].id and a.right_site == rev[0].id  # the fewest mismatches
+    assert used == {s.id for s in fwd + rev} and not truncated
+
+
+def test_variants_at_two_separate_sites_stay_two_sites():
+    f1 = _variant(mk("forward", "+", 100, 119), "forward_v1", 1)
+    f2 = _variant(mk("forward", "+", 150, 169), "forward_v2", 1)
+    r = mk("reverse", "-", 300, 323)
+    assert len(pair(f1, f2, r)[0]) == 2
+
+
+def test_max_amplicons_counts_products_not_variant_pairs():
+    rules = RULES.model_copy(update={"max_amplicons": 2})
+    sites = []
+    for acc in ("A.1", "B.1"):
+        sites += [_variant(mk("forward", "+", 100, 119, acc=acc), f"forward_v{i}", 1)
+                  for i in range(1, 5)]  # fmt: skip
+        sites += [_variant(mk("reverse", "-", 200, 223, acc=acc), f"reverse_v{i}", 1)
+                  for i in range(1, 5)]  # fmt: skip
+    amps, _, truncated = pair(*sites, rules=rules)
+    assert len(amps) == 2 and not truncated

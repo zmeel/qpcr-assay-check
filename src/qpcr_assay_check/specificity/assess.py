@@ -19,7 +19,7 @@ from .duplex import estimate_duplex
 from .fetch import WindowFetcher
 from .findings import build_findings, verdict_of
 from .models import Finding, PartnerScan, SiteResult, SpecificityResult, TierCount
-from .pairing import predict_amplicons, primer_can_prime
+from .pairing import best_of_each_site, predict_amplicons, primer_can_prime
 from .reach import floor_findings, floors
 from .scan import PartnerScanner, progress_step
 from .sites import (
@@ -254,15 +254,16 @@ def assess_specificity(
     scanning = rules.partner_scan_max_windows > 0
     scanner = PartnerScanner(assay, plan.queries, rules, scoring, fetcher, ids)
     if scanning:
-        # a tier whose product list was cut pairs no further sites: scanning there is wasted
-        anchors = [
+        # a tier whose product list was cut pairs no further sites: scanning there is wasted;
+        # one anchor per site, not one per degenerate variant reaching it (one window each)
+        anchors = best_of_each_site([
             s
             for s in keep
             if s.tier in rules.off_target_tiers
             and s.tier not in amp_truncated
             and primer_can_prime(s)
             and s.id not in used
-        ]  # fmt: skip
+        ])  # fmt: skip
         log.info("Partner scan next to %d unpaired off-target primer sites", len(anchors))
         added = scanner.partners(sites, anchors)
         if added:
@@ -274,7 +275,9 @@ def assess_specificity(
             keep.extend(probes)
             sites.extend(probes)
             priming, amplicons, used, amp_truncated = pair()
-    n_primer_only = sum(1 for s in priming if primer_can_prime(s) and s.id not in used)
+    n_primer_only = len(
+        best_of_each_site([s for s in priming if primer_can_prime(s) and s.id not in used])
+    )
 
     n_sites = {"critical": 0, "warning": 0, "minor": 0}
     for s in sites:

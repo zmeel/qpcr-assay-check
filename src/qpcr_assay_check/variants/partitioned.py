@@ -118,12 +118,22 @@ def collect_partitioned(
         if n_year:
             listed += n_year
             start = 0
+            year_listed: set[str] = set()
             while processed < budget and start < n_year:
                 uids = eutils.esearch_page("nuccore", yterm, retstart=start, retmax=UID_PAGE)
                 start += UID_PAGE
-                new = [u for u in uids if u not in store.aliases]
+                # a UID looked up before whose record is stored, with its collection date read,
+                # needs no ESummary
+                known = {
+                    u: store.uid_accession[u]
+                    for u in uids
+                    if u in store.uid_accession and store.uid_accession[u] in store.dates
+                }
+                year_listed.update(a for a in known.values() if store.done(a))
+                new = [u for u in uids if not (u in known and store.done(known[u]))]
                 recs: list[AssemblyRecord] = []
                 dates: dict[str, str] = {}
+                looked_up: dict[str, str] = {}
                 for i in range(0, len(new), ESUMMARY_BATCH):
                     chunk = new[i : i + ESUMMARY_BATCH]
                     docsums = eutils.esummary("nuccore", chunk)
@@ -131,12 +141,14 @@ def collect_partitioned(
                         rec = _record(uid, docsums.get(uid, {}), year)
                         if rec is None:
                             continue
-                        store.aliases.add(uid)
+                        looked_up[uid] = rec.accession
+                        year_listed.add(rec.accession)
                         dates[rec.accession] = rec.collection_date
                         if not store.done(rec.accession):
                             recs.append(rec)
                     if processed + len(recs) >= budget:
                         break
+                store.note_uids(looked_up)
                 store.note_dates(dates)
                 recs = recs[: budget - processed]
                 # small records (viral genomes, single genes) are fetched and scanned directly:
@@ -150,9 +162,14 @@ def collect_partitioned(
                     _search(large[i : i + size], references, cfg, runner, jobs, fetcher, store)
                     n_searches += 1
                 processed += len(large)
-            assessed = sum(1 for r in store.items.values() if r.year == year)
-            years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year)))
+            store.listed |= year_listed
+            assessed = store.assessed_in(year, year_listed, n_year)
+            # records whose fetch failed on several runs: left out, and named in the report
+            unavailable = sum(1 for a in year_listed if store.unavailable(a))
+            years.append(YearCoverage(year=year, listed=n_year, assessed=min(assessed, n_year),
+                                      unavailable=unavailable))  # fmt: skip
         year -= 1
+    store.finish_listing(total)
     log.info(
         "Variant analysis (Nucleotide records): %d listed, %d processed this run (%d BLAST "
         "search(es) for records longer than %d bases)", total, processed, n_searches,
@@ -198,12 +215,24 @@ def _search(
     settings = scan_settings(cfg)
     for acc, rec in by_acc.items():
         copies: list[StoredCopy] = []
+        fetch_failed = False
         for h, length in sorted(hsps.get(acc, []), key=lambda x: -x[0].bit_score):
-            for c in _hit_copies(acc, h, length or rec.total_length, references, cfg, fetcher,
-                                 settings):  # fmt: skip
+            found = _hit_copies(acc, h, length or rec.total_length, references, cfg, fetcher,
+                                settings)  # fmt: skip
+            if found is None:
+                fetch_failed = True
+                continue
+            for c in found:
                 if not any(k.strand == c.strand and abs(k.start - c.start) <= INDEL_TOLERANCE
                            for k in copies):  # fmt: skip
                     copies.append(c)
+        if fetch_failed:
+            # a hit whose window could not be fetched may hold a copy: not stored, so the next
+            # run tries again (code review, 2026-11-17: it was stored as 'not found' for good)
+            store.record_failure(acc, "the record around a BLAST hit could not be fetched")
+            log.warning("Could not fetch the record around a BLAST hit in %s; retried next run",
+                        acc)  # fmt: skip
+            continue
         # nothing found: 'not found' is BLAST's word only (too long to fetch whole)
         store.add(GenomeRecord(
             accession=rec.accession, release_date=rec.release_date, organism=rec.organism,
@@ -235,11 +264,14 @@ def _direct_scan(
             )
         except NcbiError as exc:
             log.warning("Could not fetch %d records for a direct scan: %s", len(chunk), exc)
+            for rec in chunk:
+                store.record_failure(rec.accession, f"direct scan fetch failed: {exc}")
             continue
         for rec in chunk:
             got = fetched.get(rec.accession)
             if got is None:
                 log.warning("EFetch returned no sequence for %s; retried next run", rec.accession)
+                store.record_failure(rec.accession, "EFetch returned no sequence")
                 continue
             scanned = scan_genome(rec, {rec.accession: got}, references, settings)
             store.add(scanned.model_copy(update={"found_by": "direct_scan",
@@ -251,9 +283,10 @@ def _direct_scan(
 def _hit_copies(
     acc: str, h: Hsp, length: int, references: list[Reference], cfg: Config,
     fetcher: WindowFetcher, settings: ScanSettings,
-) -> list[StoredCopy]:  # fmt: skip
+) -> list[StoredCopy] | None:  # fmt: skip
     """The copies behind one BLAST hit, in the record's coordinates: the hit's own subject when
-    it covers the whole fragment, else the record fetched around it."""
+    it covers the whole fragment, else the record fetched around it (None when that fetch
+    failed)."""
     n = len(references[0].fragment)
     lo, hi = min(h.hit_from, h.hit_to), max(h.hit_from, h.hit_to)
     strand = "+" if h.hit_strand.lower().startswith("plus") else "-"
@@ -269,6 +302,8 @@ def _hit_copies(
     pad = n + cfg.variants.flank_nt + INDEL_TOLERANCE
     w_lo, w_hi = max(1, lo - pad), min(hi + pad, length)
     window = fetcher.get(acc, w_lo, w_hi)  # None (counted, logged) when the fetch failed
+    if window is None:
+        return None
     if not window:
         return []
     found = locate({acc: window.upper()}, references, **kw)
