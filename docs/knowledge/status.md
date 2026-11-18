@@ -69,8 +69,9 @@ Nothing since v2.2.0.
 
 - Influenza A (matrix): rerun 2026-11-18 08:15Z ([run](runs/influenza-a-2026-11-18b.md)): inclusivity
   No flags, but Exceeds limit on a predicted 141 bp product in ON845595.1. Decide what to do with
-  that record: it is labelled influenza B while its M fragment is 95% identical to influenza A
-  (most likely mislabelled; reporting it to NCBI is one option).
+  that record once NCBI answers: its sequence is influenza A filed under influenza B (M1
+  translation 99.2% identical to influenza A M1, 25.0% to influenza B M1), reported to NCBI on
+  2026-11-18 ([open item](open/on845595-mislabelled.md)).
 
 # Working setup
 

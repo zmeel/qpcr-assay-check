@@ -99,3 +99,9 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   limit. Checked live: that record's M fragment is 95.0% identical to the assay's influenza A
   reference, so it reads as mislabelled influenza A rather than influenza B. Left as it is; the
   user decides (an example assay is not tuned to silence a flag).
+- ON845595.1 settled and reported: the record's own M1 translation is 99.2% identical to
+  influenza A M1 (A/California/07/2009) and 25.0% to influenza B M1 (B/Lee/40), its M1 is 252 aa
+  (influenza A's length, not influenza B's 248) and it annotates a spliced M2 instead of
+  influenza B's unspliced BM2. The user reported it to gb-admin@ncbi.nlm.nih.gov on 2026-11-18
+  with the draft in the [open item](../open/on845595-mislabelled.md); the assay file was left
+  untouched.

@@ -47,10 +47,12 @@ this record reads as influenza A under an influenza B name and taxon - a known c
 error, not evidence that the assay detects influenza B.
 
 The tool is right on its own terms: with this record in the exclusivity tier, the product and the
-flag follow. The laboratory decides what to do with it; the options are to leave the flag as a
-true statement about the public data, to report the record to NCBI, or to note it in the assay
-file. Nothing was changed for it here: an example assay is not quietly tuned to make a flag go
-away.
+flag follow. Three further checks the same day (the record's own M1 translation is 99.2%
+identical to influenza A M1 and 25.0% to influenza B M1; its M1 is 252 aa, as influenza A's is;
+it annotates a spliced M2 rather than influenza B's unspliced BM2) settled it, and the user
+reported the record to NCBI on 2026-11-18
+([open item](../open/on845595-mislabelled.md)). Nothing was changed in the assay file for it: an
+example assay is not quietly tuned to make a flag go away.
 
 [^report]: The user's report of the 08:15Z run (not in the repository)
 [^earlier]: The 07:27Z run, before the fix
