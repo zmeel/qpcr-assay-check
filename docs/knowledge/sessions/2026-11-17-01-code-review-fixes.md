@@ -78,3 +78,7 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   CHANGELOG entries merged into one 2.2.0 entry (Added, Changed, Fixed) with a summary and the
   code fingerprint `b68fa8fe...e44455`, the same as the NAS image built from commit 6085892. The
   user sets and pushes the annotated tag.
+- 2026-11-18: the HSV-1 rerun on v2.2.0 recorded ([run](../runs/hsv1-2026-11-17.md)). At the
+  user's request the HSV-1 assay file sets `inclusivity.status_axis: release` (it overrides the
+  NAS configuration's collection axis), and the report's sentence on predicted products names
+  the graded rule instead of "at least warning level".

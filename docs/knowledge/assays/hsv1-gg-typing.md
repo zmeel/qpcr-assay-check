@@ -115,6 +115,10 @@ Annealing: the laboratory runs the assay on the ABI 7500's default program at 60
 no other exclusivity product; 96.1% of 614 genomes detectable, 0% likely failure; inclusivity
 Incomplete for want of dated recent genomes (26 collected 2020-2023).
 
+[2026-11-17 15:55Z](../runs/hsv1-2026-11-17.md), the first on v2.2.0: no human product (31 before),
+HSV-2 amplified but not detected in 500 distinct records, 96.1% of 614 detectable; inclusivity
+Incomplete on the collection axis, so the assay file sets `status_axis: release` since 2026-11-18.
+
 [^assay-file]: docs/examples/hsv1_gg_typing.yaml (provenance and checks in its header)
 [^ryncarz]: Ryncarz et al. 1999, the HSV detection and typing assays
 [^ncbi]: Taxonomy, record counts, NC_001806 and NC_001798, measured live

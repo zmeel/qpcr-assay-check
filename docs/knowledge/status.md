@@ -47,7 +47,7 @@ Nothing since v2.2.0.
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
 | Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
 | VZV (ORF38) | [2026-11-17 14:31Z](runs/vzv-2026-11-17.md) | coverage complete (2,831 assessed, 1 unavailable); 99.7% of 599 with the region detectable; no off-target product; Exceeds limit on oligo QC only (probe G-form hairpin); inclusivity Incomplete (75 collected 2023-2026) |
-| HSV-1 (gG) | [2026-10-23 09:04Z](runs/hsv1-2026-10-23.md) | 96.1% of 614 genomes detectable; HSV-2 amplified, not detected; Exceeds limit (oligo QC, products); inclusivity Incomplete (26 collected 2020-2023); made before the fixes of 2026-11-17 |
+| HSV-1 (gG) | [2026-11-17 15:55Z](runs/hsv1-2026-11-17.md) | v2.2.0: 96.1% of 614 genomes detectable; no human product; HSV-2 amplified, not detected (500 records, the cap); Exceeds limit on oligo QC only; inclusivity Incomplete (collection axis; release axis set since) |
 | Influenza A (matrix) | [2026-10-21 15:42Z](runs/influenza-a-2026-10-21.md) | complete: all 173,689 records, both reverse primers. Review, no limit crossed: 99.6% of 70,606 collected 2023-2026 (69.0% with infa_rev alone); infa_rev2 alone covers 13.6% |
 
 # Next, waiting on the user
@@ -57,13 +57,10 @@ Nothing since v2.2.0.
   among them) folds into a hairpin: worth a wet-lab check on an Oka template. Decide on
   `status_axis: release` (109 records released 2023-2026, 75 collected).
 - HSV-2 detection (gD): assay file ready, no run yet ([assay](assays/hsv2-gd.md)).
-- HSV-1 detection (gG, Ryncarz 1999 oligos): first run 2026-10-23 ([run](runs/hsv1-2026-10-23.md)): HSV-2
-  amplified but not detected, 96.1% detectable, inclusivity Incomplete (26 dated genomes, collected
-  2020-2023). A rerun now judges 2023-2026 and counts each HSV-2 product once (fixes of
-  2026-11-17), so the partner-scan limit may no longer be reached. Decide on
-  `status_axis: release`.
-  Check the forward primer's 2nd base (C in the paper, T in both reference genomes) against the
-  laboratory's order sheet, and change the exclusivity panel if wanted.
+- HSV-1 detection (gG, Ryncarz 1999 oligos): rerun on v2.2.0 2026-11-17 ([run](runs/hsv1-2026-11-17.md)):
+  96.1% detectable, HSV-2 amplified but not detected, no human product. The assay file now sets
+  `status_axis: release`; the GUI's copy needs the same setting. Check the forward primer's 2nd
+  base (C in the paper, T in both reference genomes) against the laboratory's order sheet.
 
 - Giardia lamblia: decide what the predicted detection of G. microti and G. psittaci means for
   the laboratory, and whether to put this assay on `status_axis: release` (two thirds of the

@@ -101,6 +101,9 @@
 #   scanned directly, without BLAST. That leaves out the ~10,000 shorter records (single genes,
 #   mostly not gG). Remove nucleotide_query to assess every record instead: most will be "not
 #   found" (a different gene), which the figures leave out, but it takes many runs.
+#   The status uses the release year (inclusivity.status_axis: release; user, 2026-11-18): in
+#   the run of 2026-11-17, 63.7% of the records had no collection year and one record was
+#   collected 2023-2026, so a status by collection year could never be reached.
 
 assay_name: HSV-1 detection (gG, Ryncarz 1999 typing oligos)
 forward: {name: HSV-1-gG1-FP, sequence: TCCTSGTTCCTMACKGCCTCCC}   # S = C/G, M = A/C, K = G/T
@@ -156,3 +159,5 @@ settings:                        # only what differs from the defaults, for this
     source: blast_partitioned    # virus: every Nucleotide record
     nucleotide_query: "100000:200000[SLEN]"   # genome-sized records: 618 on 2026-10-23
     blast_max_records_per_run: 1000           # all of them in one run
+  inclusivity:
+    status_axis: release         # 63.7% of the records have no collection year (run 2026-11-17)

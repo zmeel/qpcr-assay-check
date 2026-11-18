@@ -11,6 +11,16 @@ a release's, that installation is the release, unchanged, wherever it runs.
 
 ## [Unreleased]
 
+### Changed
+- **HSV-1 example: status by release year** (`inclusivity.status_axis: release`; user,
+  2026-11-18): in the run of 2026-11-17, 63.7% of its records had no collection year and one was
+  collected 2023-2026, so a status by collection year could never be reached.
+
+### Fixed
+- **The report's sentence on predicted products** still said a product needs two primer sites
+  "of at least warning level"; since 2.2.0 a site's graded class decides too, and the sentence
+  says so (records made before 2.2.0 keep the old wording).
+
 ## [2.2.0] - 2026-11-17
 
 The analysis after two code reviews and an independent whole-project evaluation (2026-11-17).
