@@ -54,7 +54,7 @@ is a filter from before the one-rule-set change: a partial BLAST hit whose best 
 alignment could only stay "minor" by the mismatch counts was never fetched and re-aligned, so it
 never got a class and could not prime. With 3 bases unaligned at the 3' end that is exactly this
 site. Fixed on 2026-11-18 (`sites.worth_realigning`): when the classes decide, only the mismatch
-bound rules a hit out. **A rerun is needed to see whether the product is predicted**; the
+bound rules a hit out. The [rerun of 08:15Z](influenza-a-2026-11-18b.md) confirms it: the product is predicted and read as detected (**Exceeds limit**), and the record is most likely mislabelled influenza A; the
 conclusion that detection rests on the reverse primer stands either way, and in the laboratory
 influenza B is a separate assay.
 

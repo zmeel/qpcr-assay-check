@@ -94,3 +94,8 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   ON845595.1 (forward primer perfect, `infa_rev` one mismatch at -3, tolerated under R1) that hid
   a plausible product. `worth_realigning` (renamed from `can_reach_warning`) now rules a hit out
   only by the mismatch bound when the classes decide; the validation script and its tests follow.
+- The influenza rerun on the fix ([run](../runs/influenza-a-2026-11-18b.md)) confirms it: the
+  141 bp product on ON845595.1 is predicted and read as detected, so exclusivity is Exceeds
+  limit. Checked live: that record's M fragment is 95.0% identical to the assay's influenza A
+  reference, so it reads as mislabelled influenza A rather than influenza B. Left as it is; the
+  user decides (an example assay is not tuned to silence a flag).

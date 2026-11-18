@@ -155,7 +155,10 @@ apart, over the limit, because every reverse Tm was about 5.5 C low.
 
 [2026-11-18 07:27Z](../runs/influenza-a-2026-11-18.md), on v2.2.0: inclusivity No flags (99.5% of
 72,698 collected 2023-2026); influenza B ON845595.1 binds the forward primer perfectly, and a
-filter that hid its reverse site was fixed the same day (rerun needed).
+filter that hid its reverse site was fixed the same day.
+
+[2026-11-18 08:15Z](../runs/influenza-a-2026-11-18b.md), on the fix: **Exceeds limit**, a 141 bp
+product on ON845595.1 read as detected; that record is most likely mislabelled influenza A.
 
 [2026-10-21 15:42Z](../runs/influenza-a-2026-10-21.md), the first with `infa_rev2`:
 complete, **99.6% detectable** of the 70,606 records collected 2023-2026, likely failure 0.0%,

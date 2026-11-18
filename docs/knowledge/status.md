@@ -48,7 +48,7 @@ Nothing since v2.2.0.
 | Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
 | VZV (ORF38) | [2026-11-17 14:31Z](runs/vzv-2026-11-17.md) | coverage complete (2,831 assessed, 1 unavailable); 99.7% of 599 with the region detectable; no off-target product; Exceeds limit on oligo QC only (probe G-form hairpin); inclusivity Incomplete (75 collected 2023-2026) |
 | HSV-1 (gG) | [2026-11-17 15:55Z](runs/hsv1-2026-11-17.md) | v2.2.0: 96.1% of 614 genomes detectable; no human product; HSV-2 amplified, not detected (500 records, the cap); Exceeds limit on oligo QC only; inclusivity Incomplete (collection axis; release axis set since) |
-| Influenza A (matrix) | [2026-11-18 07:27Z](runs/influenza-a-2026-11-18.md) | v2.2.0: all 175,891 records; Review, no limit crossed; inclusivity No flags (99.5% of 72,698 collected 2023-2026); a reverse site on an influenza B record was missed by a filter fixed the same day: rerun needed |
+| Influenza A (matrix) | [2026-11-18 08:15Z](runs/influenza-a-2026-11-18b.md) | v2.2.0 with the re-alignment fix: Exceeds limit, a 141 bp product on ON845595.1 read as detected (a record labelled influenza B whose M fragment is 95% identical to influenza A: most likely mislabelled); inclusivity No flags (99.5% of 72,698) |
 
 # Next, waiting on the user
 
@@ -67,9 +67,10 @@ Nothing since v2.2.0.
   records have no collection year) ([run](runs/giardia-2026-10-09.md)). The oligos still want
   confirming against Verweij 2004: they were supplied, not read out of the paper.
 
-- Influenza A (matrix): run 2026-11-18 on v2.2.0 ([run](runs/influenza-a-2026-11-18.md)): inclusivity
-  No flags. Rerun it on the fix of 2026-11-18 (`worth_realigning`): the influenza B record
-  ON845595.1 may yield a predicted product (forward perfect, `infa_rev` one mismatch at -3).
+- Influenza A (matrix): rerun 2026-11-18 08:15Z ([run](runs/influenza-a-2026-11-18b.md)): inclusivity
+  No flags, but Exceeds limit on a predicted 141 bp product in ON845595.1. Decide what to do with
+  that record: it is labelled influenza B while its M fragment is 95% identical to influenza A
+  (most likely mislabelled; reporting it to NCBI is one option).
 
 # Working setup
 
