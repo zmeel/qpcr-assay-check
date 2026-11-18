@@ -30,13 +30,13 @@ from .reach import floor_findings, floors
 from .scan import PartnerScanner, progress_step
 from .sites import (
     Candidate,
-    can_reach_warning,
     make_candidate,
     oriented_window,
     site_from_alignment,
     site_from_bound,
     site_from_full,
     window_for,
+    worth_realigning,
 )
 
 log = logging.getLogger(__name__)
@@ -218,7 +218,7 @@ def assess_specificity(
             for c in chosen:
                 if not c.partial:
                     sites.append(site_from_full(c, site_rules, f"S{next(ids)}"))
-                elif not can_reach_warning(c, site_rules):
+                elif not worth_realigning(c, site_rules, rules.graded_off_target):
                     sites.append(site_from_bound(c, site_rules, f"S{next(ids)}"))
                 else:
                     pending.append(c)

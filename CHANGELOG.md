@@ -17,6 +17,13 @@ a release's, that installation is the release, unchanged, wherever it runs.
   collected 2023-2026, so a status by collection year could never be reached.
 
 ### Fixed
+- **A partial BLAST hit that can only stay "minor" is re-aligned after all when the graded
+  classes decide** (live influenza run, 2026-11-18): the filter that skipped such a fetch was
+  written for the count-based levels, but since 2.2.0 a "minor" site graded tolerated (one
+  mismatch at -3, R1) primes. On an influenza B record the forward primer bound perfectly while
+  its reverse site, with 3 bases unaligned at the 3' end, was never graded, so the product was
+  not predicted. `specificity.sites.worth_realigning` now rules a hit out only by the mismatch
+  bound; more windows are fetched per run (cached).
 - **The report's sentence on predicted products** still said a product needs two primer sites
   "of at least warning level"; since 2.2.0 a site's graded class decides too, and the sentence
   says so (records made before 2.2.0 keep the old wording).

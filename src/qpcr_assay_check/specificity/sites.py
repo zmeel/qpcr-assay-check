@@ -157,8 +157,8 @@ def classify(m: realign.Metrics, rules: SiteRules) -> Level:
     return "minor"
 
 
-def can_reach_warning(c: Candidate, rules: SiteRules) -> bool:
-    """False if even the most favourable full-length alignment would stay 'minor'.
+def worth_realigning(c: Candidate, rules: SiteRules, graded: bool = False) -> bool:
+    """Whether a partial hit is worth fetching and re-aligning, or can be left as a worst case.
 
     Two consequences of BLAST reporting a locally maximal alignment (an assumption that the
     validation script in scripts/ checks against real hits):
@@ -167,9 +167,19 @@ def can_reach_warning(c: Candidate, rules: SiteRules) -> bool:
     * the first base beyond the alignment is a mismatch (a matching base would have raised the
       score, so it would have been included). At the 3' end this caps the run of clean 3'
       nucleotides at ``u3 - 1``.
+
+    Without grading, a hit whose best full-length alignment would still be 'minor' changes
+    nothing and is not fetched. With ``graded`` (``specificity.graded_off_target``) the class
+    decides whether a site primes, and a 'minor' site can be graded tolerated (a single mismatch
+    at -3, R1) and prime, so only the mismatch bound is used: beyond
+    ``warning.max_mismatches`` the class is likely failure in any case (live influenza run,
+    2026-11-18: a reverse site on an influenza B record with 3 bases unaligned at the 3' end was
+    never re-aligned, so the product its perfect forward site could make was not predicted).
     """
     if c.lower_bound > rules.warning.max_mismatches:
         return False
+    if graded:
+        return True
     return not (c.u3 > 0 and c.u3 - 1 < rules.warning.min_clean_3prime_nt)
 
 

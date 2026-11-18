@@ -111,7 +111,9 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     def site_rules(c: S.Candidate) -> Any:
         return rules.probe_site if c.role == "probe" else rules.primer_site
 
-    fetchable = [c for c in partial if S.can_reach_warning(c, site_rules(c))]
+    fetchable = [
+        c for c in partial if S.worth_realigning(c, site_rules(c), rules.graded_off_target)
+    ]
     summary = {
         "relevant_alignments": len(cands),
         "full_length_no_fetch_needed": len(cands) - len(partial),

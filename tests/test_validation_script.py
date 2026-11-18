@@ -73,12 +73,23 @@ def test_real_blast_behaviour_passes_and_the_counts_are_reported(setup):
     c = report["counts"]
     assert c["relevant_alignments"] == 4 and c["full_length_no_fetch_needed"] == 1
     assert c["partial"] == 3
-    assert c["partial_ruled_out_without_fetching"] == 1  # the u3=2 hit
-    assert c["partial_needing_a_fetch"] == 2
+    # with the graded rules (the default since 2026-11-17) a 'minor' site can still be graded
+    # tolerated and prime, so the u3=2 hit is fetched too
+    assert c["partial_ruled_out_without_fetching"] == 0
+    assert c["partial_needing_a_fetch"] == 3
     assert report["sample"]["checked"] == 3 and report["tier"] == "background"
     assert "no rule contradicted" in report["verdict"]
     # only the background tier was searched
     assert {p["ENTREZ_QUERY"] for p in fake.searches.values()} == {"txid9606[ORGN]"}
+
+
+def test_without_grading_a_hit_that_can_only_stay_minor_is_not_fetched(setup, tmp_path):
+    conf = tmp_path / "config.yaml"
+    conf.write_text(conf.read_text() + "specificity:\n  graded_off_target: false\n")
+    code, report, _fake = setup(human_world())
+    assert code == 0
+    c = report["counts"]
+    assert c["partial_ruled_out_without_fetching"] == 1 and c["partial_needing_a_fetch"] == 2
 
 
 def test_a_contradicted_assumption_is_detected_and_listed(setup):

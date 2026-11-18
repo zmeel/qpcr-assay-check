@@ -78,24 +78,27 @@ def test_the_lower_bound_follows_from_blast_scoring():
 
 def test_pruning_never_skips_a_hit_that_could_still_matter():
     c = cand("human_forward_partial_minus")
-    assert S.can_reach_warning(c, RULES.primer_site)  # bound 2 <= 5: must be fetched
+    assert S.worth_realigning(c, RULES.primer_site)  # bound 2 <= 5: must be fetched
     strict = RULES.primer_site.model_copy(deep=True)
     strict.warning.max_mismatches = 1
-    assert not S.can_reach_warning(c, strict)
+    assert not S.worth_realigning(c, strict)
 
 
 def test_a_short_unaligned_3prime_tail_rules_out_a_relevant_site_without_fetching():
     """The base after BLAST's alignment must mismatch, so few clean 3' nucleotides can remain."""
     rules = RULES.primer_site  # warning needs at least 3 clean 3' nucleotides
     c = cand("human_forward_partial_minus")  # 5 unaligned 3' bases: up to 4 may be clean
-    assert c.u3 == 5 and S.can_reach_warning(c, rules)
+    assert c.u3 == 5 and S.worth_realigning(c, rules)
     for u3, expected in ((0, True), (1, False), (2, False), (3, False), (4, True), (5, True)):
         c.u3 = u3
         c.hsp = c.hsp.model_copy(update={"query_to": c.qlen - u3})
-        assert S.can_reach_warning(c, rules) is expected, u3
+        assert S.worth_realigning(c, rules) is expected, u3
+        # with the graded rules a 'minor' site can still be graded tolerated and prime, so only
+        # the mismatch bound decides (whole-project review's P3; live influenza run 2026-11-18)
+        assert S.worth_realigning(c, rules, graded=True) is True, u3
     # a 3' end that BLAST aligned completely is not limited by this rule (5' end unaligned)
     reverse = cand("human_reverse_partial_minus")
-    assert reverse.u3 == 0 and reverse.u5 == 7 and S.can_reach_warning(reverse, rules)
+    assert reverse.u3 == 0 and reverse.u5 == 7 and S.worth_realigning(reverse, rules)
 
 
 def test_worst_case_site_is_risk_conservative_and_marked():
@@ -214,3 +217,29 @@ def test_a_gapped_partial_hit_gives_strings_of_one_length_and_keeps_its_level_ru
     grade_site(s, assay)  # no error
     assert s.grade is None  # worst case: the levels decide, as before
     assert primer_can_prime(s) is (s.level != "minor")
+
+
+def test_a_minor_partial_primer_site_is_graded_and_can_prime_when_grading_decides():
+    """Live influenza run 2026-11-18: BLAST left 3 bases unaligned at a reverse primer's 3' end
+    on an influenza B record, so the site stayed a worst case, was never graded, and the product
+    its perfect forward site could make was not predicted."""
+    from qpcr_assay_check.specificity.pairing import grade_site, primer_can_prime
+
+    from .conftest import make_assay
+
+    c = cand("human_forward_partial_minus")
+    c.u3 = 3
+    c.hsp = c.hsp.model_copy(update={"query_to": c.qlen - 3})
+    assert not S.worth_realigning(c, RULES.primer_site)  # counts only: never fetched
+    assert S.worth_realigning(c, RULES.primer_site, graded=True)
+    worst = S.site_from_bound(c, RULES.primer_site, "S1")
+    grade_site(worst, make_assay())
+    assert worst.level == "minor" and worst.grade is None and not primer_can_prime(worst)
+    # the same site re-aligned over its whole length: one mismatch at -3, tolerated under R1
+    oligo = c.oligo
+    site = oligo[:-3] + ("A" if oligo[-3] != "A" else "C") + oligo[-2:]
+    graded = worst.model_copy(update={"source": "realigned", "q_aln": oligo, "s_aln": site,
+                                      "n_mismatch": 1, "clean_3prime_nt": 2})  # fmt: skip
+    graded.grade = None
+    grade_site(graded, make_assay())
+    assert graded.grade == "tolerated" and primer_can_prime(graded)

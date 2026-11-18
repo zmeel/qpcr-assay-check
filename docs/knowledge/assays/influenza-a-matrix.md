@@ -153,7 +153,11 @@ apart, over the limit, because every reverse Tm was about 5.5 C low.
 
 # Runs
 
-[2026-10-21 15:42Z](../runs/influenza-a-2026-10-21.md), the latest, the first with `infa_rev2`:
+[2026-11-18 07:27Z](../runs/influenza-a-2026-11-18.md), on v2.2.0: inclusivity No flags (99.5% of
+72,698 collected 2023-2026); influenza B ON845595.1 binds the forward primer perfectly, and a
+filter that hid its reverse site was fixed the same day (rerun needed).
+
+[2026-10-21 15:42Z](../runs/influenza-a-2026-10-21.md), the first with `infa_rev2`:
 complete, **99.6% detectable** of the 70,606 records collected 2023-2026, likely failure 0.0%,
 Review with no limit crossed; `infa_rev2` is the only working reverse primer for 23,595 records
 (13.6%).

@@ -87,3 +87,10 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   licence; versions already published stay Apache-2.0; primer3-py is GPL-2.0-or-later, which
   conflicts with a noncommercial licence for a distributed image) and then decided to keep
   Apache-2.0. CLAUDE.md and the open item updated.
+- 2026-11-18: the influenza A rerun on v2.2.0 ([run](../runs/influenza-a-2026-11-18.md)) showed
+  the first No-flags inclusivity for that assay, and uncovered a blind spot the P3 change had
+  left: a partial BLAST hit that could only stay "minor" by the mismatch counts was never
+  fetched and re-aligned, so it never got a class and could not prime. On the influenza B record
+  ON845595.1 (forward primer perfect, `infa_rev` one mismatch at -3, tolerated under R1) that hid
+  a plausible product. `worth_realigning` (renamed from `can_reach_warning`) now rules a hit out
+  only by the mismatch bound when the classes decide; the validation script and its tests follow.
