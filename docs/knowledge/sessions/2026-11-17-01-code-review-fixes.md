@@ -82,3 +82,8 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   user's request the HSV-1 assay file sets `inclusivity.status_axis: release` (it overrides the
   NAS configuration's collection axis), and the report's sentence on predicted products names
   the graded rule instead of "at least warning level".
+- 2026-11-18, licence: the user asked to have the options explained (free for science, paid for
+  commercial use: PolyForm Noncommercial, a custom academic licence, AGPL plus a commercial
+  licence; versions already published stay Apache-2.0; primer3-py is GPL-2.0-or-later, which
+  conflicts with a noncommercial licence for a distributed image) and then decided to keep
+  Apache-2.0. CLAUDE.md and the open item updated.

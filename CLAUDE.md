@@ -48,4 +48,5 @@ ending a session, update status.md and add a session page (see docs/knowledge/ab
   `python scripts/build_knowledge.py`; tests/test_knowledge_bundle.py fails otherwise.
 
 ## Open items
-- LICENSE not yet chosen: ask me before adding one.
+- Licence: Apache-2.0 (LICENSE, pyproject.toml); kept by my decision of 2026-11-18. Ask me
+  before changing it.

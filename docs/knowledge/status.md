@@ -75,8 +75,6 @@ Nothing since v2.2.0.
 - Which remaining review items to take up; [open items](open/index.md) lists them.[^open]
 - An enterovirus rerun with the MGB region rule ([open](open/enterovirus-rerun.md)).
 - The Stadhouders PDF for the Table 1 check, if available.
-- Confirm the licence (Apache-2.0 in pyproject.toml; CLAUDE.md still says to ask)
-  ([open](open/license-note.md)).
 - Read and mark concepts in this bundle as verified. R6 is back to draft: an MGB addition
   (2026-11-17) changed the rule you verified on 2026-10-08.
 - The advisor's whole-project evaluation did not finish (usage limit, then no credits for
