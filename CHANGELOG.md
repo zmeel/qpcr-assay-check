@@ -12,9 +12,10 @@ a release's, that installation is the release, unchanged, wherever it runs.
 ## [Unreleased]
 
 ### Changed
-- **HSV-1 example: status by release year** (`inclusivity.status_axis: release`; user,
-  2026-11-18): in the run of 2026-11-17, 63.7% of its records had no collection year and one was
-  collected 2023-2026, so a status by collection year could never be reached.
+- **HSV-1 and HSV-2 examples: status by release year** (`inclusivity.status_axis: release`;
+  user, 2026-11-18 and 2026-11-19): in the HSV-1 run of 2026-11-17, 63.7% of its records had no
+  collection year and one was collected 2023-2026; in the HSV-2 run of 2026-11-19, 46.5% had none
+  and 6 genomes were collected 2023-2026. A status by collection year could never be reached.
 
 ### Fixed
 - **A partial BLAST hit that can only stay "minor" is re-aligned after all when the graded

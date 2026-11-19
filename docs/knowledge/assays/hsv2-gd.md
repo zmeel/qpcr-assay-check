@@ -59,6 +59,13 @@ Target: the species *Simplexvirus humanalpha2* (3050293), 8,955 Nucleotide recor
 the node "Human alphaherpesvirus 2" (10310). The variant analysis takes the 577 genome-sized
 records (100-200 kb) in one run, scanned directly.
 
+# Status axis
+
+Since 2026-11-19 the assay file sets `inclusivity.status_axis: release` (user), as the HSV-1
+assay does: in the first run 46.5% of the records had no collection year and only 6 genomes were
+collected 2023-2026, so a status by collection year could never be reached. It overrides the
+collection axis of the NAS configuration.[^run]
+
 # Exclusivity panel
 
 Twenty-five organisms in five groups, HSV-1 first, then the macaque B virus, the other human

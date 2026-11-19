@@ -45,6 +45,10 @@
 #   2026-10-23, one run, scanned directly without BLAST. The ~8,400 shorter records (single
 #   genes, often gG or gD fragments) are left out by that filter; remove nucleotide_query to assess
 #   every record instead (most will be "not found", which the figures leave out).
+#   The status uses the release year (inclusivity.status_axis: release; user, 2026-11-19): in
+#   the run of 2026-11-19, 245 of 527 records released 2016-2026 (46.5%) had no collection year
+#   and 6 genomes with the region were collected 2023-2026, so a status by collection year could
+#   never be reached. The same setting as the HSV-1 assay.
 
 assay_name: HSV-2 detection (gD)
 forward: {name: HSV-2-F, sequence: CGCCAAATACGCCTTAGCA}
@@ -98,3 +102,5 @@ settings:                        # only what differs from the defaults, for this
     source: blast_partitioned    # virus: every Nucleotide record
     nucleotide_query: "100000:200000[SLEN]"   # genome-sized records: 577 on 2026-10-23
     blast_max_records_per_run: 1000           # all of them in one run
+  inclusivity:
+    status_axis: release         # 46.5% of the records have no collection year (run 2026-11-19)

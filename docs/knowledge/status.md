@@ -42,7 +42,7 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
   rerun. More windows are fetched per run (cached).
 - Fixed: the report's sentence on predicted products names the graded rule instead of "at least
   warning level".
-- Changed: the HSV-1 example sets `inclusivity.status_axis: release`.
+- Changed: the HSV-1 and HSV-2 examples set `inclusivity.status_axis: release`.
 
 The influenza A rerun of 2026-11-18 08:15Z and the first HSV-2 run of 2026-11-19 ran on this
 code, not on v2.2.0 as released.
@@ -69,11 +69,12 @@ code, not on v2.2.0 as released.
   among them) folds into a hairpin: worth a wet-lab check on an Oka template. Decide on
   `status_axis: release` (109 records released 2023-2026, 75 collected).
 - HSV-2 detection (gD): first run 2026-11-19 ([run](runs/hsv2-2026-11-19.md)): 100.0% of 561
-  genomes detectable, no off-target product. Decide on `status_axis: release` (6 records
-  collected 2023-2026, 181 released; 46.5% without a collection year), as for HSV-1, and on the
-  near-neighbour tier (no taxa given, as for VZV: name taxa or drop the tier for these assays).
+  genomes detectable, no off-target product. The assay file sets `status_axis: release` since
+  2026-11-19 (6 records collected 2023-2026, 181 released); the GUI's copy needs the same
+  setting. Decide on the near-neighbour tier (no taxa given, as for VZV: name taxa or drop the
+  tier for these assays).
 - HSV-1 detection (gG, Ryncarz 1999 oligos): rerun on v2.2.0 2026-11-17 ([run](runs/hsv1-2026-11-17.md)):
-  96.1% detectable, HSV-2 amplified but not detected, no human product. The assay file now sets
+  96.1% detectable, HSV-2 amplified but not detected, no human product. The assay file sets
   `status_axis: release`; the GUI's copy needs the same setting. Check the forward primer's 2nd
   base (C in the paper, T in both reference genomes) against the laboratory's order sheet.
 
