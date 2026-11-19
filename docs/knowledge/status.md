@@ -61,7 +61,7 @@ code, not on v2.2.0 as released.
 | Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
 | VZV (ORF38) | [2026-11-17 14:31Z](runs/vzv-2026-11-17.md) | coverage complete (2,831 assessed, 1 unavailable); 99.7% of 599 with the region detectable; no off-target product; Exceeds limit on oligo QC only (probe G-form hairpin); inclusivity Incomplete (75 collected 2023-2026) |
 | HSV-1 (gG) | [2026-11-17 15:55Z](runs/hsv1-2026-11-17.md) | v2.2.0: 96.1% of 614 genomes detectable; no human product; HSV-2 amplified, not detected (500 records, the cap); Exceeds limit on oligo QC only; inclusivity Incomplete (collection axis; release axis set since) |
-| HSV-2 (gD) | [2026-11-19 09:19Z](runs/hsv2-2026-11-19.md) | first run (main with the re-alignment fix): 561 of 561 genomes detectable (100.0%); no off-target product, HSV-1 not amplified; oligo QC No flags; Incomplete: near neighbours not searched, 6 records collected 2023-2026 (181 released, all detectable) |
+| HSV-2 (gD) | [2026-11-19 10:45Z](runs/hsv2-2026-11-19b.md) | near neighbours and release axis: Review, from off-target primer sites without a product only (*Listeria*, human); near neighbours No flags (HSV-1 probe sites only, not amplified); inclusivity No flags, 100.0% of 181 genomes released 2023-2026; oligo QC No flags. First run [09:19Z](runs/hsv2-2026-11-19.md): Incomplete |
 | Influenza A (matrix) | [2026-11-18 08:15Z](runs/influenza-a-2026-11-18b.md) | v2.2.0 with the re-alignment fix: Exceeds limit, a 141 bp product on ON845595.1 read as detected (a record labelled influenza B whose M fragment is 95% identical to influenza A: most likely mislabelled); inclusivity No flags (99.5% of 72,698) |
 
 # Next, waiting on the user
@@ -70,12 +70,10 @@ code, not on v2.2.0 as released.
   off-target product. The probe's G form (Oka lineage, 10.5% of the records, the vaccine strain
   among them) folds into a hairpin: worth a wet-lab check on an Oka template. Decide on
   `status_axis: release` (109 records released 2023-2026, 75 collected).
-- HSV-2 detection (gD): first run 2026-11-19 ([run](runs/hsv2-2026-11-19.md)): 100.0% of 561
-  genomes detectable, no off-target product. The assay file sets `status_axis: release` since
-  2026-11-19 (6 records collected 2023-2026, 181 released); the GUI's copy needs the same
-  setting. Since 2026-11-19 the closest relatives are near neighbours in all three herpesvirus
-  assays (HSV-2: HSV-1 and the B virus), so the near-neighbour tier is searched; on the first
-  run's figures a rerun would read Review, not Incomplete. The GUI's copies need both changes.
+- HSV-2 detection (gD): rerun 2026-11-19 10:45Z with near neighbours and the release axis
+  ([run](runs/hsv2-2026-11-19b.md)): Review, from off-target primer sites without a product only;
+  every other row No flags. For the laboratory to review and sign. HSV-1 and VZV name their
+  near neighbours too, not yet rerun; the GUI's copies of all three need the new files.
 - HSV-1 detection (gG, Ryncarz 1999 oligos): rerun on v2.2.0 2026-11-17 ([run](runs/hsv1-2026-11-17.md)):
   96.1% detectable, HSV-2 amplified but not detected, no human product. The assay file sets
   `status_axis: release`; the GUI's copy needs the same setting. Check the forward primer's 2nd

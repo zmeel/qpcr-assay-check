@@ -36,6 +36,9 @@ sources:
   - id: rules
     resource: ../rules/specificity-findings.md
     title: Specificity findings (site levels, products, severities)
+  - id: hsv2b
+    resource: ../runs/hsv2-2026-11-19b.md
+    title: The HSV-2 run with near neighbours (2026-11-19 10:45Z)
   - id: hsv2run
     resource: ../runs/hsv2-2026-11-19.md
     title: The first HSV-2 run (2026-11-19)
@@ -50,7 +53,9 @@ it into remote BLAST searches restricted by ENTREZ_QUERY to those taxa (with the
 descendants), at most `search.max_taxids_per_search` (20) taxa per search and query batches of
 at most 1,000 bases.[^planner] The first HSV-2 run, for example, sent 1 background search and 2
 exclusivity searches (25 taxa, so two chunks).[^hsv2run] The restriction is effective but not
-airtight: the report's "taxon restriction check" counts hits filed under another taxon ID.
+airtight: the report's "taxon restriction check" counts hits filed under another taxon ID. It
+compares exact IDs, so a species whose records are filed under a node below it reads "0 of N"
+although every hit belongs to it (HSV-1 as a near neighbour of HSV-2, 2026-11-19).[^hsv2b]
 
 # The five tiers
 
@@ -131,3 +136,4 @@ manual cross-check.
 [^spec]: docs/SPEC.md (tiered, taxon-restricted searches instead of one unrestricted search)
 [^rules]: Specificity findings (site levels, products, severities)
 [^hsv2run]: The first HSV-2 run (2026-11-19)
+[^hsv2b]: The HSV-2 run with near neighbours (2026-11-19 10:45Z)

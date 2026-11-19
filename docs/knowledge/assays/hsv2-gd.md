@@ -25,6 +25,9 @@ sources:
   - id: run
     resource: ../runs/hsv2-2026-11-19.md
     title: The first HSV-2 run
+  - id: run2
+    resource: ../runs/hsv2-2026-11-19b.md
+    title: The HSV-2 run with near neighbours
 stale_after: 2027-04-23T00:00:00Z
 ---
 
@@ -84,6 +87,9 @@ tier is searched ([search tiers](../components/search-tiers.md)).
   (100.0%), no predicted off-target product (HSV-1: probe sites only, not amplified), oligo QC
   No flags; Incomplete (near neighbours not searched; 6 records collected 2023-2026, 181
   released).[^run]
+- [2026-11-19 10:45Z, near neighbours and release axis](../runs/hsv2-2026-11-19b.md): **Review**,
+  from off-target primer sites without a product only; near neighbours No flags (HSV-1: probe
+  sites only), inclusivity No flags (100.0% of 181 genomes released 2023-2026).[^run2]
 
 [^assay-file]: docs/examples/hsv2_gd.yaml (provenance and checks in its header)
 [^ncbi]: The HSV-2 and HSV-1 reference genomes and record counts, measured live
@@ -91,3 +97,4 @@ tier is searched ([search tiers](../components/search-tiers.md)).
 [^r9]: R9 - probe mismatches
 [^session]: "Session 2026-10-23: HSV-1 assay file"
 [^run]: The first HSV-2 run
+[^run2]: The HSV-2 run with near neighbours
