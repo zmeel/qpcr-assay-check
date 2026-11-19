@@ -5,7 +5,7 @@ description: The laboratory's HSV-1 detection assay of about 20 years, built fro
 resource: ../../examples/hsv1_gg_typing.yaml
 tags: [assay, example, DNA, virus]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-19T12:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-19T12:30:00Z }
 sources:
   - id: assay-file
     resource: ../../examples/hsv1_gg_typing.yaml
@@ -22,6 +22,9 @@ sources:
   - id: session
     resource: ../sessions/2026-10-23-01-hsv1-assay.md
     title: "Session 2026-10-23: HSV-1 assay file"
+  - id: run3
+    resource: ../runs/hsv1-2026-11-19.md
+    title: The HSV-1 run of 2026-11-19
 stale_after: 2027-04-23T00:00:00Z
 ---
 
@@ -124,8 +127,13 @@ Incomplete for want of dated recent genomes (26 collected 2020-2023).
 HSV-2 amplified but not detected in 500 distinct records, 96.1% of 614 detectable; inclusivity
 Incomplete on the collection axis, so the assay file sets `status_axis: release` since 2026-11-18.
 
+[2026-11-19 11:41Z](../runs/hsv1-2026-11-19.md), with near neighbours and the release axis:
+Exceeds limit on oligo QC only; inclusivity No flags (96.0% of 223 genomes released 2023-2026);
+HSV-2 amplified, not detected (500 records, the cap), now in the near-neighbour tier.[^run3]
+
 [^assay-file]: docs/examples/hsv1_gg_typing.yaml (provenance and checks in its header)
 [^ryncarz]: Ryncarz et al. 1999, the HSV detection and typing assays
 [^ncbi]: Taxonomy, record counts, NC_001806 and NC_001798, measured live
 [^r9]: R9 - probe mismatches
 [^session]: "Session 2026-10-23: HSV-1 assay file"
+[^run3]: The HSV-1 run of 2026-11-19
