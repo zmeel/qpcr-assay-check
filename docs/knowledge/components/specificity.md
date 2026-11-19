@@ -47,7 +47,7 @@ sources:
 # What it does
 
 Tiers: target, near neighbours, background (human by default), exclusivity organisms and
-out-of-scope taxa, each a taxon-restricted remote BLAST. Hits are re-aligned semi-globally over
+out-of-scope taxa, each a taxon-restricted remote BLAST ([search tiers](search-tiers.md)). Hits are re-aligned semi-globally over
 the whole oligo, classified ([specificity findings](../rules/specificity-findings.md)) and
 paired into products; the partner scan fetches the window next to an unpaired primer site and
 aligns the partner primers and the probe (the degenerate variants of an oligo that reach one
