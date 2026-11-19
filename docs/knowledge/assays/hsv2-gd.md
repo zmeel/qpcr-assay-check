@@ -5,7 +5,7 @@ description: The laboratory's HSV-2 PCR, companion of its HSV-1 assay - one prim
 resource: ../../examples/hsv2_gd.yaml
 tags: [assay, example, DNA, virus]
 status: draft
-generated: { by: claude-code/agent, at: 2026-10-23T13:10:00Z }
+generated: { by: claude-code/agent, at: 2026-11-19T10:30:00Z }
 sources:
   - id: assay-file
     resource: ../../examples/hsv2_gd.yaml
@@ -22,6 +22,9 @@ sources:
   - id: session
     resource: ../sessions/2026-10-23-01-hsv1-assay.md
     title: "Session 2026-10-23: HSV-1 assay file"
+  - id: run
+    resource: ../runs/hsv2-2026-11-19.md
+    title: The first HSV-2 run
 stale_after: 2027-04-23T00:00:00Z
 ---
 
@@ -65,10 +68,14 @@ templates of a DNA assay.
 
 # Runs
 
-None yet.
+- [2026-11-19 09:19Z, first](../runs/hsv2-2026-11-19.md): 561 of 561 genomes detectable
+  (100.0%), no predicted off-target product (HSV-1: probe sites only, not amplified), oligo QC
+  No flags; Incomplete (near neighbours not searched; 6 records collected 2023-2026, 181
+  released).[^run]
 
 [^assay-file]: docs/examples/hsv2_gd.yaml (provenance and checks in its header)
 [^ncbi]: The HSV-2 and HSV-1 reference genomes and record counts, measured live
 [^hsv1]: HSV-1 detection, glycoprotein G (Ryncarz 1999 typing oligos)
 [^r9]: R9 - probe mismatches
 [^session]: "Session 2026-10-23: HSV-1 assay file"
+[^run]: The first HSV-2 run
