@@ -33,6 +33,9 @@
 # EXCLUSIVITY PANEL, AND WHY (suggested 2026-10-23, the user's to change)
 #   1. The closest relatives: HSV-1 first (the other half of the laboratory's HSV testing, and the
 #      organism this assay must not detect above all), and the macaque B virus.
+#      Since 2026-11-19 (user) they are the near-neighbour tier (near_neighbour_taxids), not
+#      the exclusivity list: the same searches and rules, but the report shows them first
+#      and always, and the configured near-neighbour tier is searched.
 #   2. The other human herpesviruses: they turn up in the same lesion, CSF and eye specimens.
 #   3. The differential of mucocutaneous and genital ulcers and lesions.
 #   4. The DNA-template differential of meningitis and encephalitis in CSF.
@@ -62,10 +65,10 @@ target:
 reference_amplicons:             # = NC_001798:141087-141157 (strain HG52)
   - name: HSV2-gD-HG52
     sequence: CGCCAAATACGCCTTAGCAGACCCCTCGCTTAAGATGGCCGATCCCAATCGATTTCGCGGGAAGAACCTTC
+near_neighbour_taxids:           # 1. the closest relatives (names resolved live 2026-10-23)
+  - 3050292                      # Simplexvirus humanalpha1, HSV-1: neither amplified nor detected
+  - 3050305                      # Simplexvirus macacinealpha1, B virus (macaque), zoonotic
 exclusivity_organisms:
-  # 1. the closest relatives
-  - Simplexvirus humanalpha1       # 3050292, HSV-1: must be neither amplified nor detected
-  - Simplexvirus macacinealpha1    # 3050305, B virus (macaque), zoonotic
   # 2. the other human herpesviruses
   - Varicellovirus humanalpha3     # 3050294, varicella-zoster virus
   - Cytomegalovirus humanbeta5     # 3050295, cytomegalovirus

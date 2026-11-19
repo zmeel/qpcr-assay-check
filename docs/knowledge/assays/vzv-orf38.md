@@ -5,7 +5,7 @@ description: One primer pair and a 26-nt probe with one degenerate base in ORF38
 resource: ../../examples/vzv_orf38.yaml
 tags: [assay, example, DNA, virus]
 status: draft
-generated: { by: claude-code/agent, at: 2026-10-23T12:30:00Z }
+generated: { by: claude-code/agent, at: 2026-11-19T12:00:00Z }
 sources:
   - id: assay-file
     resource: ../../examples/vzv_orf38.yaml
@@ -59,11 +59,17 @@ records hold other genes and count as not found.[^ncbi]
 
 # Exclusivity panel
 
-Twenty-four organisms in five groups, each name resolved live to exactly one taxon: simian
+Twenty-four organisms in five groups (20 in the list, 4 near neighbours since 2026-11-19), each name resolved live to exactly one taxon: simian
 varicella virus, HSV-1, HSV-2 and B virus; the other human herpesviruses; the rash differential
 (mpox, smallpox, molluscum, *S. aureus*, *S. pyogenes*, *T. pallidum*, *C. albicans*); the CSF
 DNA-template differential; and adenovirus D and *Acanthamoeba* for the eye. Enteroviruses are left
 out: RNA templates of a DNA assay.
+
+Since 2026-11-19 (user) simian varicella virus (3050257), HSV-1 (3050292), HSV-2
+(3050293) and the B virus (3050305) are the near-neighbour tier (`near_neighbour_taxids`,
+with the taxonomy IDs the names resolved to), no longer in the exclusivity list: the same
+searches and rules, shown first and always in the report, and the configured near-neighbour
+tier is searched ([search tiers](../components/search-tiers.md)).
 
 # Runs
 

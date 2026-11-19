@@ -45,6 +45,9 @@
 #   1. The closest relatives: simian varicella virus (VZV's nearest relative, the same genus) and
 #      the simplexviruses that cause human disease: HSV-1, HSV-2 and the macaque B virus. HSV-1
 #      and HSV-2 are also the main differential of vesicular lesions.
+#      Since 2026-11-19 (user) they are the near-neighbour tier (near_neighbour_taxids), not
+#      the exclusivity list: the same searches and rules, but the report shows them first
+#      and always, and the configured near-neighbour tier is searched.
 #   2. The other human herpesviruses: they turn up in the same lesion, CSF and eye specimens.
 #   3. The differential of vesicular and pustular rash: mpox, smallpox (variola), molluscum,
 #      bullous impetigo and its streptococcal form, syphilis, candidiasis.
@@ -73,12 +76,12 @@ target:
 reference_amplicons:             # = NC_001348:69313-69394 (strain Dumas), as the user gave it
   - name: VZV-ORF38-Dumas
     sequence: AAGTTCCCCCCGTTCGCCATATACCGCAACAACTGCAGTATATATCGTCTCACGGGCTTCATTAAGTTCATCTTCAAGTCCA
+near_neighbour_taxids:           # 1. the closest relatives (names resolved live 2026-10-23)
+  - 3050257                      # Varicellovirus cercopithecinealpha9, simian varicella virus
+  - 3050292                      # Simplexvirus humanalpha1, HSV-1
+  - 3050293                      # Simplexvirus humanalpha2, HSV-2
+  - 3050305                      # Simplexvirus macacinealpha1, B virus (macaque), zoonotic
 exclusivity_organisms:
-  # 1. the closest relatives
-  - Varicellovirus cercopithecinealpha9   # 3050257, simian varicella virus
-  - Simplexvirus humanalpha1       # 3050292, HSV-1
-  - Simplexvirus humanalpha2       # 3050293, HSV-2
-  - Simplexvirus macacinealpha1    # 3050305, B virus (macaque), zoonotic
   # 2. the other human herpesviruses
   - Cytomegalovirus humanbeta5     # 3050295, cytomegalovirus
   - Lymphocryptovirus humangamma4  # 3050299, Epstein-Barr virus

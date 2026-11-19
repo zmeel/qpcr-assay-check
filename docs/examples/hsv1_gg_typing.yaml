@@ -85,6 +85,9 @@
 # EXCLUSIVITY PANEL, AND WHY (suggested 2026-10-23, the user's to change)
 #   1. Amplified by the type-common primers - the real test of the probe: HSV-2, and the
 #      zoonotic macaque B virus, the other simplexvirus that causes human disease.
+#      Since 2026-11-19 (user) they are the near-neighbour tier (near_neighbour_taxids), not
+#      the exclusivity list: the same searches and rules, but the report shows them first
+#      and always, and the configured near-neighbour tier is searched.
 #   2. The other human herpesviruses: they turn up in the same lesion, CSF and eye specimens.
 #   3. The differential of mucocutaneous and genital ulcers and lesions.
 #   4. The DNA-template differential of meningitis and encephalitis in CSF.
@@ -117,10 +120,11 @@ target:
 reference_amplicons:             # the supplied reference, = NC_001806:137281-137446 (strain 17)
   - name: HSV1-gG-strain17
     sequence: TTCTCGTTCCTCACTGCCTCCCCCGCCCTGGACACCCTCTTCGTCGTCAGCACCGTCATCCACACCTTATCGTTTTTGTGTATTGGTGCGATGGCGACACACCTGTGTGGCGGTTGGTCCAGACGCGGGCGACGCACACACCCTAGCGTGCGTTACGTGTGCCTGC
+near_neighbour_taxids:           # 1. amplified by the type-common primers: the probe must not
+                                 #    detect these (names resolved live 2026-10-23)
+  - 3050293                      # Simplexvirus humanalpha2, HSV-2: a product expected, no signal
+  - 3050305                      # Simplexvirus macacinealpha1, B virus (macaque), zoonotic
 exclusivity_organisms:
-  # 1. amplified by the type-common primers: the probe must not detect these
-  - Simplexvirus humanalpha2       # 3050293, HSV-2: a product is expected, a signal is not
-  - Simplexvirus macacinealpha1    # 3050305, B virus (macaque), zoonotic
   # 2. the other human herpesviruses
   - Varicellovirus humanalpha3     # 3050294, varicella-zoster virus
   - Cytomegalovirus humanbeta5     # 3050295, cytomegalovirus

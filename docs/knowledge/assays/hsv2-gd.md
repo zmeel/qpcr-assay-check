@@ -5,7 +5,7 @@ description: The laboratory's HSV-2 PCR, companion of its HSV-1 assay - one prim
 resource: ../../examples/hsv2_gd.yaml
 tags: [assay, example, DNA, virus]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-19T10:30:00Z }
+generated: { by: claude-code/agent, at: 2026-11-19T12:00:00Z }
 sources:
   - id: assay-file
     resource: ../../examples/hsv2_gd.yaml
@@ -68,10 +68,15 @@ collection axis of the NAS configuration.[^run]
 
 # Exclusivity panel
 
-Twenty-five organisms in five groups, HSV-1 first, then the macaque B virus, the other human
+Twenty-five organisms in five groups (23 in the list, 2 near neighbours since 2026-11-19), HSV-1 first, then the macaque B virus, the other human
 herpesviruses, the mucocutaneous and genital lesion differential, the CSF DNA-template
 differential, and adenovirus D and *Acanthamoeba* for the eye. Enteroviruses are left out: RNA
 templates of a DNA assay.
+
+Since 2026-11-19 (user) HSV-1 (3050292) and the B virus (3050305) are the near-neighbour tier (`near_neighbour_taxids`,
+with the taxonomy IDs the names resolved to), no longer in the exclusivity list: the same
+searches and rules, shown first and always in the report, and the configured near-neighbour
+tier is searched ([search tiers](../components/search-tiers.md)).
 
 # Runs
 

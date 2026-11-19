@@ -5,7 +5,7 @@ description: The laboratory's HSV-1 detection assay of about 20 years, built fro
 resource: ../../examples/hsv1_gg_typing.yaml
 tags: [assay, example, DNA, virus]
 status: draft
-generated: { by: claude-code/agent, at: 2026-10-23T08:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-19T12:00:00Z }
 sources:
   - id: assay-file
     resource: ../../examples/hsv1_gg_typing.yaml
@@ -88,7 +88,7 @@ genes, are left out by that filter.[^ncbi]
 
 # Exclusivity panel
 
-Twenty-five organisms in five groups, each name resolved live to exactly one taxon:[^ncbi]
+Twenty-five organisms in five groups (23 in the list, 2 near neighbours since 2026-11-19), each name resolved live to exactly one taxon:[^ncbi]
 HSV-2 and the macaque B virus (amplified by the type-common primers); the other seven human
 herpesviruses; the differential of mucocutaneous and genital lesions (mpox, molluscum,
 *T. pallidum*, *P. ducreyi*, *C. trachomatis*, *N. gonorrhoeae*, *M. genitalium*,
@@ -96,6 +96,11 @@ herpesviruses; the differential of mucocutaneous and genital lesions (mpox, moll
 and adenovirus D and *Acanthamoeba* for the eye. Enteroviruses are left out on purpose: RNA
 viruses cannot be templates of a DNA assay without RT, and the genus would add 149,419 records to
 the search. The panel is the user's to change.
+
+Since 2026-11-19 (user) HSV-2 (3050293) and the B virus (3050305) are the near-neighbour tier (`near_neighbour_taxids`,
+with the taxonomy IDs the names resolved to), no longer in the exclusivity list: the same
+searches and rules, shown first and always in the report, and the configured near-neighbour
+tier is searched ([search tiers](../components/search-tiers.md)).
 
 # Oligo QC (`run --qc-only`, no network)
 

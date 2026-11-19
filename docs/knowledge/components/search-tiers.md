@@ -107,10 +107,11 @@ tier from `off_target_tiers`.[^pipeline] Removing a tier there also stops its hi
 assessed at all,[^assess] so it is a per-assay setting, not one for the whole configuration while
 any assay fills that tier.
 
-On 2026-11-19 only the enterovirus assay fills the near-neighbour tier (its rhinovirus taxa);
-for the others it is configured and not searched. Where another finding is worse (Exceeds limit
-for influenza A, HSV-1 and VZV) that does not show; for HSV-2, with nothing worse, it is what
-keeps the run Incomplete.[^hsv2run]
+Until 2026-11-19 only the enterovirus assay filled the near-neighbour tier (its rhinovirus
+taxa); for the others it was configured and not searched. Where another finding was worse
+(Exceeds limit for influenza A, HSV-1 and VZV) that did not show; for HSV-2, with nothing worse,
+it kept the first run Incomplete.[^hsv2run] Since then HSV-1, HSV-2 and VZV name their closest
+relatives as near neighbours (user); the other example assays still leave the tier unsearched.
 
 # Limits
 

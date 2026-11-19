@@ -16,6 +16,11 @@ a release's, that installation is the release, unchanged, wherever it runs.
   user, 2026-11-18 and 2026-11-19): in the HSV-1 run of 2026-11-17, 63.7% of its records had no
   collection year and one was collected 2023-2026; in the HSV-2 run of 2026-11-19, 46.5% had none
   and 6 genomes were collected 2023-2026. A status by collection year could never be reached.
+- **HSV-1, HSV-2 and VZV examples: the closest relatives are near neighbours** (user,
+  2026-11-19): each panel's first group (HSV-2 or HSV-1 and the macaque B virus; for VZV also
+  simian varicella virus) moved from `exclusivity_organisms` to `near_neighbour_taxids`, so the
+  configured near-neighbour tier is searched instead of reading Not assessed. Same searches and
+  rules; the report shows them first and always.
 
 ### Fixed
 - **A partial BLAST hit that can only stay "minor" is re-aligned after all when the graded

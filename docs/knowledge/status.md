@@ -43,6 +43,8 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
 - Fixed: the report's sentence on predicted products names the graded rule instead of "at least
   warning level".
 - Changed: the HSV-1 and HSV-2 examples set `inclusivity.status_axis: release`.
+- Changed: HSV-1, HSV-2 and VZV name their closest relatives as near neighbours
+  (`near_neighbour_taxids`), moved from the exclusivity list.
 
 The influenza A rerun of 2026-11-18 08:15Z and the first HSV-2 run of 2026-11-19 ran on this
 code, not on v2.2.0 as released.
@@ -71,8 +73,9 @@ code, not on v2.2.0 as released.
 - HSV-2 detection (gD): first run 2026-11-19 ([run](runs/hsv2-2026-11-19.md)): 100.0% of 561
   genomes detectable, no off-target product. The assay file sets `status_axis: release` since
   2026-11-19 (6 records collected 2023-2026, 181 released); the GUI's copy needs the same
-  setting. Decide on the near-neighbour tier (no taxa given, as for VZV: name taxa or drop the
-  tier for these assays).
+  setting. Since 2026-11-19 the closest relatives are near neighbours in all three herpesvirus
+  assays (HSV-2: HSV-1 and the B virus), so the near-neighbour tier is searched; on the first
+  run's figures a rerun would read Review, not Incomplete. The GUI's copies need both changes.
 - HSV-1 detection (gG, Ryncarz 1999 oligos): rerun on v2.2.0 2026-11-17 ([run](runs/hsv1-2026-11-17.md)):
   96.1% detectable, HSV-2 amplified but not detected, no human product. The assay file sets
   `status_axis: release`; the GUI's copy needs the same setting. Check the forward primer's 2nd
