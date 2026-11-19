@@ -96,7 +96,8 @@ code, not on v2.2.0 as released.
   and the browser interface with Docker compose (`.env` with NCBI_EMAIL, NCBI_API_KEY, QAC_UID,
   QAC_GID, QAC_PORT=8880); the GUI container runs the image's code, so every update needs
   `docker compose build`.
-- The two routes use different configurations (seen 2026-11-19, HSV-2): command-line runs read
+- The two routes seem to use different configurations (seen 2026-11-19, HSV-2; to be confirmed
+  by the user): command-line runs read
   `work/config.yaml` (`status_axis: collection`, `resubmit_after_minutes: 0`), GUI runs the
   `config.yaml` of the GUI's work folder (both at their defaults: release, 90). The same assay
   then gets a different inputs hash per route, and without its own `status_axis` a different
