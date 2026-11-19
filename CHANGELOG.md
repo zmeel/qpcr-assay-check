@@ -12,10 +12,11 @@ a release's, that installation is the release, unchanged, wherever it runs.
 ## [Unreleased]
 
 ### Changed
-- **HSV-1 and HSV-2 examples: status by release year** (`inclusivity.status_axis: release`;
+- **HSV-1, HSV-2 and VZV examples: status by release year** (`inclusivity.status_axis: release`;
   user, 2026-11-18 and 2026-11-19): in the HSV-1 run of 2026-11-17, 63.7% of its records had no
   collection year and one was collected 2023-2026; in the HSV-2 run of 2026-11-19, 46.5% had none
-  and 6 genomes were collected 2023-2026. A status by collection year could never be reached.
+  and 6 genomes were collected 2023-2026; in the VZV run of 2026-11-17, 75 records were collected
+  2023-2026, below the 100 a status needs. A status by collection year could not be reached.
 - **HSV-1, HSV-2 and VZV examples: the closest relatives are near neighbours** (user,
   2026-11-19): each panel's first group (HSV-2 or HSV-1 and the macaque B virus; for VZV also
   simian varicella virus) moved from `exclusivity_organisms` to `near_neighbour_taxids`, so the

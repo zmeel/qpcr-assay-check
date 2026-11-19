@@ -63,6 +63,9 @@
 #   records shorter than a genome hold other genes (e.g. the ORF22/ORF62 genotyping fragments) and
 #   will be "not found", which the figures leave out. To assess the 352 genome-sized records only,
 #   add nucleotide_query: "100000:200000[SLEN]".
+#   The status uses the release year (inclusivity.status_axis: release; user, 2026-11-19, set in
+#   the GUI's copy and mirrored here): in the run of 2026-11-17, 75 records with the region were
+#   collected 2023-2026, below the 100 a status needs, and 109 were released in those years.
 
 assay_name: VZV (ORF38)
 forward: {name: VZV-F, sequence: AAGTTCCCCCCGTTCGC}
@@ -113,3 +116,5 @@ settings:                        # only what differs from the defaults, for this
   variants:
     source: blast_partitioned    # virus: every Nucleotide record
     blast_max_records_per_run: 3000   # 2,832 records on 2026-10-23: all of them in one run
+  inclusivity:
+    status_axis: release         # 75 records collected 2023-2026, 109 released (run 2026-11-17)

@@ -42,7 +42,7 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
   rerun. More windows are fetched per run (cached).
 - Fixed: the report's sentence on predicted products names the graded rule instead of "at least
   warning level".
-- Changed: the HSV-1 and HSV-2 examples set `inclusivity.status_axis: release`.
+- Changed: the HSV-1, HSV-2 and VZV examples set `inclusivity.status_axis: release`.
 - Changed: HSV-1, HSV-2 and VZV name their closest relatives as near neighbours
   (`near_neighbour_taxids`), moved from the exclusivity list.
 
@@ -68,8 +68,9 @@ code, not on v2.2.0 as released.
 
 - VZV (ORF38): runs 2026-10-23 and 2026-11-17 ([latest](runs/vzv-2026-11-17.md)): 99.7% detectable, no
   off-target product. The probe's G form (Oka lineage, 10.5% of the records, the vaccine strain
-  among them) folds into a hairpin: worth a wet-lab check on an Oka template. Decide on
-  `status_axis: release` (109 records released 2023-2026, 75 collected).
+  among them) folds into a hairpin: worth a wet-lab check on an Oka template. Since 2026-11-19
+  `status_axis: release` (user, in the GUI; mirrored in the assay file: 109 records released
+  2023-2026, 75 collected) and near neighbours named; not yet rerun.
 - HSV-2 detection (gD): rerun 2026-11-19 10:45Z with near neighbours and the release axis
   ([run](runs/hsv2-2026-11-19b.md)): Review, from off-target primer sites without a product only;
   every other row No flags. For the laboratory to review and sign. HSV-1 and VZV name their
@@ -96,10 +97,11 @@ code, not on v2.2.0 as released.
   and the browser interface with Docker compose (`.env` with NCBI_EMAIL, NCBI_API_KEY, QAC_UID,
   QAC_GID, QAC_PORT=8880); the GUI container runs the image's code, so every update needs
   `docker compose build`.
-- The GUI's configuration changed between two HSV-2 GUI runs on 2026-11-19 (all three of that
-  day were GUI runs, user): at 09:19Z and 10:04Z `status_axis: collection` and
-  `ncbi.resubmit_after_minutes: 0`, at 10:45Z `resubmit_after_minutes` at its default 90 (the
-  status axis was then overridden by the assay file). Cause not known here; asked the user.
+- The GUI's configuration (its work folder's `config.yaml`) sets `inclusivity.status_axis:
+  collection`; HSV-1, HSV-2 and VZV override it in their own assay files (the user set it in the
+  GUI's copies on 2026-11-19). A record with `ncbi.resubmit_after_minutes: 0` comes from a run
+  with the GUI's "Submit unfinished BLAST searches anew" box ticked (`--resubmit`), as the HSV-2
+  runs at 09:19Z and 10:04Z; operational only, outside the inputs hash.
 - This environment cannot reach NCBI's API hosts or the GitHub wiki; the user runs live checks
   (`scripts/smoke_test.py`) and publishes `docs/wiki/`.
 - Carried over from the old progress log: the note that the smoke test was not re-run since 0.2.1
