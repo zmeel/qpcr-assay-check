@@ -105,3 +105,6 @@ generated: { by: claude-code/agent, at: 2026-11-17T12:00:00Z }
   influenza B's unspliced BM2. The user reported it to gb-admin@ncbi.nlm.nih.gov on 2026-11-18
   with the draft in the [open item](../open/on845595-mislabelled.md); the assay file was left
   untouched.
+- 2026-11-19: the status page said nothing was on main since v2.2.0; it now lists the
+  `[Unreleased]` CHANGELOG entries (the re-alignment fix, the product sentence, the HSV-1
+  release axis). No code changed.

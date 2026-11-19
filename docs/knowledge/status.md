@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-17T16:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-19T10:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -34,7 +34,17 @@ v2.1.0 (2026-10-02): the browser interface on top of the v2.0.0 analysis.
 
 # On main, not yet released
 
-Nothing since v2.2.0.
+Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
+
+- Fixed: a partial BLAST hit that can only stay "minor" by the mismatch counts is re-aligned
+  and graded after all when the graded classes decide (`specificity.sites.worth_realigning`,
+  formerly `can_reach_warning`); found on the influenza A run of 2026-11-18, confirmed by its
+  rerun. More windows are fetched per run (cached).
+- Fixed: the report's sentence on predicted products names the graded rule instead of "at least
+  warning level".
+- Changed: the HSV-1 example sets `inclusivity.status_axis: release`.
+
+The influenza A rerun of 2026-11-18 08:15Z ran on this code, not on v2.2.0 as released.
 
 # Latest runs
 
