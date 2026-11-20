@@ -46,6 +46,50 @@ def always_reported(length: int, floor: int, reward: int, penalty: int, word_siz
     return best
 
 
+def probe_bound(
+    tier: str,
+    probes: dict[str, tuple[str, bool]],
+    entries: list[ScoreFloor],
+    truncated: set[tuple[str, str]],
+    min_identical: int,
+    gapped_can_bind: bool,
+) -> tuple[bool, str]:
+    """Can a product of ``tier`` without a re-aligned probe still be called not detected?
+
+    Tiers review 2026-11-20, F3: yes when every probe site that could give signal would have
+    been reported by BLAST in that tier, so its absence is evidence. ``probes``: query label ->
+    (sequence, MGB probe). Under R9 an ungapped probe site binds with at most 2 mismatches (an
+    MGB probe 1), 3 (2) or more being a likely failure. Four conditions: (1) the tier's searches
+    always report full-length sites with that many mismatches (its score floor); (2) no hit list
+    was full and no assessment cut; (3) the oligo is long enough that such a site survives the
+    relevance filter: its best local alignment scores at least the full-length one, L - 4m, and
+    has at least that many identical bases; (4) a gapped probe site cannot bind in this tier
+    (``gapped_can_bind``: a cautious tier, or binding levels that admit gaps). Returns whether
+    it holds and, if not, the first condition that fails.
+    """
+    if gapped_can_bind:
+        return False, "a probe site with a gap can bind in this tier, and BLAST need not report one"
+    by_label = {e.query: e for e in entries if e.tier == tier}
+    for label, (seq, mgb) in sorted(probes.items()):
+        limit = 1 if mgb else 2
+        e = by_label.get(label)
+        if e is None or e.min_score is None or e.searches_without_statistics:
+            return False, f"no score floor is known for {label} in this tier"
+        if e.list_full or (tier, label) in truncated:
+            return False, f"the hit list or the assessment of {label} was cut"
+        if e.max_mismatches_reported is None or e.max_mismatches_reported < limit:
+            return False, (
+                f"{label}: sites with {limit} mismatches are not always reported here (only up "
+                f"to {e.max_mismatches_reported})"
+            )
+        if len(seq) - 4 * limit < min_identical:
+            return False, (
+                f"{label} ({len(seq)} nt) is too short for a site with {limit} mismatches to "
+                f"always pass the relevance filter of {min_identical} identical bases"
+            )
+    return True, ""
+
+
 _SOURCES = ["reported", "from_hits", "upper_bound"]  # most to least direct
 
 

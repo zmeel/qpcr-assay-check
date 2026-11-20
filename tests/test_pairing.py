@@ -251,3 +251,23 @@ def test_an_mgb_probe_with_one_mismatch_under_the_mgb_gives_no_signal():
     assert binds(p, RULES)  # critical by the levels (1 mismatch)
     grade_site(p, mgb)
     assert p.grade == "likely_failure" and not binds(p, RULES)
+
+
+def test_in_a_cautious_tier_an_at_risk_site_acts_at_warning_level():
+    """Tiers review 2026-11-20, F8: near neighbours are read in the cautious direction; a
+    gapped probe site graded at risk (a 1-nt deletion, R5c) binds there, not elsewhere; a minor
+    site stays bounded by the level."""
+    gapped = mk("probe", "+", 150, 175, level="warning").model_copy(
+        update={"grade": "at_risk", "n_gap": 1}
+    )
+    assert not probe_binds(gapped, RULES)
+    assert probe_binds(gapped.model_copy(update={"cautious": True}), RULES)
+    minor = gapped.model_copy(update={"cautious": True, "level": "minor"})
+    assert not probe_binds(minor, RULES)
+    failing = gapped.model_copy(update={"cautious": True, "grade": "likely_failure"})
+    assert not probe_binds(failing, RULES)
+    primer = mk("forward", "+", 100, 119, level="minor").model_copy(
+        update={"grade": "indeterminate", "cautious": True}
+    )
+    assert not primer_can_prime(primer)
+    assert primer_can_prime(primer.model_copy(update={"level": "warning"}))

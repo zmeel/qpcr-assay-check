@@ -126,19 +126,35 @@ def test_the_same_record_in_two_tiers_gets_its_partner_in_each(tmp_path):
     assert res.partner_scan.primer_sites_added == 2
 
 
-def test_product_fetches_count_against_the_limit(tmp_path):
-    w = offtarget_genome(f=[10], r=[5, 12])
+def _two_products(w):
     w.hit(NEAR, "forward", F, ACC, F_START, "+")  # the scan finds the reverse primer: 1 fetch
     offtarget_genome(f=[10], r=[5], acc="OT000002.1", world=w)
     w.hit(NEAR, "forward", F, "OT000002.1", F_START, "+")
     w.hit(NEAR, "reverse", R, "OT000002.1", R_START, "-")  # a product without a probe site
+    return w
+
+
+def test_product_fetches_have_a_budget_of_their_own(tmp_path):
+    """Tiers review 2026-11-20, F3: partner windows used up the one budget first, and none was
+    left for the 500 HSV-2 products of the HSV-1 run."""
+    w = _two_products(offtarget_genome(f=[10], r=[5, 12]))
     res, _, _ = run(w, tmp_path, specificity__partner_scan_max_windows=1)
     scan = res.partner_scan
-    assert (scan.windows, scan.product_windows, scan.products_not_scanned) == (1, 0, 1)
-    assert any(
-        f.severity == "INCOMPLETE" and f.message.startswith("Probe re-alignment incomplete")
-        for f in res.findings
-    )
+    assert (scan.windows, scan.products_not_scanned) == (1, 0) and scan.product_windows >= 1
+    w = _two_products(offtarget_genome(f=[10], r=[5, 12]))
+    res, _, _ = run(
+        w, tmp_path / "b", specificity__partner_scan_max_windows=1,
+        specificity__probe_scan_max_products=0,
+    )  # fmt: skip
+    scan = res.partner_scan
+    # one product lies in the partner window already fetched; the other needs a fetch
+    assert scan.products_not_scanned == 1 and scan.products_not_scanned_by_tier == {
+        "near_neighbours": 1
+    }
+    # near neighbours are a cautious tier: a gapped probe site could bind, so not bounded
+    (f,) = [f for f in res.findings if "Probe re-alignment incomplete" in f.message]
+    assert f.severity == "INCOMPLETE" and f.message.startswith("Tier 'near_neighbours'")
+    assert "not bounded: a probe site with a gap can bind" in f.message
 
 
 def test_a_tier_whose_product_list_was_cut_is_not_scanned(tmp_path):

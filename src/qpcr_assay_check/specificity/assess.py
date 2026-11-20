@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections.abc import Callable
 
 from ..align import realign
-from ..config import Config
+from ..config import Config, SpecificitySettings
 from ..models import Assay
 from ..ncbi.http import NcbiError
 from ..ncbi.parser import Hit, ParsedSearch
@@ -22,11 +22,12 @@ from .models import Finding, PartnerScan, SiteResult, SpecificityResult, TierCou
 from .pairing import (
     best_of_each_site,
     grade_site,
+    oligo_of,
     predict_amplicons,
     primer_can_prime,
     probe_binds,
 )
-from .reach import floor_findings, floors
+from .reach import floor_findings, floors, probe_bound
 from .scan import PartnerScanner, progress_step
 from .sites import (
     Candidate,
@@ -280,7 +281,7 @@ def assess_specificity(
     # ---- the graded class decides priming and binding (one rule set, review 2026-11-17, P3)
     if rules.graded_off_target:
         for s in sites:
-            grade_site(s, assay)
+            grade_site(s, assay, s.tier in rules.cautious_tiers)
 
     def acts(s: SiteResult) -> bool:
         return primer_can_prime(s) or probe_binds(s, rules)
@@ -376,7 +377,19 @@ def assess_specificity(
     findings.extend(floor_findings(score_floors, cfg.search.expect))
     scan = scanner.state.summary if scanning else None
     if scan is not None:
-        findings.extend(scan_findings(scan, rules.partner_scan_max_windows))
+        probes = {
+            label: (seq, _is_mgb(assay, label))
+            for label, seq in plan.queries.items()
+            if assay.role_of(label) == "probe"
+        }
+        truncated_counts = {(c.tier, c.query) for c in tally.values() if c.truncated}
+
+        def bound(tier: str) -> tuple[bool, str]:
+            return probe_bound(tier, probes, score_floors, truncated_counts, min_identical,
+                               _gapped_probe_can_bind(rules, tier))  # fmt: skip
+
+        findings.extend(scan_findings(scan, rules.partner_scan_max_windows, bound,
+                                      rules.probe_scan_max_products))  # fmt: skip
     verdict = verdict_of(findings)
     rationale = [f.message for f in findings if f.severity in ("FAIL", "INCOMPLETE", "WARN")]
     if not rationale:
@@ -427,9 +440,35 @@ def assess_specificity(
     )
 
 
-def scan_findings(scan: PartnerScan, limit: int) -> list[Finding]:
+def _is_mgb(assay: Assay, label: str) -> bool:
+    name = oligo_of(label)
+    o = next((x for x in assay.oligo_list if x.name == name), None)
+    return o is not None and o.has_mgb()
+
+
+def _gapped_probe_can_bind(rules: SpecificitySettings, tier: str) -> bool:
+    """Can a probe site with a gap give signal in ``tier``? In a cautious tier, yes (at risk at
+    warning level, F8); elsewhere only when the binding level admits a gap. A gapped probe site
+    never grades better than at risk (R5, R5c), so the level decides."""
+    if tier in rules.cautious_tiers:
+        return True
+    level = (
+        rules.probe_site.critical
+        if rules.probe_binds_if == "critical"
+        else rules.probe_site.warning
+    )
+    return level.max_gaps > 0
+
+
+def scan_findings(
+    scan: PartnerScan,
+    limit: int,
+    bound: Callable[[str], tuple[bool, str]] | None = None,
+    product_limit: int | None = None,
+) -> list[Finding]:
     """What the partner scan covered and added; INCOMPLETE when it could not cover every
-    off-target primer site that can prime, or every product without a probe site."""
+    off-target primer site that can prime, or every product without a probe site whose
+    "not detected" is not bounded (``bound(tier)``, :func:`.reach.probe_bound`)."""
     out = [
         Finding(
             severity="INFO",
@@ -465,22 +504,50 @@ def scan_findings(scan: PartnerScan, limit: int) -> list[Finding]:
                 topic="amplicons",
             )
         )
-    probe_gaps = []
-    if scan.products_not_scanned:
-        probe_gaps.append(
-            f"{scan.products_not_scanned} product(s) beyond the limit of {limit} fetches were "
-            "not searched"
+    product_limit = limit if product_limit is None else product_limit
+    by_tier = {
+        t: (
+            scan.products_not_scanned_by_tier.get(t, 0),
+            scan.product_windows_failed_by_tier.get(t, 0),
         )
-    if scan.product_windows_failed:
-        probe_gaps.append(f"{scan.product_windows_failed} product(s) could not be fetched")
-    if probe_gaps:
+        for t in {*scan.products_not_scanned_by_tier, *scan.product_windows_failed_by_tier}
+    }
+    if not by_tier and (scan.products_not_scanned or scan.product_windows_failed):
+        by_tier = {"": (scan.products_not_scanned, scan.product_windows_failed)}  # older records
+    for tier, (not_scanned, failed) in sorted(by_tier.items()):
+        probe_gaps = []
+        if not_scanned:
+            probe_gaps.append(
+                f"{not_scanned} product(s) beyond the limit of {product_limit} product fetches "
+                "(specificity.probe_scan_max_products) were not searched"
+            )
+        if failed:
+            probe_gaps.append(f"{failed} product(s) could not be fetched")
+        where = f"Tier '{tier}': " if tier else ""
+        ok, why = bound(tier) if bound is not None and tier else (False, "")
+        if ok:
+            out.append(
+                Finding(
+                    severity="INFO",
+                    message=(
+                        f"{where}probe re-alignment not done for every product "
+                        f"({'; '.join(probe_gaps)}). "
+                        "Not detected (bounded): every probe site that could give signal in this "
+                        "tier (up to 2 mismatches, 1 for an MGB probe, no gap) would have been "
+                        "reported by its searches, and none was."
+                    ),
+                    topic="amplicons",
+                )
+            )
+            continue
         out.append(
             Finding(
                 severity="INCOMPLETE",
                 message=(
-                    f"Probe re-alignment incomplete: {'; '.join(probe_gaps)}. A probe site BLAST "
-                    "did not report can be missing there, so such a product may be detected "
-                    "although it is listed as not detected."
+                    f"{where}Probe re-alignment incomplete: {'; '.join(probe_gaps)}. A probe site "
+                    "BLAST did not report can be missing there, so such a product may be detected "
+                    "although it is listed as not detected"
+                    + (f" (not bounded: {why})." if why else ".")
                 ),
                 topic="amplicons",
             )

@@ -62,6 +62,11 @@ class SiteResult(BaseModel):
     )
     grade_rule: str = ""
     grade_note: str = ""
+    cautious: bool = Field(
+        default=False,
+        description="in a cautious tier (specificity.cautious_tiers): graded at risk or "
+        "indeterminate, the site primes or binds at warning level",
+    )
     channel_sites: list[SiteResult] = Field(
         default_factory=list,
         exclude=True,
@@ -161,8 +166,10 @@ class PartnerScan(BaseModel):
     )
     product_windows_failed: int = 0
     products_not_scanned: int = Field(
-        default=0, description="products without a probe site beyond the window limit"
+        default=0, description="products without a probe site beyond the product limit"
     )
+    products_not_scanned_by_tier: dict[str, int] = Field(default_factory=dict)
+    product_windows_failed_by_tier: dict[str, int] = Field(default_factory=dict)
     primer_sites_added: int = 0
     probe_sites_added: int = 0
 

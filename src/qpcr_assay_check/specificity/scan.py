@@ -6,9 +6,10 @@ still prime. A product needs *two* primer sites, so once BLAST has reported one 
 need not come from BLAST: the sequence a product could span (``max_amplicon_size``, in the
 direction the primer extends) is fetched and every oligo of the partner role is aligned in it
 end to end. Inside every predicted off-target product without a reported probe site, each probe
-is re-aligned the same way. Only sites of at least warning level are added. Every fetch (partner
-windows first, then products) counts against ``specificity.partner_scan_max_windows``. The scan
-does not find a pair of which BLAST reported neither primer.
+is re-aligned the same way. Only sites of at least warning level are added. Partner windows count
+against ``specificity.partner_scan_max_windows``, product fetches against their own
+``specificity.probe_scan_max_products``. The scan does not find a pair of which BLAST reported
+neither primer.
 """
 
 from __future__ import annotations
@@ -152,7 +153,7 @@ class PartnerScanner:
                 aln=aln, w_lo=w_lo, w_len=len(window), rules=site_rules, site_id="S0", note=note,
             )  # fmt: skip
             if self.rules.graded_off_target:
-                grade_site(s, self.assay)
+                grade_site(s, self.assay, s.tier in self.rules.cautious_tiers)
             if not accept(s):
                 continue
             key = (_LEVEL_RANK[s.level], s.n_mismatch + s.n_gap)
@@ -161,8 +162,13 @@ class PartnerScanner:
         return best
 
     def _fetches_left(self) -> int:
-        s = self.state.summary
-        return self.rules.partner_scan_max_windows - s.windows - s.product_windows
+        """Partner windows left (cached ones count too, so a rerun scans the same sites)."""
+        return self.rules.partner_scan_max_windows - self.state.summary.windows
+
+    def _products_left(self) -> int:
+        """Product fetches left: a budget of their own, so the partner scan cannot use them up
+        (tiers review 2026-11-20, F3: none was left for the 500 HSV-2 products of HSV-1)."""
+        return self.rules.probe_scan_max_products - self.state.summary.product_windows
 
     def partners(self, sites: list[SiteResult], anchors: list[SiteResult]) -> list[SiteResult]:
         """Scan next to each anchor (priming primer sites of the off-target tiers) for partner
@@ -231,14 +237,19 @@ class PartnerScanner:
                 if len(seq) == a.length:
                     return seq
         summary = self.state.summary
-        if self._fetches_left() <= 0:
+        if self._products_left() <= 0:
             summary.products_not_scanned += 1
+            by = summary.products_not_scanned_by_tier
+            by[a.tier] = by.get(a.tier, 0) + 1
             return None
         before = self.fetcher.n_failed
         seq = self.fetcher.get(a.accession, a.start, a.end)
         summary.product_windows += 1
         if seq is None or len(seq) != a.length:
-            summary.product_windows_failed += self.fetcher.n_failed - before or 1
+            n = self.fetcher.n_failed - before or 1
+            summary.product_windows_failed += n
+            by = summary.product_windows_failed_by_tier
+            by[a.tier] = by.get(a.tier, 0) + n
             return None
         return seq
 

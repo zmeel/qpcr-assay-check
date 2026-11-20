@@ -174,3 +174,46 @@ def test_each_search_of_a_tier_shows_its_own_floor():
     assert "search 2 (3 taxa: 31, 32, 33): score >= 15" in msg
     one = floors([big], {"forward": "GTTGAAACACCGCCCGG"}, ["exclusivity"], s)
     assert "per search" not in floor_findings(one, s.expect)[0].message
+
+
+def _floor(tier, label, length, score, mm, **kw):
+    from qpcr_assay_check.specificity.models import ScoreFloor
+
+    return ScoreFloor(tier=tier, query=label, length=length, min_score=score,
+                      max_mismatches_reported=mm, **kw)  # fmt: skip
+
+
+def test_the_probe_bound_needs_every_condition():
+    # tiers review 2026-11-20, F3: "not detected" without a re-aligned probe holds when every
+    # probe site that could bind would have been reported in the tier
+    from qpcr_assay_check.specificity.reach import probe_bound
+
+    p25 = {"probe": ("A" * 25, False)}
+    ok = [_floor("nn", "probe", 25, 12, 2)]
+    assert probe_bound("nn", p25, ok, set(), 14, False) == (True, "")
+    assert probe_bound("nn", p25, ok, set(), 14, True)[0] is False  # a gapped site can bind
+    assert "not always reported" in probe_bound("nn", p25, [_floor("nn", "probe", 25, 18, 1)],
+                                                set(), 14, False)[1]  # fmt: skip
+    assert "cut" in probe_bound("nn", p25, ok, {("nn", "probe")}, 14, False)[1]
+    full = [_floor("nn", "probe", 25, 12, 2, list_full=True)]
+    assert "cut" in probe_bound("nn", p25, full, set(), 14, False)[1]
+    assert "no score floor" in probe_bound("other", p25, ok, set(), 14, False)[1]
+    # relevance filter: 21 nt with 2 mismatches can score 13 < 14 identical bases
+    p21 = {"probe": ("A" * 21, False)}
+    assert "too short" in probe_bound("nn", p21, [_floor("nn", "probe", 21, 10, 2)], set(), 14,
+                                      False)[1]  # fmt: skip
+    # an MGB probe binds with at most one mismatch: 1 always reported suffices, 18 nt is enough
+    mgb = {"probe": ("A" * 18, True)}
+    assert probe_bound("nn", mgb, [_floor("nn", "probe", 18, 12, 1)], set(), 14, False)[0]
+
+
+def test_a_bounded_tier_reads_not_detected_instead_of_incomplete():
+    from qpcr_assay_check.specificity.assess import scan_findings
+    from qpcr_assay_check.specificity.models import PartnerScan
+
+    scan = PartnerScan(primer_sites=0, windows=0, products_not_scanned=500,
+                       products_not_scanned_by_tier={"near_neighbours": 500})  # fmt: skip
+    (_, f) = scan_findings(scan, 1000, lambda tier: (True, ""), 1000)
+    assert f.severity == "INFO" and "Not detected (bounded)" in f.message
+    (_, g) = scan_findings(scan, 1000, lambda tier: (False, "why not"), 1000)
+    assert g.severity == "INCOMPLETE" and "(not bounded: why not)" in g.message

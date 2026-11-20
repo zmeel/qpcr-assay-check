@@ -376,11 +376,14 @@ class SpecificitySettings(_Strict):
     severity: SeverityMap
     eukaryote_taxids: list[int]
     partner_scan_max_windows: int = 1000
+    probe_scan_max_products: int = 1000
+    cautious_tiers: list[str] = ["near_neighbours"]
 
     @model_validator(mode="after")
     def _positive(self) -> SpecificitySettings:
         for name, tiers in (("off_target_tiers", self.off_target_tiers),
-                            ("tier_waivers", list(self.tier_waivers))):  # fmt: skip
+                            ("tier_waivers", list(self.tier_waivers)),
+                            ("cautious_tiers", self.cautious_tiers)):  # fmt: skip
             unknown = [t for t in tiers if t not in JUDGED_TIERS]
             if unknown:
                 raise ValueError(
@@ -401,6 +404,8 @@ class SpecificitySettings(_Strict):
             raise ValueError("window_padding_nt must be >= 0")
         if self.partner_scan_max_windows < 0:
             raise ValueError("partner_scan_max_windows must be >= 0 (0 switches the scan off)")
+        if self.probe_scan_max_products < 0:
+            raise ValueError("probe_scan_max_products must be >= 0")
         return self
 
 

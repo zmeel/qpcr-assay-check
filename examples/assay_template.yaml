@@ -157,7 +157,9 @@ settings:                                  # only what differs from the defaults
 #     amplicon_likely_detected: FAIL
 #     amplicon_not_detected: WARN
 #   eukaryote_taxids: [9606]       # where genomic-DNA hits matter to RNA assays
-#   partner_scan_max_windows: 1000 # windows scanned for partner primers and probes; 0 = off
+#   partner_scan_max_windows: 1000 # windows scanned for partner primers; 0 = off
+#   probe_scan_max_products: 1000  # products fetched to re-align the probes in
+#   cautious_tiers: [near_neighbours]  # at risk / indeterminate sites act at warning level
 # organisms:
 #   source: assay                  # assay = exclusivity_organisms above when given; global = always the list
 #   list_file: null                # null = packaged starter list; or your lab's own file

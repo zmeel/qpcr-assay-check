@@ -90,15 +90,23 @@ def _acts_by_grade(site: SiteResult, strong: bool) -> bool:
     sequence the level still bounds the rest."""
     if site.grade == "likely_failure":
         return False
+    if site.cautious and site.grade in ("at_risk", "indeterminate") and site.level != "minor":
+        # near neighbours, read in the cautious direction (tiers review 2026-11-20, F8): at
+        # warning level, gaps included, whatever probe_binds_if says; a minor site stays bounded
+        # by the level (the classes count primer mismatches only in the 3'-most 16 nt, so random
+        # sequence can grade at risk: a run of N did, 2026-11-20)
+        return True
     return site.grade in GOOD or strong
 
 
-def grade_site(site: SiteResult, assay: Assay) -> None:
+def grade_site(site: SiteResult, assay: Assay, cautious: bool = False) -> None:
     """Give an off-target site the class the assay's own target sites get (R1-R9; MGB rules for
     an MGB probe), so one rule set decides priming and binding everywhere (whole-project review,
     2026-11-17, P3: the count-based levels called a single mismatch at -1 to -3 unable to prime,
     though R1 grades some of those tolerated, and let a probe with 3 mismatches bind, MGB probes
-    included). A site that already has a class keeps it."""
+    included). A site that already has a class keeps it. ``cautious``: the site lies in a tier
+    of ``specificity.cautious_tiers``."""
+    site.cautious = site.cautious or cautious
     if site.grade is not None or not site.q_aln or not site.s_aln:
         return
     if site.source == "blast_partial_worst_case":
