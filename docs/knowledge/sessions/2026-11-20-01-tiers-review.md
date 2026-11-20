@@ -33,3 +33,9 @@ generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
   answers Taxonomy EFetch. User guide, wiki page Specificity-search and ARCHITECTURE updated.
 - The user confirmed that NCBI Taxonomy 2759 is Eukaryota; the notes saying it was unchecked
   are updated (default configuration comment, CHANGELOG, status, reviews README).
+- At the user's request ("The report is still too long and very text heavy. Have the advisor look
+  how to visualize the results more graphically") an advisor subagent reviewed the HTML report
+  read-only, rendering the user's HSV-1 and HSV-2 reports; its report is kept verbatim
+  ([review](../../reviews/2026-11-20-report-advisor.md)), its mock-up stayed in the session's scratch
+  folder. Checked: closed `<details>` sections do not print (reproduced); the page-1 line counts
+  an Exceeds-limit row as flagged for review. Nothing built yet.

@@ -8,6 +8,7 @@ decisions: this file records how they compare and what was taken up.
 | `2026-10-01-theory-review-molecular-biologist.md` | senior theoretical molecular biologist and bioinformatician | 2026-10-01 |
 | `2026-10-01-theory-review-advisor.md` | methods advisor (diagnostic qPCR, quality systems) | 2026-10-01 |
 | `2026-11-17-whole-project-advisor.md` | independent advisor (molecular diagnostics, scientific software), whole project | 2026-11-17 |
+| `2026-11-20-report-advisor.md` | independent advisor (molecular diagnostics, quality systems, data visualisation, report design), the HTML report | 2026-11-20 |
 | `2026-11-20-tiers-advisor.md` | independent advisor (molecular diagnostics, in silico qPCR evaluation, scientific software), the off-target search tiers | 2026-11-20 |
 
 Both assessed the theoretical background of the tool at the same time, independently, from the
@@ -148,3 +149,16 @@ Not built: the exhaustive analysis of a near neighbour's own records (F4, the ad
 answer", a feature of its own), specimen panels and taxonomy-derived near-neighbour suggestions
 (F9, judgement; the NCBI Taxonomy query would need checking first). The 2759 = Eukaryota default
 was confirmed by the user on 2026-11-20.
+
+## Review of the HTML report (2026-11-20)
+
+Diagnosis (24-31 A4 pages printed, about 60% prose, more than half of it the same in every
+report, one chart, inside a closed section), six visual proposals (P1 page-1 status table with
+small figures, P2 detection per year as stacked bars, P3 oligo-site mismatch maps, P4 tier
+overview with a closest-site glyph, P5 score-floor matrix, P6 a compressed organism table), a
+two-page sign-off part, prose cuts and implementation notes. Checked the same day: closed
+`<details>` sections are left out of the printed PDF (reproduced with a minimal page in
+Chromium: the print rule `details:not([open]) > *:not(summary)` has no effect), so the printed
+HSV-1 record lacked the oligo QC tables behind its one Exceeds-limit row; the page-1 line counts
+an Exceeds-limit row as "flagged for review". Nothing taken up yet: the user decides, and P3 needs
+the user's word on the decision of 2026-10-03 (no variant graph).
