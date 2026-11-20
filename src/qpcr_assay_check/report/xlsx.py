@@ -15,7 +15,7 @@ from ..results import RunResult
 from ..specificity.variants import group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
-from .grouping import fragment_outcome, spec_overview
+from .grouping import fragment_outcome, site_changes, spec_overview
 from .ncbi_links import accession_url, taxon_url
 
 _FILL = {
@@ -317,14 +317,16 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
         _sheet(
             wb,
             "Oligo variants",
-            ["Oligo", "Variant (subject, aligned)", "Count", "Fraction (%)", "Mismatches",
-             "Gaps", "Matching 3' nt", "Class", "Class rule", "Duplex Tm (°C)", "ΔTm (°C)",
+            ["Oligo", "Variant (subject, aligned)", "Changes", "Count", "Fraction (%)",
+             "Mismatches", "Gaps", "Matching 3' nt", "Class", "Rule", "Class note",
+             "Duplex Tm (°C)", "ΔTm (°C)",
              "ΔG (kcal/mol)", "Tm model not applicable (modifications)", "Tm <= annealing",
              "Example accession", "Example organism", "First release", "Last release"],
             [
                 [o.role if row.oligo_name in ("", o.role) else f"{o.role} {row.oligo_name}",
-                 row.s_aln, row.count, round(row.percent, 2), row.n_mismatch, row.n_gap,
-                 row.clean_3prime_nt, row.grade or "", row.grade_note, _r1(row.tm_c),
+                 row.s_aln, site_changes(row), row.count, round(row.percent, 2), row.n_mismatch,
+                 row.n_gap, row.clean_3prime_nt, row.grade or "", row.grade_rule, row.grade_note,
+                 _r1(row.tm_c),
                  _r1(row.delta_tm_c), _r1(row.dg_kcal), ", ".join(row.tm_not_modelled),
                  {True: "yes", False: "no"}.get(row.tm_at_or_below_annealing, ""),
                  row.example_accession, row.example_organism or "",

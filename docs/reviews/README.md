@@ -179,4 +179,14 @@ oligo QC first column; hits per oligo and the effective configuration to the wor
 observations. Checked the same day: seven tables are wider than the A4 print width in the HSV-1
 record (whole-fragment tables up to 1,214 px on 703 px) and are cut off at the right edge in
 print, the oligo QC "Rule applied" column among them; "Hit list full" means `list_full` in one
-table and `saturated` in another. Nothing taken up yet: the user decides.
+table and `saturated` in another.
+
+Taken up the same day (user: "combine them and then execute in your order"), with one change of
+the user's: instead of the advisor's compact "site variant key", "Variants per oligo" merged into
+the whole-fragment table (each site's rule and changes in its cell, folded rows naming the site
+variants no listed row shows, per-oligo totals beside the maps); see the decision of 2026-11-20.
+In order: print wrapping (the first fix only held once the print rules came last in the style
+sheet: screen rules after them had overridden them), the Part A label and small fixes, the QC
+matrix, hits per query to the workbook, limits applied and differing settings, the shorter
+sign-off, the merged variant tables. Test reports print Part A on two pages and no table wider
+than the page.

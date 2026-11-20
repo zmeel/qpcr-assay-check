@@ -4,7 +4,7 @@ title: "Report and records"
 description: "Self-contained HTML report in three parts (two-page sign-off with figures, evidence, appendix), Excel workbook, results.json and hits.tsv per run."
 tags: [component]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-20T20:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-20T23:00:00Z }
 sources:
   - id: code0
     resource: ../../../src/qpcr_assay_check/report/html.py
@@ -30,6 +30,9 @@ sources:
   - id: review
     resource: ../../reviews/2026-11-20-report-advisor.md
     title: Advisor review of the HTML report (2026-11-20)
+  - id: merged
+    resource: ../decisions/2026-11-20-variants-per-oligo-merged.md
+    title: "Variants per oligo merged into the whole-fragment table"
   - id: decision
     resource: ../decisions/2026-11-20-needs-attention-keeps-its-colours.md
     title: "Needs attention keeps its coloured site rows"
@@ -54,13 +57,20 @@ parts, printable on A4:
   differ from it (mismatch maps); the first "Needs attention" rows, in their coloured layout
   (user decision);[^decision] the findings that need a decision (information-only lines counted);
   the reviewer's decision box.
-- **Part B, evidence:** assay; target detection (coverage, copies, whole-fragment tables, variants
-  per oligo, inclusivity per year and by collection year, rationale); off-target specificity
-  (tier notes, findings, products, sites per species, closest sites with binding-identical
-  variants merged, organism table with the organisms without a site on one line, searches and a
-  score-floor table); oligo design (flagged checks first).
-- **Part C, appendix:** rules text (whole fragment, status window, mismatch classes), hits per
-  oligo, methods, effective configuration, limitations, required statements in full.
+- **Part B, evidence:** all findings behind the summary; assay; target detection (coverage, copies,
+  the whole-fragment tables, in which each site shows its rule and changes and folded rows name
+  the site variants no listed row shows; inclusivity per year and by collection year,
+  rationale); off-target specificity (tier notes, findings, products, sites per species, closest
+  sites with binding-identical variants merged, organism table with the organisms without a site
+  on one line, searches and a score-floor table); oligo design (a matrix: a row per check, a
+  column per oligo, the limit once).
+- **Part C, appendix:** rules text, queries with incomplete evidence, methods, limits applied,
+  settings that differ from the defaults, limitations, required statements in full. The full
+  configuration and every query's hits are workbook sheets ("Configuration", "Hits per query").
+
+Tables wrap in print instead of being cut off at the page edge (the print rules come last in the
+style sheet). Decisions: the coloured Needs-attention rows[^decision] and the merged variant
+tables.[^merged]
 
 Nothing of the record is folded in a closed `<details>` any more (closed sections did not print).
 The figures are inline SVG from `report/charts.py` (pure functions of numbers; colour plus texture
@@ -81,4 +91,5 @@ per-oligo tables per year moved to the workbook.
 [^code7]: src/qpcr_assay_check/report/figures.py
 [^review]: Advisor review of the HTML report (2026-11-20)
 [^decision]: "Needs attention keeps its coloured site rows"
+[^merged]: "Variants per oligo merged into the whole-fragment table"
 [^code6]: src/qpcr_assay_check/results.py

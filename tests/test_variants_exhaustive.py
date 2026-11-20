@@ -308,18 +308,16 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    # per oligo (advisor 2026-09-25): perfect as one line, other variants by their changes
-    i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2", i)]
-    assert re.search(r"Of \d+ records: <strong>\d+</strong> perfect", per_oligo)
-    # the 3'-terminal forward mismatch is seen in one record: one row for its class
-    assert "other likely failure variant, each seen in 1 record" in per_oligo
-    assert html.index("<h3>Whole fragment") < i  # the whole fragment first
+    # per oligo: one line of totals beside the maps; each site variant in the whole-fragment
+    # table with its rule and its changes (report review 2026-11-20, second round)
+    assert re.search(r"</strong>: of \d+ records \d+ perfect", html)
+    assert "<h3>Variants per oligo" not in html
     # whole fragment (advisor layout 2026-09-25): the 3'-terminal forward mismatch needs attention
     i = html.index("<h3>Whole fragment")
     frag = html[i : html.index("<h2", i)]
     assert "Needs attention" in frag and "likely failure" in frag and "Detectable (" in frag
     assert frag.index("likely failure") < frag.index("Detectable (")
+    assert re.search(r'class="site-changes meta">[^<]*-1 T-T', frag)  # the 3' mismatch, in words
     # the frequency of a non-perfect site variant sits next to its class
     assert 'title="this forward site variant, whatever the other sites are"' in frag
 

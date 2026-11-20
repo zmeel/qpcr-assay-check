@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-20T21:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-20T23:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -100,10 +100,9 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   `cautious_tiers`, if that is not wanted. The new `eukaryote_taxids` default 2759 is Eukaryota
   (confirmed by the user, 2026-11-20). Not built: an exhaustive analysis of a near
   neighbour's own records, specimen panels, taxonomy-derived near-neighbour suggestions.
-- Report review (2026-11-20) taken up in full: a three-part report with a two-page sign-off and
-  figures ([report](components/report.md)). Look at the next real reports (HSV-1, HSV-2, VZV
-  reruns) on screen and printed, and say what to change; Part A may run over two pages for a long
-  record.
+- Report: the user's comments on the first HSV-1 record and the advisor's second review taken up
+  (2026-11-20; [report](components/report.md)). Rebuild the GUI and rerun to see the record; a
+  long record can still run over two sign-off pages.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 

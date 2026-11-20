@@ -49,31 +49,50 @@ def test_sites_are_grouped_per_species_closest_first():
     assert (g.species, g.n_sites, g.levels["critical"], g.best.id) == ("Rhinovirus B", 2, 1, "S1")
 
 
-def test_per_oligo_lists_problems_and_only_the_most_frequent_tolerated_variants(tmp_path):
-    """Advisor 2026-09-25 (user: the whole-fragment table is the main view): per oligo only the
-    variants that are not perfect; risky ones always, tolerated ones the 5 most frequent."""
-    from qpcr_assay_check.config import load_config
-    from qpcr_assay_check.report.html import render_report
+def test_folded_combinations_name_the_site_variants_no_listed_row_shows():
+    """Report review 2026-11-20, second round (user: combine the per-oligo table with the whole
+    fragment): a variant seen only in folded combinations is named in the folded row, with the
+    per-oligo table's old selection: those that can fail always (seen twice or more; once: a
+    count per class), tolerated ones the 5 most frequent."""
+    from types import SimpleNamespace as NS
 
-    from .test_multi_copy import run_report_result
+    from qpcr_assay_check.report.grouping import fragment_view
 
-    result, cfg = run_report_result(tmp_path), load_config()
-    vs = result.variant_summary
-    fwd = vs.oligos[0]
-    base = fwd.rows[0]
-    extra = [base.model_copy(update={"percent": 0.05, "count": 10 - i, "grade": g,
-                                     "example_accession": f"VAR{i}.1"})
-             for i, g in enumerate(["tolerated"] * 7 + ["likely_failure"])]  # fmt: skip
-    oligos = [fwd.model_copy(update={"rows": [*fwd.rows, *extra]}), *vs.oligos[1:]]
-    result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
-    html = render_report(result, cfg)
-    i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2", i)]
-    assert "VAR7.1" in per_oligo  # the likely failure, although the rarest
-    assert all(f"VAR{k}.1" in per_oligo for k in range(5))  # 5 most frequent tolerated
-    assert "VAR5.1" not in per_oligo and "VAR6.1" not in per_oligo
-    assert "2 other tolerated variants" in per_oligo
-    assert per_oligo.index("VAR7.1") < per_oligo.index("VAR0.1")  # worst class first
+    perfect = "ACGTACGTAC"
+
+    def site(s_aln, grade, count=1):
+        return NS(q_aln=perfect, s_aln=s_aln, grade=grade, count=count, percent=1.0,
+                  n_mismatch=0 if grade == "perfect" else 1, n_gap=0, oligo_name="F",
+                  grade_rule="R2", note="")  # fmt: skip
+
+    p = site(perfect, "perfect", 100)
+    tol = [site(perfect[:-2] + c + "C", "tolerated", 10 - k) for k, c in enumerate("ACGTN")]
+    tol += [site("T" + perfect[1:], "tolerated", 3), site("G" + perfect[1:], "tolerated", 2)]
+    bad = site(perfect[:-1] + "A", "likely_failure", 4)
+    once = site(perfect[:-1] + "G", "at_risk", 1)
+
+    def frag(fwd, count, organisms=(("X", 1),)):
+        return NS(forward=fwd, probe=p, reverse=p, count=count, percent=1.0,
+                  organisms=list(organisms), unassembled=0, from_parts=0)  # fmt: skip
+
+    detectable = [frag(p, 50)] + [frag(t, t.count) for t in tol]
+    folded_bad = [frag(bad, 4), frag(once, 1)]
+    oligos = [NS(role="forward", rows=[p, *tol, bad, once]), NS(role="probe", rows=[p]),
+              NS(role="reverse", rows=[p])]  # fmt: skip
+    from unittest import mock
+
+    with mock.patch("qpcr_assay_check.report.grouping.fragment_outcome",
+                    side_effect=lambda f, b=False: (
+                        "detectable" if f.forward.grade in ("perfect", "tolerated")
+                        else f.forward.grade.replace("_", " "), False)):  # fmt: skip
+        view = fragment_view([*detectable, *folded_bad], 200, top=2, cap=0, per_outcome=0,
+                             oligos=oligos)  # fmt: skip
+    det = view.hidden["detectable"]
+    assert [r.count for _role, r in det.listed] == [9, 8, 7, 6, 3]  # 5 most frequent tolerated
+    assert det.tolerated_more == 1
+    shown = {id(r) for _role, r in view.hidden["likely failure"].listed}
+    assert id(bad) in shown
+    assert view.hidden["at risk"].singles == {"at_risk": 1}
 
 
 def test_site_changes_are_written_from_the_3prime_end():
@@ -301,13 +320,15 @@ def test_the_delta_tm_is_shown_next_to_the_class_but_not_for_perfect_sites(tmp_p
         base.model_copy(update={"grade": "perfect", "tm_c": 65.5, "delta_tm_c": 0.0,
                                 "dg_kcal": -19.0, "example_accession": "DTM2.1"}),
     ]  # fmt: skip
-    oligos = [fwd.model_copy(update={"rows": [*fwd.rows, *extra]}), *vs.oligos[1:]]
-    result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
+    frags = [f.model_copy(update={"forward": x}) for f, x in zip(vs.fragments, extra, strict=False)]
+    result = result.model_copy(
+        update={"variant_summary": vs.model_copy(update={"fragments": frags})}
+    )
     html = render_report(result, cfg)
-    i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2", i)]
-    assert "ΔTm -4.3 °C" in per_oligo and "ΔTm +0.0" not in per_oligo
-    assert "information only, the class is the judgement" in per_oligo
+    i = html.index("<h3>Whole fragment")
+    frag = html[i : html.index("<h2", i)]
+    assert "ΔTm -4.3 °C" in frag and "ΔTm +0.0" not in frag
+    assert "information only, the class is the judgement" in frag
 
 
 def test_the_report_withholds_delta_tm_for_mgb_and_marks_a_low_tm(tmp_path):
@@ -329,13 +350,15 @@ def test_the_report_withholds_delta_tm_for_mgb_and_marks_a_low_tm(tmp_path):
                                 "tm_at_or_below_annealing": True,
                                 "example_accession": "LOW1.1"}),
     ]  # fmt: skip
-    oligos = [fwd.model_copy(update={"rows": [*fwd.rows, *extra]}), *vs.oligos[1:]]
-    result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
+    frags = [f.model_copy(update={"forward": x}) for f, x in zip(vs.fragments, extra, strict=False)]
+    result = result.model_copy(
+        update={"variant_summary": vs.model_copy(update={"fragments": frags})}
+    )
     html = render_report(result, cfg)
-    i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2", i)]
-    assert "ΔTm not applicable (MGB)" in per_oligo and "ΔTm -9.0 °C</span>" not in per_oligo
-    assert "Tm ≤ annealing" in per_oligo and "ΔTm -8.0 °C" in per_oligo
+    i = html.index("<h3>Whole fragment")
+    frag = html[i : html.index("<h2", i)]
+    assert "ΔTm not applicable (MGB)" in frag and "ΔTm -9.0 °C</span>" not in frag
+    assert "Tm ≤ annealing" in frag and "ΔTm -8.0 °C" in frag
 
 
 def test_the_fragment_table_puts_the_tm_note_under_the_class(tmp_path):
@@ -348,7 +371,7 @@ def test_the_fragment_table_puts_the_tm_note_under_the_class(tmp_path):
 
     html = render_report(run_report_result(tmp_path), load_config())
     i = html.index("<h3>Whole fragment (forward")
-    frag = html[i : html.index("<h3>Variants per oligo", i)]
+    frag = html[i : html.index("<h2", i)]
     assert frag.count('class="site-tm"') == frag.count(">ΔTm") > 0  # every Tm note on its line
     assert "table.frag td.aln-cell { white-space: normal" in html  # only the alignment stays whole
     assert "table.frag td.num { white-space: normal" in html

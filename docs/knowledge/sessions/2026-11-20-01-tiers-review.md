@@ -51,3 +51,10 @@ generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
   folded any more (closed sections did not print). `report/charts.py` and `report/figures.py`
   replace `plots.py`; workbook sheet "Mismatch positions". A QC message on a degenerate oligo
   names its worst variant. Rendered with Chromium: Part A two A4 pages for the test reports.
+- The first real HSV-1 record in the new layout (30 printed pages, sign-off 3): the user's five
+  comments, the advisor's second review kept verbatim, and both opinions given before deciding.
+  The user chose to merge "Variants per oligo" into the whole-fragment table (decision page) and
+  the rest in the proposed order: print wrapping (the print rules had to move to the end of the
+  style sheet before they held), the Part A label, the QC matrix, hits per query and the full
+  configuration to the workbook, limits applied and differing settings in Part C, the shorter
+  sign-off, the merged variant tables.

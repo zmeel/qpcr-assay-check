@@ -26,6 +26,17 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   configuration and limitations. Figures are inline SVG (`report/charts.py`), colour plus
   texture per class so they read in greyscale; every number in a figure is also in a table or
   the workbook (new sheet "Mismatch positions").
+- **After the first real record in that layout** (the user's comments and the advisor's second
+  review, 2026-11-20): a "Part A · Sign-off" label; the oligo QC as a matrix (a row per check, a
+  column per oligo, the limit once; messages and hairpin drawings only where flagged); in Part C
+  "Limits applied" and "Settings that differ from the defaults" (with their source), the full
+  configuration in a new workbook sheet "Configuration"; hits per query in a new sheet "Hits per
+  query", Part C keeping the incomplete ones; the sign-off lists findings that exceed a limit or
+  leave evidence missing in full and one line per check that needs review, the full list opening
+  Part B. **"Variants per oligo" merged into the whole-fragment table** (user): every site that
+  is not perfect shows its rule and its changes ("-21 C-A, -18 S=C"), a folded row names the
+  site variants that no listed row shows, and the per-oligo totals stand beside the mismatch
+  maps; the sheet "Oligo variants" gained "Changes" and "Rule".
 - **`specificity.tier_waivers`** (tier: reason): a required tier deliberately done without, e.g.
   near neighbours when the closest relatives are in the organism list. The report prints the
   reason, and the tier does not make the run Incomplete.
@@ -80,6 +91,10 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   them first and always, and they are read cautiously (`cautious_tiers`, above).
 
 ### Fixed
+- **Wide tables were cut off at the page edge in print** (second report review): seven tables of
+  the HSV-1 record were wider than A4, and the reverse primer's 3' end did not print; they wrap
+  now. "Hit list full" meant two things in two tables: now "List reached its size limit" and
+  "Relevant hits possibly cut". Methods printed Python notation for the BLAST parameters and RIDs.
 - **The printed report left out every folded section** (report review): the print rule meant to
   open closed `<details>` had no effect in current browsers, so a printed record lacked the oligo
   QC tables (the evidence of HSV-1's Exceeds limit), the findings and the configuration. Nothing

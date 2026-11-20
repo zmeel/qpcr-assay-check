@@ -524,7 +524,12 @@ def render_report(result: RunResult, cfg: Config) -> str:
     site_groups = group_sites(spec.sites, species) if spec else []
     vs = result.variant_summary
     fragments = (
-        fragment_view(vs.fragments, vs.fragment_total, cfg.variants.homopolymer_bulges_detectable)
+        fragment_view(
+            vs.fragments,
+            vs.fragment_total,
+            cfg.variants.homopolymer_bulges_detectable,
+            oligos=vs.oligos,
+        )  # fmt: skip
         if vs and vs.fragments
         else None
     )

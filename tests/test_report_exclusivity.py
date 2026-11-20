@@ -166,8 +166,10 @@ def test_qc_only_runs_do_not_mention_human_background(n1):
 def _variant_result(n1, *, n_rare: int = 0):
     from .test_variants import mk_site
 
-    sites = [mk_site(role, acc=f"A{i}.1") for i in range(2000) for role in ("forward", "probe")]
+    roles = ("forward", "probe", "reverse")
+    sites = [mk_site(role, acc=f"A{i}.1") for i in range(2000) for role in roles]
     sites += [mk_site("forward", acc=f"R{i}.1", s_aln="AAAT", mm=1) for i in range(n_rare)]
+    sites += [mk_site(role, acc=f"R{i}.1") for i in range(n_rare) for role in roles[1:]]
     return evaluate(
         n1, load_config(), now=NOW, specificity=_specificity_with_exclusivity(),
         organism_resolution=_resolution(), search_outcome=_search_outcome(), target_sites=sites,
@@ -176,10 +178,9 @@ def _variant_result(n1, *, n_rare: int = 0):
 
 def test_a_rare_variant_shows_as_below_0_1_percent_not_zero(n1):
     html = render_report(_variant_result(n1, n_rare=1), load_config())
-    i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2", i)]
-    assert "each seen in 1 record</strong>: 1 record (&lt;0.1%)" in per_oligo
-    assert "(0.0%)" not in per_oligo
+    i = html.index("<h3>Whole fragment")
+    frag = html[i : html.index("<h2", i)]
+    assert "&lt;0.1%" in frag and ">0.0%<" not in frag
 
 
 def test_only_primers_get_the_3prime_underline():

@@ -167,6 +167,47 @@ class FragmentView:
     detectable_rest: int  # combinations
     detectable_rest_records: int
     detectable_rest_types: list[tuple[str, int]]
+    # site variants that occur only in folded combinations, so no listed row shows them: per
+    # folded outcome (and "detectable"), as the per-oligo table selected them (report review
+    # 2026-11-20, second round: the per-oligo table merged into this one)
+    hidden: dict[str, HiddenSites] = field(default_factory=dict)
+
+
+@dataclass
+class HiddenSites:
+    """Site variants of folded combinations that no listed row shows."""
+
+    listed: list[tuple[str, Any]]  # (role, per-oligo variant row: count over all records)
+    singles: dict[str, int]  # class -> variants seen in one record only
+    tolerated_more: int = 0  # tolerated variants beyond the most frequent shown
+
+
+def _hidden(
+    folded: list[Any],
+    shown: set[tuple[str, str, str]],
+    by_key: dict[tuple[str, str, str], Any],
+    top_tolerated: int = 5,
+    min_records: int = 2,
+) -> HiddenSites | None:
+    keys: dict[tuple[str, str, str], None] = {}
+    for f in folded:
+        for role, v in (("forward", f.forward), ("probe", f.probe), ("reverse", f.reverse)):
+            k = (role, v.q_aln, v.s_aln)
+            if k not in shown and k in by_key and not _perfect(by_key[k]):
+                keys[k] = None
+    rows = sorted(((k[0], by_key[k]) for k in keys),
+                  key=lambda x: (_CLASS_ORDER.get(x[1].grade, 3), -x[1].count))  # fmt: skip
+    if not rows:
+        return None
+    tolerated = [x for x in rows if x[1].grade == "tolerated"]
+    singles: Counter = Counter(
+        x[1].grade or "not classified" for x in rows
+        if x[1].grade != "tolerated" and x[1].count < min_records
+    )  # fmt: skip
+    listed = [x for x in rows if x[1].grade != "tolerated" and x[1].count >= min_records]
+    listed += tolerated[:top_tolerated]
+    return HiddenSites(listed=listed, singles=dict(singles),
+                       tolerated_more=max(0, len(tolerated) - top_tolerated))  # fmt: skip
 
 
 def fragment_view(
@@ -177,6 +218,7 @@ def fragment_view(
     top: int = 10,
     cap: int = 30,
     per_outcome: int = 5,
+    oligos: list[Any] | None = None,
 ) -> FragmentView:
     """Part A (needs attention: every combination that is not detectable) and Part B
     (detectable: the ``top`` most frequent, the rest in one summary row); advisor subagent,
@@ -222,7 +264,27 @@ def fragment_view(
     types: Counter = Counter()
     for f, _o, _p in rest:
         types.update(dict(f.organisms))
+    by_key = {(o.role, r.q_aln, r.s_aln): r for o in (oligos or []) for r in o.rows}
+    shown = (
+        set()
+        if not oligos
+        else {
+            (role, v.q_aln, v.s_aln)
+            for f, _o, _p in [*attention, *detectable[:top]]
+            for role, v in (("forward", f.forward), ("probe", f.probe), ("reverse", f.reverse))
+        }
+    )
+    hidden: dict[str, HiddenSites] = {}
+    for outcome in n_combos if oligos else ():
+        h = _hidden([r[0] for r in by_count if id(r) not in keep and r[1] == outcome],
+                    shown, by_key)  # fmt: skip
+        if h:
+            hidden[outcome] = h
+    h = _hidden([f for f, _o, _p in rest], shown, by_key) if oligos else None
+    if h:
+        hidden["detectable"] = h
     return FragmentView(
+        hidden=hidden,
         total=total,
         records=records,
         attention=attention,
