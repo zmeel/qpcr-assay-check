@@ -8,6 +8,7 @@ decisions: this file records how they compare and what was taken up.
 | `2026-10-01-theory-review-molecular-biologist.md` | senior theoretical molecular biologist and bioinformatician | 2026-10-01 |
 | `2026-10-01-theory-review-advisor.md` | methods advisor (diagnostic qPCR, quality systems) | 2026-10-01 |
 | `2026-11-17-whole-project-advisor.md` | independent advisor (molecular diagnostics, scientific software), whole project | 2026-11-17 |
+| `2026-11-20-tiers-advisor.md` | independent advisor (molecular diagnostics, in silico qPCR evaluation, scientific software), the off-target search tiers | 2026-11-20 |
 
 Both assessed the theoretical background of the tool at the same time, independently, from the
 same documentation (SPEC, ARCHITECTURE, MISMATCH_CLASSES, the wiki pages, PROGRESS) and the code,
@@ -119,3 +120,16 @@ Not done, as they are not code defects: a laboratory verification pack (priority
 information only for assays in use (priority 9), a count of searches per 24 h across runs, the
 LICENSE / CLAUDE.md question, and the release (tag) before records are filed: the user's.
 
+
+## Review of the search tiers (2026-11-20)
+
+Nine findings (F1-F9) and eight corrections to the knowledge bundle's search-tiers page. Checked
+against the code the same day: F1 (a tier left out of `specificity.off_target_tiers` is still
+searched, not assessed, and its summary row reads No flags), F2 (near-neighbour and exclusivity
+taxa are not checked against the target's lineage; *Homo sapiens* is both in the packaged starter
+list and the background tier), F3 (partner windows and probe re-alignment share one fetch budget,
+partner windows first; a tier cut at `max_amplicons` is not partner-scanned), F5 (the taxon
+restriction check and the exclusivity table compare exact IDs) and F7 (a missing tier or an
+unresolved name gives Incomplete only when the run or tier would otherwise read No flags) hold as
+described. The search-tiers page was corrected. No code change yet: the user decides what to
+take up.

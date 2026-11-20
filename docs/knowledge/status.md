@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-19T10:30:00Z }
+generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -80,6 +80,13 @@ code, not on v2.2.0 as released.
   No flags, HSV-2 amplified but not detected. The GUI's copy matches the repository file. Check
   the forward primer's 2nd base (C in the paper, T in both reference genomes) against the
   laboratory's order sheet.
+
+- Advisor review of the search tiers (2026-11-20, [review](../reviews/2026-11-20-tiers-advisor.md)):
+  nine findings, F1-F3, F5 and F7 checked against the code and confirmed. Most urgent, F1: a tier
+  left out of `specificity.off_target_tiers` is still searched but not assessed, and its row
+  reads No flags. Decide what to take up; no code changed.
+- VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
+  an HTML page without a request ID); the user retries later.
 
 - Giardia lamblia: decide what the predicted detection of G. microti and G. psittaci means for
   the laboratory, and whether to put this assay on `status_axis: release` (two thirds of the
