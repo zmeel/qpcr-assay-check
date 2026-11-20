@@ -77,7 +77,13 @@ def test_one_unresolved_name_among_clean_rows_is_incomplete_not_a_pass():
     )
     assert build_exclusivity(res, [], [], SEV, tier_searched=True).verdict is Verdict.INCOMPLETE
     found = build_exclusivity(res, [site(NG, "forward", "critical")], [], SEV, tier_searched=True)
-    assert found.verdict is Verdict.WARN  # a flag found among the others still shows
+    # missing evidence outranks Review (tiers review 2026-11-20, F7); only Exceeds limit beats it
+    assert found.verdict is Verdict.INCOMPLETE
+    sev_fail = SEV.model_copy(update={"primer_site_critical_no_product": "FAIL"})
+    failed = build_exclusivity(
+        res, [site(NG, "forward", "critical")], [], sev_fail, tier_searched=True
+    )
+    assert failed.verdict is Verdict.FAIL
 
 
 def test_the_best_site_is_the_most_severe_not_the_first():

@@ -60,8 +60,10 @@ def _inclusivity_title(inclusivity: InclusivityResult | None) -> str:
 def _unsearched_tiers(cfg: Config, outcome: SearchOutcome | None) -> list[str]:
     """Configured off-target tiers no search of this run covered (the out-of-scope tier is
     information only and never counts)."""
+    from .specificity.findings import unsearched_tiers
+
     seen = {r.tier for r in outcome.searches} if outcome is not None else set()
-    return [t for t in cfg.specificity.off_target_tiers if t not in seen and t != "out_of_scope"]
+    return unsearched_tiers(cfg.specificity, seen)
 
 
 def _rationale(qc_findings: list[str], not_evaluated: list[str]) -> list[str]:
@@ -302,9 +304,11 @@ def evaluate(
     gaps = list(unsearched)
     if human_not_searched:
         gaps.append("human background (taxid 9606)")
-    if verdict is Verdict.PASS and gaps:
-        # missing evidence never reads as no flags (whole-project review, 2026-11-17, P2): a
-        # configured off-target tier that was not searched holds a clean result at Incomplete
+    if verdict in (Verdict.PASS, Verdict.WARN) and gaps:
+        # missing evidence never reads as no flags (whole-project review, 2026-11-17, P2), and it
+        # outranks Review as every other gap does (tiers review 2026-11-20, F7): a configured
+        # off-target tier that was not searched holds the run at Incomplete unless a limit is
+        # exceeded
         verdict = Verdict.INCOMPLETE
     not_evaluated = [s.title for s in sections if s.key in required and s.verdict is None]
 
@@ -370,8 +374,10 @@ def evaluate(
         findings.append(
             "Specificity: configured off-target tier(s) not searched in this run: "
             f"{', '.join(unsearched)}. No flags needs every configured tier: give the assay the "
-            "taxa (e.g. near_neighbour_taxids), or remove the tier from "
-            "'specificity.off_target_tiers' if another tier covers those organisms."
+            "taxa (e.g. near_neighbour_taxids), or waive the tier with a reason "
+            "(specificity.tier_waivers, e.g. in the assay's settings) if another tier covers "
+            "those organisms. Leaving it out of 'specificity.off_target_tiers' does the same "
+            "without a reason in the record."
         )
     if human_not_searched:
         findings.append(

@@ -12,16 +12,17 @@ from ..models import Assay
 from ..ncbi.blast import BlastApi
 from ..ncbi.cache import Cache
 from ..ncbi.eutils import Eutils
-from ..ncbi.http import NcbiHttp
+from ..ncbi.http import NcbiError, NcbiHttp
 from ..ncbi.jobs import Job, JobStore
 from ..ncbi.parser import ParsedSearch
 from ..ncbi.runner import BlastRunner
 from ..ncbi.settings import credentials_from_env
 from ..pipeline import inputs_hash
 from ..taxonomy.plan import OrganismListResolution, resolve_organism_list
-from ..taxonomy.resolve import outside_target
+from ..taxonomy.resolve import ancestors, outside_target
 from .orchestrate import SearchOutcome, run_search
 from .planner import NOTHING_TO_SEARCH, PlannedSearch, SearchPlan, plan_searches
+from .tiers import TierTaxa, assay_tier_taxa, check_tier_taxa, dedupe
 
 
 class Aborted(InputError):
@@ -83,9 +84,41 @@ def _resolve_and_plan(
         # own search; taxonomy/exclusivity.py still shows the organism-list row, flagged, rather
         # than silently dropping it.
         excl_taxids = [t for t in resolution.taxids if t != assay.target.taxid]
-    plan = plan_searches(
-        assay, cfg, exclusivity_taxids=excl_taxids, exclusivity_unresolved=excl_unresolved
+    # every tier's taxa against the target's lineage and against each other (tiers review
+    # 2026-11-20, F2): refused when inside the target, NOT the target when an ancestor of it,
+    # and a taxon in two tiers searched once
+    taxa, moved = dedupe(assay_tier_taxa(assay, cfg.search.background_taxids, excl_taxids))
+    names = (
+        {r.taxid: r.name for r in resolution.resolutions if r.taxid is not None}
+        if resolution is not None
+        else {}
     )
+    eutils = Eutils(http, cfg.ncbi.eutils_url)
+    try:
+        tier_taxa = check_tier_taxa(
+            assay, taxa,
+            lambda taxids: ancestors(
+                eutils, cache, taxids, ttl_days=cfg.ncbi.taxonomy_cache_ttl_days
+            ),
+            names,
+        )  # fmt: skip
+        tier_taxa.notes[:0] = moved
+        lineage_warning = ""
+    except NcbiError as exc:
+        # the exact duplicates are still removed; the lineage rules wait for the next run, and
+        # the assessment's own lineage check still sets aside records of the target
+        tier_taxa = TierTaxa(taxa=taxa, notes=list(moved))
+        lineage_warning = (
+            "The tier taxa could not be checked against the target's lineage (NCBI Taxonomy: "
+            f"{exc}); an organism that contains the target is searched without NOT the target "
+            "this time."
+        )
+    plan = plan_searches(
+        assay, cfg, exclusivity_taxids=excl_taxids, exclusivity_unresolved=excl_unresolved,
+        tier_taxa=tier_taxa,
+    )  # fmt: skip
+    if lineage_warning:
+        plan.warnings.append(lineage_warning)
     if only_tiers is not None:  # validation runs restrict the plan; the cache keys stay the same
         plan.searches = [ps for ps in plan.searches if ps.tier in only_tiers]
     return plan, resolution

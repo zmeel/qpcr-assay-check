@@ -222,7 +222,7 @@ def test_out_of_scope_fetch_failures_and_searches_do_not_decide_the_verdict():
     INCOMPLETE, and an out-of-scope search alone counted as an assessed off-target tier."""
     from qpcr_assay_check.specificity.findings import build_findings
 
-    rules = load_config().specificity
+    rules = load_config().specificity.model_copy(update={"off_target_tiers": ["near_neighbours"]})
 
     def findings(tiers, failed, failed_oos):
         return build_findings(

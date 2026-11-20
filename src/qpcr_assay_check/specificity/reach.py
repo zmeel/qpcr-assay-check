@@ -58,6 +58,8 @@ def floors(
     unknown: dict[tuple[str, str], int] = defaultdict(int)
     full: set[tuple[str, str]] = set()
     source: dict[tuple[str, str], str] = {}
+    # per (tier, oligo): (taxa of a search, its floor), one entry per taxon group
+    each: dict[tuple[str, str], dict[tuple[int, ...], int | None]] = defaultdict(dict)
     for r in records:
         if r.tier not in tiers:
             continue
@@ -65,10 +67,14 @@ def floors(
         for label in r.n_hits:
             key = (r.tier, label)
             st = r.stats.get(label)
+            group = tuple(r.taxids)
             if st is None:
                 unknown[key] += 1
+                each[key].setdefault(group, None)
                 continue
             f = score_floor(st.eff_space, st.kappa, st.lambda_, s.expect)
+            prior = each[key].get(group)
+            each[key][group] = f if prior is None else max(prior, f)
             worst[key] = max(worst.get(key, f), f)
             if _SOURCES.index(st.space_source) > _SOURCES.index(source.get(key, "reported")):
                 source[key] = st.space_source
@@ -90,6 +96,7 @@ def floors(
                 searches_without_statistics=unknown.get((tier, label), 0),
                 list_full=(tier, label) in full,
                 space_source=source.get((tier, label), "reported"),
+                per_search=[(list(g), v) for g, v in each.get((tier, label), {}).items()],
             )
         )
     return out
@@ -131,8 +138,37 @@ def floor_findings(entries: list[ScoreFloor], expect: float) -> list[Finding]:
                     f"Tier '{tier}': with the E-value cut-off {expect:g} this search reports only "
                     f"alignments scoring at least: {'; '.join(parts)}. Sites with more mismatches "
                     "or a gap can be missing unless found by the partner scan."
+                    + _per_search(members)
                 ),
                 topic="search",
             )
         )
     return out
+
+
+def _per_search(members: list[ScoreFloor]) -> str:
+    """For a tier of several searches: each search's taxa and score floors (lowest to highest
+    over the oligos), since the least sensitive one sets the tier's figures (F6)."""
+    groups: dict[tuple[int, ...], list[int]] = {}
+    for e in members:
+        for taxa, f in e.per_search:
+            vals = groups.setdefault(tuple(taxa), [])
+            if f is not None:
+                vals.append(f)
+    if len(groups) < 2:
+        return ""
+    parts = []
+    for i, (taxa, vals) in enumerate(groups.items(), start=1):
+        shown = ", ".join(map(str, taxa[:5])) + (f" +{len(taxa) - 5} more" if len(taxa) > 5 else "")
+        if not vals:
+            floor = "no statistics"
+        elif min(vals) == max(vals):
+            floor = f"score >= {min(vals)}"
+        else:
+            floor = f"score >= {min(vals)}-{max(vals)}"
+        parts.append(f"search {i} ({len(taxa)} taxa: {shown}): {floor}")
+    return (
+        " The tier's figures are those of its least sensitive search; per search: "
+        + "; ".join(parts)
+        + "."
+    )

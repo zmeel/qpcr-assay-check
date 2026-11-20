@@ -205,7 +205,30 @@ def test_an_unsearched_configured_tier_never_reads_as_no_flags(n1, monkeypatch):
     )  # fmt: skip
     assert result.overall.verdict is Verdict.INCOMPLETE
     line = next(x for x in result.overall.rationale if "not searched in this run" in x)
-    assert "near_neighbours, background" in line and "off_target_tiers" in line
+    assert "near_neighbours, background" in line and "tier_waivers" in line
+    # a waived tier, with its reason, is not missing evidence (tiers review 2026-11-20, F1)
+    cfg = load_config(
+        None,
+        {
+            "specificity": {
+                "tier_waivers": {"near_neighbours": "relatives are in the exclusivity list"}
+            }
+        },
+    )
+    with_human = _search_outcome()
+    with_human.searches.append(
+        with_human.searches[0].model_copy(update={"tier": "background", "taxids": [9606]})
+    )
+    waived = evaluate(
+        n1, cfg, now=NOW, specificity=_specificity_with_exclusivity(),
+        organism_resolution=_resolution(), search_outcome=with_human,
+    )  # fmt: skip
+    assert waived.overall.verdict is Verdict.PASS
+    from qpcr_assay_check.report.summary import summary_rows
+
+    rows = {r.check: r for r in summary_rows(waived, cfg, [])}
+    nn = rows["Off-target: Near neighbours"]
+    assert nn.css == "INFO" and "relatives are in the exclusivity list" in nn.result
     outcome = _search_outcome()
     for tier in ("near_neighbours", "background"):
         outcome.searches.append(
@@ -216,3 +239,17 @@ def test_an_unsearched_configured_tier_never_reads_as_no_flags(n1, monkeypatch):
         organism_resolution=_resolution(), search_outcome=outcome,
     )  # fmt: skip
     assert clean.overall.verdict is Verdict.PASS
+
+
+def test_an_unsearched_configured_tier_outranks_review_but_not_exceeds_limit(n1, monkeypatch):
+    # tiers review 2026-11-20, F7: the gap only kept No flags away; next to a Review elsewhere
+    # it showed as a "Not assessed" row only
+    from qpcr_assay_check import pipeline
+
+    for combined, expected in ((Verdict.WARN, Verdict.INCOMPLETE), (Verdict.FAIL, Verdict.FAIL)):
+        monkeypatch.setattr(pipeline, "combine", lambda *_a, c=combined, **_k: c)
+        result = evaluate(
+            n1, load_config(), now=NOW, specificity=_specificity_with_exclusivity(),
+            organism_resolution=_resolution(), search_outcome=_search_outcome(),
+        )  # fmt: skip
+        assert result.overall.verdict is expected

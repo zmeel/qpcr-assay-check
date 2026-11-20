@@ -347,10 +347,22 @@ class SeverityMap(_Strict):
     amplicon_not_detected: Severity
 
 
+#: The off-target tiers whose findings count (the out-of-scope tier is reported as information
+#: and the target tier is a positive control; neither is judged).
+JUDGED_TIERS = ("near_neighbours", "background", "exclusivity")
+
+
 class SpecificitySettings(_Strict):
     """Assessment of BLAST hits."""
 
+    # The tiers a run must have searched before its specificity can read No flags. Every tier
+    # that is searched is assessed, listed here or not (tiers review 2026-11-20, F1: a tier left
+    # out here used to be searched, not assessed, and read No flags).
     off_target_tiers: list[str]
+    # tier -> reason: a required tier the assay or laboratory deliberately does without (e.g. no
+    # near neighbours, as the closest relatives are in the exclusivity list). Printed in the
+    # report; the tier then does not make the run Incomplete.
+    tier_waivers: dict[str, str] = {}
     max_sites_per_query: int
     window_padding_nt: int
     max_amplicon_size: int
@@ -367,6 +379,20 @@ class SpecificitySettings(_Strict):
 
     @model_validator(mode="after")
     def _positive(self) -> SpecificitySettings:
+        for name, tiers in (("off_target_tiers", self.off_target_tiers),
+                            ("tier_waivers", list(self.tier_waivers))):  # fmt: skip
+            unknown = [t for t in tiers if t not in JUDGED_TIERS]
+            if unknown:
+                raise ValueError(
+                    f"{name}: unknown tier(s) {', '.join(map(repr, unknown))}; the judged tiers "
+                    f"are {', '.join(JUDGED_TIERS)} (the target tier is a positive control: "
+                    "search.target_tier)"
+                )
+        if len(set(self.off_target_tiers)) != len(self.off_target_tiers):
+            raise ValueError("off_target_tiers lists a tier twice")
+        empty = [t for t, why in self.tier_waivers.items() if not why.strip()]
+        if empty:
+            raise ValueError(f"tier_waivers: give a reason for {', '.join(empty)}")
         if min(self.max_sites_per_query, self.max_amplicon_size, self.max_amplicons) < 1:
             raise ValueError(
                 "max_sites_per_query, max_amplicon_size and max_amplicons must be >= 1"

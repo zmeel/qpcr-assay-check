@@ -78,8 +78,23 @@ NO_SCAN_LIMITATION = (
 )
 
 
-def _in_tier(hit: Hit, wanted: set[int], lineage: dict[int, set[int]]) -> Hit | None:
+def searched_off_target_tiers(plan: SearchPlan) -> list[str]:
+    """The tiers of the plan that are assessed: every one but the target, in plan order."""
+    return [t for t in dict.fromkeys(ps.tier for ps in plan.searches) if t != "target"]
+
+
+def _in_tier(
+    hit: Hit,
+    wanted: set[int],
+    lineage: dict[int, set[int]],
+    target: int | None = None,
+    inside_ok: frozenset[int] = frozenset(),
+) -> Hit | None:
     """``hit`` if one of its records is of an organism under the tier's taxa, else None.
+
+    A record of the target itself (``target`` in its lineage, none of ``inside_ok``, the
+    ``target.taxa``, in it) is never an off-target record, whatever tier it came back in
+    (tiers review 2026-11-20, F2: an organism-list entry containing the target searched it).
 
     NCBI's ``ENTREZ_QUERY`` restriction is not airtight (an influenza A record came back in an
     exclusivity search without influenza A, 2026-10-21), so each hit is checked against the
@@ -90,7 +105,12 @@ def _in_tier(hit: Hit, wanted: set[int], lineage: dict[int, set[int]]) -> Hit | 
     """
 
     def inside(taxid: int | None) -> bool:
-        return taxid is None or taxid not in lineage or bool(wanted & lineage[taxid])
+        if taxid is None or taxid not in lineage:
+            return True
+        line = lineage[taxid]
+        if target is not None and target in line and not inside_ok & line:
+            return False
+        return bool(wanted & line)
 
     if not hit.descriptions:
         return hit
@@ -155,7 +175,10 @@ def assess_specificity(
     that tier, and the findings say so; without it every hit counts, as before.
     """
     rules = cfg.specificity
-    assessed = [*rules.off_target_tiers, OUT_OF_SCOPE_TIER]  # out of scope: reported, not judged
+    # every searched tier but the target (a positive control) is assessed; the out-of-scope tier
+    # is reported, not judged (tiers review 2026-11-20, F1: only the configured tiers were)
+    assessed = searched_off_target_tiers(plan)
+    judged = [t for t in assessed if t != OUT_OF_SCOPE_TIER]
     scoring = realign.Scoring(
         rules.alignment.match,
         rules.alignment.mismatch,
@@ -172,6 +195,7 @@ def assess_specificity(
     off_tiers_seen: list[str] = []
 
     lineage, lineage_problem = _lineages(plan, parsed, assessed, ancestors_of, min_identical)
+    target, inside_ok = assay.target.taxid, frozenset(assay.target.excluded_taxids)
     set_aside: dict[str, dict[str, str]] = defaultdict(dict)  # tier -> accession -> organism
 
     for ps in plan.searches:
@@ -189,7 +213,7 @@ def assess_specificity(
             if lineage is not None and wanted:
                 hits = []
                 for hit in _relevant(q.hits, min_identical):
-                    kept = _in_tier(hit, wanted, lineage)
+                    kept = _in_tier(hit, wanted, lineage, target, inside_ok)
                     if kept is not None:
                         hits.append(kept)
                     else:  # only a hit with records can be outside
@@ -279,7 +303,7 @@ def assess_specificity(
         anchors = best_of_each_site([
             s
             for s in keep
-            if s.tier in rules.off_target_tiers
+            if s.tier in judged
             and s.tier not in amp_truncated
             and primer_can_prime(s)
             and s.id not in used
@@ -290,7 +314,7 @@ def assess_specificity(
             keep.extend(added)
             sites.extend(added)
             priming, amplicons, used, amp_truncated = pair()
-        probes = scanner.probes([a for a in amplicons if a.tier in rules.off_target_tiers], sites)
+        probes = scanner.probes([a for a in amplicons if a.tier in judged], sites)
         if probes:
             keep.extend(probes)
             sites.extend(probes)

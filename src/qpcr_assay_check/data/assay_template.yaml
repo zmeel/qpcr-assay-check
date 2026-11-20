@@ -133,7 +133,8 @@ settings:                                  # only what differs from the defaults
 #   relevance:
 #     min_identical_bases: 14      # fewer identical bases = not a relevant off-target
 # specificity:                     # judging BLAST hits: sites and predicted products
-#   off_target_tiers: [near_neighbours, background, exclusivity]
+#   off_target_tiers: [near_neighbours, background, exclusivity]  # needed for No flags
+#   tier_waivers: {}               # e.g. {near_neighbours: "relatives are in the list above"}
 #   max_sites_per_query: 2000
 #   window_padding_nt: 10
 #   max_amplicon_size: 2000        # longer predicted products are ignored

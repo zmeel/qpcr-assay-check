@@ -106,7 +106,11 @@ search:
 specificity:
   # Assessment of BLAST hits: full-length re-alignment, site classification, amplicon pairing.
   # ALL of these are starting points, not acceptance criteria: review them for your laboratory.
-  off_target_tiers: [near_neighbours, background, exclusivity]  # off-target by construction
+  off_target_tiers: [near_neighbours, background, exclusivity]  # must be searched for No flags;
+                                   #   every searched tier is assessed, listed here or not
+  tier_waivers: {}                 # tier: reason, for a required tier deliberately left out (e.g.
+                                   #   near_neighbours: "closest relatives are in the exclusivity
+                                   #   list"); printed in the report, not counted as missing
   max_sites_per_query: 2000        # strongest hits first; beyond this the assessment is INCOMPLETE
   window_padding_nt: 10            # subject bases fetched beyond a partial hit, to allow gaps
   max_amplicon_size: 2000          # predicted products longer than this are ignored

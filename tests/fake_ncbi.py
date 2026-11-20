@@ -169,6 +169,15 @@ class FakeNcbi:
             # get no exclusivity tier (see tests/test_taxonomy.py and tests/test_run_full.py's
             # own exclusivity-specific tests for realistic resolution behaviour).
             return FakeResponse(200, "<eSearchResult><Count>1234</Count></eSearchResult>")
+        if "efetch" in url and payload.get("db") == "taxonomy":
+            # every taxon a root-level lineage of its own: no taxon contains another
+            ids = [x for x in str(payload.get("id", "")).split(",") if x]
+            taxa = "".join(
+                f"<Taxon><TaxId>{i}</TaxId><ScientificName>taxon {i}</ScientificName>"
+                "<Rank>species</Rank><LineageEx></LineageEx></Taxon>"
+                for i in ids
+            )
+            return FakeResponse(200, f"<TaxaSet>{taxa}</TaxaSet>")
         if "efetch" in url:
             return FakeResponse(200, f">{payload.get('id')}\nACGTACGT\n")
         return FakeResponse(404, "not found")

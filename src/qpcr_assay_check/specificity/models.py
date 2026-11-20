@@ -135,6 +135,11 @@ class ScoreFloor(BaseModel):
         description="how the search space was known: reported, from_hits or upper_bound "
         "(the least direct one among the tier's searches)",
     )
+    per_search: list[tuple[list[int], int | None]] = Field(
+        default_factory=list,
+        description="(taxa searched, score floor) per search of the tier, in plan order: the "
+        "tier's floor is the highest of them (tiers review 2026-11-20, F6)",
+    )
 
 
 class PartnerScan(BaseModel):

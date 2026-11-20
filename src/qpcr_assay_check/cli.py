@@ -13,7 +13,13 @@ import yaml
 from pydantic import ValidationError
 
 from . import __version__
-from .config import Config, default_config_text, format_validation_error, load_config
+from .config import (
+    JUDGED_TIERS,
+    Config,
+    default_config_text,
+    format_validation_error,
+    load_config,
+)
 from .errors import InputError, QpcrAssayCheckError
 from .models import Assay
 from .pipeline import evaluate, write_outputs
@@ -299,7 +305,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         cfg,
         outdir,
         confirm=_make_confirm(yes),
-        keep_tiers=set(cfg.specificity.off_target_tiers) | {"out_of_scope"},
+        keep_tiers=set(JUDGED_TIERS) | {"out_of_scope"},  # every tier but the target
         on_plan=show,
         allow_no_searches=assay.target.taxid is not None,  # the variant analysis still runs
     )

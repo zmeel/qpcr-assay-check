@@ -152,17 +152,26 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
             rows[-1].css = "INFO"
     searched = {t.tier for t in overview}
     for tier in cfg.specificity.off_target_tiers:
-        if tier not in searched:
+        if tier in searched:
+            continue
+        why = cfg.specificity.tier_waivers.get(tier)
+        if why:
             rows.append(
-                _row(
-                    f"Off-target: {TIER_TITLE.get(tier, tier)}",
-                    "configured tier",
-                    "not searched in this run",
-                    None,
-                    "",
-                    "specificity",
-                )
+                _row(f"Off-target: {TIER_TITLE.get(tier, tier)}", "configured tier, waived",
+                     f"not searched: {why}", Verdict.PASS, "", "specificity", label="Waived")
+            )  # fmt: skip
+            rows[-1].css = "INFO"
+            continue
+        rows.append(
+            _row(
+                f"Off-target: {TIER_TITLE.get(tier, tier)}",
+                "configured tier",
+                "not searched in this run",
+                None,
+                "",
+                "specificity",
             )
+        )
     return rows
 
 

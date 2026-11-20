@@ -46,6 +46,8 @@ def offtarget_genome(
 def run(world, tmp_path, cfg=None, assay=None, ancestors_of=None, **cfg_changes):
     cfg = cfg or load_config()
     cfg_changes.setdefault("specificity__partner_scan_max_windows", 0)  # scan: tests below
+    # the exclusivity tier needs name resolution, which these tests do not plan
+    cfg_changes.setdefault("specificity__off_target_tiers", ["near_neighbours", "background"])
     for key, value in cfg_changes.items():
         obj, attr = key.split("__")
         setattr(getattr(cfg, obj), attr, value)
@@ -175,8 +177,15 @@ def test_no_relevant_off_target_hit_passes_for_the_searched_tiers_only(tmp_path)
     res, _, _ = run(w, tmp_path)
     assert res.verdict is Verdict.PASS and res.n_sites["minor"] == 1
     assert "No off-target site or product reached warning level" in res.rationale[0]
-    assert "Configured off-target tiers not searched in this run" in res.scope  # honest scope
-    assert "planned for" not in res.scope
+    assert "not searched" not in res.scope and "planned for" not in res.scope
+    # with the exclusivity tier required but not searched, the gap is Incomplete evidence
+    # (tiers review 2026-11-20, F7), and the scope says so honestly
+    res, _, _ = run(
+        w, tmp_path / "all",
+        specificity__off_target_tiers=["near_neighbours", "background", "exclusivity"],
+    )  # fmt: skip
+    assert res.verdict is Verdict.INCOMPLETE
+    assert "Configured off-target tiers not searched in this run: exclusivity" in res.scope
 
 
 def test_a_lone_critical_primer_site_warns_and_counts_as_primer_only(tmp_path):
@@ -444,3 +453,51 @@ def test_only_relevant_hits_have_their_organism_looked_up(tmp_path):
     assert 4242 not in asked and NEAR in asked and TARGET in asked
     (f,) = [f for f in res.findings if "set aside" in f.message]
     assert "WEAK1.1" not in f.message  # an irrelevant hit is not reported as set aside
+
+
+# ------------------------------------------------------------------ tiers review 2026-11-20, F1
+def test_a_searched_tier_left_out_of_off_target_tiers_is_still_assessed(tmp_path):
+    """off_target_tiers says which tiers must be searched, not which are assessed: a near-
+    neighbour product the probe detects used to vanish (row No flags) once the tier was left
+    out of the list."""
+    w = offtarget_genome(f=[10, 15], r=[5], p=[8])
+    add_all(w)
+    res, _, _ = run(w, tmp_path, specificity__off_target_tiers=["background"])
+    assert res.verdict is Verdict.FAIL
+    (amp,) = res.amplicons
+    assert amp.tier == "near_neighbours" and amp.classification == "likely_detected"
+
+
+def test_off_target_tiers_names_are_checked():
+    from qpcr_assay_check.errors import ConfigError
+
+    for bad in (["target"], ["near_neighbors"], ["background", "background"]):
+        with pytest.raises(ConfigError):
+            load_config(None, {"specificity": {"off_target_tiers": bad}})
+    with pytest.raises(ConfigError, match="reason"):
+        load_config(None, {"specificity": {"tier_waivers": {"near_neighbours": " "}}})
+    with pytest.raises(ConfigError, match="unknown tier"):
+        load_config(None, {"specificity": {"tier_waivers": {"target": "no"}}})
+    cfg = load_config(None, {"specificity": {"tier_waivers": {"near_neighbours": "in the list"}}})
+    assert cfg.specificity.tier_waivers == {"near_neighbours": "in the list"}
+
+
+def test_a_record_of_the_target_is_never_an_off_target_site(tmp_path):
+    """Tiers review 2026-11-20, F2: a near neighbour that contains the target (a genus around a
+    species target) returns the target's own records; they are set aside, its other species
+    kept, even if the NOT-target restriction lets one through."""
+    genus, sibling = 50, 51
+
+    def lineages(taxids):
+        parents = {TARGET: {genus, 1}, sibling: {genus, 1}, genus: {1}}
+        return {t: {t, *parents.get(t, {1})} for t in taxids}
+
+    w = offtarget_genome(taxid=sibling, name="Sister virus")
+    add_all(w, taxid=genus)
+    offtarget_genome(acc=LEAK_ACC, taxid=TARGET, name="The target itself", world=w)
+    add_all(w, taxid=genus, acc=LEAK_ACC)
+    res, _, _ = run(
+        w, tmp_path, assay=make_assay(near_neighbour_taxids=[genus]), ancestors_of=lineages
+    )
+    assert {s.accession for s in res.sites} == {ACC}
+    assert any("set aside" in f.message and LEAK_ACC in f.message for f in res.findings)

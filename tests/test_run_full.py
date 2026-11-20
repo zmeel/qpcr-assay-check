@@ -104,13 +104,15 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
     assert {"Off-target sites", "Predicted products", "Searches", "Findings"} <= set(wb.sheetnames)
 
 
-def test_a_clean_assay_gives_a_passing_specificity_but_an_incomplete_overall_verdict(env):
+def test_a_clean_assay_gives_an_incomplete_specificity_and_overall_verdict(env):
     env.install(world_with(hits="none"))
     r = invoke(env, "--yes")
     # exclusivity, inclusivity and history (first run) all have no evidence: INCOMPLETE overall.
     assert r.exit_code == 30, r.output
     data = json.loads((run_dir(env) / "results.json").read_text())
-    assert data["specificity"]["verdict"] == "PASS"
+    # the configured exclusivity tier was never searched (the fake resolves no names): missing
+    # evidence in specificity itself, not only in the overall verdict (tiers review 2026-11-20, F7)
+    assert data["specificity"]["verdict"] == "INCOMPLETE"
     states = {s["key"]: s["state"] for s in data["sections"]}
     assert states["specificity"] == states["amplicon_prediction"] == "evaluated"
     # exclusivity is implemented (v0.4.0), but this fake never resolves organism names, so its

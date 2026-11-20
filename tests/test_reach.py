@@ -158,3 +158,19 @@ def test_the_finding_says_how_the_space_was_known():
     out = floors([rec], {"forward": "GTTGAAACACCGCCCGG"}, ["background"], s)
     assert out[0].space_source == "from_hits"
     assert "derived from the reported alignments" in floor_findings(out, s.expect)[0].message
+
+
+def test_each_search_of_a_tier_shows_its_own_floor():
+    # tiers review 2026-11-20, F6: a 3-taxon tail search set the whole tier's floor unseen
+    s = load_config().search
+    big = _record("exclusivity", 8e8).model_copy(update={"taxids": list(range(1, 21))})
+    tail = _record("exclusivity", 8e11).model_copy(update={"taxids": [31, 32, 33]})
+    out = floors([big, tail], {"forward": "GTTGAAACACCGCCCGG"}, ["exclusivity"], s)
+    assert out[0].min_score == 15 and out[0].per_search == [(list(range(1, 21)), 10),
+                                                            ([31, 32, 33], 15)]  # fmt: skip
+    msg = floor_findings(out, s.expect)[0].message
+    assert "least sensitive search" in msg
+    assert "search 1 (20 taxa: 1, 2, 3, 4, 5 +15 more): score >= 10" in msg
+    assert "search 2 (3 taxa: 31, 32, 33): score >= 15" in msg
+    one = floors([big], {"forward": "GTTGAAACACCGCCCGG"}, ["exclusivity"], s)
+    assert "per search" not in floor_findings(one, s.expect)[0].message

@@ -11,6 +11,7 @@ from ..models import Assay
 from ..ncbi import blast
 from ..oligo import iupac
 from ..taxonomy.organisms import load_organism_list, organism_list_source
+from .tiers import TIER_PRIORITY, TierTaxa, assay_tier_taxa, dedupe
 
 MAX_BATCH_BASES = 1000  # NCBI: merge short queries into one search of up to 1,000 bases
 
@@ -112,7 +113,19 @@ HUMAN_TAXID = 9606
 
 
 def _chunks(items: list[int], size: int) -> list[list[int]]:
-    return [items[i : i + size] for i in range(0, len(items), size)]
+    """``items`` in as few searches of at most ``size`` as possible, of balanced sizes (23 taxa
+    in 12 + 11, not 20 + 3: a small tail search with few alignments set the whole tier's
+    reporting floor, tiers review 2026-11-20, F6)."""
+    if not items:
+        return []
+    n = -(-len(items) // size)
+    base, extra = divmod(len(items), n)
+    out, i = [], 0
+    for k in range(n):
+        step = base + (1 if k < extra else 0)
+        out.append(items[i : i + step])
+        i += step
+    return out
 
 
 def plan_searches(
@@ -121,6 +134,7 @@ def plan_searches(
     *,
     exclusivity_taxids: list[int] | None = None,
     exclusivity_unresolved: int = 0,
+    tier_taxa: TierTaxa | None = None,
 ) -> SearchPlan:
     """Tiered, taxon-restricted searches: near neighbours, background, exclusivity, and the
     target itself only when ``search.target_tier`` is set.
@@ -131,6 +145,10 @@ def plan_searches(
     ``exclusivity_unresolved`` is the count of names that could not be resolved or were ambiguous,
     for the same note: never guessed, but the search plan (and the reader of it) should know they
     were skipped.
+
+    ``tier_taxa``: the taxa per tier after the lineage checks against the target and between the
+    tiers (``search.tiers.check_tier_taxa``, which needs NCBI Taxonomy). Without it (a dry run),
+    a taxon listed in two tiers is still searched only once, in the more specific tier.
     """
     queries = build_queries(assay, cfg)
     batches = split_batches(queries)
@@ -155,18 +173,27 @@ def plan_searches(
             "whether each oligo matches it."
         )
     # taxa inside the target that the assay must not detect are near neighbours; taxa that are
-    # only out of scope get their own tier, reported as information ("also detects")
-    must_not = assay.target.must_not_detect_taxids
-    near = sorted(set(assay.near_neighbour_taxids) | set(assay.exclusion_taxids) | set(must_not))
-    if near:
-        tiers.append(("near_neighbours", "Near neighbours and exclusion taxa", near))
-    if assay.target.out_of_scope_taxids:
+    # only out of scope get their own tier, reported as information ("also detects"); a taxon in
+    # two tiers is searched once, in the more specific one (tiers review 2026-11-20, F2)
+    if tier_taxa is None:
+        taxa, moved = dedupe(
+            assay_tier_taxa(assay, cfg.search.background_taxids, exclusivity_taxids)
+        )
+        plan.notes.extend(moved)
+        not_target: dict[int, list[int]] = {}
+    else:
+        taxa = {t: tier_taxa.taxa.get(t, []) for t in TIER_PRIORITY}
+        not_target = tier_taxa.exclude
+        plan.notes.extend(tier_taxa.notes)
+    if taxa["near_neighbours"]:
+        tiers.append(("near_neighbours", "Near neighbours and exclusion taxa",
+                      taxa["near_neighbours"]))  # fmt: skip
+    if taxa["out_of_scope"]:
         tiers.append(
-            (OUT_OF_SCOPE_TIER, "Out of scope (reported, not judged)",
-             assay.target.out_of_scope_taxids)
-        )  # fmt: skip
-    if cfg.search.background_taxids:
-        tiers.append(("background", "Background taxa", sorted(set(cfg.search.background_taxids))))
+            (OUT_OF_SCOPE_TIER, "Out of scope (reported, not judged)", taxa["out_of_scope"])
+        )
+    if taxa["background"]:
+        tiers.append(("background", "Background taxa", taxa["background"]))
     if HUMAN_TAXID not in cfg.search.background_taxids:
         plan.warnings.append(
             f"Human (taxid {HUMAN_TAXID}) is not in 'search.background_taxids', so no human "
@@ -174,7 +201,8 @@ def plan_searches(
             "human DNA was not evaluated."
         )
     if exclusivity_taxids:
-        tiers.append(("exclusivity", "Clinical organism list", sorted(set(exclusivity_taxids))))
+        if taxa["exclusivity"]:
+            tiers.append(("exclusivity", "Clinical organism list", taxa["exclusivity"]))
     elif exclusivity_taxids is None:
         source = organism_list_source(cfg, assay)
         n_names = len(load_organism_list(cfg, assay).names)
@@ -215,7 +243,11 @@ def plan_searches(
     for tier, title, taxids in tiers:
         groups = _chunks(taxids, size)
         for ci, group in enumerate(groups, start=1):
-            entrez = blast.build_entrez_query(group, exclude if tier == "target" else None)
+            if tier == "target":
+                left_out = exclude
+            else:
+                left_out = sorted({x for t in group for x in not_target.get(t, [])})
+            entrez = blast.build_entrez_query(group, left_out or None)
             for bi, batch in enumerate(batches, start=1):
                 fasta = blast.build_query_fasta(batch)
                 params = blast.build_put_params(cfg, fasta, entrez)

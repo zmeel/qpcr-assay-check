@@ -30,6 +30,12 @@ def verdict_of(findings: Iterable[Finding], topics: set[str] | None = None) -> V
     return Verdict.PASS
 
 
+def unsearched_tiers(rules: SpecificitySettings, searched: Iterable[str]) -> list[str]:
+    """The required tiers (``off_target_tiers``) no search covered, waived ones left out."""
+    seen = set(searched)
+    return [t for t in rules.off_target_tiers if t not in seen and t not in rules.tier_waivers]
+
+
 def describe_site(s: SiteResult) -> str:
     """One-line description of a site for messages."""
     tm = ""
@@ -79,12 +85,34 @@ def build_findings(
         return "INFO" if tier == OUT_OF_SCOPE_TIER else severity
 
     scope = f"Off-target tiers assessed: {', '.join(off_tiers_seen) or 'none'}."
-    not_searched = [t for t in rules.off_target_tiers if t not in off_tiers_seen]
+    not_searched = unsearched_tiers(rules, off_tiers_seen)
     if not_searched:
         scope += (
             f" Configured off-target tiers not searched in this run: {', '.join(not_searched)}."
         )
     out.append(Finding(severity="INFO", message=scope, topic="search"))
+    if not_searched:
+        # missing evidence, with the same precedence as every other gap: it outranks Review and
+        # yields only to Exceeds limit (tiers review 2026-11-20, F7: it only kept No flags away)
+        out.append(
+            Finding(
+                severity="INCOMPLETE",
+                message=(
+                    f"Configured off-target tier(s) not searched: {', '.join(not_searched)} "
+                    "(specificity.off_target_tiers); what they cover is not assessed."
+                ),
+                topic="search",
+            )
+        )
+    for tier, why in sorted(rules.tier_waivers.items()):
+        if tier not in off_tiers_seen:
+            out.append(
+                Finding(
+                    severity="INFO",
+                    message=f"Tier '{tier}' waived (specificity.tier_waivers): {why}",
+                    topic="search",
+                )
+            )
     if not [t for t in off_tiers_seen if t != OUT_OF_SCOPE_TIER]:
         out.append(
             Finding(
