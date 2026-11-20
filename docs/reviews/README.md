@@ -8,6 +8,7 @@ decisions: this file records how they compare and what was taken up.
 | `2026-10-01-theory-review-molecular-biologist.md` | senior theoretical molecular biologist and bioinformatician | 2026-10-01 |
 | `2026-10-01-theory-review-advisor.md` | methods advisor (diagnostic qPCR, quality systems) | 2026-10-01 |
 | `2026-11-17-whole-project-advisor.md` | independent advisor (molecular diagnostics, scientific software), whole project | 2026-11-17 |
+| `2026-11-20-report-advisor-round2.md` | the same advisor, on the user's five comments on the first HSV-1 report in the new layout | 2026-11-20 |
 | `2026-11-20-report-advisor.md` | independent advisor (molecular diagnostics, quality systems, data visualisation, report design), the HTML report | 2026-11-20 |
 | `2026-11-20-tiers-advisor.md` | independent advisor (molecular diagnostics, in silico qPCR evaluation, scientific software), the off-target search tiers | 2026-11-20 |
 
@@ -170,3 +171,12 @@ The print fix is structural (nothing of the record in a closed `<details>`), wit
 `details::details-content` rule kept for what still folds on screen. Part A printed on two A4
 pages for the test reports; a long real record can run over. Not built: the optional
 Playwright print test (no Python Playwright in this environment).
+
+## Report review, second round (2026-11-20)
+
+On the user's five comments (no Part A label; Variants per oligo against the whole fragment; the
+oligo QC first column; hits per oligo and the effective configuration to the workbook) plus four
+observations. Checked the same day: seven tables are wider than the A4 print width in the HSV-1
+record (whole-fragment tables up to 1,214 px on 703 px) and are cut off at the right edge in
+print, the oligo QC "Rule applied" column among them; "Hit list full" means `list_full` in one
+table and `saturated` in another. Nothing taken up yet: the user decides.
