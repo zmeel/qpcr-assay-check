@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import yaml
@@ -15,7 +16,8 @@ from ..results import CheckResult, RunResult
 from ..specificity.variants import group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
-from . import plots
+from . import charts as svg
+from . import figures
 from .grouping import (
     fragment_view,
     group_products,
@@ -32,7 +34,8 @@ from .summary import summary_rows
 
 TOLERATED_VARIANTS_SHOWN = 5  # per oligo; the other tolerated variants: one row (all in workbook)
 GROUP_ROWS_SHOWN = 15  # further rows per grouped table (rows that can fail: always shown)
-CLOSEST_VARIANTS_SHOWN = 10  # closest off-target binding variants shown (all in the workbook)
+CLOSEST_VARIANTS_SHOWN = 5  # closest off-target binding variants shown (all in the workbook)
+ATTENTION_ON_PAGE_ONE = 3  # "Needs attention" rows on the sign-off pages (all in Part B)
 
 _GROUPS = [
     ("forward", "Forward primer"),
@@ -125,6 +128,82 @@ def _compact_html(site: Any, tail: int = 5, suffix: str = "") -> Markup:
     return Markup(f'<pre class="aln compact">{"".join(out)}</pre>')  # noqa: S704 - escaped
 
 
+def merge_binding_variants(groups: list[Any]) -> list[Any]:
+    """Closest off-target variants of one oligo that bind the same way - the same mismatches
+    (position and template base), gaps, unaligned bases and level - are one row: the degenerate
+    variants of an oligo, or an unread N, differ only at bases that match (report review
+    2026-11-20: 9 of 10 HSV-1 rows were the same HSV-2 primer site). The first, closest, is
+    shown; ``merged`` counts the others. Sites are not summed: one site is reported once per
+    variant that reaches it."""
+    out: list[Any] = []
+    index: dict[tuple, int] = {}
+    for g in groups:
+        pattern = tuple(
+            (i, s) for i, (s, m) in enumerate(zip(g.s_aln, g.midline.ljust(len(g.s_aln)),
+                                                   strict=False)) if m == " "
+        )  # fmt: skip
+        key = (re.sub(r"_v\d+$", "", g.query), g.level, g.n_gap, g.n_unaligned,
+               g.clean_3prime_nt, pattern)  # fmt: skip
+        if key in index:
+            first = out[index[key]]
+            first.merged += 1
+            first.max_sites = max(first.max_sites, g.n_sites)
+            continue
+        index[key] = len(out)
+        out.append(_Merged(g))
+    return out
+
+
+class _Merged:
+    """A closest-site row and how many binding-identical variants it stands for."""
+
+    def __init__(self, g: Any) -> None:
+        self.g, self.merged, self.max_sites = g, 0, g.n_sites
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.g, name)
+
+
+def floor_matrix(spec: Any) -> list[dict[str, Any]]:
+    """The score floors as one row per tier and oligo (degenerate variants as a min-max range):
+    the long per-tier sentence of every variant, in a table (report review 2026-11-20, P5)."""
+    rows: dict[tuple[str, str], dict[str, Any]] = {}
+    for e in spec.score_floors:
+        name = re.sub(r"_v\d+$", "", e.query)
+        r = rows.setdefault((e.tier, name), {"tier": e.tier, "oligo": name, "length": e.length,
+                                             "scores": [], "mm": [], "list_full": False,
+                                             "unknown": 0, "sources": set()})  # fmt: skip
+        if e.min_score is not None:
+            r["scores"].append(e.min_score)
+        if e.max_mismatches_reported is not None:
+            r["mm"].append(e.max_mismatches_reported)
+        r["list_full"] = r["list_full"] or e.list_full
+        r["unknown"] += e.searches_without_statistics
+        r["sources"].add(e.space_source)
+
+    def span(v: list[int]) -> str:
+        return "–" if not v else str(v[0]) if min(v) == max(v) else f"{min(v)}–{max(v)}"
+
+    out = []
+    for r in rows.values():
+        r["score"] = span(sorted(r["scores"]))
+        r["mismatches"] = span(sorted(r["mm"]))
+        r["source"] = ("upper bound" if "upper_bound" in r["sources"]
+                       else "from hits" if "from_hits" in r["sources"] else "reported")  # fmt: skip
+        out.append(r)
+    return out
+
+
+def floor_per_search(spec: Any) -> dict[str, str]:
+    """Per tier of several searches: each search's taxa and floors (F6), as one sentence."""
+    from ..specificity.reach import _per_search
+
+    by: dict[str, list[Any]] = {}
+    for e in spec.score_floors:
+        by.setdefault(e.tier, []).append(e)
+    return {t: _per_search(m).strip() for t, m in by.items() if _per_search(m)}
+
+
 def _search_rows(spec: Any) -> list[dict[str, Any]]:
     """Searches grouped by tier for the report table."""
     tiers: dict[str, dict[str, Any]] = {}
@@ -177,6 +256,7 @@ def _environment() -> Environment:
     env.filters["dg"] = _dg
     env.filters["ncbi"] = linkify
     env.filters["taxon"] = taxon_link
+    env.tests["search"] = lambda value, text: text in str(value)
     return env
 
 
@@ -205,16 +285,18 @@ def render_report(result: RunResult, cfg: Config) -> str:
 
     charts: list[dict[str, Any]] = []
     if cfg.report.include_charts:
-        html = plots.tm_chart(result, cfg)
-        if html:
+        strip = figures.tm_strip(result, cfg)
+        if strip:
             charts.append(
                 {
                     "title": "Melting temperatures",
-                    "html": Markup(html),  # noqa: S704 - SVG from numbers, names escaped
+                    "html": strip,
                     "caption": (
-                        "Bars show nearest-neighbour Tm (range bars for degenerate oligos). "
-                        "The shaded band is the preferred primer Tm range; the dashed line is the "
-                        "annealing temperature."
+                        "Nearest-neighbour Tm per oligo: a dot, or a line over the range of a "
+                        "degenerate oligo's variants (a triangle when its Tm check is outside the "
+                        "limit; probes hollow, as the primer bands do not apply to them). Shaded: "
+                        "the preferred primer range; solid lines: the primer limits; dashed: the "
+                        "annealing temperature. The values are in the checks below."
                     ),
                 }
             )
@@ -223,10 +305,10 @@ def render_report(result: RunResult, cfg: Config) -> str:
     shown: list[Any] = []
     hidden = hidden_sites = 0
     if spec is not None:
-        grouped = group_off_target_sites(spec.sites)
+        grouped = merge_binding_variants(group_off_target_sites(spec.sites))
         limit = CLOSEST_VARIANTS_SHOWN
         shown, hidden = grouped[:limit], max(0, len(grouped) - limit)
-        hidden_sites = sum(g.n_sites for g in grouped[limit:])
+        hidden_sites = sum(g.max_sites for g in grouped[limit:])
     species = species_of(result.taxonomy_breakdown)
     product_groups = (
         group_products(spec.amplicons, {s.id: s for s in spec.sites}, species) if spec else []
@@ -244,8 +326,32 @@ def render_report(result: RunResult, cfg: Config) -> str:
                 if r.oligo_name == e.oligo and site_string(r.q_aln, r.s_aln) == e.variant))
         for e in result.assay.evidence
     ]  # fmt: skip
+    grade_counts: dict[str, dict[str, int]] = {}
+    for i, o in enumerate(vs.oligos if vs else []):
+        counts: dict[str, int] = {}
+        for row in o.rows:
+            if row.grade and row.grade != "perfect":
+                counts[row.grade] = counts.get(row.grade, 0) + row.count
+        grade_counts[f"{o.role}|{i}"] = counts
+    figs: dict[str, Any] = {}
+    if cfg.report.include_charts:
+        figs = {
+            "tm": figures.tm_strip(result, cfg),
+            "window": figures.window_meter(result, cfg),
+            "coverage": figures.coverage_steps(result, cfg),
+            "years": figures.year_bars(result, cfg),
+            **{f"tier:{t}": g for t, g in figures.site_glyphs(result).items()},
+        }
     template = _environment().get_template("report.html.j2")
     return template.render(
+        figures=figs,
+        chart_defs=Markup(svg.defs()) if figs else "",  # noqa: S704 - constant SVG
+        site_maps=figures.site_maps(result) if cfg.report.include_charts else [],
+        attention_shown=ATTENTION_ON_PAGE_ONE,
+        grade_counts=grade_counts,
+        site_by_id={s.id: s for s in spec.sites} if spec else {},
+        floors=floor_matrix(spec) if spec else [],
+        floor_searches=floor_per_search(spec) if spec else {},
         r=result,
         product_groups=product_groups,
         fragments=fragments,

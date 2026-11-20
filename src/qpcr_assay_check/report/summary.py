@@ -38,6 +38,13 @@ class SummaryRow:
     label: str
     reason: str = ""
     anchor: str = ""
+    figure: str = ""  # which small figure the row shows: tm, window, coverage or tier:<tier>
+
+
+def _fig(key: str, row: SummaryRow) -> SummaryRow:
+    """The row with its small figure."""
+    row.figure = key
+    return row
 
 
 def _worst(levels: list[Verdict]) -> Verdict:
@@ -82,13 +89,16 @@ def _qc_row(result: RunResult) -> SummaryRow:
     if fail or warn:
         reason = ("outside the limit: " if fail else "outside the preferred range: ") + reason
     section = next(s for s in result.sections if s.key == "oligo_qc")
-    return _row(
-        "Oligo design (Tm, GC, runs, hairpins, dimers)",
-        f"{_plural(len(qc.oligos), 'oligo')}, {len(qc.checks)} checks",
-        res,
-        section.verdict,
-        reason,
-        "oligo-qc",
+    return _fig(
+        "tm",
+        _row(
+            "Oligo design (Tm, GC, runs, hairpins, dimers)",
+            f"{_plural(len(qc.oligos), 'oligo')}, {len(qc.checks)} checks",
+            res,
+            section.verdict,
+            reason,
+            "oligo-qc",
+        ),
     )
 
 
@@ -138,14 +148,17 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
             reason = "critical primer sites, but no two facing each other (no product)"
         info = t.tier == "out_of_scope"
         rows.append(
-            _row(
-                f"Off-target: {t.title}",
-                scope,
-                res,
-                Verdict.PASS if info else _worst(levels),
-                reason,
-                "specificity",
-                label="Information only" if info else None,
+            _fig(
+                f"tier:{t.tier}",
+                _row(
+                    f"Off-target: {t.title}",
+                    scope,
+                    res,
+                    Verdict.PASS if info else _worst(levels),
+                    reason,
+                    "specificity",
+                    label="Information only" if info else None,
+                ),
             )
         )
         if info:
@@ -259,7 +272,10 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
         )
     else:
         reason = ""
-    return _row("Target detection (inclusivity)", scope, res, inc.verdict, reason, "inclusivity")
+    return _fig(
+        "window",
+        _row("Target detection (inclusivity)", scope, res, inc.verdict, reason, "inclusivity"),
+    )
 
 
 def _channel_rows(result: RunResult, cfg: Config) -> list[SummaryRow]:
@@ -319,13 +335,16 @@ def _coverage_row(result: RunResult) -> SummaryRow | None:
         reason = (
             f"{c.listed_total - c.assessed_total - c.unavailable:,} not assessed yet: run again"
         )
-    return _row(
-        "Coverage of the target",
-        scope,
-        ", ".join(parts),
-        level,
-        reason,
-        "variants",
+    return _fig(
+        "coverage",
+        _row(
+            "Coverage of the target",
+            scope,
+            ", ".join(parts),
+            level,
+            reason,
+            "variants",
+        ),
     )
 
 

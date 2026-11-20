@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -309,14 +310,14 @@ def test_variant_tables_describe_the_match_in_words(tmp_path):
     html = render_report(result, cfg)
     # per oligo (advisor 2026-09-25): perfect as one line, other variants by their changes
     i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2>", i)]
-    assert "Perfect in <strong>" in per_oligo
+    per_oligo = html[i : html.index("<h2", i)]
+    assert re.search(r"Of \d+ records: <strong>\d+</strong> perfect", per_oligo)
     # the 3'-terminal forward mismatch is seen in one record: one row for its class
     assert "other likely failure variant, each seen in 1 record" in per_oligo
     assert html.index("<h3>Whole fragment") < i  # the whole fragment first
     # whole fragment (advisor layout 2026-09-25): the 3'-terminal forward mismatch needs attention
     i = html.index("<h3>Whole fragment")
-    frag = html[i : html.index("<h2>", i)]
+    frag = html[i : html.index("<h2", i)]
     assert "Needs attention" in frag and "likely failure" in frag and "Detectable (" in frag
     assert frag.index("likely failure") < frag.index("Detectable (")
     # the frequency of a non-perfect site variant sits next to its class
@@ -430,13 +431,13 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    i = html.index('<h2 id="inclusivity">Inclusivity across')
-    assert html.index("<h3>Whole fragment (forward + probe + reverse combined)</h3>", i) < (
-        html.index("<h3>Forward</h3>", i)
-    )
+    i = html.index('<h3 id="inclusivity">Inclusivity across')
+    # the per-year whole-fragment table decides the status; the per-oligo tables per year are
+    # diagnostics, in the workbook (report review 2026-11-20)
+    assert "<h4>Per year (whole fragment)</h4>" in html[i:] and "<h3>Forward</h3>" not in html
     # the window row uses the verdict's base (undetermined left out), so the numbers agree
     assert "Summary window " in html and "summary window</span>" in html
-    assert "the same base as the summary" in html
+    assert "Percentages leave the undetermined out, as the status does" in html
     # the summary row gives the same figure as the inclusivity rationale
     from qpcr_assay_check.report.summary import summary_rows
 

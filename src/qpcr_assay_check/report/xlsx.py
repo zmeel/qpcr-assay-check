@@ -500,6 +500,17 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             ],
             None,
         )  # fmt: skip
+    from .figures import mismatch_rows
+
+    positions = mismatch_rows(result)
+    if positions:
+        _sheet(
+            wb, "Mismatch positions",
+            ["Oligo", "Base (5'->3')", "Position from 3' end", "Oligo base", "Genomes judged",
+             "Genomes with a mismatch", "Site tolerated", "Site at risk", "Site likely failure",
+             "Site indeterminate", "Genomes with a gap"],
+            positions, None,
+        )  # fmt: skip
     _sheet(
         wb,
         "Sections",

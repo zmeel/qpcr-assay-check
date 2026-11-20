@@ -68,7 +68,7 @@ def test_per_oligo_lists_problems_and_only_the_most_frequent_tolerated_variants(
     result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
     html = render_report(result, cfg)
     i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2>", i)]
+    per_oligo = html[i : html.index("<h2", i)]
     assert "VAR7.1" in per_oligo  # the likely failure, although the rarest
     assert all(f"VAR{k}.1" in per_oligo for k in range(5))  # 5 most frequent tolerated
     assert "VAR5.1" not in per_oligo and "VAR6.1" not in per_oligo
@@ -305,7 +305,7 @@ def test_the_delta_tm_is_shown_next_to_the_class_but_not_for_perfect_sites(tmp_p
     result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
     html = render_report(result, cfg)
     i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2>", i)]
+    per_oligo = html[i : html.index("<h2", i)]
     assert "ΔTm -4.3 °C" in per_oligo and "ΔTm +0.0" not in per_oligo
     assert "information only, the class is the judgement" in per_oligo
 
@@ -333,7 +333,7 @@ def test_the_report_withholds_delta_tm_for_mgb_and_marks_a_low_tm(tmp_path):
     result = result.model_copy(update={"variant_summary": vs.model_copy(update={"oligos": oligos})})
     html = render_report(result, cfg)
     i = html.index("<h3>Variants per oligo")
-    per_oligo = html[i : html.index("<h2>", i)]
+    per_oligo = html[i : html.index("<h2", i)]
     assert "ΔTm not applicable (MGB)" in per_oligo and "ΔTm -9.0 °C</span>" not in per_oligo
     assert "Tm ≤ annealing" in per_oligo and "ΔTm -8.0 °C" in per_oligo
 

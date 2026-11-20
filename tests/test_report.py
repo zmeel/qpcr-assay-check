@@ -37,7 +37,10 @@ def test_report_is_a_timestamped_version_stamped_record(n1):
 def test_full_run_report_says_incomplete_is_not_a_pass(n1):
     html = render(n1, qc_only=False)
     # no verdict word: a summary table with a status per check (user, 2026-09-27)
-    assert '<span class="chip s-INCOMPLETE status-INCOMPLETE">Incomplete</span>' in html
+    assert (
+        '<span class="chip s-INCOMPLETE status-INCOMPLETE"><span class="ico" aria-hidden="true">'
+        "◌</span>Incomplete</span>" in html
+    )
     # QC rules in the report's own words, and "No flags" drawn neutral, not as "passed"
     assert "preferred 18–30 nt; limit 15–40 nt" in html and "PASS 18" not in html
     assert ".chip.status-PASS { background: var(--info-bg)" in html
@@ -74,7 +77,7 @@ def test_report_with_charts_is_self_contained(n1):
     The Tm chart is inline SVG: no script at all, and the report stays small (it was about 5 MB
     with the inlined Plotly bundle; user, 2026-09-25)."""
     html = render(n1, charts=True)
-    assert '<svg class="chart"' in html and "<script" not in html
+    assert '<svg class="fig' in html and "<script" not in html
     assert len(html.encode()) < 500_000
     parser = _RefCollector()
     parser.feed(html)
@@ -115,11 +118,28 @@ def test_workbook_has_expected_sheets(n1, tmp_path):
     assert wb["Oligo QC"].max_row == len(result.oligo_qc.checks) + 1
 
 
-def test_oligo_quality_control_is_collapsed_just_before_methods(n1):
+def test_oligo_quality_control_is_evidence_at_the_end_of_part_b_and_prints(n1):
     """User 2026-09-25: the oligo checks do not change between runs and matter mainly when
-    designing the PCR, so they sit folded near the end."""
+    designing the PCR, so they sit near the end; report review 2026-11-20: folded in a closed
+    <details> they did not print, so the record lacked them. Now the last part of the evidence,
+    not folded, flagged checks first."""
     html = render(n1)
-    qc = html.index('<h2 id="oligo-qc">Oligo quality control</h2>')
-    assert qc < html.index("<h2>Methods</h2>") and html.index("<h2>Assay as evaluated</h2>") < qc
-    assert '<details class="qc">' in html[qc:] and "<h3>Hairpins and dimers</h3>" in html
+    qc = html.index('<h3 id="oligo-qc">Oligo quality control</h3>')
+    assert html.index("<h2>Assay as evaluated</h2>") < qc < html.index('<h2 id="appendix">')
+    assert '<details class="qc">' not in html and "<h3>Hairpins and dimers</h3>" in html
     assert "<h2>Hairpins and dimers</h2>" not in html
+
+
+def test_the_sign_off_part_states_the_limits_of_the_record_and_nothing_of_it_is_folded(n1):
+    """Report review 2026-11-20: the required statements appeared only at the end, and closed
+    <details> sections (oligo QC, findings, configuration) did not print."""
+    html = render(n1, qc_only=False)
+    first = html.index('<h2 id="summary"')
+    assert html.index("does not replace experimental validation") < first
+    assert html.index("verifies this software within its own quality system") < first
+    assert html.index("Reviewer's decision") < html.index('<div class="part-b">')
+    # what folds on screen is only a variant's three-line alignment; the record itself does not
+    assert set(re.findall(r'<details(?: class="([^"]*)")?', html)) <= {"changes", "more"}
+    assert "details::details-content" in html  # and the browser opens even that for print
+    # the status sentence names the categories instead of "N of M checks flagged for review"
+    assert "flagged for review" not in html

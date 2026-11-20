@@ -55,12 +55,20 @@ def _numeric_check(
     status = worst(s for s, _ in graded)
     display = _fmt_range(values, fmt)
     message = ""
+    same = abs(max(values) - min(values)) < 1e-9
     if status in (Status.WARN, Status.FAIL):
-        offender = next(v for s, v in graded if s is status)
+        # the variant farthest from the middle of the range among those with this status: the
+        # first one found named a value between the range and its midpoint (report review
+        # 2026-11-20: "Tm of 70.2 C" next to a range of 68.0-72.5 and a chart reading 70.3)
+        middle = (max(values) + min(values)) / 2
+        offender = max((v for s, v in graded if s is status), key=lambda v: abs(v - middle))
         message = (
             hint(offender, status) if hint else f"{name}: {display}{(' ' + unit) if unit else ''}."
         )
-    same = abs(max(values) - min(values)) < 1e-9
+        if not same:
+            message = f"{message.rstrip('.')} (the worst of {len(values)} variants, {display}" + (
+                f" {unit})." if unit else ")."
+            )
     return CheckResult(
         id=id,
         subject=subject,

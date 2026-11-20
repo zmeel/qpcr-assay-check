@@ -11,7 +11,7 @@ What each part of the code does, with links to the source.
 * [Browser interface](gui.md) - FastAPI app for one user - assays with live validation, confirmed runs in a queue, results, settings.
 * [NCBI client](ncbi-client.md) - BLAST URL API and E-utilities with throttling, backoff, caching and resumable jobs.
 * [Oligo quality control](oligo-qc.md) - Length, GC, Tm, 3' end, runs, hairpins and dimers per oligo and across the mix, against PASS/WARN/FAIL bands.
-* [Report and records](report.md) - Self-contained HTML report, Excel workbook, results.json and hits.tsv per run.
+* [Report and records](report.md) - Self-contained HTML report in three parts (two-page sign-off with figures, evidence, appendix), Excel workbook, results.json and hits.tsv per run.
 * [Scripts](scripts.md) - Helper scripts for live checks, Docker runs, run summaries and this bundle.
 * [Off-target search tiers](search-tiers.md) - The five search tiers (target, near neighbours, out of scope, background, exclusivity): where each one's taxa come from, how they are checked against the target and each other, how each tier is searched and judged, and what an unsearched or waived tier does to the status.
 * [Specificity search and assessment](specificity.md) - Plans remote BLAST tiers, re-aligns hits over the whole oligo, pairs products, scans for partners and rolls up by taxon.
