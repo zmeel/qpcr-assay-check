@@ -11,6 +11,7 @@ from ..config import Config
 from ..inclusivity.models import FragmentYear, fragment_window, status_last_year, status_years
 from ..results import RunResult
 from . import charts
+from .grouping import amplicon_order
 
 
 def _markup(svg: str) -> Markup | None:
@@ -35,7 +36,7 @@ def tm_strip(result: RunResult, cfg: Config) -> Markup | None:
             status=status.get(f"{o.name or o.role}.tm", "PASS"),
             primer=o.role != "probe",
         )  # fmt: skip
-        for o in result.oligo_qc.oligos
+        for o in amplicon_order(result.oligo_qc.oligos)
     ]
     t = cfg.thresholds.primer.tm_c
     return _markup(
@@ -122,7 +123,7 @@ def mismatch_columns(result: RunResult) -> list[tuple[str, str, str, int, dict[i
             by_name.setdefault(name, []).append(row)
             roles[name] = o.role
     out = []
-    for oligo in result.assay.oligo_list:
+    for oligo in result.assay.amplicon_list:
         rows = by_name.get(oligo.name)
         if not rows:
             continue

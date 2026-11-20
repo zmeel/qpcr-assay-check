@@ -11,8 +11,9 @@ always shown; only the remaining rows beyond a fixed number go to the workbook.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeVar
 
 from ..oligo import iupac
 from ..oligo.grade import OUTCOMES, combination_outcome
@@ -418,6 +419,14 @@ def site_frequency(oligos: list[Any]) -> dict[tuple[str, str, str], float]:
 TIER_TITLE = {"near_neighbours": "Near neighbours", "exclusivity": "Clinical organism list",
               "background": "Background", "out_of_scope": "Out of scope"}  # fmt: skip
 _ROLES = ("forward", "reverse", "probe")
+AMPLICON_ROLES = ("forward", "probe", "reverse")
+_T = TypeVar("_T")
+
+
+def amplicon_order(items: Iterable[_T]) -> list[_T]:
+    """Items with a ``role`` in their order on the amplicon (forward, probe, reverse), keeping the
+    order within a role: how the report and the workbook list oligos (user, 2026-11-20)."""
+    return sorted(items, key=lambda o: AMPLICON_ROLES.index(o.role))  # type: ignore[attr-defined]
 
 
 @dataclass

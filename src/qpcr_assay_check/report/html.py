@@ -19,6 +19,8 @@ from ..verdict import STATUS_LABEL
 from . import charts as svg
 from . import figures
 from .grouping import (
+    TIER_TITLE,
+    amplicon_order,
     fragment_view,
     group_products,
     group_sites,
@@ -209,7 +211,7 @@ def qc_matrix(result: RunResult) -> dict[str, Any]:
     (report review 2026-11-20, second round: one row per check and oligo repeated the oligo's
     name under its own heading and squeezed the check column to a word per line). Checks of the
     mix, the pair and the amplicon stay a short list."""
-    oligos = result.oligo_qc.oligos
+    oligos = amplicon_order(result.oligo_qc.oligos)
     names = [o.name or o.role for o in oligos]
     roles = {o.name or o.role: o.role for o in oligos}
     order: list[str] = []
@@ -377,17 +379,36 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
     third page). The full list opens Part B."""
     out: list[tuple[str, str]] = []
     qc = result.oligo_qc
+    kinds = {"forward": "Forward primer", "reverse": "Reverse primer", "probe": "Probe"}
+    names = {
+        o.name or o.role: kinds[o.role] if not o.name or o.name == o.role else o.name
+        for o in qc.oligos
+    }
     for c in qc.checks:
         if c.status.value == "FAIL":
-            out.append(("FAIL", c.message or f"{c.name}: {c.display} {c.unit}".strip()))
+            # name the oligo: "Tm of 72.5 °C is outside the limit" alone does not say whose
+            who = names.get(c.subject, c.name) if c.message else c.name
+            text = c.message or f"{c.display} {c.unit}".strip()
+            out.append(("FAIL", f"{who}: {text}"))
     for s in qc.structures:
         if s.status.value == "FAIL":
             out.append(("FAIL", f"{s.label}: structure Tm {s.tm_c} °C"))
     spec = result.specificity
     if spec is not None:
+        # one line per tier and kind of gap, in the short wording; the full messages open Part B
+        # (user, 2026-11-20: the long Incomplete lines pushed the decision box to a third page)
+        merged: dict[tuple[str, str, str], list[str]] = {}
         for f in spec.findings:
-            if f.severity in ("FAIL", "INCOMPLETE"):
-                out.append((f.severity, f"Specificity: {f.message}"))
+            if f.severity not in ("FAIL", "INCOMPLETE"):
+                continue
+            key = (f.severity, f.tier, f.short) if f.short else (f.severity, "", f.message)
+            about = merged.setdefault(key, [])
+            if f.short and f.about:
+                about.append(f.about)
+        for (severity, tier, text), about in merged.items():
+            where = f", {TIER_TITLE.get(tier, tier)}" if tier else ""
+            listed = f" ({', '.join(about)})" if about else ""
+            out.append((severity, f"Specificity{where}: {text}{listed}"))
     for row in summary:
         if row.anchor == "specificity" or row.anchor == "oligo-qc":
             continue  # their findings are listed above
@@ -484,7 +505,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
     oligo_groups = [
         (o.name or o.role, kinds[o.role] if not o.name or o.name == o.role
          else f"{kinds[o.role]} {o.name}")
-        for o in result.oligo_qc.oligos
+        for o in amplicon_order(result.oligo_qc.oligos)
     ]  # fmt: skip
     for key, title in [*oligo_groups, ("mix", "Reaction mix"), *_GROUPS[3:]]:
         items = [c for c in result.oligo_qc.checks if c.subject == key]
@@ -539,13 +560,13 @@ def render_report(result: RunResult, cfg: Config) -> str:
                 if r.oligo_name == e.oligo and site_string(r.q_aln, r.s_aln) == e.variant))
         for e in result.assay.evidence
     ]  # fmt: skip
-    grade_counts: dict[str, dict[str, int]] = {}
-    for i, o in enumerate(vs.oligos if vs else []):
+    oligo_totals: list[tuple[Any, Any, dict[str, int]]] = []  # (view, oligo, counts per class)
+    for o in amplicon_order(vs.oligos if vs else []):
         counts: dict[str, int] = {}
         for row in o.rows:
             if row.grade and row.grade != "perfect":
                 counts[row.grade] = counts.get(row.grade, 0) + row.count
-        grade_counts[f"{o.role}|{i}"] = counts
+        oligo_totals.append((oligo_view(o, top_tolerated=TOLERATED_VARIANTS_SHOWN), o, counts))
     figs: dict[str, Any] = {}
     if cfg.report.include_charts:
         figs = {
@@ -561,7 +582,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
         chart_defs=Markup(svg.defs()) if figs else "",  # noqa: S704 - constant SVG
         site_maps=figures.site_maps(result) if cfg.report.include_charts else [],
         attention_shown=ATTENTION_ON_PAGE_ONE,
-        grade_counts=grade_counts,
+        oligo_totals=oligo_totals,
         qc_rows=qc_matrix(result),
         decisions=decision_lines(
             result,
@@ -587,9 +608,6 @@ def render_report(result: RunResult, cfg: Config) -> str:
         products_shown=shown_rows(product_groups, "n_detected", GROUP_ROWS_SHOWN),
         sites_shown=shown_rows(site_groups, "n_critical", GROUP_ROWS_SHOWN),
         grade_caveat=GRADE_CAVEAT,
-        oligo_views=[oligo_view(o, top_tolerated=TOLERATED_VARIANTS_SHOWN) for o in vs.oligos]
-        if vs
-        else [],
         site_pct=site_frequency(vs.oligos) if vs else {},
         tolerated_shown=TOLERATED_VARIANTS_SHOWN,
         evidence_rows=evidence_rows,

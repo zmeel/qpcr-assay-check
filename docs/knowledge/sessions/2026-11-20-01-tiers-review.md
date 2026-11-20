@@ -58,3 +58,15 @@ generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
   style sheet before they held), the Part A label, the QC matrix, hits per query and the full
   configuration to the workbook, limits applied and differing settings in Part C, the shorter
   sign-off, the merged variant tables.
+- The user's HSV-1 record in that layout (16:52Z, commit 606e219) checked by printing it with
+  Chromium: 22 pages (was 30), no table wider than the page, but the sign-off ran to three
+  pages. Four long Incomplete specificity lines pushed the decision box over. Tighter figures
+  alone did not help. The user chose both options offered ("Do both"). Specificity gaps are now
+  one short line per tier and kind (`Finding.short`, `tier`, `about`), with the full wording in
+  Part B, and the site maps open Part B. An oligo check beyond its limit names the oligo. The
+  decision box stays together, and the NCBI line moved into the header. The user also asked for
+  the oligos in amplicon order: the report and the workbook now list them forward, probe,
+  reverse (`Assay.amplicon_list`). The searches keep `oligo_list`, so the change cannot touch
+  what is submitted. Measured by applying these changes to the user's HTML (no results.json of
+  that run here): two sign-off pages, decision box included
+  ([decision](../decisions/2026-11-20-sign-off-two-pages-amplicon-order.md)).

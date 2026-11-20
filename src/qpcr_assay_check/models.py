@@ -667,6 +667,13 @@ class Assay(BaseModel):
         return [*self.forward, *self.reverse, *self.probe]
 
     @property
+    def amplicon_list(self) -> list[Oligo]:
+        """Every oligo in its order on the amplicon: forward, probe, reverse. The report and the
+        workbook list oligos this way, as the whole-fragment table reads (user, 2026-11-20); the
+        searches keep :attr:`oligo_list`, so a report change cannot alter what is searched."""
+        return [*self.forward, *self.probe, *self.reverse]
+
+    @property
     def oligos(self) -> dict[str, str]:
         """Sequence by oligo name, in report order (name = role for a single unnamed oligo)."""
         return {o.name: o.sequence for o in self.oligo_list}

@@ -106,6 +106,12 @@ class Finding(BaseModel):
     severity: Literal["FAIL", "WARN", "INFO", "INCOMPLETE"]
     message: str
     topic: Literal["sites", "amplicons", "search"] = "sites"
+    # the sign-off's wording (report, Part A): short, without the explanation; lines with the
+    # same tier and short are merged there, their ``about`` listed (user, 2026-11-20). Empty:
+    # the sign-off prints ``message``.
+    short: str = ""
+    tier: str = ""
+    about: str = ""
 
 
 class TierCount(BaseModel):

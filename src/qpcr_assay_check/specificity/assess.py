@@ -490,7 +490,11 @@ def _bounded_cuts(
             if beyond
             else f"not bounded: {why}"
         )
-        out.append(f.model_copy(update={"message": f"{f.message[:-1]}; {reason}."}))
+        short = "a probe site that can give signal lies beyond it" if beyond else "not bounded"
+        out.append(f.model_copy(update={
+            "message": f"{f.message[:-1]}; {reason}.",
+            "short": f"{f.short}, {short}" if f.short else "",
+        }))  # fmt: skip
     return out
 
 
@@ -541,15 +545,18 @@ def scan_findings(
             topic="amplicons",
         )
     ]
-    primer_gaps = []
+    primer_gaps, primer_short = [], []
     if scan.not_scanned:
+        primer_short.append(f"{scan.not_scanned} primer site(s) not scanned")
         primer_gaps.append(
             f"{scan.not_scanned} primer site(s) beyond the limit of {limit} fetches "
             "(specificity.partner_scan_max_windows) were not scanned"
         )
     if scan.windows_failed:
+        primer_short.append(f"{scan.windows_failed} window(s) not fetched")
         primer_gaps.append(f"{scan.windows_failed} window(s) could not be fetched")
     if scan.no_accession:
+        primer_short.append(f"{scan.no_accession} site(s) without accession")
         primer_gaps.append(f"{scan.no_accession} primer site(s) lie on a record without accession")
     if primer_gaps:
         out.append(
@@ -560,6 +567,7 @@ def scan_findings(
                     "primer BLAST did not report can be missing there."
                 ),
                 topic="amplicons",
+                short=f"Partner scan incomplete: {', '.join(primer_short)}",
             )
         )
     product_limit = limit if product_limit is None else product_limit
@@ -608,6 +616,16 @@ def scan_findings(
                     + (f" (not bounded: {why})." if why else ".")
                 ),
                 topic="amplicons",
+                short="probe re-alignment incomplete: "
+                + ", ".join(
+                    x
+                    for x in (
+                        f"{not_scanned} product(s) not searched" if not_scanned else "",
+                        f"{failed} not fetched" if failed else "",
+                    )
+                    if x
+                ),  # fmt: skip
+                tier=tier,
             )
         )
     return out

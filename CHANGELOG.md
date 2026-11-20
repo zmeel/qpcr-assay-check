@@ -57,6 +57,17 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **The sign-off fits on two A4 pages, decision box included** (user, on the HSV-1 record of
+  2026-11-20). Specificity gaps are one short line per tier and kind, e.g. "Specificity,
+  Background: relevant alignments cut at max_sites_per_query (FP_v8, P)", with the full
+  messages in Part B. Specificity findings gained `short`, `tier` and `about` for this. An oligo
+  check beyond its limit names the oligo. The per-oligo mismatch maps open Part B's target
+  detection, and Part A keeps their totals with a link. The decision box stays on one page with
+  its heading and note, and the NCBI line moved into the header.
+- **Oligos in their order on the amplicon** (user): the report and the workbook list oligos
+  forward, probe, reverse, as the whole-fragment table does. Before, the site maps, Tm figure, QC
+  matrix and assay table put the probe last. The searches keep their order (`Assay.oligo_list`);
+  the report uses the new `Assay.amplicon_list`.
 - **Every searched tier is assessed** (review F1). A tier left out of
   `specificity.off_target_tiers` used to be searched but not assessed, and its summary row read
   No flags, even with a product the probe detects. `off_target_tiers` now only names the tiers a

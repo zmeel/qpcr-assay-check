@@ -217,3 +217,9 @@ def test_a_bounded_tier_reads_not_detected_instead_of_incomplete():
     assert f.severity == "INFO" and "Not detected (bounded)" in f.message
     (_, g) = scan_findings(scan, 1000, lambda tier: (False, "why not"), 1000)
     assert g.severity == "INCOMPLETE" and "(not bounded: why not)" in g.message
+    # the sign-off's short wording: tier and gap, without the explanation (user, 2026-11-20)
+    assert g.tier == "near_neighbours"
+    assert g.short == "probe re-alignment incomplete: 500 product(s) not searched"
+    scan = PartnerScan(primer_sites=1483, windows=1000, not_scanned=483)
+    (_, p) = scan_findings(scan, 1000, lambda tier: (False, ""), 1000)
+    assert p.short == "Partner scan incomplete: 483 primer site(s) not scanned" and not p.tier

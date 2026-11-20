@@ -150,6 +150,9 @@ def build_findings(
                     "taxa per search or raise the hit-list size."
                 ),
                 topic="search",
+                short="BLAST hit list saturated",
+                tier=tier,
+                about=", ".join(sorted(labels)),
             )
         )
     for c in counts:
@@ -163,6 +166,9 @@ def build_findings(
                         "(max_sites_per_query)."
                     ),
                     topic="search",
+                    short="relevant alignments cut at max_sites_per_query",
+                    tier=c.tier,
+                    about=c.query,
                 )
             )
     if n_fetch_failed:
@@ -266,6 +272,8 @@ def build_findings(
                 message=f"Tier '{tier}': the list of predicted products was cut at "
                 "max_amplicons (per tier).",
                 topic="amplicons",
+                short="product list cut at max_amplicons",
+                tier=tier,
             )
         )
     if n_primer_only:

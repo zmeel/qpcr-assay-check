@@ -15,7 +15,7 @@ from ..results import RunResult
 from ..specificity.variants import group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
-from .grouping import fragment_outcome, site_changes, spec_overview
+from .grouping import amplicon_order, fragment_outcome, site_changes, spec_overview
 from .ncbi_links import accession_url, taxon_url
 
 _FILL = {
@@ -135,7 +135,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                     f"{o.role} {o.name} (5'-3')" if o.name != o.role else f"{o.role} (5'-3')",
                     o.sequence,
                 ]
-                for o in a.oligo_list
+                for o in a.amplicon_list
             ],
             *[
                 [
@@ -331,7 +331,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                  {True: "yes", False: "no"}.get(row.tm_at_or_below_annealing, ""),
                  row.example_accession, row.example_organism or "",
                  row.first_seen or "", row.last_seen or ""]
-                for o in vs.oligos
+                for o in amplicon_order(vs.oligos)
                 for row in o.rows
             ],
             None,

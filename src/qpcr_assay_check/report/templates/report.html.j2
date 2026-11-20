@@ -38,6 +38,7 @@ table.review-box { max-width: 52rem; }
 table.review-box th { width: 12rem; }
 table.review-box td.write { height: 5rem; }
 table.review-box td.write-line { height: 2.2rem; }
+div.review { break-inside: avoid; }  /* the box, its heading and note on one page */
 h2.first { border-top: 0; margin-top: 1.5rem; }
 .chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 3px; white-space: nowrap; }
 .s-PASS, .s-evaluated-PASS { background: var(--pass-bg); color: var(--pass); }
@@ -117,6 +118,9 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
      where the browser allows it (report review 2026-11-20: closed sections did not print) */
   details::details-content { content-visibility: visible; display: block; }
   .part-b, .part-c { break-before: page; }
+  /* the sign-off on two A4 pages, decision box included (user, 2026-11-20) */
+  svg.fig.years { width: 85%; height: auto; }
+  table.review-box td.write { height: 4rem; } table.review-box td.write-line { height: 1.9rem; }
   a { color: inherit; text-decoration: none; }
   body { font-size: 9.5pt; line-height: 1.4; } p { max-width: none; margin: .3rem 0; }
   h1 { font-size: 15pt; } h2 { font-size: 12pt; margin: 1rem 0 .35rem; padding-top: .4rem; }
@@ -177,7 +181,8 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
     Assay evaluation record · generated {{ r.generated_at }} · qpcr-assay-check v{{ r.tool.version }} ·
     run <code>{{ r.run_id }}</code><br>
     {{ code_line(r.tool) }}<br>
-    Inputs hash (SHA-256): <code>{{ r.inputs_hash }}</code>
+    Inputs hash (SHA-256): <code>{{ r.inputs_hash }}</code><br>
+    {% if r.network_used %}This run sent the oligo sequences to NCBI (see Methods).{% else %}No sequence was searched against any database in this run, and no data was sent to NCBI.{% endif %}
   </p>
 </header>
 <p class="meta">Part A Sign-off · Part B Evidence · Part C Appendix (rules, limits, methods, required statements)</p>
@@ -207,11 +212,9 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 <figure>{{ figures.years }}<figcaption>Target detection per {{ 'collection' if r.inclusivity.status_axis == 'collection' else 'release' }} year: the share of {{ 'records' if nuc else 'genomes' }} with the region in each outcome, the count and the classes that are not detectable beside each bar; the status window is bracketed; years with fewer than {{ r.config.inclusivity.min_genomes_per_year | default(30) }} judged are pale ("few records") and not judged on their own. The numbers are in the per-year table of Part B.</figcaption></figure>
 {% endif %}
 
-{% if site_maps %}
+{% if oligo_totals %}
 <h3>Where the target differs from the oligos</h3>
-<div class="maps">{% for m in site_maps %}{{ m }}{% endfor %}</div>
-{% if oligo_views %}<p class="meta">{% for v in oligo_views %}{% set o = r.variant_summary.oligos[loop.index0] %}{% if o.rows %}{% set by_grade = grade_counts[o.role ~ '|' ~ loop.index0] %}{% set alts = assay.by_role(o.role) %}<strong>{{ o.role | capitalize }}{% if alts | length == 1 and alts[0].name != o.role %} {{ alts[0].name }}{% endif %}</strong>: of {{ v.total }} records {{ v.n_perfect }} perfect{% for g in ['tolerated', 'at_risk', 'likely_failure', 'indeterminate'] if by_grade.get(g) %}, {{ by_grade[g] }} {{ g | replace('_', ' ') }}{% endfor %}{% if o.n_excluded_unmeasured %} ({{ o.n_excluded_unmeasured }} site(s) not fully re-aligned, left out){% endif %}. {% endif %}{% endfor %}</p>{% endif %}
-<p class="meta">Per oligo, each base 5′→3′: the share of judged {{ 'records' if nuc else 'genomes' }} (best copy) with a mismatch there, on a linear scale, coloured by the class of the whole site (not the effect of that one base); the count is printed above the column; a bar under a base marks gaps; the primer 3′ end (last 5 nt) is bracketed. A base that matches through a degenerate code is not a mismatch. The numbers: workbook, sheet "Mismatch positions"; each variant with its rule and changes: the whole-fragment table (Part B) and sheet "Oligo variants".</p>
+<p class="meta">{% for v, o, by_grade in oligo_totals %}{% if o.rows %}{% set alts = assay.by_role(o.role) %}<strong>{{ o.role | capitalize }}{% if alts | length == 1 and alts[0].name != o.role %} {{ alts[0].name }}{% endif %}</strong>: of {{ v.total }} records {{ v.n_perfect }} perfect{% for g in ['tolerated', 'at_risk', 'likely_failure', 'indeterminate'] if by_grade.get(g) %}, {{ by_grade[g] }} {{ g | replace('_', ' ') }}{% endfor %}{% if o.n_excluded_unmeasured %} ({{ o.n_excluded_unmeasured }} site(s) not fully re-aligned, left out){% endif %}. {% endif %}{% endfor %} {% if site_maps %}Base by base: <a href="#site-maps">site maps per oligo</a>, Part B.{% endif %}</p>
 {% endif %}
 {% if fragments %}{% set fv = fragments %}
 {% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}
@@ -232,7 +235,9 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 </div>
 {% endif %}
 
+<div class="review">
 <h3>Reviewer's decision</h3>
+<p class="meta">For the laboratory's own record: filled in by the reviewer, on paper or in the quality system. The tool never fills it in.</p>
 <div class="scroll"><table class="review-box">
   <tbody>
   <tr><th scope="row">Decision</th><td>&#9744; No action &nbsp;&nbsp; &#9744; Monitor next year &nbsp;&nbsp; &#9744; Wet-lab check &nbsp;&nbsp; &#9744; Redesign</td></tr>
@@ -241,9 +246,8 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
   <tr><th scope="row">Date and signature</th><td class="write-line"></td></tr>
   </tbody>
 </table></div>
-<p class="meta">For the laboratory's own record: filled in by the reviewer, on paper or in the quality system. The tool never fills it in.</p>
+</div>
 
-<p class="meta">{% if r.network_used %}This run sent the oligo sequences to NCBI (see Methods).{% else %}No sequence was searched against any database in this run, and no data was sent to NCBI.{% endif %}</p>
 <div class="part-b">
 <p class="part">Part B · Evidence</p>
 {% if r.overall.rationale %}<h2 id="findings">All findings behind the summary</h2>
@@ -252,7 +256,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 <div class="scroll"><table>
   <tbody>
     {% set kinds = {'forward': 'Forward primer', 'reverse': 'Reverse primer', 'probe': 'Probe'} %}
-    {% for o in assay.oligo_list %}
+    {% for o in assay.amplicon_list %}
     <tr><th scope="row">{{ kinds[o.role] }}{% if o.name != o.role %} <span class="meta">{{ o.name }}</span>{% endif %}</th>
       <td>{{ o.sequence | seq_html(0 if o.role == 'probe' else 5) }} <span class="meta">{{ o.sequence | length }} nt</span>
       {% if o.role == 'probe' %}<br><span class="meta">reporter {{ o.reporter or 'not specified' }} / quencher {{ o.quencher or 'not specified' }}; modifications: {{ o.modifications | join(', ') or 'none declared' }}</span>{% endif %}</td></tr>
@@ -335,7 +339,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 <div class="scroll"><table>
   <thead><tr><th>Role</th><th>Oligo</th><th>Covers (best copy)</th><th>Only this oligo</th></tr></thead>
   <tbody>
-  {% for role in ['forward', 'reverse', 'probe'] %}
+  {% for role in ['forward', 'probe', 'reverse'] %}
   {% for o in cc.oligos if o.role == role %}
   <tr><td>{{ role }}</td><td>{{ o.name }}{% if o.reporter %} <span class="meta">{{ o.reporter }}</span>{% endif %}</td><td class="num">{{ o.covered }} ({{ pct(100.0 * o.covered / judged_n) if judged_n else '–' }})</td><td class="num">{% if assay.by_role(role) | length > 1 %}{{ o.only }}{% else %}–{% endif %}</td></tr>
   {% endfor %}
@@ -358,6 +362,11 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 {% endif %}
 {% else %}
 <div class="notice"><p><strong>Scope.</strong> Built from the target tier's own BLAST hits: at most {{ r.config.search.hitlist_size }} per oligo, the closest site per record, with partial hits fetched and re-aligned across the whole oligo. Identical alignments are lumped together and each is reported as a percentage of that measured total. When the hit list is full (see Searches) this is BLAST's selection of records, not the whole target population and not a random sample; see Inclusivity below for the year-by-year view against population counts.</p></div>
+{% endif %}
+{% if site_maps %}
+<h3 id="site-maps">Where the target differs from the oligos</h3>
+<div class="maps">{% for m in site_maps %}{{ m }}{% endfor %}</div>
+<p class="meta">Per oligo, each base 5′→3′: the share of judged {{ 'records' if nuc else 'genomes' }} (best copy) with a mismatch there, on a linear scale, coloured by the class of the whole site (not the effect of that one base); the count is printed above the column; a bar under a base marks gaps; the primer 3′ end (last 5 nt) is bracketed. A base that matches through a degenerate code is not a mismatch. The numbers: workbook, sheet "Mismatch positions"; each variant with its rule and changes: the whole-fragment table below and sheet "Oligo variants".</p>
 {% endif %}
 <h3>Whole fragment (forward + probe + reverse combined)</h3>
 {% if fragments %}

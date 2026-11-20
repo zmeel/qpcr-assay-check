@@ -545,10 +545,15 @@ def test_a_cut_product_list_is_bounded_when_no_detectable_product_can_hide_beyon
     )  # fmt: skip
     (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
     assert cut.severity == "INCOMPLETE" and "beyond it (e.g. OT000003.1)" in cut.message
+    assert (
+        cut.short
+        == "product list cut at max_amplicons, a probe site that can give signal lies beyond it"
+    )
     # in a cautious tier a gapped probe site could bind unreported: not bounded
     res, _, _ = run(_three_products(), tmp_path / "c", specificity__max_amplicons=1)
     (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
     assert cut.severity == "INCOMPLETE" and "not bounded: a probe site with a gap" in cut.message
+    assert cut.short == "product list cut at max_amplicons, not bounded"
 
 
 def test_products_are_also_counted_as_distinct_patterns(tmp_path):

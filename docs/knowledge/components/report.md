@@ -36,6 +36,9 @@ sources:
   - id: decision
     resource: ../decisions/2026-11-20-needs-attention-keeps-its-colours.md
     title: "Needs attention keeps its coloured site rows"
+  - id: twopages
+    resource: ../decisions/2026-11-20-sign-off-two-pages-amplicon-order.md
+    title: "Sign-off on two pages: short gap lines, site maps in Part B, oligos in amplicon order"
   - id: code6
     resource: ../../../src/qpcr_assay_check/results.py
     title: "src/qpcr_assay_check/results.py"
@@ -53,12 +56,12 @@ parts, printable on A4:
   need review, lack evidence); one line with the required statements; "What was checked" with a
   small figure per row (Tm per oligo against the primer bands, the status window against the
   limits, coverage steps, each off-target tier's closest primer site as a glyph); target detection
-  per year as stacked bars with the status window bracketed; per oligo where the target genomes
-  differ from it (mismatch maps); the first "Needs attention" rows, in their coloured layout
-  (user decision);[^decision] the findings that need a decision (information-only lines counted);
-  the reviewer's decision box.
+  per year as stacked bars with the status window bracketed; per oligo the totals per class (the
+  mismatch maps themselves open Part B); the first "Needs attention" rows, in their coloured
+  layout (user decision);[^decision] the findings that need a decision, where specificity gaps
+  are one short line per tier and kind;[^twopages] the reviewer's decision box, kept on one page.
 - **Part B, evidence:** all findings behind the summary; assay; target detection (coverage, copies,
-  the whole-fragment tables, in which each site shows its rule and changes and folded rows name
+  the mismatch maps per oligo, the whole-fragment tables, in which each site shows its rule and changes and folded rows name
   the site variants no listed row shows; inclusivity per year and by collection year,
   rationale); off-target specificity (tier notes, findings, products, sites per species, closest
   sites with binding-identical variants merged, organism table with the organisms without a site
@@ -67,6 +70,9 @@ parts, printable on A4:
 - **Part C, appendix:** rules text, queries with incomplete evidence, methods, limits applied,
   settings that differ from the defaults, limitations, required statements in full. The full
   configuration and every query's hits are workbook sheets ("Configuration", "Hits per query").
+
+Oligos are listed in their order on the amplicon, forward, probe, reverse (`Assay.amplicon_list`),
+in the report and the workbook alike; the searches keep `Assay.oligo_list`.[^twopages]
 
 Tables wrap in print instead of being cut off at the page edge (the print rules come last in the
 style sheet). Decisions: the coloured Needs-attention rows[^decision] and the merged variant
@@ -92,4 +98,5 @@ per-oligo tables per year moved to the workbook.
 [^review]: Advisor review of the HTML report (2026-11-20)
 [^decision]: "Needs attention keeps its coloured site rows"
 [^merged]: "Variants per oligo merged into the whole-fragment table"
+[^twopages]: "Sign-off on two pages: short gap lines, site maps in Part B, oligos in amplicon order"
 [^code6]: src/qpcr_assay_check/results.py

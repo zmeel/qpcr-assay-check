@@ -101,8 +101,12 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   (confirmed by the user, 2026-11-20). Not built: an exhaustive analysis of a near
   neighbour's own records, specimen panels, taxonomy-derived near-neighbour suggestions.
 - Report: the user's comments on the first HSV-1 record and the advisor's second review taken up
-  (2026-11-20; [report](components/report.md)). Rebuild the GUI and rerun to see the record; a
-  long record can still run over two sign-off pages.
+  (2026-11-20; [report](components/report.md)). The HSV-1 record of 16:52Z: 22 pages, nothing
+  cut off, but a three-page sign-off. Since then specificity gaps are short lines, the site maps
+  are in Part B and oligos are listed forward, probe, reverse
+  ([decision](decisions/2026-11-20-sign-off-two-pages-amplicon-order.md)). Measured on that
+  record's HTML with the changes applied, the sign-off is two pages. Rebuild the GUI and rerun to
+  confirm it on a real record.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 
