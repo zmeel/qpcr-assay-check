@@ -556,3 +556,20 @@ def test_products_are_also_counted_as_distinct_patterns(tmp_path):
     (f,) = [f for f in res.findings if "predicted off-target product(s)" in f.message]
     assert "3 predicted off-target product(s)" in f.message
     assert "1 distinct product pattern(s)" in f.message
+
+
+def test_the_genomic_dna_note_follows_the_lineage(tmp_path):
+    # tiers review 2026-11-20, F9: a product on a Candida genomic record got no note
+    candida, eukaryota = 5476, 2759
+
+    def lineages(taxids):
+        return {t: {t, eukaryota, 1} if t == candida else {t, 1} for t in taxids}
+
+    w = offtarget_genome(taxid=candida, name="Candida albicans", title="chromosome 1")
+    add_all(w, taxid=candida)
+    assay = make_assay(near_neighbour_taxids=[candida])
+    res, _, _ = run(w, tmp_path, assay=assay, ancestors_of=lineages)
+    (amp,) = res.amplicons
+    assert "Genomic record of a eukaryote" in amp.note
+    res, _, _ = run(w, tmp_path / "plain", assay=assay)  # no lineage: an exact match only
+    assert res.amplicons[0].note == ""

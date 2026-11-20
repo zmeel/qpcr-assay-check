@@ -302,7 +302,7 @@ def assess_specificity(
     # that form no product yet, and probes re-aligned inside products without a probe site
     def pair() -> tuple[list[SiteResult], list, set[str], set[str]]:
         priming = [s for s in keep if s.role == "probe" or primer_can_prime(s)]
-        return priming, *predict_amplicons(priming, rules, assay)
+        return priming, *predict_amplicons(priming, rules, assay, lineage)
 
     priming, amplicons, used, amp_truncated = pair()
     scanning = rules.partner_scan_max_windows > 0

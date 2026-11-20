@@ -57,7 +57,10 @@ specificity:
                                    #   only inside one (see amplicon_*); advisor 2026-09-25
     amplicon_likely_detected: FAIL
     amplicon_not_detected: WARN
-  eukaryote_taxids: [9606]         # organisms for which genomic-DNA hits matter to RNA assays
+  eukaryote_taxids: [9606, 2759]   # organisms for which genomic-DNA hits matter to RNA assays,
+                                   #   matched by NCBI lineage: 2759 = Eukaryota (from NCBI
+                                   #   Taxonomy, not checked live in this project; 9606 keeps
+                                   #   human matched when no lineage could be read)
   # Partner scan: next to every off-target primer site that can prime and forms no product, the
   # sequence a product could span (max_amplicon_size) is fetched and the partner primers are
   # aligned in it; probes are re-aligned inside products without a probe site. A partner or

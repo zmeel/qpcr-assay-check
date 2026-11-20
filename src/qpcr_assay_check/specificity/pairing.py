@@ -157,9 +157,19 @@ def probe_binds(site: SiteResult, rules: SpecificitySettings) -> bool:
     return strong
 
 
-def _note(assay: Assay, rules: SpecificitySettings, site: SiteResult, rtype: str) -> str:
-    """Genomic-DNA versus cDNA remark for RNA assays and eukaryotic subjects."""
-    if assay.template_type is not TemplateType.RNA or site.taxid not in rules.eukaryote_taxids:
+def _note(
+    assay: Assay,
+    rules: SpecificitySettings,
+    site: SiteResult,
+    rtype: str,
+    lineage: set[int] | None = None,
+) -> str:
+    """Genomic-DNA versus cDNA remark for RNA assays and eukaryotic subjects: the organism, or
+    one of its NCBI ancestors (``lineage``, when known), is in ``eukaryote_taxids`` (tiers
+    review 2026-11-20, F9: an exact match left Candida or Trichomonas without the note)."""
+    eukaryote = set(rules.eukaryote_taxids)
+    found = site.taxid in eukaryote or bool(lineage and eukaryote & lineage)
+    if assay.template_type is not TemplateType.RNA or not found:
         return ""
     if rtype == "genomic":
         return (
@@ -172,7 +182,10 @@ def _note(assay: Assay, rules: SpecificitySettings, site: SiteResult, rtype: str
 
 
 def predict_amplicons(
-    sites: list[SiteResult], rules: SpecificitySettings, assay: Assay
+    sites: list[SiteResult],
+    rules: SpecificitySettings,
+    assay: Assay,
+    lineage: dict[int, set[int]] | None = None,
 ) -> tuple[list[AmpliconResult], set[str], set[str]]:
     """Pair forward and reverse primer sites; returns ``(amplicons, ids of sites used, tiers
     whose product list was cut)``. ``max_amplicons`` applies per tier, so one tier with many
@@ -250,7 +263,13 @@ def predict_amplicons(
                         channels=_channels(assay, binding),
                         classification="likely_detected" if binding else "amplified_not_detected",
                         record_type=rtype,  # type: ignore[arg-type]
-                        note=_note(assay, rules, left, rtype),
+                        note=_note(
+                            assay,
+                            rules,
+                            left,
+                            rtype,
+                            (lineage or {}).get(left.taxid) if left.taxid is not None else None,
+                        ),  # fmt: skip
                     )
                 )
                 used.update([*same[left.id], *same[right.id]])
