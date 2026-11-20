@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-20T15:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -45,9 +45,16 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
 - Changed: the HSV-1, HSV-2 and VZV examples set `inclusivity.status_axis: release`.
 - Changed: HSV-1, HSV-2 and VZV name their closest relatives as near neighbours
   (`near_neighbour_taxids`), moved from the exclusivity list.
+- The search tiers after the advisor's review of 2026-11-20, all nine findings
+  ([search tiers](components/search-tiers.md), [review](../reviews/2026-11-20-tiers-advisor.md)):
+  every searched tier assessed, tier waivers with a reason, missing tiers Incomplete above Review,
+  tier taxa checked against the target's lineage and each other, balanced searches, lineage in
+  the exclusivity table and the restriction check, a probe budget of its own, "not detected
+  (bounded)" and a bounded cut at `max_amplicons`, near neighbours read cautiously, the eukaryote
+  note by lineage. **Specificity results change**: most searches are new submissions.
 
-The influenza A rerun of 2026-11-18 08:15Z and the first HSV-2 run of 2026-11-19 ran on this
-code, not on v2.2.0 as released.
+The influenza A rerun of 2026-11-18 08:15Z and the HSV runs of 2026-11-19 ran on code from before
+the tiers review (commit `4b5f4f0`); every specificity result since needs a rerun on the new code.
 
 # Latest runs
 
@@ -81,10 +88,14 @@ code, not on v2.2.0 as released.
   the forward primer's 2nd base (C in the paper, T in both reference genomes) against the
   laboratory's order sheet.
 
-- Advisor review of the search tiers (2026-11-20, [review](../reviews/2026-11-20-tiers-advisor.md)):
-  nine findings, F1-F3, F5 and F7 checked against the code and confirmed. Most urgent, F1: a tier
-  left out of `specificity.off_target_tiers` is still searched but not assessed, and its row
-  reads No flags. Decide what to take up; no code changed.
+- Tiers review taken up in full (2026-11-20). Rerun HSV-1, HSV-2 and VZV on the new code (the
+  NAS needs `git pull` and the GUI `scripts/build_gui.sh`). Expected for HSV-1: the 500 HSV-2
+  products now get their probe re-aligned (own budget), but the near-neighbour tier stays
+  Incomplete at the 500-product cap, as near neighbours are a cautious tier where a gapped probe
+  site could bind unreported; raise `max_amplicons` for HSV-1, or take near neighbours out of
+  `cautious_tiers`, if that is not wanted. Check that NCBI Taxonomy 2759 is Eukaryota (the new
+  `eukaryote_taxids` default; not checked live). Not built: an exhaustive analysis of a near
+  neighbour's own records, specimen panels, taxonomy-derived near-neighbour suggestions.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 

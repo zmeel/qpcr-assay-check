@@ -13,6 +13,6 @@ What each part of the code does, with links to the source.
 * [Oligo quality control](oligo-qc.md) - Length, GC, Tm, 3' end, runs, hairpins and dimers per oligo and across the mix, against PASS/WARN/FAIL bands.
 * [Report and records](report.md) - Self-contained HTML report, Excel workbook, results.json and hits.tsv per run.
 * [Scripts](scripts.md) - Helper scripts for live checks, Docker runs, run summaries and this bundle.
-* [Off-target search tiers](search-tiers.md) - The five search tiers (target, near neighbours, out of scope, background, exclusivity): where each one's taxa come from, how it is searched and judged, and what an unsearched tier does to the status.
+* [Off-target search tiers](search-tiers.md) - The five search tiers (target, near neighbours, out of scope, background, exclusivity): where each one's taxa come from, how they are checked against the target and each other, how each tier is searched and judged, and what an unsearched or waived tier does to the status.
 * [Specificity search and assessment](specificity.md) - Plans remote BLAST tiers, re-aligns hits over the whole oligo, pairs products, scans for partners and rolls up by taxon.
 * [Strand and orientation of a record](strand-and-orientation.md) - Both strands are searched, so a record submitted as the reverse complement is found and judged like any other; only a record that starts or ends inside the amplicon is cut.

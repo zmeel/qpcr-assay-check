@@ -11,7 +11,54 @@ a release's, that installation is the release, unchanged, wherever it runs.
 
 ## [Unreleased]
 
+The off-target search tiers after the advisor's review of 2026-11-20 (docs/reviews). **Specificity
+results change against 2.2.0**: tiers are searched differently (balanced searches, a taxon in two
+tiers once, NOT the target where a tier contains it), so most searches are new BLAST submissions,
+and near neighbours are read cautiously. Rerun an assay before comparing it with an older record.
+
+### Added
+- **`specificity.tier_waivers`** (tier: reason): a required tier deliberately done without, e.g.
+  near neighbours when the closest relatives are in the organism list. The report prints the
+  reason, and the tier does not make the run Incomplete.
+- **`specificity.probe_scan_max_products`** (1,000): products fetched to re-align the probes in,
+  a budget of their own (review F3).
+- **`specificity.cautious_tiers`** (default `[near_neighbours]`): there a site graded at risk or
+  indeterminate primes or binds at warning level, a gapped probe site included, whatever
+  `probe_binds_if` says: the R1-R9 classes rest on near-identical sequences, as near neighbours
+  are (review F8).
+- **"Not detected (bounded)"**: where products remain without a re-aligned probe, or a tier's
+  product list was cut at `max_amplicons`, the code checks whether every probe site that could
+  bind (up to 2 mismatches, 1 for an MGB probe, no gap) is always reported by that tier's
+  searches, no list was cut, the probe passes the relevance filter with those mismatches, a
+  gapped probe site cannot bind in the tier and, for a cut list, no binding probe site lies on a
+  record beyond the cut. Then the finding is information instead of Incomplete; otherwise it says
+  which condition fails (review F3, F4).
+- Product findings count **distinct product patterns** by the sequences under the oligos (F4);
+  the reporting floor is given **per search** as well as per tier (F6).
+
 ### Changed
+- **Every searched tier is assessed** (review F1). A tier left out of
+  `specificity.off_target_tiers` used to be searched but not assessed, and its summary row read
+  No flags, even with a product the probe detects. `off_target_tiers` now only names the tiers a
+  run must search for No flags; its names (and those of `tier_waivers`, `cautious_tiers`) are
+  checked, and `target` is refused.
+- **A configured tier that was not searched, and an organism name that did not resolve, are
+  Incomplete above Review** (review F7): they only kept No flags away; next to a Review elsewhere
+  the gap showed only as a "Not assessed" row.
+- **Tier taxa are checked against the target's lineage and against each other** before a search
+  (review F2, `search/tiers.py`): the target itself or a taxon inside it outside `target.taxa` is
+  refused (an organism-list entry for a species of a genus target counted its genomes as targets
+  and as off-target products); a taxon that contains the target is searched with NOT the target
+  (an "Influenza A virus" entry for a subtype assay searched the target's own records); a taxon
+  listed in two tiers is searched once, in the more specific tier (human was searched twice with
+  the packaged list); descendants searched by a more specific tier are left out of a wider search.
+  A record of the target is set aside in any off-target tier.
+- **A tier's taxa are split into balanced searches** (review F6): 23 taxa as 12 + 11, not 20 + 3,
+  whose 3-taxon tail search set the whole HSV-2 exclusivity floor.
+- **`specificity.eukaryote_taxids`** is matched against the organism's NCBI lineage and defaults
+  to `[9606, 2759]` (Eukaryota; from NCBI Taxonomy, not yet checked live in this project): a
+  product of an RNA assay on a Candida or Trichomonas genomic record got no genomic-DNA note
+  (review F9).
 - **HSV-1, HSV-2 and VZV examples: status by release year** (`inclusivity.status_axis: release`;
   user, 2026-11-18 and 2026-11-19): in the HSV-1 run of 2026-11-17, 63.7% of its records had no
   collection year and one was collected 2023-2026; in the HSV-2 run of 2026-11-19, 46.5% had none
@@ -20,10 +67,18 @@ a release's, that installation is the release, unchanged, wherever it runs.
 - **HSV-1, HSV-2 and VZV examples: the closest relatives are near neighbours** (user,
   2026-11-19): each panel's first group (HSV-2 or HSV-1 and the macaque B virus; for VZV also
   simian varicella virus) moved from `exclusivity_organisms` to `near_neighbour_taxids`, so the
-  configured near-neighbour tier is searched instead of reading Not assessed. Same searches and
-  rules; the report shows them first and always.
+  configured near-neighbour tier is searched instead of reading Not assessed. The report shows
+  them first and always, and they are read cautiously (`cautious_tiers`, above).
 
 ### Fixed
+- **The exclusivity table groups hits by NCBI lineage** (review F5): a row resolved to a genus
+  ("Parechovirus") collected none of its species' hits; a hit now belongs to the most specific
+  row among its organism's ancestors. A row searched once in another tier says so and shows that
+  tier's evidence. The taxon restriction check counts the relevant hits by lineage (inside, set
+  aside, not checkable) instead of exact IDs, which read 0 of 1,649 for HSV-1.
+- **Probe re-alignment inside products was starved** by the partner scan, which shared its fetch
+  budget and went first: in the HSV-1 run of 2026-11-19 none of the 500 HSV-2 products was
+  searched for an unreported probe site (review F3).
 - **A partial BLAST hit that can only stay "minor" is re-aligned after all when the graded
   classes decide** (live influenza run, 2026-11-18): the filter that skipped such a fetch was
   written for the count-based levels, but since 2.2.0 a "minor" site graded tolerated (one

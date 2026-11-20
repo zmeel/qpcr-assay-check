@@ -213,7 +213,25 @@ mismatches a site may carry and still always be found ("Reported down to"). Next
 off-target primer site that forms no product, the tool fetches the sequence a product could span
 and aligns the partner primers in it (the *partner scan*), and it re-aligns the probes inside
 every product without a reported probe site, so a partner or probe site that BLAST's cut-off
-hid is still found (`specificity.partner_scan_max_windows`, default 1,000; 0 switches it off).
+hid is still found (`specificity.partner_scan_max_windows`, default 1,000 partner windows, 0
+switches it off; the products have a budget of their own, `specificity.probe_scan_max_products`,
+default 1,000). Where products remain without a re-aligned probe, the report says whether "not
+detected" is still bounded: every probe site that could bind (up to 2 mismatches, 1 for an MGB
+probe, no gap) is always reported by the tier's searches, so its absence is evidence.
+
+**Which tiers count.** Every tier that is searched is assessed (the target tier is a positive
+control). `specificity.off_target_tiers` names the tiers a run must search before its specificity
+can read No flags; a required tier that was not searched is Incomplete evidence, above Review.
+To do without one deliberately, waive it with a reason, e.g. in the assay's `settings:`
+`specificity: {tier_waivers: {near_neighbours: "the closest relatives are in the organism
+list"}}`; the report prints the reason. Before a real search the tool checks every tier's taxa
+against the target's NCBI lineage: the target itself, or a taxon inside it outside
+`target.taxa`, is refused; a taxon that contains the target (a genus around a species target) is
+searched with NOT the target; a taxon listed in two tiers is searched once, in the more specific
+one (near neighbours, out of scope, background, organism list). Taxa are split into balanced
+searches of at most `search.max_taxids_per_search`. In the near-neighbour tier
+(`specificity.cautious_tiers`) a site graded at risk or indeterminate primes or binds at warning
+level, a gapped probe site included.
 To skip the human background search (it takes about an hour), set `search.background_taxids: []`
 in a `--config` file. The search plan then warns, and the report's rationale states that
 off-target binding to human DNA was not evaluated.
@@ -445,6 +463,8 @@ Notes:
 - Degenerate (IUPAC) oligos are expanded (cap: `oligo.max_degenerate_expansions`, default 64);
   every variant is evaluated and the worst one decides.
 - `near_neighbour_taxids` and `exclusion_taxids` define the near-neighbour search tier of `search`.
+  They must lie outside the target (checked by NCBI lineage before a search); a taxon inside the
+  target belongs in `target.taxa` with its role.
 
 ### Several oligos per role, and oligo names (v1.3.0)
 

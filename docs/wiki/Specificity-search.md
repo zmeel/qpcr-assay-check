@@ -8,12 +8,12 @@ predicts which primer sites could form a PCR product.
 ## Tiers
 
 The search is split into **tiers**, each restricted to a set of taxa with BLAST's
-`ENTREZ_QUERY` (at most 20 taxa per search):
+`ENTREZ_QUERY` (at most 20 taxa per search, split into searches of balanced size):
 
 | Tier | Taxa | Role in the verdict |
 |---|---|---|
 | **target** | the assay's own target | not used for specificity; a check that the oligos still match the target (perfect full-length hits per oligo) |
-| **near neighbours** | taxa inside the target that must not be detected (e.g. rhinoviruses for an enterovirus assay) and exclusion taxa | off-target |
+| **near neighbours** | the target's closest relatives (`near_neighbour_taxids`), taxa inside the target that must not be detected (e.g. rhinoviruses for an enterovirus assay) and exclusion taxa | off-target, read cautiously |
 | **out of scope** | taxa inside the target that the assay may detect but that are not its purpose (e.g. animal enteroviruses) | information only ("also detects") |
 | **exclusivity** | the clinical organism list, resolved to taxonomy IDs | off-target |
 | **background** | human (taxid 9606) by default | off-target (genomic DNA in the specimen) |
@@ -22,6 +22,20 @@ The taxa excluded from the target (near neighbours) are left out of the target t
 and when the organism list names the assay's own target (a respiratory panel listing
 SARS-CoV-2, for a SARS-CoV-2 assay) the target is left out of the exclusivity tier, so the
 assay's own target is never counted as off-target.
+
+Before a search, every tier's taxa are checked against the target's NCBI lineage: the target
+itself or a taxon inside it (outside `target.taxa`) is refused, a taxon that contains the target
+is searched without it (NOT the target), and a taxon listed in two tiers is searched once, in the
+more specific tier (the packaged organism list names *Homo sapiens*, which the background tier
+searches). A record of the target that comes back in any off-target search is set aside.
+
+Every searched tier is assessed. `specificity.off_target_tiers` lists the tiers a run must
+search before specificity can read *No flags*; one that was not searched is *Incomplete*
+evidence, above *Review*. A required tier can be waived with a reason
+(`specificity.tier_waivers`), which the report prints. In the near-neighbour tier
+(`specificity.cautious_tiers`) a site graded *at risk* or *indeterminate* primes or binds at
+warning level, a gapped probe site too: the grading rests on near-identical sequences, which near
+neighbours are.
 
 ## Search settings
 
@@ -95,9 +109,14 @@ inside every product without a reported probe site, each probe is re-aligned end
 site of at least *warning* level is added, so a probe site hidden from BLAST still counts. In the
 scan an unknown template base (N or another ambiguity code) counts as a mismatch: a run of N is
 not evidence of a binding site. At most
-`specificity.partner_scan_max_windows` (1,000) fetches are made per run, partner windows first
-(strongest primer sites first), then products; beyond that the result is *Incomplete*. A tier
-whose product list was cut at `max_amplicons` is not scanned. Windows are cached. The scan cannot
+`specificity.partner_scan_max_windows` (1,000) partner windows are fetched per run (strongest
+primer sites first), and `specificity.probe_scan_max_products` (1,000) products, a budget of their
+own; beyond that the result is *Incomplete*, unless "not detected" is bounded: every probe site
+that could bind (up to 2 mismatches, 1 for an MGB probe, no gap) is always reported by that
+tier's searches, no hit list was cut, and the probe is long enough to pass the relevance filter
+with those mismatches. A tier whose product list was cut at `max_amplicons` is not scanned; the
+cut is *Incomplete*, unless no probe site that could give signal lies on a record beyond it and
+the bound holds, so the cut can hide only products the probe does not detect. Windows are cached. The scan cannot
 find a product of which BLAST reported neither primer site.
 
 A primer site that forms no product (no facing partner in range, also after the scan) is

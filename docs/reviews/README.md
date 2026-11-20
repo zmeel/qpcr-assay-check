@@ -131,5 +131,20 @@ list and the background tier), F3 (partner windows and probe re-alignment share 
 partner windows first; a tier cut at `max_amplicons` is not partner-scanned), F5 (the taxon
 restriction check and the exclusivity table compare exact IDs) and F7 (a missing tier or an
 unresolved name gives Incomplete only when the run or tier would otherwise read No flags) hold as
-described. The search-tiers page was corrected. No code change yet: the user decides what to
-take up.
+described. The search-tiers page was corrected.
+
+Taken up the same day (user: "Fix all. You can decide the order yourself"), in the order F1, F7,
+F2, F6, F5, F3 with F8, F4, F9: every searched tier assessed and tier waivers with a reason (F1);
+missing tiers and unresolved names Incomplete above Review (F7); tier taxa checked against the
+target's lineage and each other, a taxon in two tiers searched once (F2); balanced searches and
+the floor per search (F6); lineage in the exclusivity table and the restriction check (F5); a
+probe budget of its own and a "not detected (bounded)" computed in code (F3); near neighbours
+read cautiously, at risk and gapped sites acting at warning level (F8); a bounded cut at
+`max_amplicons` and distinct product patterns (F4); the eukaryote note by lineage (F9). The
+cautious rule was narrowed to warning level after a test showed a minor site of random sequence
+(a run of N) graded at risk.
+
+Not built: the exhaustive analysis of a near neighbour's own records (F4, the advisor's "stronger
+answer", a feature of its own), specimen panels and taxonomy-derived near-neighbour suggestions
+(F9, judgement; the NCBI Taxonomy query would need checking first). The 2759 = Eukaryota default
+is from NCBI Taxonomy and not yet checked live.

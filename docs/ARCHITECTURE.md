@@ -130,12 +130,18 @@ report and nothing else this project didn't already improve on.
   (`taxonomy.resolve.ancestors`, cached). A merged hit counts as inside if any of its records is;
   a record without a taxid, or whose lineage is unknown, counts as inside. The set-aside records
   are listed as an INFO finding; a failed lineage lookup keeps every hit and says so.
+- **Tier taxa are checked against the target and each other before planning** (2026-11-20,
+  `search/tiers.py`): the target or a taxon inside it outside `target.taxa` is refused, an ancestor
+  of the target is searched with NOT the target, a taxon in two tiers is searched once in the more
+  specific tier, and descendants searched by a more specific tier are left out of a wider search.
+  The assessment also sets aside any record of the target in an off-target tier.
 - **Saturation, site-cap truncation and failed fetches are never silently dropped**: they make the
   specificity verdict INCOMPLETE rather than a false PASS.
 - **Exclusivity reuses the specificity tier machinery, not a parallel implementation** (phase 4a):
   once the organism list is resolved to taxonomy IDs, "exclusivity" is planned, searched and
-  assessed exactly like `near_neighbours`/`background` (it is simply added to
-  `specificity.off_target_tiers`). `taxonomy/exclusivity.py` only adds SPEC.md step 8's own view
+  assessed exactly like `near_neighbours`/`background` (every searched tier but the target is
+  assessed; `specificity.off_target_tiers` only names the tiers that must be searched for No
+  flags, tiers review 2026-11-20). `taxonomy/exclusivity.py` only adds SPEC.md step 8's own view
   over that same evidence: one row per organism-list entry (including zero-hit organisms and names
   that did not resolve), plus its own tier-scoped verdict, rather than a second assessment.
 - **Name resolution never guesses** (`taxonomy/resolve.py`): `[Scientific Name]` first, then (if
@@ -180,7 +186,7 @@ report and nothing else this project didn't already improve on.
   like `taxonomy/rollup.py`, it needs no new `SectionResult` and does not affect `combine()`. It
   renders `SiteResult.q_aln`/`s_aln` through the existing `aln_html` filter.
 - **Target-tier sites are built separately, for the variant summary only**
-  (`assess_target_sites`): `assess_specificity` only builds sites for `off_target_tiers`, so the
+  (`assess_target_sites`): `assess_specificity` builds no sites for the target tier, so the
   first version of the variant summary, which filtered `specificity.sites` for `tier ==
   "target"`, was always empty on a real run (found in the first live report, 2026-09-23; its unit
   tests had constructed target sites by hand). Every target-tier HSP with at least
