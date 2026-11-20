@@ -623,9 +623,16 @@ that came from the assay file, and they count in the inputs hash (run budgets su
 ## Review status and exit codes
 
 The tool re-checks an assay that is already in use; it does not pass or fail the assay. The report
-opens with a summary table: per thing checked its scope, the result in numbers and a status,
-followed by a box for the reviewer's decision (no action,
-monitor, wet-lab check, redesign; filled in by the laboratory, never by the tool).
+is in three parts, printable on A4. **Part A**, the sign-off (about two pages): a sentence with how
+many checks exceed a limit, need review or lack evidence; the required statements in one line; a
+summary table, per thing checked its scope, the result in numbers, a status and a small figure
+(Tm per oligo against the primer bands, the status window against the limits, coverage, each
+off-target tier's closest primer site); target detection per year as stacked bars; per oligo
+where the target genomes differ from it; the first "Needs attention" rows; the findings that need
+a decision; and a box for the reviewer's decision (no action, monitor, wet-lab check, redesign;
+filled in by the laboratory, never by the tool). **Part B** holds the evidence in the order of the
+summary rows, **Part C** the rules text, methods, configuration and limitations. Every number in a
+figure is also in a table or in the workbook (sheets "Inclusivity" and "Mismatch positions").
 
 | Status | Code in results.json | Exit code | Meaning |
 |---|---|---|---|

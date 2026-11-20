@@ -160,5 +160,13 @@ two-page sign-off part, prose cuts and implementation notes. Checked the same da
 `<details>` sections are left out of the printed PDF (reproduced with a minimal page in
 Chromium: the print rule `details:not([open]) > *:not(summary)` has no effect), so the printed
 HSV-1 record lacked the oligo QC tables behind its one Exceeds-limit row; the page-1 line counts
-an Exceeds-limit row as "flagged for review". Nothing taken up yet: the user decides, and P3 needs
-the user's word on the decision of 2026-10-03 (no variant graph).
+an Exceeds-limit row as "flagged for review".
+
+Taken up the same day (user: "Yes, all in order"; P3 too: "Build P3 too"), with one change of
+the user's: the "Needs attention" rows keep their coloured layout on the sign-off pages, not the
+mock-up's plain dots (decision of 2026-11-20). P4 (the tier overview) is folded into the page-1
+table: each off-target row gets its tier's closest-site glyph, so the counts are not shown twice.
+The print fix is structural (nothing of the record in a closed `<details>`), with the advisor's
+`details::details-content` rule kept for what still folds on screen. Part A printed on two A4
+pages for the test reports; a long real record can run over. Not built: the optional
+Playwright print test (no Python Playwright in this environment).

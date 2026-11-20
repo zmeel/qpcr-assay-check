@@ -43,3 +43,11 @@ generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
   current rows with class chips, frequencies, dTm and highlighted mismatches are "much nicer and
   more informative". Recorded as a decision
   ([decision](../decisions/2026-11-20-needs-attention-keeps-its-colours.md)); nothing built yet.
+- The report review taken up in full (user: "Yes, all in order", "Build P3 too"): Part A, a
+  two-page sign-off (status sentence, required statements in one line, "What was checked" with a
+  small figure per row and the tier glyphs in place of a separate tier table, detection per year,
+  mismatch maps per oligo, the first Needs-attention rows as today, the findings that need a
+  decision, the decision box); Part B, the evidence; Part C, the appendix. Nothing of the record
+  folded any more (closed sections did not print). `report/charts.py` and `report/figures.py`
+  replace `plots.py`; workbook sheet "Mismatch positions". A QC message on a degenerate oligo
+  names its worst variant. Rendered with Chromium: Part A two A4 pages for the test reports.

@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-20T17:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-20T21:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -52,6 +52,10 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
   the exclusivity table and the restriction check, a probe budget of its own, "not detected
   (bounded)" and a bounded cut at `max_amplicons`, near neighbours read cautiously, the eukaryote
   note by lineage. **Specificity results change**: most searches are new submissions.
+- The report after the advisor's review of 2026-11-20: three parts (a two-page sign-off with
+  small figures, the evidence, an appendix), everything printable (closed sections did not
+  print), shorter prose, mismatch maps per oligo, the Needs-attention rows in their coloured
+  layout (user decision).
 
 The influenza A rerun of 2026-11-18 08:15Z and the HSV runs of 2026-11-19 ran on code from before
 the tiers review (commit `4b5f4f0`); every specificity result since needs a rerun on the new code.
@@ -96,11 +100,10 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   `cautious_tiers`, if that is not wanted. The new `eukaryote_taxids` default 2759 is Eukaryota
   (confirmed by the user, 2026-11-20). Not built: an exhaustive analysis of a near
   neighbour's own records, specimen panels, taxonomy-derived near-neighbour suggestions.
-- Advisor review of the HTML report (2026-11-20, [review](../reviews/2026-11-20-report-advisor.md)):
-  decide what to take up. Confirmed defect: closed sections do not print, so the printed record
-  lacks the oligo QC tables (HSV-1's Exceeds-limit evidence), the findings list and the
-  configuration. P3 (oligo-site mismatch maps) touches the decision of 2026-10-03, no variant
-  graph.
+- Report review (2026-11-20) taken up in full: a three-part report with a two-page sign-off and
+  figures ([report](components/report.md)). Look at the next real reports (HSV-1, HSV-2, VZV
+  reruns) on screen and printed, and say what to change; Part A may run over two pages for a long
+  record.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 

@@ -11,12 +11,21 @@ a release's, that installation is the release, unchanged, wherever it runs.
 
 ## [Unreleased]
 
-The off-target search tiers after the advisor's review of 2026-11-20 (docs/reviews). **Specificity
-results change against 2.2.0**: tiers are searched differently (balanced searches, a taxon in two
+The off-target search tiers and the report after the advisor's two reviews of 2026-11-20
+(docs/reviews). **Specificity results change against 2.2.0**: tiers are searched differently (balanced searches, a taxon in two
 tiers once, NOT the target where a tier contains it), so most searches are new BLAST submissions,
 and near neighbours are read cautiously. Rerun an assay before comparing it with an older record.
 
 ### Added
+- **A report in three parts, printable on A4** (advisor's report review of 2026-11-20, taken up
+  in full by the user): a two-page sign-off (status sentence, the required statements in one
+  line, "What was checked" with a small figure per row, target detection per year as stacked
+  bars with the status window bracketed, per-oligo mismatch maps, the first "Needs attention"
+  rows in their coloured layout, the findings that need a decision, the decision box); the
+  evidence in the order of the summary rows; an appendix with the rules text, methods,
+  configuration and limitations. Figures are inline SVG (`report/charts.py`), colour plus
+  texture per class so they read in greyscale; every number in a figure is also in a table or
+  the workbook (new sheet "Mismatch positions").
 - **`specificity.tier_waivers`** (tier: reason): a required tier deliberately done without, e.g.
   near neighbours when the closest relatives are in the organism list. The report prints the
   reason, and the tier does not make the run Incomplete.
@@ -71,6 +80,18 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   them first and always, and they are read cautiously (`cautious_tiers`, above).
 
 ### Fixed
+- **The printed report left out every folded section** (report review): the print rule meant to
+  open closed `<details>` had no effect in current browsers, so a printed record lacked the oligo
+  QC tables (the evidence of HSV-1's Exceeds limit), the findings and the configuration. Nothing
+  of the record is folded now.
+- **Shorter prose** (report review): the mismatch classes, the primer-pair rule and the window
+  rules once, in the appendix; distinct site patterns once; the score floor as a table; organisms
+  without a site on one line and sites named by their mismatches instead of internal IDs; closest
+  off-target sites that bind the same way merged; per oligo the records by class instead of
+  "Perfect in 0 of 614"; the per-oligo tables per year in the workbook only. The page-1 line no
+  longer counts an Exceeds-limit row as "flagged for review". A QC message on a degenerate oligo
+  names its worst variant and the range (it named the first, between the range and the chart's
+  midpoint).
 - **The exclusivity table groups hits by NCBI lineage** (review F5): a row resolved to a genus
   ("Parechovirus") collected none of its species' hits; a hit now belongs to the most specific
   row among its organism's ancestors. A row searched once in another tier says so and shows that

@@ -96,8 +96,8 @@ got.
 
 Each section gets a status: **No flags**, **Review** (a review limit you configured was crossed),
 **Exceeds limit** (a hard limit was crossed) or **Incomplete** (evidence is missing). The tool
-does not pass or fail an assay: the reviewer decides, and the report ends with a box for that
-decision. The inclusivity status uses the whole fragment (forward, probe and reverse together)
+does not pass or fail an assay: the reviewer decides, and the report's first two pages end with a
+box for that decision. The inclusivity status uses the whole fragment (forward, probe and reverse together)
 over the last three complete release years plus the current one: below 95% detectable is
 Review, below 80% Exceeds limit (both configurable), and fewer than 100 genomes in that window
 is Incomplete. Each channel is judged the same way on its own target, and the inclusivity status
@@ -109,7 +109,7 @@ Each run writes a new folder `results/<assay>/<run id>/` that is never overwritt
 
 | File | Content |
 |---|---|
-| `report.html` | The self-contained report (no scripts, no external requests), for review and archiving |
+| `report.html` | The self-contained report (no scripts, no external requests), for review and archiving: a two-page sign-off with small figures (status per check, detection per year, where the target differs from each oligo), the evidence, and an appendix with rules, methods and configuration; all of it prints |
 | `results.json` | Every number and site in machine-readable form |
 | `results.xlsx` | Every row the report condenses: sites, variants, products, genomes per outcome |
 | `hits.tsv` | Every assessed off-target site |
