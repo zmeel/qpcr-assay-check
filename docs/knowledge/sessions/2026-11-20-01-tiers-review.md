@@ -31,3 +31,5 @@ generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
   Eukaryota, not checked live). Not built: an exhaustive analysis of a near neighbour's records,
   specimen panels, taxonomy-derived near-neighbour suggestions. The fake NCBI in the tests now
   answers Taxonomy EFetch. User guide, wiki page Specificity-search and ARCHITECTURE updated.
+- The user confirmed that NCBI Taxonomy 2759 is Eukaryota; the notes saying it was unchecked
+  are updated (default configuration comment, CHANGELOG, status, reviews README).

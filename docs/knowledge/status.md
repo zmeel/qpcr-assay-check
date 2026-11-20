@@ -93,8 +93,8 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   products now get their probe re-aligned (own budget), but the near-neighbour tier stays
   Incomplete at the 500-product cap, as near neighbours are a cautious tier where a gapped probe
   site could bind unreported; raise `max_amplicons` for HSV-1, or take near neighbours out of
-  `cautious_tiers`, if that is not wanted. Check that NCBI Taxonomy 2759 is Eukaryota (the new
-  `eukaryote_taxids` default; not checked live). Not built: an exhaustive analysis of a near
+  `cautious_tiers`, if that is not wanted. The new `eukaryote_taxids` default 2759 is Eukaryota
+  (confirmed by the user, 2026-11-20). Not built: an exhaustive analysis of a near
   neighbour's own records, specimen panels, taxonomy-derived near-neighbour suggestions.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.

@@ -56,7 +56,7 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
 - **A tier's taxa are split into balanced searches** (review F6): 23 taxa as 12 + 11, not 20 + 3,
   whose 3-taxon tail search set the whole HSV-2 exclusivity floor.
 - **`specificity.eukaryote_taxids`** is matched against the organism's NCBI lineage and defaults
-  to `[9606, 2759]` (Eukaryota; from NCBI Taxonomy, not yet checked live in this project): a
+  to `[9606, 2759]` (2759 = Eukaryota in NCBI Taxonomy, confirmed by the user 2026-11-20): a
   product of an RNA assay on a Candida or Trichomonas genomic record got no genomic-DNA note
   (review F9).
 - **HSV-1, HSV-2 and VZV examples: status by release year** (`inclusivity.status_axis: release`;

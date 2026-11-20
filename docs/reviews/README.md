@@ -147,4 +147,4 @@ cautious rule was narrowed to warning level after a test showed a minor site of 
 Not built: the exhaustive analysis of a near neighbour's own records (F4, the advisor's "stronger
 answer", a feature of its own), specimen panels and taxonomy-derived near-neighbour suggestions
 (F9, judgement; the NCBI Taxonomy query would need checking first). The 2759 = Eukaryota default
-is from NCBI Taxonomy and not yet checked live.
+was confirmed by the user on 2026-11-20.
