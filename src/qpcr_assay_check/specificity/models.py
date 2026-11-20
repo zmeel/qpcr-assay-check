@@ -191,3 +191,9 @@ class SpecificityResult(BaseModel):
     limitations: list[str] = Field(default_factory=list)
     score_floors: list[ScoreFloor] = Field(default_factory=list)
     partner_scan: PartnerScan | None = None
+    restriction_by_lineage: dict[str, dict[str, int]] = Field(
+        default_factory=dict,
+        description="per tier, the relevant hits by the NCBI lineage of their organism: inside "
+        "the tier's taxa, set aside (outside them, or the target itself) and not checkable (no "
+        "taxid or lineage); empty without lineages (tiers review 2026-11-20, F5)",
+    )

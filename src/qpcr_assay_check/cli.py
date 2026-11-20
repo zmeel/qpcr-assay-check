@@ -344,9 +344,15 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
             ttl_days=cfg.ncbi.taxonomy_cache_ttl_days,
         )  # fmt: skip
         taxon_species = {t: lin.species for t, lin in lineages.items() if lin.species}
+        # and the full ancestors (same cached EFetch): a hit belongs to the most specific
+        # organism-list row among its ancestors (tiers review 2026-11-20, F5)
+        taxon_ancestors = ancestors(
+            eutils, remote.cache, sorted(site_taxids | set(excl_taxids)),
+            ttl_days=cfg.ncbi.taxonomy_cache_ttl_days,
+        )  # fmt: skip
     except NcbiError as exc:
         log.warning("Could not fetch taxonomy lineages for exclusivity grouping: %s", exc)
-        taxon_species = {}
+        taxon_species, taxon_ancestors = {}, {}
     exhaustive, variant_note = None, None
     # Every genome assembly (datasets) or every Nucleotide record (blast_partitioned) of the
     # target, not the target tier's BLAST hits (a sample; removed, user decision 2026-09-29).
@@ -396,6 +402,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         organism_resolution=remote.organism_resolution,
         taxonomy_breakdown=breakdown,
         taxon_species=taxon_species,
+        taxon_ancestors=taxon_ancestors,
         inclusivity=exhaustive.inclusivity if exhaustive is not None else None,
         target_sites=exhaustive.sites if exhaustive is not None else None,
         variant_coverage=exhaustive.coverage if exhaustive is not None else None,

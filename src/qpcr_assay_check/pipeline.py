@@ -84,6 +84,7 @@ def evaluate(
     organism_resolution: OrganismListResolution | None = None,
     taxonomy_breakdown: list[TaxonCount] | None = None,
     taxon_species: dict[int, str] | None = None,
+    taxon_ancestors: dict[int, set[int]] | None = None,
     inclusivity: InclusivityResult | None = None,
     target_sites: list[SiteResult] | None = None,
     variant_coverage: ExhaustiveCoverage | None = None,
@@ -180,6 +181,12 @@ def evaluate(
             tier_searched=tier_searched,
             target_taxid=assay.target.taxid,
             taxon_species=taxon_species,
+            taxon_ancestors=taxon_ancestors,
+            tier_of=(
+                {t: r.tier for r in search_outcome.searches for t in r.taxids}
+                if search_outcome
+                else None
+            ),
         )
         n_hit = sum(1 for r in exclusivity.rows if r.n_sites)
         note = f"{exclusivity.n_resolved}/{exclusivity.n_organisms} organism name(s) resolved"

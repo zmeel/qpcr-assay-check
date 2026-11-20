@@ -442,6 +442,10 @@ table.frag .site-tm { display: block; font-size: .78rem; line-height: 1.3; margi
     {% if row.is_target %}
     <td class="note" colspan="3">assay's own intended target — excluded from this search (a
       match here is expected and is not evidence of cross-reactivity)</td>
+    {% elif row.searched_in %}
+    <td class="num">{{ row.n_sites }}</td>
+    <td colspan="2" class="note">searched once, in the {{ row.searched_in | replace('_', '-') }} tier, where its
+      evidence counts{% if row.best_site_level %} (best site {{ chip(row.best_site_level) }} {{ row.best_site_id }}){% endif %}</td>
     {% else %}
     <td class="num">{{ row.n_sites }}</td>
     <td>{% if row.best_site_level %}{{ chip(row.best_site_level) }} {{ row.best_site_id }}{% else %}none{% endif %}</td>
@@ -693,8 +697,9 @@ table.frag .site-tm { display: block; font-size: .78rem; line-height: 1.3; margi
   {% set bp = spec.parameters.blast %}
   <tr><th scope="row">Database searched</th><td>{{ spec.parameters.databases | join(', ') or 'not reported' }}; {{ spec.parameters.blast_versions | join(', ') }}</td></tr>
   <tr><th scope="row">BLAST parameters</th><td>{% for k, v in bp.items() %}{{ k }} = {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
-  <tr><th scope="row">Taxon restriction check</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none{% if not loop.last %}<br>{% endif %}{% endfor %}<br>
-    <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight. These counts compare exact taxon IDs only; a hit filed under a descendant strain is counted as “another”, since the restriction itself is not checked by lineage.</span></td></tr>
+  {% set lin = spec.restriction_by_lineage or {} %}
+  <tr><th scope="row">Taxon restriction check</th><td>{% for t in search_rows %}{% set c = lin.get(t.tier) %}{% if c %}{{ t.tier }}: {{ c.inside }} of {{ c.inside + c.set_aside + c.not_checkable }} relevant hits inside the tier's taxa by NCBI lineage, {{ c.set_aside }} set aside (outside them, or the target itself), {{ c.not_checkable }} not checkable{% else %}{{ t.tier }}: {{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID exactly, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}<br>
+    <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight, so every relevant hit is checked by the NCBI lineage of its organism and set aside when outside the tier's taxa; a hit without a taxid or lineage counts as inside. Where no lineage could be read, the counts compare exact taxon IDs only, and a hit filed under a descendant strain counts as “another”.</span></td></tr>
   <tr><th scope="row">Re-alignment</th><td>Semi-global, affine gaps: match {{ spec.parameters.alignment.match }}, mismatch {{ spec.parameters.alignment.mismatch }},
     gap {{ spec.parameters.alignment.gap_open }} + {{ spec.parameters.alignment.gap_extend }} per base; partial hits completed from sequence windows fetched with E-utilities efetch ({{ spec.parameters.window_padding_nt }} nt padding)</td></tr>
   <tr><th scope="row">Search and RIDs</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.rids | join(', ') }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>

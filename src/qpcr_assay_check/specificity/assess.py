@@ -197,6 +197,7 @@ def assess_specificity(
     lineage, lineage_problem = _lineages(plan, parsed, assessed, ancestors_of, min_identical)
     target, inside_ok = assay.target.taxid, frozenset(assay.target.excluded_taxids)
     set_aside: dict[str, dict[str, str]] = defaultdict(dict)  # tier -> accession -> organism
+    by_lineage: dict[str, dict[str, int]] = {}
 
     for ps in plan.searches:
         if ps.tier not in assessed or ps.key not in parsed:
@@ -212,11 +213,19 @@ def assess_specificity(
             hits = q.hits
             if lineage is not None and wanted:
                 hits = []
+                count = by_lineage.setdefault(
+                    ps.tier, {"inside": 0, "set_aside": 0, "not_checkable": 0}
+                )
                 for hit in _relevant(q.hits, min_identical):
                     kept = _in_tier(hit, wanted, lineage, target, inside_ok)
+                    checkable = any(
+                        d.taxid is not None and d.taxid in lineage for d in hit.descriptions
+                    )
                     if kept is not None:
                         hits.append(kept)
+                        count["inside" if checkable else "not_checkable"] += 1
                     else:  # only a hit with records can be outside
+                        count["set_aside"] += 1
                         d = hit.descriptions[0]
                         set_aside[ps.tier][d.accession_version or d.accession or "?"] = (
                             d.sciname or "?"
@@ -414,6 +423,7 @@ def assess_specificity(
         ],
         score_floors=score_floors,
         partner_scan=scan,
+        restriction_by_lineage=by_lineage,
     )
 
 

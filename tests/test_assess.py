@@ -501,3 +501,16 @@ def test_a_record_of_the_target_is_never_an_off_target_site(tmp_path):
     )
     assert {s.accession for s in res.sites} == {ACC}
     assert any("set aside" in f.message and LEAK_ACC in f.message for f in res.findings)
+
+
+def test_the_restriction_check_counts_by_lineage(tmp_path):
+    # tiers review 2026-11-20, F5: exact taxon IDs read "0 of N" when records sit below the
+    # requested taxon; the lineage check the assessment already makes is the meaningful count
+    w = leaked_world()
+    offtarget_genome(acc="OT000002.1", taxid=101, name="Strain below NEAR", world=w)
+    add_all(w, taxid=NEAR, acc="OT000002.1")
+    res, _, _ = run(w, tmp_path, ancestors_of=lineage_of)
+    assert res.restriction_by_lineage["near_neighbours"] == {
+        "inside": 6, "set_aside": 3, "not_checkable": 0
+    }  # fmt: skip
+    assert run(leaked_world(), tmp_path / "plain")[0].restriction_by_lineage == {}

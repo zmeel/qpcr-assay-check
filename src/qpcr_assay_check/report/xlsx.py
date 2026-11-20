@@ -277,7 +277,9 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
              "Predicted product"],
             [
                 [row.organism,
-                 "target (excluded)" if row.is_target else row.resolution,
+                 "target (excluded)" if row.is_target
+                 else f"{row.resolution}, searched in the {row.searched_in} tier"
+                 if row.searched_in else row.resolution,
                  row.taxid or "", row.n_sites, row.best_site_id or "", row.best_site_level or "",
                  row.amplicon_classification or ("no" if not row.amplicon_predicted else "")]
                 for row in excl.rows

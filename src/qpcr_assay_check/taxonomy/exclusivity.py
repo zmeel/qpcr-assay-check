@@ -37,6 +37,12 @@ class ExclusivityRow(BaseModel):
             "cross-reactivity, not a genuine off-target finding"
         ),
     )
+    searched_in: str | None = Field(
+        default=None,
+        description="the tier that searched this taxon when it is not the organism list's own: "
+        "a taxon listed for a more specific tier too (e.g. Homo sapiens, the background tier) is "
+        "searched once, there, and its evidence counts there (tiers review 2026-11-20, F2)",
+    )
     n_sites: int = 0
     best_site_id: str | None = None
     best_site_level: Literal["critical", "warning", "minor"] | None = None
@@ -102,6 +108,8 @@ def build_exclusivity(
     tier_searched: bool,
     target_taxid: int | None = None,
     taxon_species: dict[int, str] | None = None,
+    taxon_ancestors: dict[int, set[int]] | None = None,
+    tier_of: dict[int, str] | None = None,
 ) -> ExclusivityResult:
     """Group the exclusivity tier's already-assessed sites/amplicons by organism-list entry.
 
@@ -121,25 +129,57 @@ def build_exclusivity(
     organism-list row that is the assay's own intended target (see ``ExclusivityRow.is_target``):
     that taxid is never searched as part of this tier (see ``search/execute.py``), so its row is
     never populated from ``sites``/``amplicons`` here either, even defensively.
+
+    ``taxon_ancestors`` (taxid -> NCBI ancestors, itself included): a hit belongs to the row
+    whose taxon is among its organism's ancestors, the most specific such row when several are
+    (tiers review 2026-11-20, F5: a row resolved to a genus, "Parechovirus", collected none of
+    its species' hits); without a lineage, the species grouping above decides, as before.
+    ``tier_of`` (taxid -> tier that searched it): a row searched in another tier collects that
+    tier's evidence and says so.
     """
     taxon_species = taxon_species or {}
+    taxon_ancestors = taxon_ancestors or {}
+    tier_of = tier_of or {}
+    resolutions = resolution.resolutions if resolution else []
+    row_taxa = [r.taxid for r in resolutions if r.taxid is not None and r.taxid != target_taxid]
 
-    def group_key(taxid: int) -> str:
+    def depth(taxid: int) -> int:
+        return len(taxon_ancestors.get(taxid, ()))
+
+    def species_key(taxid: int) -> str:
         species = taxon_species.get(taxid)
         return f"species:{species}" if species else f"taxid:{taxid}"
 
+    def row_of(taxid: int) -> int | None:
+        """The row a hit organism belongs to: by lineage, else by species or exact taxid."""
+        line = taxon_ancestors.get(taxid)
+        if line:
+            inside = [r for r in row_taxa if r in line]
+            if inside:
+                return max(inside, key=lambda r: (depth(r), r))
+        key = species_key(taxid)
+        return next((r for r in row_taxa if species_key(r) == key), None)
+
+    def tier_for(taxid: int) -> str:
+        return tier_of.get(taxid, "exclusivity")
+
+    sites_by_row: dict[int, list[SiteResult]] = {}
+    for s in sites:
+        if s.taxid is None:
+            continue
+        row = row_of(s.taxid)
+        if row is not None and s.tier == tier_for(row):
+            sites_by_row.setdefault(row, []).append(s)
+    amplicons_by_row: dict[int, list[AmpliconResult]] = {}
+    for a in amplicons:
+        if a.taxid is None:
+            continue
+        row = row_of(a.taxid)
+        if row is not None and a.tier == tier_for(row):
+            amplicons_by_row.setdefault(row, []).append(a)
     excl_sites = [s for s in sites if s.tier == "exclusivity"]
     excl_amplicons = [a for a in amplicons if a.tier == "exclusivity"]
-    sites_by_key: dict[str, list[SiteResult]] = {}
-    for s in excl_sites:
-        if s.taxid is not None:
-            sites_by_key.setdefault(group_key(s.taxid), []).append(s)
-    amplicons_by_key: dict[str, list[AmpliconResult]] = {}
-    for a in excl_amplicons:
-        if a.taxid is not None:
-            amplicons_by_key.setdefault(group_key(a.taxid), []).append(a)
 
-    resolutions = resolution.resolutions if resolution else []
     rows: list[ExclusivityRow] = []
     for r in resolutions:
         is_target = r.taxid is not None and r.taxid == target_taxid
@@ -147,13 +187,14 @@ def build_exclusivity(
             organism=r.name, taxid=r.taxid, resolution=r.status, is_target=is_target
         )
         if r.taxid is not None and not is_target:
-            key = group_key(r.taxid)
-            hits = sites_by_key.get(key, [])
+            if tier_for(r.taxid) != "exclusivity":
+                row.searched_in = tier_for(r.taxid)
+            hits = sites_by_row.get(r.taxid, [])
             row.n_sites = len(hits)
             if hits:
                 best = _best(hits)
                 row.best_site_id, row.best_site_level = best.id, best.level
-            amps = amplicons_by_key.get(key, [])
+            amps = amplicons_by_row.get(r.taxid, [])
             if amps:
                 row.amplicon_predicted = True
                 row.amplicon_classification = (

@@ -231,3 +231,36 @@ def test_amplicons_are_grouped_by_species_too():
     out = build_exclusivity(res, [], amps, SEV, tier_searched=True, taxon_species=species)
     (row,) = out.rows
     assert row.amplicon_predicted and row.amplicon_classification == "likely_detected"
+
+
+def test_a_hit_belongs_to_the_most_specific_row_among_its_ancestors():
+    """Tiers review 2026-11-20, F5: a row resolved to a genus collected none of its species'
+    hits (grouping by species name or exact taxid)."""
+    genus, species, strain, other = 10, 11, 12, 20
+    anc = {genus: {genus, 1}, species: {species, genus, 1}, strain: {strain, species, genus, 1},
+           other: {other, genus, 1}}  # fmt: skip
+    res = resolution(
+        Resolution(name="Parechovirus", status="resolved", taxid=genus),
+        Resolution(name="Parechovirus A", status="resolved", taxid=species),
+    )
+    out = build_exclusivity(
+        res, [site(strain, "forward", "critical"), site(other, "reverse", "warning")], [], SEV,
+        tier_searched=True, taxon_ancestors=anc,
+    )  # fmt: skip
+    rows = {r.organism: r for r in out.rows}
+    assert rows["Parechovirus A"].n_sites == 1  # the strain: the species row, not the genus
+    assert rows["Parechovirus"].n_sites == 1  # another species of the genus
+    # without lineages: by species name or exact taxid, as before
+    plain = build_exclusivity(
+        res, [site(strain, "forward", "critical")], [], SEV, tier_searched=True
+    )
+    assert all(r.n_sites == 0 for r in plain.rows)
+
+
+def test_a_row_searched_in_another_tier_says_so_and_shows_that_tier_s_evidence():
+    res = resolution(Resolution(name="Homo sapiens", status="resolved", taxid=9606))
+    human = site(9606, "forward", "critical").model_copy(update={"tier": "background"})
+    out = build_exclusivity(res, [human], [], SEV, tier_searched=True, tier_of={9606: "background"})
+    (row,) = out.rows
+    assert row.searched_in == "background" and row.n_sites == 1
+    assert out.verdict is Verdict.PASS  # counted in the background tier, not twice
