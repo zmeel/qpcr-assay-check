@@ -39,3 +39,7 @@ generated: { by: claude-code/agent, at: 2026-11-20T10:00:00Z }
   ([review](../../reviews/2026-11-20-report-advisor.md)), its mock-up stayed in the session's scratch
   folder. Checked: closed `<details>` sections do not print (reproduced); the page-1 line counts
   an Exceeds-limit row as flagged for review. Nothing built yet.
+- The user likes the redesigned report of the mock-up, except its Needs-attention part: the
+  current rows with class chips, frequencies, dTm and highlighted mismatches are "much nicer and
+  more informative". Recorded as a decision
+  ([decision](../decisions/2026-11-20-needs-attention-keeps-its-colours.md)); nothing built yet.
