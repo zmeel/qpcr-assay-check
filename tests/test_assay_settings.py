@@ -153,3 +153,35 @@ def test_init_writes_the_same_full_template(tmp_path):
     r = CliRunner().invoke(app, ["init", str(tmp_path)])
     assert r.exit_code == 0, r.output
     assert (tmp_path / "assay.yaml").read_text() == TEMPLATE.read_text()
+
+
+def test_the_record_lists_the_limits_and_every_setting_that_differs_from_the_defaults(tmp_path):
+    """Report review 2026-11-20, second round: the full configuration dump went to the workbook;
+    the record keeps the limits that applied and the settings that differ, with their source."""
+    from datetime import UTC, datetime
+
+    from qpcr_assay_check.config import load_config
+    from qpcr_assay_check.models import Assay
+    from qpcr_assay_check.pipeline import evaluate
+    from qpcr_assay_check.report.html import render_report
+
+    lab = tmp_path / "lab.yaml"
+    lab.write_text("reaction: {annealing_temp_C: 58}\ninclusivity: {warn_below_percent: 90}\n")
+    assay = Assay.model_validate(
+        _filled(TEMPLATE.read_text()) | {"settings": {"inclusivity": {"status_axis": "collection"}}}
+    )
+    cfg = load_config(lab, assay.settings)
+    html = render_report(
+        evaluate(assay, cfg, qc_only=True, now=datetime(2026, 1, 1, tzinfo=UTC)), cfg
+    )
+    limits = html[html.index('<h3 id="limits">') :]
+    assert "<code>inclusivity.warn_below_percent</code></td><td>90.0" in limits
+    assert (
+        "<td><code>reaction.annealing_temp_C</code></td><td>58.0</td><td>60.0</td>"
+        "<td>configuration file</td>" in limits
+    )
+    assert (
+        "<code>inclusivity.status_axis</code></td><td>collection</td><td>release</td><td>assay file"
+        in limits
+    )
+    assert "<pre>schema_version" not in html  # the dump itself is in the workbook

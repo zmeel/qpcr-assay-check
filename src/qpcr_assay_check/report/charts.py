@@ -183,7 +183,8 @@ def tm_strip(
         return ""
     lo = min([r.tm_min for r in rows] + [lim[0], anneal]) - 2
     hi = max([r.tm_max for r in rows] + [lim[1]]) + 2
-    left, row = 64, 15
+    left, row = max(64, 6 + 6 * max(len(r.name) for r in rows)), 15
+    width = max(width, left + 160)
 
     def x(v: float) -> float:
         return left + (width - left - 6) * (v - lo) / (hi - lo)
@@ -201,7 +202,7 @@ def tm_strip(
                 f'stroke="{MUTED}" stroke-dasharray="3 2"/>')  # fmt: skip
     for i, r in enumerate(rows):
         y = i * row + row / 2
-        name = escape(r.name if len(r.name) <= 11 else r.name[:10] + "…")
+        name = escape(r.name)
         tm = f"{r.tm_min:.1f}" if r.tm_max - r.tm_min < 0.05 else f"{r.tm_min:.1f}–{r.tm_max:.1f}"
         title = f"{escape(r.name)}: Tm {tm} °C"
         body.append(f'<text x="0" y="{y + 3.5:.1f}" font-size="10" fill="{INK}">{name}</text>')

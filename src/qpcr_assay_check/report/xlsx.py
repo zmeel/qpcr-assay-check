@@ -261,6 +261,20 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             ],
             None,
         )  # fmt: skip
+        from .html import hits_per_query
+
+        _sheet(
+            wb, "Hits per query",
+            ["Tier", "Query", "BLAST hits", "List reached its size limit",
+             "Relevant hits possibly cut", "Relevant alignments", "Assessed",
+             "Cut by max_sites_per_query", "Reported down to (score)",
+             "Always reported up to (mismatches, no gap)", "Search space"],
+            [[q["tier"], q["query"], q["hits"], "yes" if q["list_reached"] else "no",
+              "yes" if q["possibly_cut"] else "no", q["relevant"], q["assessed"],
+              "yes" if q["cut_by_cap"] else "no", q["score"], q["mismatches"], q["space"]]
+             for q in hits_per_query(spec)],
+            None,
+        )  # fmt: skip
         _sheet(
             wb,
             "Findings",
@@ -511,6 +525,16 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
              "Site indeterminate", "Genomes with a gap"],
             positions, None,
         )  # fmt: skip
+    from ..config import load_config
+    from .html import _flat, _plain
+
+    defaults = _flat(load_config().model_dump(mode="json"))
+    _sheet(
+        wb, "Configuration", ["Setting", "Value", "Default", "Differs"],
+        [[k, _plain(v), _plain(defaults.get(k, "")), "yes" if defaults.get(k) != v else ""]
+         for k, v in _flat(result.config).items()],
+        None,
+    )  # fmt: skip
     _sheet(
         wb,
         "Sections",

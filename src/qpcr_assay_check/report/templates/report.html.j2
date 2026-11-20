@@ -21,7 +21,7 @@
 html { background: var(--paper); }
 body { margin: 0; color: var(--ink); font-family: var(--serif); font-size: 17px; line-height: 1.55; }
 main { max-width: 96rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
-h1, h2, h3, table, .chip, .meta, .rec { font-family: var(--sans); }
+h1, h2, h3, h4, table, .chip, .meta, .rec { font-family: var(--sans); }
 h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .35rem; }
 h2 { font-size: 1.25rem; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
 h3 { font-size: 1rem; margin: 1.75rem 0 .5rem; }
@@ -91,6 +91,15 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   table.summary th[scope=row] { min-width: 0; }
   pre.aln.compact, .seq { font-size: 7.6pt; }
   td.org { min-width: 0; } table.frag td.types { min-width: 0; }
+  /* nothing is cut off at the page edge: tables wrap instead of scrolling (report review
+     2026-11-20, second round: seven tables of the HSV-1 record were wider than the page, and
+     the reverse primer's 3' end did not print) */
+  .scroll { overflow: visible; }
+  td.num, .nowrap, td.aln-cell, table.frag th .seq { white-space: normal; }
+  table.frag td.aln-cell, table.frag td.num { min-width: 0; }
+  table.frag, table.frag pre.aln.compact, table.frag .seq { font-size: 6.8pt; letter-spacing: 0; }
+  pre.aln { font-size: 6.6pt; }
+  td { overflow-wrap: anywhere; } th { overflow-wrap: normal; }
 }
 .s-critical, .s-likely_detected { background: var(--fail-bg); color: var(--fail); }
 .s-warning, .s-amplified_not_detected { background: var(--warn-bg); color: var(--warn); }
@@ -125,6 +134,8 @@ svg.years, svg.sitemap { margin: .25rem 0; }
 .legend-line { font-family: var(--sans); font-size: .82rem; color: var(--muted); }
 .chip .ico { margin-right: .25rem; }
 table.floors td, table.floors th { white-space: nowrap; }
+table.qcm th[scope=row] { font-weight: 600; background: none; white-space: normal; }
+table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 .maps { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; align-items: flex-end; }
 </style>
 </head>
@@ -165,12 +176,14 @@ table.floors td, table.floors th { white-space: nowrap; }
     Inputs hash (SHA-256): <code>{{ r.inputs_hash }}</code>
   </p>
 </header>
+<p class="meta">Part A Sign-off · Part B Evidence · Part C Appendix (rules, limits, methods, required statements)</p>
+<p class="part part-a">Part A · Sign-off</p>
 {% set n_fail = summary | selectattr('css', 'equalto', 'FAIL') | list | length %}
 {% set n_warn = summary | selectattr('css', 'equalto', 'WARN') | list | length %}
 {% set n_inc = summary | selectattr('css', 'equalto', 'INCOMPLETE') | list | length %}
 <p class="status-line">{{ chip(r.overall.verdict.value) }}
   {% set parts = [] %}{% if n_fail %}{% set _ = parts.append(n_fail ~ (' check exceeds a limit' if n_fail == 1 else ' checks exceed a limit')) %}{% endif %}{% if n_warn %}{% set _ = parts.append(n_warn ~ (' check needs review' if n_warn == 1 else ' checks need review')) %}{% endif %}{% if n_inc %}{% set _ = parts.append(n_inc ~ (' check has incomplete evidence or was not assessed' if n_inc == 1 else ' checks have incomplete evidence or were not assessed')) %}{% endif %}{{ (parts | join(', ')) if parts else 'No check crossed a limit and no evidence is missing' }} ({{ summary | length }} checks).</p>
-<p class="statement"><strong>In silico analysis does not replace experimental validation</strong>, and the laboratory verifies this software within its own quality system before relying on it (full text: Required statements, appendix).</p>
+<p class="statement"><strong>In silico analysis does not replace experimental validation</strong>, and the laboratory verifies this software within its own quality system before relying on it (full text: Part C, Required statements).</p>
 <h2 id="summary" class="first">What was checked</h2>
 <p>The status marks where a limit you configured was crossed or evidence is missing; it is not a pass or fail of the assay. The laboratory decides what to do (reviewer's decision below).</p>
 <div class="scroll"><table class="summary">
@@ -185,7 +198,7 @@ table.floors td, table.floors th { white-space: nowrap; }
   {% endfor %}
   </tbody>
 </table></div>
-<p class="legend-line">○ No flags, no limit crossed · △ Review, a review (WARN) limit was crossed · ▲ Exceeds limit, a FAIL limit was crossed · ◌ Incomplete or Not assessed: evidence is missing, which never counts as no flags. Limits: Methods (appendix). Each row's evidence is in Part B. In the off-target rows, the small figure is the tier's closest primer site, one cell per base: black a mismatch, grey an unread base, the 3′ end underlined.</p>
+<p class="legend-line">○ No flags, no limit crossed · △ Review, a review (WARN) limit was crossed · ▲ Exceeds limit, a FAIL limit was crossed · ◌ Incomplete or Not assessed: evidence is missing, which never counts as no flags. Limits: Part C, <a href="#limits">Limits applied</a>. Each row's evidence is in Part B. In the off-target rows, the small figure is the tier's closest primer site, one cell per base: black a mismatch, grey an unread base, the 3′ end underlined.</p>
 {% if figures.years %}
 <figure>{{ figures.years }}<figcaption>Target detection per {{ 'collection' if r.inclusivity.status_axis == 'collection' else 'release' }} year: the share of {{ 'records' if nuc else 'genomes' }} with the region in each outcome, the count and the classes that are not detectable beside each bar; the status window is bracketed; years with fewer than {{ r.config.inclusivity.min_genomes_per_year | default(30) }} judged are pale ("few records") and not judged on their own. The numbers are in the per-year table of Part B.</figcaption></figure>
 {% endif %}
@@ -204,11 +217,9 @@ table.floors td, table.floors th { white-space: nowrap; }
 </tbody></table></div>
 {% else %}<p>None: every combination of the three sites is detectable.</p>{% endif %}
 {% endif %}
-{% set info = r.overall.rationale | select('search', 'information only') | list %}
-{% set decide = r.overall.rationale | reject('search', 'information only') | list %}
 <h3>Findings that need a decision</h3>
-{% if decide %}<ul>{% for line in decide %}<li>{{ line | ncbi }}</li>{% endfor %}</ul>{% else %}<p>None.</p>{% endif %}
-{% if info %}<p class="meta">And {{ info | length }} line{{ '' if info | length == 1 else 's' }} for information only, in Part B with the section {{ 'it belongs' if info | length == 1 else 'they belong' }} to.</p>{% endif %}
+{% if decisions %}<ul class="decide">{% for css, line in decisions %}<li>{{ chip(css) }} {{ line | ncbi }}</li>{% endfor %}</ul>{% else %}<p>None: no limit crossed and no evidence missing.</p>{% endif %}
+{% if r.overall.rationale %}<p class="meta">All {{ r.overall.rationale | length }} findings behind the summary: Part B, first section.</p>{% endif %}
 {% if pending %}
 <div class="notice">
   <p><strong>Not yet evaluated.</strong> The following parts of the evaluation were not performed in this record, so the review status cannot be "no flags":</p>
@@ -230,6 +241,8 @@ table.floors td, table.floors th { white-space: nowrap; }
 <p class="meta">{% if r.network_used %}This run sent the oligo sequences to NCBI (see Methods).{% else %}No sequence was searched against any database in this run, and no data was sent to NCBI.{% endif %}</p>
 <div class="part-b">
 <p class="part">Part B · Evidence</p>
+{% if r.overall.rationale %}<h2 id="findings">All findings behind the summary</h2>
+<ul>{% for line in r.overall.rationale %}<li>{{ line | ncbi }}</li>{% endfor %}</ul>{% endif %}
 <h2>Assay as evaluated</h2>
 <div class="scroll"><table>
   <tbody>
@@ -345,7 +358,7 @@ table.floors td, table.floors th { white-space: nowrap; }
 {% if fragments %}
 {% set fv = fragments %}
 <p><strong>{{ fv.total }} records with all three sites:</strong>{% for o in ['detectable', 'at risk', 'likely failure', 'undetermined'] + (['possibly unassembled'] if fv.records.get('possibly unassembled') else []) + (['detectable from parts'] if fv.records.get('detectable from parts') else []) + (['not classified'] if fv.records.get('not classified') else []) %} {{ o }} {{ pct(100.0 * fv.records.get(o, 0) / fv.total) }}{{ ',' if not loop.last }}{% endfor %}.</p>
-<p class="meta">Which site variants occur together on one template, and so each genome's outcome: the worst class of its three sites, or likely failure by the primer-pair rule (R8, appendix). A dot is a matching base, a highlighted letter a mismatch, a grey letter a match through a degenerate code, '-' a gap; the primer 3′ end is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are (see Variants per oligo). Types are the organism names of the records (and assembly levels). The classes rest on published primer-mismatch data, not predicted Cq values (appendix, Mismatch classes).</p>
+<p class="meta">Which site variants occur together on one template, and so each genome's outcome: the worst class of its three sites, or likely failure by the primer-pair rule (R8, Part C). A dot is a matching base, a highlighted letter a mismatch, a grey letter a match through a degenerate code, '-' a gap; the primer 3′ end is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are (see Variants per oligo). Types are the organism names of the records (and assembly levels). The classes rest on published primer-mismatch data, not predicted Cq values (appendix, Mismatch classes).</p>
 {% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute=2)) %}<h4>Needs attention ({{ n_att }} combination{{ '' if n_att == 1 else 's' }})</h4>
 {% if fv.attention %}
 <div class="scroll"><table class="frag">{{ head }}<tbody>
@@ -456,7 +469,7 @@ table.floors td, table.floors th { white-space: nowrap; }
 {% endif %}
 {% set dp = r.inclusivity.distinct %}
 {% if dp and dp.patterns %}
-<p class="meta"><strong>Distinct site patterns</strong> (information only; the status counts genomes): the {{ dp.genomes }} judged {{ 'records' if nuc else 'genomes' }} {{ 'collected' if dp.axis == 'collection' else 'released' }} {{ dp.first }}&ndash;{{ dp.last }} carry {{ dp.patterns }} different combinations of the three sites (oligo and aligned bases). Counted once each: {{ dp.detectable }} detectable ({{ pct(100.0 * dp.detectable / dp.patterns) }}), {{ dp.at_risk }} at risk, {{ dp.likely_failure }} likely failure{% if dp.likely_failure %} (in {{ dp.likely_failure_genomes }} {{ 'records' if nuc else 'genomes' }}){% endif %}. The most common pattern is carried by {{ dp.largest }}. (Appendix: what the two counts mean.)</p>
+<p class="meta"><strong>Distinct site patterns</strong> (information only; the status counts genomes): the {{ dp.genomes }} judged {{ 'records' if nuc else 'genomes' }} {{ 'collected' if dp.axis == 'collection' else 'released' }} {{ dp.first }}&ndash;{{ dp.last }} carry {{ dp.patterns }} different combinations of the three sites (oligo and aligned bases). Counted once each: {{ dp.detectable }} detectable ({{ pct(100.0 * dp.detectable / dp.patterns) }}), {{ dp.at_risk }} at risk, {{ dp.likely_failure }} likely failure{% if dp.likely_failure %} (in {{ dp.likely_failure_genomes }} {{ 'records' if nuc else 'genomes' }}){% endif %}. The most common pattern is carried by {{ dp.largest }}. (Part C: what the two counts mean.)</p>
 {% endif %}
 {% endif %}
 {% if r.inclusivity.rationale %}
@@ -506,7 +519,7 @@ table.floors td, table.floors th { white-space: nowrap; }
 {% if spec.amplicons %}
 {% set judged = product_groups | rejectattr('tier', 'equalto', 'out_of_scope') | list %}
 {% set oos = product_groups | selectattr('tier', 'equalto', 'out_of_scope') | list %}
-<p class="meta">One row per tier and species, products the probe would detect first (rule: appendix). {{ spec.n_primer_only }} primer site(s) that can prime formed no product.{% if spec.partner_scan %} Partner scan: {{ spec.partner_scan.windows }} window(s), {{ spec.partner_scan.primer_sites_added }} primer and {{ spec.partner_scan.probe_sites_added }} probe site(s) BLAST had not reported.{% endif %} Every product: workbook, sheet "Predicted products".</p>
+<p class="meta">One row per tier and species, products the probe would detect first (rule: Part C). {{ spec.n_primer_only }} primer site(s) that can prime formed no product.{% if spec.partner_scan %} Partner scan: {{ spec.partner_scan.windows }} window(s), {{ spec.partner_scan.primer_sites_added }} primer and {{ spec.partner_scan.probe_sites_added }} probe site(s) BLAST had not reported.{% endif %} Every product: workbook, sheet "Predicted products".</p>
 {% if judged %}{{ product_table(products_shown[0]) }}{% if products_shown[1] %}<p class="meta">{{ products_shown[1] }} further species row(s) with products the probe would not detect: see the workbook.</p>{% endif %}
 {% else %}<p>No product was predicted in the judged tiers ({{ spec.counts | map(attribute='tier') | reject('equalto', 'out_of_scope') | unique | join(', ') or 'none searched' }}).</p>{% endif %}
 {% if assay.target.must_not_detect_taxids and not (judged | selectattr('tier', 'equalto', 'near_neighbours') | list) %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}
@@ -620,7 +633,7 @@ table.floors td, table.floors th { white-space: nowrap; }
 <p class="meta">Complete: every relevant alignment of every oligo was assessed (no full hit list, nothing cut at max_sites_per_query). RIDs are NCBI's search IDs, with the day they were issued; NCBI keeps results for about 36 hours, so they record provenance rather than live links.</p>
 <h3>What the searches could report</h3>
 <div class="scroll"><table class="floors">
-  <thead><tr><th>Tier</th><th>Oligo</th><th>Length</th><th>Reported down to (score)</th><th>Always reported up to</th><th>Hit list full</th><th>Search space</th></tr></thead>
+  <thead><tr><th>Tier</th><th>Oligo</th><th>Length</th><th>Reported down to (score)</th><th>Always reported up to</th><th>List reached its size limit</th><th>Search space</th></tr></thead>
   <tbody>
   {% for f in floors %}
   <tr><td>{{ f.tier }}</td><td>{{ f.oligo }}</td><td class="num">{{ f.length }} nt</td><td class="num">{{ f.score }}</td><td class="num">{% if f.mismatches == '–' %}not known{% elif f.mismatches.startswith('-') %}not even a perfect site{% else %}{{ f.mismatches }} mismatch(es), no gap{% endif %}</td><td>{{ 'yes' if f.list_full else 'no' }}</td><td>{{ f.source }}{% if f.unknown %}; {{ f.unknown }} search(es) without statistics{% endif %}</td></tr>
@@ -628,7 +641,7 @@ table.floors td, table.floors th { white-space: nowrap; }
   </tbody>
 </table></div>
 {% for tier, line in floor_searches.items() %}<p class="meta">{{ tier }}: {{ line }}</p>{% endfor %}
-<p class="meta">With the E-value cut-off {{ r.config.search.expect }}, each tier's least sensitive search decides: alignments scoring below the score shown can be missing, and a full-length site with more mismatches than shown, or with a gap, can be missing unless the partner scan finds it. Degenerate oligos: the range over their variants. How this is computed: appendix, "What the search cannot find".</p>
+<p class="meta">With the E-value cut-off {{ r.config.search.expect }}, each tier's least sensitive search decides: alignments scoring below the score shown can be missing, and a full-length site with more mismatches than shown, or with a gap, can be missing unless the partner scan finds it. Degenerate oligos: the range over their variants. How this is computed: Part C, "What the search cannot find".</p>
 
 {% endif %}
 <h2 id="oligo-design">Oligo design</h2>
@@ -645,22 +658,32 @@ table.floors td, table.floors th { white-space: nowrap; }
   <figcaption>{{ c.caption }}</figcaption>
 </figure>
 {% endfor %}
-<div class="scroll"><table>
-  <thead><tr><th>Check</th><th>Value</th><th>Result</th><th>Rule applied</th></tr></thead>
+{% set qm = qc_rows %}
+<div class="scroll"><table class="qcm">
+  <thead><tr><th>Check</th>{% for name, kind in qm.columns %}<th>{{ kind }}<br><span class="meta">{{ name }}</span></th>{% endfor %}<th>Limit</th></tr></thead>
   <tbody>
-  {% for title, items in groups %}
+  {% for row in qm.rows %}
+  <tr><th scope="row">{{ row.label }}</th>
+    {% for c in row.cells %}<td>{% if c %}{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}{% if c.status.value != 'INFO' %}<br>{{ qc_chip(c.status.value) }}{% else %}<br><span class="meta">information</span>{% endif %}{% else %}<span class="meta">–</span>{% endif %}</td>{% endfor %}
+    <td class="note">{{ row.limit }}</td></tr>
+  {% for name, c in row.flagged %}<tr class="msg"><td></td><td colspan="{{ qm.columns | length + 1 }}" class="meta">{{ name }}: {{ c.message }}</td></tr>{% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if qm.others %}
+<div class="scroll"><table>
+  <thead><tr><th>Check</th><th>Value</th><th>Result</th><th>Limit</th></tr></thead>
+  <tbody>
+  {% for title, items in qm.others %}
     <tr class="group"><th colspan="4">{{ title }}</th></tr>
     {% for c in (items | selectattr('status.value', 'in', ['FAIL', 'WARN']) | list) + (items | rejectattr('status.value', 'in', ['FAIL', 'WARN']) | list) %}
-    <tr>
-      <td>{{ c.name }}{% if c.message %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
-      <td class="num">{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td>
-      <td>{{ qc_chip(c.status.value) }}</td>
-      <td class="note">{{ c.rule }}</td>
-    </tr>
+    <tr><td>{{ c.name }}{% if c.message and c.status.value in ['WARN', 'FAIL'] %}<br><span class="meta">{{ c.message }}</span>{% endif %}</td>
+      <td>{{ c.display }}{% if c.unit %} {{ c.unit }}{% endif %}</td><td>{{ qc_chip(c.status.value) }}</td><td class="note">{{ c.rule }}</td></tr>
     {% endfor %}
   {% endfor %}
   </tbody>
 </table></div>
+{% endif %}
 {% if qc.amplicon_note %}<p class="meta">{{ qc.amplicon_note }}</p>{% endif %}
 
 <h3>Hairpins and dimers</h3>
@@ -681,7 +704,7 @@ table.floors td, table.floors th { white-space: nowrap; }
     <td class="num">{{ s.dg_kcal | dg }}</td>
     <td>{{ qc_chip(s.status.value) }}</td>
   </tr>
-  {% if s.ascii_lines %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
+  {% if s.ascii_lines and s.status.value in ['WARN', 'FAIL'] %}<tr><td colspan="4"><pre>{{ s.ascii_lines | join('\n') }}</pre></td></tr>{% endif %}
   {% endfor %}
   </tbody>
 </table></div>
@@ -719,15 +742,16 @@ table.floors td, table.floors th { white-space: nowrap; }
 <p class="meta">Each oligo site on the target gets a class (docs/MISMATCH_CLASSES.md): <em>perfect</em>; <em>tolerated</em> (expected to cost little); <em>at risk</em> (a measurable delay is expected, worse near the limit of detection); <em>likely failure</em> (blocked or strongly delayed in the published data); <em>indeterminate</em> (no published basis: gaps together with mismatches that alone would not decide, ambiguity codes in the genome, a single mismatch in an MGB probe). <em>Detectable</em> = perfect or tolerated; the inclusivity limits apply to it. A single mismatch in an MGB probe outside its 3′-most 7 bases (one under the MGB is likely failure, Kutyavin 2000) and an ambiguity code in the genome that decides between detectable and not (graded both ways over a primer's 3′-most 16 nt and the whole probe) are <em>undetermined</em>: left out of the percentage (neither detected nor escaped). Gaps count as not detected. A primer site that differs only in the length of a single-base run (homopolymer bulge) is at risk for one base with the run outside the last 3 nt, otherwise likely failure (rule R5b; no PCR study measured such bulges; setting variants.homopolymer_bulges_detectable). Primers: single mismatches in the last 5 nt by type and position after Stadhouders et al., J Mol Diagn 2010 (Table 1, Taq polymerase on DNA); farther positions and the number of mismatches per primer and per primer pair after Lefever et al., Clin Chem 2013. A probe counts as MGB when MGB is declared as a modification or named in its reporter or quencher (e.g. MGBNFQ); LNA probes are graded as unmodified probes (no rule for them exists here), and the record says so. Probes: an MGB probe with 1 mismatch in its 3′-most 7 nt (under the MGB) is a likely failure (Kutyavin et al., Nucleic Acids Res 2000), with 1 mismatch further toward the 5′ end undetermined and with 2 or more a likely failure; a probe without MGB tolerates 1 mismatch outside the last 5 nt, is at risk with 1 in the last 5 or 2 anywhere, and is a likely failure from 3 mismatches on (the 2-mismatch step after Klungthong et al., J Clin Virol 2010, where an unmodified 30-mer probe with two mismatches still detected every sample but its Ct gap widened by about 3.7; the ceiling at 3 is expert judgement, no published rule). Deletions in a probe site follow Otwell et al. 2025, which measured 25–28 nt linear probes at 55 °C over 50 cycles and deletions of 1, 3, 4, 6, 7 and 8 bases: for a shorter or MGB probe, or a deletion of 2 or 5 bases, the site keeps its class and its note says the case was never measured.{% if assay.template_type == 'RNA' %} <strong>This assay detects RNA:</strong> the classes rest on PCR with Taq polymerase on DNA, and the reverse-transcription step is not graded. For RT-PCR, Christopherson et al. (Nucleic Acids Res 1997, 25:654) found 2 to 4 internal primer-template mismatches without significant effect on HIV-1 RNA, while 5 and 6 mismatches in 28- and 30-base primers cut product yield about 22- and 100-fold; how a mismatch in the reverse-transcription primer acts depends on the enzyme, which the laboratory checks.{% endif %} {{ grade_caveat }} Next to the class, ΔTm is the estimated change in duplex melting temperature against the perfect match (nearest-neighbour model for unmodified DNA; a 3′-terminal mismatch barely changes it although it usually blocks extension). For oligos with MGB, LNA or similar modifications the model does not apply and the report says "ΔTm not applicable". "Tm ≤ annealing" marks a site of an unmodified oligo whose predicted duplex Tm drops to or below the annealing temperature ({{ r.config.reaction.annealing_temp_C }} °C) while the perfect match melts above it; where the perfect match itself melts at or below it in this model, as for primers designed with their Tm at the annealing temperature, there is no flag, since the comparison then says nothing about the variant. Both are information only; the class remains the judgement. The classes concern detection, not quantification: a single internal mismatch graded <em>tolerated</em> can still distort a copy number considerably (Bru et al. 2008: up to 1000-fold), so for an assay used to quantify, a <em>tolerated</em> variant is a reason to check the quantification in the laboratory.</p>
 {% endif %}
 {% if spec %}
-<h3>Hits and alignments per oligo</h3>
+<h3>Queries with incomplete evidence</h3>
+{% if incomplete_queries %}
 <div class="scroll"><table>
-  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Hit list full</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by cap</th><th>Reported down to</th></tr></thead>
+  <thead><tr><th>Tier</th><th>Query</th><th>BLAST hits</th><th>Relevant hits possibly cut</th><th>Relevant alignments</th><th>Assessed</th><th>Cut by the site cap</th></tr></thead>
   <tbody>
-  {% for t in search_rows %}{% for q, n in t.hits.items() %}{% set c = spec.counts | selectattr('tier', 'equalto', t.tier) | selectattr('query', 'equalto', q) | first %}
-  <tr><td>{{ t.tier }}</td><td>{{ q }}</td><td class="num">{{ n }}</td><td>{{ 'yes' if q in t.saturated else 'no' }}</td>{% if c %}<td class="num">{{ c.hsps_relevant }}</td><td class="num">{{ c.sites_assessed }}</td><td>{{ 'yes' if c.truncated else 'no' }}</td>{% else %}<td colspan="3" class="meta">{{ 'not used for specificity' if t.tier == 'target' else '' }}</td>{% endif %}{% set fl = spec.score_floors | selectattr('tier', 'equalto', t.tier) | selectattr('query', 'equalto', q) | first %}<td>{% if fl and fl.min_score is not none %}score {{ fl.min_score }}{% if fl.max_mismatches_reported is not none and fl.max_mismatches_reported >= 0 %}<br><span class="meta">≤ {{ fl.max_mismatches_reported }} mismatch{{ '' if fl.max_mismatches_reported == 1 else 'es' }} always{% if fl.list_full %}, unless cut from the full hit list{% endif %}</span>{% if fl.space_source != 'reported' %}<br><span class="meta" title="NCBI reports no search space for searches of several oligos; it is {{ 'derived from the reported alignments (E = K &middot; space &middot; e^-&lambda;S)' if fl.space_source == 'from_hits' else 'bounded from above by query length &times; database length' }}">space {{ 'from hits' if fl.space_source == 'from_hits' else 'upper bound' }}</span>{% endif %}{% endif %}{% elif fl %}<span class="meta">not known</span>{% endif %}</td></tr>
-  {% endfor %}{% endfor %}
+  {% for q in incomplete_queries %}<tr><td>{{ q.tier }}</td><td>{{ q.query }}</td><td class="num">{{ q.hits }}</td><td>{{ 'yes' if q.possibly_cut else 'no' }}</td><td class="num">{{ q.relevant if q.relevant is not none else '–' }}</td><td class="num">{{ q.assessed if q.assessed is not none else '–' }}</td><td>{{ 'yes' if q.cut_by_cap else 'no' }}</td></tr>{% endfor %}
   </tbody>
 </table></div>
+{% else %}<p>None: every relevant alignment of every query was assessed.</p>{% endif %}
+<p class="meta">Every query of every tier, with its hits, relevant alignments and what the search could report: workbook, sheet "Hits per query". "Relevant hits possibly cut": the hit list reached its size limit and even its weakest hit is still relevant. A list that merely reached its size limit with only irrelevant hits at its end loses nothing.</p>
 <p class="meta">Sites found: {{ spec.n_sites.critical }} critical, {{ spec.n_sites.warning }} warning, {{ spec.n_sites.minor }} minor.
   Levels follow the configured limits (mismatches, gaps and clean 3′ nucleotides). {{ spec.n_fetched }} sequence windows were used for full-length
   re-alignment and the partner scan{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.
@@ -747,24 +771,40 @@ table.floors td, table.floors th { white-space: nowrap; }
   {% if spec %}
   {% set bp = spec.parameters.blast %}
   <tr><th scope="row">Database searched</th><td>{{ spec.parameters.databases | join(', ') or 'not reported' }}; {{ spec.parameters.blast_versions | join(', ') }}</td></tr>
-  <tr><th scope="row">BLAST parameters</th><td>{% for k, v in bp.items() %}{{ k }} = {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+  <tr><th scope="row">BLAST parameters</th><td>{{ bp | plain }}</td></tr>
   {% set lin = spec.restriction_by_lineage or {} %}
   <tr><th scope="row">Taxon restriction check</th><td>{% for t in search_rows %}{% set c = lin.get(t.tier) %}{% if c %}{{ t.tier }}: {{ c.inside }} of {{ c.inside + c.set_aside + c.not_checkable }} relevant hits inside the tier's taxa by NCBI lineage, {{ c.set_aside }} set aside (outside them, or the target itself), {{ c.not_checkable }} not checkable{% else %}{{ t.tier }}: {{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID exactly, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}<br>
     <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight, so every relevant hit is checked by the NCBI lineage of its organism and set aside when outside the tier's taxa; a hit without a taxid or lineage counts as inside. Where no lineage could be read, the counts compare exact taxon IDs only, and a hit filed under a descendant strain counts as “another”.</span></td></tr>
   <tr><th scope="row">Re-alignment</th><td>Semi-global, affine gaps: match {{ spec.parameters.alignment.match }}, mismatch {{ spec.parameters.alignment.mismatch }},
     gap {{ spec.parameters.alignment.gap_open }} + {{ spec.parameters.alignment.gap_extend }} per base; partial hits completed from sequence windows fetched with E-utilities efetch ({{ spec.parameters.window_padding_nt }} nt padding)</td></tr>
-  <tr><th scope="row">Search and RIDs</th><td>{% for t in search_rows %}{{ t.tier }}: {{ t.rids | join(', ') }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+  <tr><th scope="row">Search and RIDs</th><td>{% for t in search_rows %}{{ t.tier }}: {% for rid, day in t.rids %}{{ rid }}{% if day %} ({{ day }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
   <tr><th scope="row">Data sent to NCBI</th><td>The oligo sequences (forward, reverse, probe and any expanded degenerate variants) and the taxon restrictions above.</td></tr>
   {% else %}
   <tr><th scope="row">Database, BLAST parameters, RIDs</th><td>Not applicable: no database search was performed</td></tr>
   {% endif %}
 </tbody></table></div>
+<h3 id="limits">Limits applied</h3>
+<div class="scroll"><table class="limits">
+  <thead><tr><th>Group</th><th>Setting</th><th>Value</th></tr></thead>
+  <tbody>
+  {% for group, key, value in limits %}<tr><td>{{ group }}</td><td><code>{{ key }}</code></td><td>{{ value }}</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+<p class="meta">The oligo limits stand in the oligo quality control table (Part B).</p>
+<h3>Settings that differ from the defaults</h3>
+{% if differing %}
+<div class="scroll"><table>
+  <thead><tr><th>Setting</th><th>Value</th><th>Default</th><th>From</th></tr></thead>
+  <tbody>
+  {% for key, value, default, source in differing %}<tr><td><code>{{ key }}</code></td><td>{{ value }}</td><td>{{ default }}</td><td>{{ source }}</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p>None: every setting is the default of this version (operational ones aside).</p>{% endif %}
 {% if assay_settings_yaml %}
 <p><strong>Settings from the assay file</strong> (applied over the defaults and any configuration file):</p>
 <pre>{{ assay_settings_yaml }}</pre>
 {% endif %}
-<h3>Effective configuration (thresholds and conditions applied)</h3>
-<pre>{{ config_yaml }}</pre>
+<p class="meta">The complete effective configuration, operational settings included: results.json (<code>config</code>) and workbook sheet "Configuration". The inputs hash above identifies it (operational settings left out).</p>
 <h3>Limitations</h3>
 <p>Default thresholds are starting points drawn from common TaqMan design guidance; they are not acceptance
   criteria and must be reviewed by the laboratory. Melting temperatures and dimer energies are computational

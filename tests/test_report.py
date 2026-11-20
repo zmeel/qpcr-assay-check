@@ -108,8 +108,12 @@ def test_workbook_has_expected_sheets(n1, tmp_path):
     write_workbook(result, path, cfg)
     wb = load_workbook(path)
     assert wb.sheetnames == [
-        "Summary", "Inputs", "Oligo QC", "Structures", "Sections", "Checks", "Findings"
+        "Summary", "Inputs", "Oligo QC", "Structures", "Configuration", "Sections", "Checks",
+        "Findings",
     ]  # fmt: skip
+    # the full configuration lives in the workbook (report review 2026-11-20, second round)
+    config = {row[0].value: row[1].value for row in wb["Configuration"].iter_rows(min_row=2)}
+    assert config["inclusivity.warn_below_percent"] == "95.0"
     checks = [row[0].value for row in wb["Checks"].iter_rows(min_row=2)]
     assert checks == ["Oligo design (Tm, GC, runs, hairpins, dimers)"]  # --qc-only
     summary = {row[0].value: row[1].value for row in wb["Summary"].iter_rows(min_row=2)}
@@ -143,3 +147,34 @@ def test_the_sign_off_part_states_the_limits_of_the_record_and_nothing_of_it_is_
     assert "details::details-content" in html  # and the browser opens even that for print
     # the status sentence names the categories instead of "N of M checks flagged for review"
     assert "flagged for review" not in html
+
+
+def test_tables_wrap_in_print_instead_of_being_cut_off(n1):
+    """Report review 2026-11-20, second round: wide tables scrolled, so on paper their right
+    edge (a reverse primer's 3' end among it) was cut off."""
+    html = render(n1, qc_only=False)
+    css = html[html.index("@media print") : html.index("</style>")]
+    assert ".scroll { overflow: visible; }" in css and "white-space: normal" in css
+
+
+def test_the_sign_off_lists_limits_and_gaps_in_full_and_review_once_per_check(n1):
+    """Report review 2026-11-20, second round: the full findings list pushed the decision box
+    to a third page."""
+    from qpcr_assay_check.report.html import decision_lines
+    from qpcr_assay_check.report.summary import summary_rows
+
+    cfg = load_config()
+    from .test_report_exclusivity import _specificity_with_exclusivity
+
+    result = evaluate(n1, cfg, now=NOW, specificity=_specificity_with_exclusivity())
+    rows = summary_rows(result, cfg, [])
+    lines = decision_lines(result, rows)
+    warn_rows = [r for r in rows if r.css == "WARN"]
+    assert len([x for x in lines if x[0] == "WARN"]) == len(warn_rows)
+    spec_fail = [f for f in result.specificity.findings if f.severity in ("FAIL", "INCOMPLETE")]
+    assert len([x for x in lines if x[1].startswith("Specificity: ")]) == len(spec_fail)
+    html = render_report(result, cfg)
+    assert html.index("<h3>Findings that need a decision</h3>") < html.index("Reviewer's decision")
+    assert html.index('<h2 id="findings">All findings behind the summary</h2>') > html.index(
+        '<div class="part-b">'
+    )

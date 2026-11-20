@@ -414,7 +414,9 @@ def test_the_report_shows_the_score_floor_and_a_product_found_by_the_partner_sca
     floor = next(f for f in spec["score_floors"] if f["tier"] == "background")
     assert (floor["min_score"], floor["max_mismatches_reported"]) == (10, 1)  # 20-nt primer
     html = (d / "report.html").read_text()
-    assert "Reported down to" in html and "score 10" in html and "partner scan" in html
+    assert "Reported down to (score)" in html and "partner scan" in html
+    floors = html[html.index("<h3>What the searches could report</h3>") :]
+    assert '<td class="num">10</td><td class="num">1 mismatch(es), no gap</td>' in floors
 
 
 def test_a_failed_variant_analysis_says_no_oligo_was_checked_against_the_target(env, monkeypatch):

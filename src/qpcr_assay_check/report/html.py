@@ -204,6 +204,213 @@ def floor_per_search(spec: Any) -> dict[str, str]:
     return {t: _per_search(m).strip() for t, m in by.items() if _per_search(m)}
 
 
+def qc_matrix(result: RunResult) -> dict[str, Any]:
+    """The oligo checks as a matrix: one row per check, one column per oligo, the limit once
+    (report review 2026-11-20, second round: one row per check and oligo repeated the oligo's
+    name under its own heading and squeezed the check column to a word per line). Checks of the
+    mix, the pair and the amplicon stay a short list."""
+    oligos = result.oligo_qc.oligos
+    names = [o.name or o.role for o in oligos]
+    roles = {o.name or o.role: o.role for o in oligos}
+    order: list[str] = []
+    cells: dict[str, dict[str, CheckResult]] = {}
+    labels: dict[str, str] = {}
+    for c in result.oligo_qc.checks:
+        if c.subject not in roles:
+            continue
+        key = c.id.split(".", 1)[1] if "." in c.id else c.id
+        if key not in cells:
+            order.append(key)
+            label = c.name.replace(c.subject, "").strip()
+            for word in ("Forward primer", "Reverse primer", "Forward", "Reverse", "Probe"):
+                if label.startswith(word):
+                    label = label[len(word) :].strip()
+                    break
+            label = label.lstrip("/ ").strip()
+            labels[key] = label[:1].upper() + label[1:]
+        cells.setdefault(key, {})[c.subject] = c
+    rows = []
+    for key in order:
+        by = cells[key]
+        rules: dict[str, list[str]] = {}
+        for name, c in by.items():
+            if c.rule:
+                rules.setdefault(c.rule, []).append(roles[name])
+        if len(rules) <= 1:
+            limit = next(iter(rules), "")
+        else:
+            kinds = {"forward": "primers", "reverse": "primers", "probe": "probe"}
+            limit = "; ".join(
+                f"{'/'.join(sorted({kinds[r] for r in rs}))}: {rule}" for rule, rs in rules.items()
+            )
+        rows.append({
+            "label": labels[key], "cells": [by.get(n) for n in names], "limit": limit,
+            "flagged": [(n, c) for n, c in by.items()
+                        if c.status.value in ("WARN", "FAIL") and c.message],
+        })  # fmt: skip
+    kinds = {"forward": "Forward", "reverse": "Reverse", "probe": "Probe"}
+    others = []
+    for key, title in [("mix", "Reaction mix"), *_GROUPS[3:]]:
+        items = [c for c in result.oligo_qc.checks if c.subject == key]
+        if items:
+            others.append((title, items))
+    return {
+        "columns": [(n, kinds[roles[n]]) for n in names],
+        "rows": rows,
+        "others": others,
+    }
+
+
+def hits_per_query(spec: Any) -> list[dict[str, Any]]:
+    """Per tier and query: BLAST hits, whether the list reached its size limit, whether
+    relevant hits may have been cut (the list full and its weakest hit still relevant), the
+    relevant alignments, how many were assessed, whether the site cap cut them, and what the
+    search could report (report review 2026-11-20, second round: two tables called different
+    things "Hit list full")."""
+    reached: dict[tuple[str, str], bool] = {}
+    cut: dict[tuple[str, str], bool] = {}
+    hits: dict[tuple[str, str], int] = {}
+    for r in spec.searches:
+        for label, n in r["n_hits"].items():
+            key = (r["tier"], label)
+            hits[key] = hits.get(key, 0) + n
+        for s in r["saturation"]:
+            key = (r["tier"], s["label"])
+            reached[key] = reached.get(key, False) or s["list_full"]
+            cut[key] = cut.get(key, False) or s["saturated"]
+    counts = {(c.tier, c.query): c for c in spec.counts}
+    floors = {(f.tier, f.query): f for f in spec.score_floors}
+    out = []
+    for key, n in hits.items():
+        c, f = counts.get(key), floors.get(key)
+        out.append({
+            "tier": key[0], "query": key[1], "hits": n,
+            "list_reached": reached.get(key, False), "possibly_cut": cut.get(key, False),
+            "relevant": c.hsps_relevant if c else None, "assessed": c.sites_assessed if c else None,
+            "cut_by_cap": bool(c and c.truncated),
+            "score": f.min_score if f else None,
+            "mismatches": f.max_mismatches_reported if f else None,
+            "space": f.space_source if f else "",
+        })  # fmt: skip
+    return out
+
+
+def _flat(d: Any, prefix: str = "") -> dict[str, Any]:
+    """A nested mapping as ``{"a.b.c": value}`` (lists kept as values)."""
+    if not isinstance(d, dict):
+        return {prefix: d}
+    out: dict[str, Any] = {}
+    for k, v in d.items():
+        out.update(_flat(v, f"{prefix}.{k}" if prefix else str(k)))
+    return out
+
+
+#: (group, configuration path) of the limits a reviewer needs to read the record; the oligo
+#: limits stand in the oligo QC table (report review 2026-11-20, second round)
+LIMITS_SHOWN = [
+    ("Reaction", "reaction.annealing_temp_C"), ("Reaction", "reaction.na_mM"),
+    ("Reaction", "reaction.mg_mM"), ("Reaction", "reaction.dntp_mM"),
+    ("Reaction", "reaction.primer_nM"), ("Reaction", "reaction.probe_nM"),
+    ("Inclusivity", "inclusivity.status_axis"), ("Inclusivity", "inclusivity.warn_below_percent"),
+    ("Inclusivity", "inclusivity.fail_below_percent"),
+    ("Inclusivity", "inclusivity.verdict_window_years"),
+    ("Inclusivity", "inclusivity.min_genomes_for_verdict"),
+    ("Inclusivity", "inclusivity.min_genomes_per_year"),
+    ("Inclusivity", "inclusivity.max_undetermined_percent"),
+    ("Variants", "variants.homopolymer_bulges_detectable"), ("Variants", "variants.probe_channels"),
+    ("Variants", "variants.judge_from_parts"),
+    ("Off-target sites", "specificity.primer_site"), ("Off-target sites", "specificity.probe_site"),
+    ("Off-target sites", "specificity.graded_off_target"),
+    ("Off-target sites", "specificity.probe_binds_if"),
+    ("Off-target sites", "specificity.cautious_tiers"),
+    ("Off-target status", "specificity.severity"),
+    ("Off-target status", "specificity.off_target_tiers"),
+    ("Off-target status", "specificity.tier_waivers"),
+    ("Search", "search.database"), ("Search", "search.expect"), ("Search", "search.word_size"),
+    ("Search", "search.hitlist_size"), ("Search", "search.background_taxids"),
+    ("Search caps", "specificity.max_sites_per_query"),
+    ("Search caps", "specificity.max_amplicon_size"), ("Search caps", "specificity.max_amplicons"),
+    ("Search caps", "specificity.partner_scan_max_windows"),
+    ("Search caps", "specificity.probe_scan_max_products"),
+]  # fmt: skip
+
+
+def limits_applied(config: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """``(group, setting, value)`` for the limits of :data:`LIMITS_SHOWN` present in the
+    record's configuration."""
+    out = []
+    for group, path in LIMITS_SHOWN:
+        node: Any = config
+        for part in path.split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+        if node is not None:
+            out.append((group, path.split(".", 1)[1], _plain(node)))
+    return out
+
+
+def differing_settings(result: RunResult) -> list[tuple[str, str, str, str]]:
+    """``(setting, value, default, source)`` for every setting of the record that differs from
+    the packaged defaults of this version, the operational ones (ncbi, report) left out as the
+    inputs hash leaves them out; source: the assay file or a configuration file."""
+    from ..config import load_config
+
+    defaults = _flat(load_config().model_dump(mode="json"))
+    used = _flat(result.config)
+    from_assay = set(_flat(result.assay.settings or {}))
+    out = []
+    for key, value in used.items():
+        if key.split(".", 1)[0] in ("ncbi", "report") or defaults.get(key) == value:
+            continue
+        source = (
+            "assay file"
+            if any(key == k or key.startswith(k + ".") for k in from_assay)
+            else ("configuration file")
+        )
+        out.append((key, _plain(value), _plain(defaults.get(key, "–")), source))
+    return out
+
+
+def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str]]:
+    """``(status, text)`` for the sign-off: every finding that exceeds a limit or leaves
+    evidence missing in full, then one line per check that needs review (report review
+    2026-11-20, second round: 21 lines, 11 of them repeating Part B, pushed the decision box to a
+    third page). The full list opens Part B."""
+    out: list[tuple[str, str]] = []
+    qc = result.oligo_qc
+    for c in qc.checks:
+        if c.status.value == "FAIL":
+            out.append(("FAIL", c.message or f"{c.name}: {c.display} {c.unit}".strip()))
+    for s in qc.structures:
+        if s.status.value == "FAIL":
+            out.append(("FAIL", f"{s.label}: structure Tm {s.tm_c} °C"))
+    spec = result.specificity
+    if spec is not None:
+        for f in spec.findings:
+            if f.severity in ("FAIL", "INCOMPLETE"):
+                out.append((f.severity, f"Specificity: {f.message}"))
+    for row in summary:
+        if row.anchor == "specificity" or row.anchor == "oligo-qc":
+            continue  # their findings are listed above
+        if row.css in ("FAIL", "INCOMPLETE"):
+            out.append((row.css, f"{row.check}: {row.reason or row.result}"))
+    for row in summary:
+        if row.css == "WARN":
+            out.append(("WARN", f"{row.check}: {row.reason or row.result} (details in Part B)"))
+    return out
+
+
+def _plain(value: Any) -> str:
+    """A value as plain text: "key value; key value", lists comma-separated (not Python
+    notation: the record is read by people, report review 2026-11-20, second round)."""
+    if isinstance(value, dict):
+        return "; ".join(f"{k} {_plain(v)}" for k, v in value.items())
+    if isinstance(value, list | tuple):
+        return ", ".join(_plain(v) for v in value) or "none"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return str(value)
+
+
 def _search_rows(spec: Any) -> list[dict[str, Any]]:
     """Searches grouped by tier for the report table."""
     tiers: dict[str, dict[str, Any]] = {}
@@ -256,6 +463,7 @@ def _environment() -> Environment:
     env.filters["dg"] = _dg
     env.filters["ncbi"] = linkify
     env.filters["taxon"] = taxon_link
+    env.filters["plain"] = _plain
     env.tests["search"] = lambda value, text: text in str(value)
     return env
 
@@ -349,6 +557,20 @@ def render_report(result: RunResult, cfg: Config) -> str:
         site_maps=figures.site_maps(result) if cfg.report.include_charts else [],
         attention_shown=ATTENTION_ON_PAGE_ONE,
         grade_counts=grade_counts,
+        qc_rows=qc_matrix(result),
+        decisions=decision_lines(
+            result,
+            summary_rows(
+                result, cfg, spec_overview(spec, result.assay, rows_of_searches) if spec else []
+            ),
+        ),
+        limits=limits_applied(result.config),
+        differing=differing_settings(result),
+        incomplete_queries=[
+            q
+            for q in (hits_per_query(spec) if spec else [])
+            if q["possibly_cut"] or q["cut_by_cap"]
+        ],
         site_by_id={s.id: s for s in spec.sites} if spec else {},
         floors=floor_matrix(spec) if spec else [],
         floor_searches=floor_per_search(spec) if spec else {},
@@ -377,7 +599,6 @@ def render_report(result: RunResult, cfg: Config) -> str:
         spec_overview=spec_overview(spec, result.assay, rows_of_searches) if spec else [],
         pending=[s for s in result.sections if s.state != "evaluated"],
         charts=charts,
-        config_yaml=yaml.safe_dump(result.config, sort_keys=False, allow_unicode=True),
         assay_settings_yaml=(
             yaml.safe_dump(result.assay.settings, sort_keys=False, allow_unicode=True)
             if result.assay.settings
