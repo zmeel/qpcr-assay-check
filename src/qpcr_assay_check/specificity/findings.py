@@ -50,6 +50,21 @@ def describe_site(s: SiteResult) -> str:
     )
 
 
+def _patterns(members: list[AmpliconResult], site_by_id: dict[str, SiteResult]) -> str:
+    """How many distinct products these are by the sequences under the oligos (both primer
+    sites and the probe site as aligned): many records of one lineage are one pattern (tiers
+    review 2026-11-20, F4). Empty for a single product."""
+    if len(members) < 2:
+        return ""
+
+    def aln(i: str | None) -> str:
+        s = site_by_id.get(i) if i else None
+        return s.s_aln if s else ""
+
+    n = len({(aln(a.left_site), aln(a.right_site), aln(a.probe_site)) for a in members})
+    return f"; {n} distinct product pattern(s) by the sequences under the oligos"
+
+
 def _closest(sites: list[SiteResult]) -> SiteResult:
     return min(sites, key=lambda s: (s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id))
 
@@ -216,6 +231,7 @@ def build_findings(
                 f" (e.g. {first.length} bp on {first.accession}, {first.organism or 'unknown'}; "
                 f"{first.roles} with {left.n_mismatch}+{right.n_mismatch} mismatches)"
             )
+        detail += _patterns(members, site_by_id)
         if cls == "likely_detected":
             out.append(
                 Finding(

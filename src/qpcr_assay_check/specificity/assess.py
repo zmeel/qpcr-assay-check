@@ -375,19 +375,20 @@ def assess_specificity(
     findings.extend(_set_aside_findings(set_aside, lineage_problem))
     score_floors = floors(outcome.searches, plan.queries, assessed, cfg.search)
     findings.extend(floor_findings(score_floors, cfg.search.expect))
+    probes = {
+        label: (seq, _is_mgb(assay, label))
+        for label, seq in plan.queries.items()
+        if assay.role_of(label) == "probe"
+    }
+    truncated_counts = {(c.tier, c.query) for c in tally.values() if c.truncated}
+
+    def bound(tier: str) -> tuple[bool, str]:
+        return probe_bound(tier, probes, score_floors, truncated_counts, min_identical,
+                           _gapped_probe_can_bind(rules, tier))  # fmt: skip
+
+    findings = _bounded_cuts(findings, amp_truncated, amplicons, keep, rules, bound)
     scan = scanner.state.summary if scanning else None
     if scan is not None:
-        probes = {
-            label: (seq, _is_mgb(assay, label))
-            for label, seq in plan.queries.items()
-            if assay.role_of(label) == "probe"
-        }
-        truncated_counts = {(c.tier, c.query) for c in tally.values() if c.truncated}
-
-        def bound(tier: str) -> tuple[bool, str]:
-            return probe_bound(tier, probes, score_floors, truncated_counts, min_identical,
-                               _gapped_probe_can_bind(rules, tier))  # fmt: skip
-
         findings.extend(scan_findings(scan, rules.partner_scan_max_windows, bound,
                                       rules.probe_scan_max_products))  # fmt: skip
     verdict = verdict_of(findings)
@@ -438,6 +439,63 @@ def assess_specificity(
         partner_scan=scan,
         restriction_by_lineage=by_lineage,
     )
+
+
+def _bounded_cuts(
+    findings: list[Finding],
+    cut: set[str],
+    amplicons: list,
+    sites: list[SiteResult],
+    rules: SpecificitySettings,
+    bound: Callable[[str], tuple[bool, str]],
+) -> list[Finding]:
+    """A tier whose product list was cut at ``max_amplicons`` is Incomplete, unless the cut can
+    only hide products the probe does not detect (tiers review 2026-11-20, F4: HSV-2 as a near
+    neighbour of HSV-1 filled the cap on every run): no probe site that could give signal lies
+    on a record beyond the cut (the record where the cap struck counts as beyond it), and the
+    tier's "not detected" is bounded (:func:`.reach.probe_bound`), so no such site went
+    unreported."""
+    out = []
+    for f in findings:
+        tier = next((t for t in cut if f.message == _cut_message(t)), None)
+        if tier is None:
+            out.append(f)
+            continue
+        paired = [a.accession for a in amplicons if a.tier == tier]
+        done = set(paired[:-1]) - ({paired[-1]} if paired else set())
+        beyond = sorted({
+            s.accession for s in sites
+            if s.tier == tier and s.role == "probe" and probe_binds(s, rules)
+            and s.accession not in done
+        })  # fmt: skip
+        ok, why = bound(tier)
+        if ok and not beyond:
+            out.append(
+                Finding(
+                    severity="INFO",
+                    message=(
+                        f"Tier '{tier}': the list of predicted products was cut at max_amplicons "
+                        f"({rules.max_amplicons}, per tier). Bounded: no probe site that could "
+                        "give signal lies on a record beyond the cut, and every such site would "
+                        "have been reported by this tier's searches, so the cut hides only "
+                        "products the probe does not detect."
+                    ),
+                    topic="amplicons",
+                )
+            )
+            continue
+        reason = (
+            f"a probe site that could give signal lies on {len(beyond)} record(s) beyond it "
+            f"(e.g. {', '.join(beyond[:3])})"
+            if beyond
+            else f"not bounded: {why}"
+        )
+        out.append(f.model_copy(update={"message": f"{f.message[:-1]}; {reason}."}))
+    return out
+
+
+def _cut_message(tier: str) -> str:
+    return f"Tier '{tier}': the list of predicted products was cut at max_amplicons (per tier)."
 
 
 def _is_mgb(assay: Assay, label: str) -> bool:

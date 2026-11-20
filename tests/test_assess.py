@@ -514,3 +514,45 @@ def test_the_restriction_check_counts_by_lineage(tmp_path):
         "inside": 6, "set_aside": 3, "not_checkable": 0
     }  # fmt: skip
     assert run(leaked_world(), tmp_path / "plain")[0].restriction_by_lineage == {}
+
+
+def _three_products(probe_on=None):
+    w = offtarget_genome(f=[10], r=[5], p=[8])
+    for acc in ("OT000002.1", "OT000003.1"):
+        offtarget_genome(f=[10], r=[5], p=[8], acc=acc, world=w)
+    for acc in (ACC, "OT000002.1", "OT000003.1"):
+        w.hit(NEAR, "forward", F, acc, F_START, "+")
+        w.hit(NEAR, "reverse", R, acc, R_START, "-")
+    if probe_on:
+        w.hit(NEAR, "probe", P, probe_on, P_START, "+")
+    w.stat = {"eff_space": 811905916, "kappa": 0.710602795216363, "lambda": 1.37406312246009}
+    return w
+
+
+def test_a_cut_product_list_is_bounded_when_no_detectable_product_can_hide_beyond_it(tmp_path):
+    """Tiers review 2026-11-20, F4: HSV-2 filled the 500-product cap of HSV-1's near-neighbour
+    tier on every run, so the tier read Incomplete although the conclusion was clear."""
+    res, _, _ = run(
+        _three_products(), tmp_path, specificity__max_amplicons=1, specificity__cautious_tiers=[]
+    )
+    (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
+    assert cut.severity == "INFO" and "Bounded" in cut.message
+    assert res.verdict is Verdict.WARN  # a product the probe does not detect: Review
+    # a probe site that binds on a record beyond the cut: a detectable product may hide there
+    res, _, _ = run(
+        _three_products(probe_on="OT000003.1"), tmp_path / "b", specificity__max_amplicons=1,
+        specificity__cautious_tiers=[],
+    )  # fmt: skip
+    (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
+    assert cut.severity == "INCOMPLETE" and "beyond it (e.g. OT000003.1)" in cut.message
+    # in a cautious tier a gapped probe site could bind unreported: not bounded
+    res, _, _ = run(_three_products(), tmp_path / "c", specificity__max_amplicons=1)
+    (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
+    assert cut.severity == "INCOMPLETE" and "not bounded: a probe site with a gap" in cut.message
+
+
+def test_products_are_also_counted_as_distinct_patterns(tmp_path):
+    res, _, _ = run(_three_products(), tmp_path)
+    (f,) = [f for f in res.findings if "predicted off-target product(s)" in f.message]
+    assert "3 predicted off-target product(s)" in f.message
+    assert "1 distinct product pattern(s)" in f.message
