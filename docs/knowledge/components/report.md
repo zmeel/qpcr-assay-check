@@ -45,6 +45,9 @@ sources:
   - id: plain
     resource: ../decisions/2026-11-25-plain-words-amplicon-opposite-primer.md
     title: "Plain words: amplicon, the opposite primer, and gaps that say what is unknown"
+  - id: round3
+    resource: ../decisions/2026-11-25-report-round3-built.md
+    title: "Third report review built, except the combination chart (M3)"
   - id: code6
     resource: ../../../src/qpcr_assay_check/results.py
     title: "src/qpcr_assay_check/results.py"
@@ -79,6 +82,15 @@ parts, printable on A4:
   settings that differ from the defaults, limitations, required statements in full. The full
   configuration and every query's hits are workbook sheets ("Configuration", "Hits per query").
 
+Since the third report review (2026-11-25), Part B draws four more figures:
+- year panels by release and by collection year;
+- an off-target site-level map, one mark per organism, filled with the site's level (Part A's
+  off-target rows show the same as a dot);
+- a hairpin and dimer strip;
+- a coverage accounting figure.
+
+Long tables break between rows in print.[^round3]
+
 The report says "amplicon" (not "product") and "check for the opposite primer" (not "partner
 scan"); each evidence gap names what stopped, at which setting, and what that leaves unknown.[^plain]
 
@@ -112,4 +124,5 @@ per-oligo tables per year moved to the workbook.
 [^twopages]: "Sign-off on two pages: short gap lines, site maps in Part B, oligos in amplicon order"
 [^condensed]: "Findings condensed: no repeated list, specificity as a table per tier"
 [^plain]: "Plain words: amplicon, the opposite primer, and gaps that say what is unknown"
+[^round3]: "Third report review built, except the combination chart (M3)"
 [^code6]: src/qpcr_assay_check/results.py

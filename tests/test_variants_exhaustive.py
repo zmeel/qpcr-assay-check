@@ -341,7 +341,7 @@ def test_exhaustive_inclusivity_explains_assemblies_without_the_region(tmp_path)
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    assert "<th>Assemblies</th><th>With region</th>" in html
+    assert 'aria-label="By release year' in html  # the per-year figure (2026-11-25)
 
 
 # ------------------------------------------------------------------ history: new variants
@@ -434,8 +434,9 @@ def test_inclusivity_has_a_whole_fragment_row_per_year(tmp_path):
     # diagnostics, in the workbook (report review 2026-11-20)
     assert "<h4>Per year (whole fragment)</h4>" in html[i:] and "<h3>Forward</h3>" not in html
     # the window row uses the verdict's base (undetermined left out), so the numbers agree
-    assert "Summary window " in html and "summary window</span>" in html
-    assert "Percentages leave the undetermined out, as the status does" in html
+    # the window's own numbers stand under the year panels (third report review, 2026-11-25)
+    w0 = fragment_window(result.inclusivity.fragment_years, cfg.inclusivity.verdict_window_years)
+    assert f"bracketed window {w0.first}–{w0.last}: {w0.n} judged" in html
     # the summary row gives the same figure as the inclusivity rationale
     from qpcr_assay_check.report.summary import summary_rows
 

@@ -191,3 +191,11 @@ sheet: screen rules after them had overridden them), the Part A label and small 
 matrix, hits per query to the workbook, limits applied and differing settings, the shorter
 sign-off, the merged variant tables. Test reports print Part A on two pages and no table wider
 than the page.
+
+## Third report review (2026-11-25): what was taken up
+
+The user chose everything except M3. The print flow, the sign-off corrections, the cuts, and
+M1/M1b, M4, M5 and M6 are built (decision `docs/knowledge/decisions/2026-11-25-report-round3-built.md`).
+One deviation from the review: the off-target map fills each mark with the site's own level,
+not by the zone it falls in, because the R1–R9 classes can set a site apart from its zone.
+Not built: M3 (the merged-variants decision stands) and the mismatch-class diagram.

@@ -111,5 +111,8 @@ def test_the_report_shows_the_collection_axis(tmp_path):
         specificity=_empty_specificity(),
     )  # fmt: skip
     html = render_report(result, cfg)
-    assert "by collection year</strong> (information only)" in html
+    # the year tables are a figure since 2026-11-25 (third report review): two panels
+    assert (
+        'aria-label="By collection year' in html and "the other panel is information only" in html
+    )
     assert "no usable date" in html and "BioSample collection_date" in html

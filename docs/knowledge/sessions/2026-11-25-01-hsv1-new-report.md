@@ -108,3 +108,13 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
     does not name its gap; tables may not break across pages in print, and `h4` headings may be
     left alone at a page foot.
   - Nothing built yet: the user decides.
+- **Third report review built** (user: "Build everything except M3";
+  [decision](../decisions/2026-11-25-report-round3-built.md)).
+  - **Built:** the print flow, the sign-off corrections, the cuts, the year panels (M4), the
+    off-target site-level map with a Part A dot (M1/M1b), the hairpin and dimer strip (M5) and
+    the coverage accounting (M6).
+  - **Deviation:** the map's fill is the site's own level, not the zone it falls in.
+  - **Kept:** the tables remain as a fallback without charts.
+  - **Measured:** the sample record went from 13 to 11 pages. On the HSV-1 13:33Z HTML, with
+    the new Part A rows and dots, Part A stays 2 pages.
+  - **Not built:** M3 and the mismatch-class diagram.

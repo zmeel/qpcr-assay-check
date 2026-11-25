@@ -110,12 +110,13 @@ def test_report_and_summary_follow_the_axis(tmp_path):
         )  # fmt: skip
         html = render_report(result, cfg)
         (row,) = [x for x in summary_rows(result, cfg, []) if x.check.startswith("Target detect")]
-        assert "distinct site patterns, information" in row.result
+        # the distinct-pattern figure is Part B's (third report review, 2026-11-25)
+        assert "distinct site patterns" not in row.result and "% at risk" in row.result
         assert "<strong>Distinct site patterns</strong>" in html
         if axis == "collection":
             assert "1 genomes collected 2023–2026" in row.scope
-            assert "by collection year</strong> (the status uses this table)" in html
-            assert "complete collection years" in html
+            assert "The status uses the collection panel" in html
+            assert "complete years" in html
         else:
             assert "genomes released 2023–2026" in row.scope
             # the cut genome GCA_5 is named among the undetermined, as in the rationale
@@ -123,7 +124,8 @@ def test_report_and_summary_follow_the_axis(tmp_path):
                 "(1 undetermined, not counted, of which 1 with the region cut or hidden by N)"
                 in row.scope
             )
-            assert "by collection year</strong> (information only)" in html
+            assert 'aria-label="By collection year' in html
+            assert "The status uses the release panel" in html
 
 
 def test_a_target_no_longer_sequenced_is_not_judged_on_old_years():

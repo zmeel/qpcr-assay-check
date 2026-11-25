@@ -10,6 +10,7 @@ always shown; only the remaining rows beyond a fixed number go to the workbook.
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -416,6 +417,40 @@ def site_frequency(oligos: list[Any]) -> dict[tuple[str, str, str], float]:
 
 
 # ---------------------------------------------------------------- specificity at a glance
+def tier_name(tier: str) -> str:
+    """A tier as the reader knows it ("Near neighbours"), not its configuration key."""
+    return TIER_TITLE.get(tier, tier.replace("_", " ").capitalize())
+
+
+_TIER_LIST = re.compile(
+    r"((?:tiers? assessed|not searched(?: in this run)?): )([a-z_]+(?:, [a-z_]+)*)"
+)
+
+
+def plain_tiers(text: str) -> str:
+    """Tier keys in a finding's text in the reader's words: "Tier 'background'" becomes
+    "Background", and the lists after "tiers assessed:" or "not searched:" are named alike
+    (third report review, 2026-11-25: configuration keys survived on paper)."""
+    text = re.sub(r"Tier '([a-z_]+)'", lambda m: tier_name(m.group(1)), text)
+    return _TIER_LIST.sub(
+        lambda m: m.group(1) + ", ".join(tier_name(k) for k in m.group(2).split(", ")), text
+    )
+
+
+def gap_text(short: str, about: list[str]) -> str:
+    """A gap's short wording with what it is about: in place of ``{about}`` ("A, B and C"),
+    else in brackets after it. Tier keys among them are named as the reader knows them."""
+    about = [TIER_TITLE.get(a, a) for a in about]
+    if "{about}" in short:
+        names = (
+            ", ".join(about[:-1]) + (" and " if len(about) > 1 else "") + about[-1]
+            if about
+            else "?"
+        )
+        return short.replace("{about}", names)
+    return f"{short} ({', '.join(about)})" if about else short
+
+
 TIER_TITLE = {"near_neighbours": "Near neighbours", "exclusivity": "Clinical organism list",
               "background": "Background", "out_of_scope": "Out of scope"}  # fmt: skip
 _ROLES = ("forward", "reverse", "probe")

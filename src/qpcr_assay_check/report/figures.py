@@ -77,9 +77,10 @@ def coverage_steps(result: RunResult, cfg: Config) -> Markup | None:
     steps = [("listed", c.listed_total), ("assessed", c.assessed_total),
              ("region found", c.found)]  # fmt: skip
     w = window(result, cfg)
-    if w is not None:
-        steps.append(("judged, window", w.n))
-    return _markup(charts.coverage_steps(steps))
+    inc = result.inclusivity
+    axis = "collected" if inc is not None and inc.status_axis == "collection" else "released"
+    span = (f"{axis} {w.first}–{w.last}", w.n) if w is not None else None
+    return _markup(charts.coverage_steps(steps, span))
 
 
 def year_bars(result: RunResult, cfg: Config) -> Markup | None:
@@ -105,6 +106,48 @@ def year_bars(result: RunResult, cfg: Config) -> Markup | None:
             if isinstance(extra, FragmentYear) and (extra.with_region or extra.possible_deletion):
                 rows.append(charts.YearRow(label=name, counts=_counts(extra), few=True))
     return _markup(charts.year_bars(rows, title=f"Outcome per {axis} year"))
+
+
+def year_panels(result: RunResult, cfg: Config) -> dict[str, Any] | None:
+    """Part B's two year panels side by side (third report review, 2026-11-25: they replace the
+    two per-year tables): by release year and by collection year, the status axis bracketed,
+    undated and earlier records drawn as bars of their own. The numbers: workbook, sheet
+    "Inclusivity"."""
+    inc = result.inclusivity
+    w = window(result, cfg)
+    if inc is None or w is None or not inc.fragment_years:
+        return None
+    few_below = cfg.inclusivity.min_genomes_per_year
+    by_collection = inc.status_axis == "collection"
+
+    def rows(years: list[FragmentYear], status: bool) -> list[charts.YearRow]:
+        return [
+            charts.YearRow(label=str(y.year), counts=_counts(y),
+                           in_window=status and w.first <= y.year <= w.last,
+                           few=_counts(y).judged < few_below)
+            for y in years
+        ]  # fmt: skip
+
+    release = charts.year_bars(rows(inc.fragment_years, not by_collection), width=345,
+                               title="By release year", compact=True)  # fmt: skip
+    collection = ""
+    ca = inc.collection
+    if ca is not None:
+        extra = [
+            charts.YearRow(label=name, counts=_counts(y), few=True)
+            for y, name in ((ca.earlier, f"before {ca.first_year}"), (ca.undated, "no usable date"),
+                            (ca.not_read, "date not read"))
+            if y.with_region or y.possible_deletion
+        ]  # fmt: skip
+        collection = charts.year_bars([*rows(ca.years, by_collection), *extra], width=345,
+                                      title="By collection year", compact=True)  # fmt: skip
+    return {
+        "legend": Markup(charts.legend_strip(500)),  # noqa: S704 - constant SVG
+        "release": Markup(release),  # noqa: S704 - SVG from numbers, labels escaped
+        "collection": Markup(collection) if collection else None,  # noqa: S704
+        "status": "collection" if by_collection else "release",
+        "window": w,
+    }
 
 
 def mismatch_columns(result: RunResult) -> list[tuple[str, str, str, int, dict[int, Any]]]:
@@ -192,16 +235,165 @@ def closest_by_tier(sites: list[Any]) -> dict[str, Any]:
     return best
 
 
-def site_glyphs(result: RunResult) -> dict[str, Markup]:
-    """Per tier, the closest primer site as a glyph (P4)."""
+def _zones(cfg: Config) -> charts.Zones:
+    c, w = cfg.specificity.primer_site.critical, cfg.specificity.primer_site.warning
+    return charts.Zones(crit_mm=c.max_mismatches, crit_gaps=c.max_gaps,
+                        crit_clean=c.min_clean_3prime_nt, warn_mm=w.max_mismatches,
+                        warn_gaps=w.max_gaps, warn_clean=w.min_clean_3prime_nt)  # fmt: skip
+
+
+def _primer_length(result: RunResult) -> int:
+    return max((len(o.sequence) for o in result.assay.oligo_list if o.role != "probe"),
+               default=24)  # fmt: skip
+
+
+def _point(s: Any, label: str) -> charts.MapPoint:
+    return charts.MapPoint(
+        label=label, tier=s.tier, mismatches=s.n_mismatch, clean3=s.clean_3prime_nt,
+        gaps=s.n_gap, level=s.level,
+        title=(f"{label}: closest primer site {s.query} on {s.accession}, {s.n_mismatch} "
+               f"mismatch(es), {s.n_gap} gap(s), {s.clean_3prime_nt} clean 3′ nt, {s.level}"),
+    )  # fmt: skip
+
+
+MAP_POINTS = 40  # marks in the off-target site map; the rest in the workbook
+
+
+def site_level_map(result: RunResult, cfg: Config) -> dict[str, Any] | None:
+    """Each off-target organism's closest primer site against the site levels (third report
+    review, 2026-11-25, M1): one mark per tier and species, every level included, the probe sites
+    as a line of text (no 3' rule applies to them)."""
+    from .grouping import species_of
+
+    spec = result.specificity
+    if spec is None:
+        return None
+    species = species_of(result.taxonomy_breakdown)
+    best: dict[tuple[str, str], Any] = {}
+    probes: dict[tuple[str, str], Any] = {}
+    for s in spec.sites:
+        if s.source == "blast_partial_worst_case" or not s.q_aln:
+            continue
+        name = (species.get(s.taxid) if s.taxid else None) or s.organism or "unknown organism"
+        key = (s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id)
+        into = probes if s.role == "probe" else best
+        if s.role == "probe" and s.level == "minor":
+            continue
+        old = into.get((s.tier, name))
+        if old is None or key < (old.n_mismatch + old.n_gap, -old.clean_3prime_nt, old.id):
+            into[(s.tier, name)] = s
+    if not best and not probes:
+        return None
+    ranked = sorted(best.items(), key=lambda kv: (kv[1].n_mismatch + kv[1].n_gap,
+                                                  -kv[1].clean_3prime_nt, kv[0]))  # fmt: skip
+    shown = ranked[:MAP_POINTS]
+    points = [_point(s, name) for (_tier, name), s in shown]
+    svg = charts.site_level_map(points, _zones(cfg), _primer_length(result)) if points else ""
+    probe_line = "; ".join(
+        f"{name} ({s.tier.replace('_', ' ')}): {s.query}, {s.n_mismatch} mm"
+        + (f", {s.n_gap} gap(s)" if s.n_gap else "") + f", {s.level}"
+        for (_tier, name), s in sorted(probes.items(), key=lambda kv: (kv[1].n_mismatch, kv[0]))
+    )  # fmt: skip
+    return {
+        "svg": Markup(svg) if svg else None,  # noqa: S704 - SVG from numbers, names escaped
+        "n": len(points), "more": len(ranked) - len(shown), "probes": probe_line,
+    }  # fmt: skip
+
+
+def site_glyphs(result: RunResult, cfg: Config | None = None) -> dict[str, Markup]:
+    """Per tier, the closest primer site as a dot on the site-level zones (third report review,
+    2026-11-25, M1b: in the cell glyph a perfect match was the emptiest picture)."""
+    from ..config import load_config
+
     spec = result.specificity
     if spec is None:
         return {}
+    cfg = cfg or load_config()
     out = {}
     for tier, s in closest_by_tier(spec.sites).items():
-        label = (f"closest {s.role} site: {s.n_mismatch} mismatch(es), {s.n_gap} gap(s), "
-                 f"{s.clean_3prime_nt} clean 3′ nt, {s.organism or 'unknown'}")  # fmt: skip
-        svg = charts.site_glyph(s.q_aln, s.s_aln, 5, label)
+        p = _point(s, s.organism or "unknown organism")
+        p.title = (f"closest {s.role} site: {s.n_mismatch} mismatch(es), {s.n_gap} gap(s), "
+                   f"{s.clean_3prime_nt} clean 3′ nt, {s.level}, "
+                   f"{s.organism or 'unknown'}")  # fmt: skip
+        svg = charts.site_dot(p, _zones(cfg), _primer_length(result))
         if svg:
-            out[tier] = Markup(svg)  # noqa: S704 - SVG from alignment letters, label escaped
+            out[tier] = Markup(svg)  # noqa: S704 - SVG from numbers, label escaped
     return out
+
+
+_STRUCT_GROUP = {"hairpin": "hairpin", "homodimer": "self-dimer", "heterodimer": "dimer",
+                 "end_dimer": "3′ end"}  # fmt: skip
+
+
+def structure_strip(result: RunResult, cfg: Config) -> Markup | None:
+    """Every hairpin and dimer against the review and limit temperatures (third report review,
+    2026-11-25, M5); the flagged ones keep their sequence drawing in the table below it."""
+    qc = result.oligo_qc
+    if not qc.structures:
+        return None
+    t = cfg.thresholds.structures
+    fail = t.fail_tm_c if t.fail_tm_c is not None else cfg.reaction.annealing_temp_C
+    rows = [
+        charts.StructRow(group=_STRUCT_GROUP.get(s.kind, s.kind),
+                         label=" / ".join(s.subjects) if s.kind != "end_dimer"
+                         else " on ".join(s.subjects),
+                         tm=s.tm_c, status=s.status.value, found=s.found)
+        for s in sorted(qc.structures, key=lambda s: list(_STRUCT_GROUP).index(s.kind)
+                        if s.kind in _STRUCT_GROUP else 9)
+    ]  # fmt: skip
+    return _markup(charts.structure_strip(rows, t.warn_tm_c, fail))
+
+
+def coverage_accounting(result: RunResult) -> Markup | None:
+    """Where every listed record went, and per oligo and for the whole fragment how many genomes
+    have a detectable copy (third report review, 2026-11-25, M6). A genome can lack a detectable
+    copy for more than one oligo, so the per-oligo shortfalls need not add up to the escapes."""
+    vs = result.variant_summary
+    c = vs.coverage if vs else None
+    if c is None or not c.listed_total:
+        return None
+    what = "records" if c.source == "blast_partitioned" else "assemblies"
+    seen = c.found + c.contig_break + c.masked + c.related_only + c.not_found
+    other = max(0, c.assessed_total - seen)
+    waiting = max(0, c.listed_total - c.assessed_total)
+    listed = charts.AcctBar(
+        f"{c.listed_total:,} {what} listed",
+        [("#5B7C99", c.found, "region found"), ("url(#q-und)", c.contig_break, "cut by an end"),
+         ("url(#q-und)", c.masked, "hidden by N"), ("#B7C4CF", c.related_only, "related only"),
+         ("url(#q-del)", c.not_found, "not found"), ("url(#q-und)", other, "other"),
+         ("#FFFFFF", waiting, "not assessed yet")],
+        "; ".join(f"{n:,} {name}" for n, name in (
+            (c.found, "region found"), (c.not_found, "not found"),
+            (c.related_only, "related only"), (c.contig_break, "cut by an end"),
+            (c.masked, "hidden by N"), (other, "other"), (waiting, "not assessed yet"),
+        ) if n),
+    )  # fmt: skip
+    bars = [listed]
+    cc = c.copies
+    if cc is not None and cc.genomes:
+        roles = [r for r in ("forward", "probe", "reverse")
+                 if any(o.role == r for o in cc.oligos)]  # fmt: skip
+        first = True
+        for role in roles:
+            none = cc.role_none.get(role, 0)
+            und = cc.role_undetermined.get(role, 0)
+            names = [o.name for o in cc.oligos if o.role == role]
+            label = f"{role} {names[0]}" if len(names) == 1 and names[0] != role else role
+            bars.append(charts.AcctBar(
+                label, [("#2F6FA8", cc.genomes - none - und, "detectable copy"),
+                        ("url(#q-und)", und, "undetermined"),
+                        ("url(#q-risk)", none, "no detectable copy")],
+                f"{cc.genomes - none - und:,} · {none:,} without" + (f" · {und:,} undetermined"
+                                                                     if und else ""),
+                gap_before=first,
+            ))  # fmt: skip
+            first = False
+        und = cc.undetermined
+        bars.append(charts.AcctBar(
+            "whole fragment", [("#2F6FA8", cc.with_detectable_copy, "detectable copy"),
+                               ("url(#q-und)", und, "undetermined"),
+                               ("url(#q-risk)", cc.escapes, "escapes")],
+            f"{cc.with_detectable_copy:,} · {cc.escapes:,} escapes"
+            + (f" · {und:,} undetermined" if und else ""),
+        ))  # fmt: skip
+    return _markup(charts.accounting(bars))

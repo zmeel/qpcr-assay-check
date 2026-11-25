@@ -21,7 +21,8 @@ from ..inclusivity.models import (
 from ..results import RunResult
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL, Verdict
-from .grouping import TIER_TITLE
+from . import figures
+from .grouping import TIER_TITLE, gap_text
 
 _SEVERITY = {"FAIL": Verdict.FAIL, "INCOMPLETE": Verdict.INCOMPLETE, "WARN": Verdict.WARN}
 _RANK = {Verdict.PASS: 0, Verdict.WARN: 1, Verdict.INCOMPLETE: 2, Verdict.FAIL: 3}
@@ -84,7 +85,9 @@ def _qc_row(result: RunResult) -> SummaryRow:
         f"{len(fail)} outside the limit, {len(warn)} outside the preferred range; "
         f"{len(flagged)} of {len(qc.structures)} hairpins and dimers flagged"
     )
-    reason = "; ".join(f"{c.name} ({c.display})" for c in fail or warn)
+    # names only: the values and the limit stand in the findings that need a decision (third
+    # report review, 2026-11-25: the status cell repeated them)
+    reason = "; ".join(c.name for c in fail or warn)
     if not reason and flagged:
         reason = "; ".join(s.label for s in flagged)
     if fail or warn:
@@ -123,14 +126,28 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
         primer = [s for s in spec.sites if s.tier == t.tier and s.role != "probe"]
         crit = sum(s.level == "critical" for s in primer)
         warn = sum(s.level == "warning" for s in primer)
-        if t.products:
-            res = (
-                f"{_plural(t.products, 'predicted amplicon')}, {t.detected} of them detectable "
-                "by the probe"
-            )
+        # one count basis on paper (third report review, 2026-11-25): the tier table's primer
+        # sites without an amplicon, read from the findings; a record made before warning
+        # sites were split by amplicon keeps the old totals and words
+        mine = [f for f in spec.findings if f.tier == t.tier]
+        split = {"primer_critical_no_product", "primer_critical_product",
+                 "primer_warning_no_product", "primer_warning_product"}  # fmt: skip
+        if any(f.kind in split for f in mine) and not any(f.kind == "primer_warning" for f in mine):
+            crit_no = sum(f.count for f in mine if f.kind == "primer_critical_no_product")
+            warn_no = sum(f.count for f in mine if f.kind == "primer_warning_no_product")
+            sites = f"{crit_no:,} critical / {warn_no:,} warning primer sites without amplicon"
+        elif mine or primer:
+            crit_no, warn_no = crit, warn
+            sites = f"{crit:,} critical and {warn:,} warning primer sites"
         else:
-            res = "no predicted amplicon"
-        res += f"; {crit} critical and {warn} warning primer sites"
+            crit_no = warn_no = 0
+            sites = "no primer site at warning level or above"
+        if t.products:
+            seen = "none" if not t.detected else f"{t.detected:,}"
+            amps_txt = f"{_plural(t.products, 'amplicon')}, {seen} detected by the probe"
+        else:
+            amps_txt = "no amplicon"
+        res = f"{amps_txt}; {sites}"
         scope = _plural(t.n_taxa, "taxon", "taxa")
         if t.tier == "exclusivity" and result.exclusivity is not None:
             e = result.exclusivity
@@ -139,26 +156,33 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
                 levels.append(e.verdict)
         if t.incomplete:  # the saturation finding itself sets the level (tier marker)
             scope += f"; hit list incomplete for {', '.join(t.incomplete)}"
+        status = Verdict.PASS if t.tier == "out_of_scope" else _worst(levels)
+        # the reason says why the row has its status (third report review): an Incomplete row
+        # names its gap, a row with amplicons its closest one, else the closest primer site
+        gaps: dict[str, list[str]] = {}
+        for f in mine:
+            if f.short and f.severity == "INCOMPLETE":
+                gaps.setdefault(f.short, []).extend([f.about] if f.about else [])
         reason = ""
-        if amps:
+        if status is Verdict.INCOMPLETE and gaps:
+            reason = "; ".join(gap_text(short, about) for short, about in gaps.items())
+        elif amps:
             a = amps[0]
             reason = f"amplicon {a.length} bp on {a.accession} ({a.organism or 'unknown'})"
             if len(amps) > 1:
-                reason += f" and {len(amps) - 1} more"
-        elif crit:
-            reason = "critical primer sites, but no two facing each other (no amplicon)"
+                reason += f" and {len(amps) - 1:,} more"
+        elif crit_no or warn_no:
+            x = figures.closest_by_tier(spec.sites).get(t.tier)
+            if x is not None:
+                gap = f", {x.n_gap} gap{'s' if x.n_gap != 1 else ''}" if x.n_gap else ""
+                reason = (
+                    f"closest primer site: {x.role}, {x.n_mismatch} mm{gap}, "
+                    f"{x.clean_3prime_nt} clean 3′ ({x.organism or 'unknown organism'})"
+                )
         info = t.tier == "out_of_scope"
         # the sign-off's short line (user, 2026-11-25: "amplicon 166 bp on AF141854.1 (...) and
         # 633 more (details in Part B)" wrapped, and the decision box went to a third page)
-        if t.products:
-            n = f"{t.products:,} amplicon{'' if t.products == 1 else 's'}"
-            seen = "none" if not t.detected else f"{t.detected:,}"
-            brief = f"Specificity, {t.title}: {n}, {seen} detected by the probe"
-        else:
-            brief = (
-                f"Specificity, {t.title}: no amplicon; {crit:,} critical and {warn:,} warning "
-                "primer sites"
-            )
+        brief = f"Specificity, {t.title}: {res if not t.products else amps_txt}"
         rows.append(
             _fig(
                 f"tier:{t.tier}",
@@ -166,7 +190,7 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
                     f"Off-target: {t.title}",
                     scope,
                     res,
-                    Verdict.PASS if info else _worst(levels),
+                    status,
                     reason,
                     "specificity",
                     label="Information only" if info else None,
@@ -236,13 +260,12 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
         )
     what = "records" if inc.sample_scheme.startswith("Every NCBI Nucleotide record") else "genomes"
     pct = w.percent
+    # plain shares that add up (third report review, 2026-11-25); the distinct-pattern figure
+    # stays in Part B
     res = (
-        f"{pct:.1f}% detectable, {100.0 * (w.detectable + w.at_risk) / w.n:.1f}% including at "
-        f"risk, {100.0 * w.not_detected / w.n:.1f}% likely failure"
+        f"{pct:.1f}% detectable, {100.0 * w.at_risk / w.n:.1f}% at risk, "
+        f"{100.0 * w.not_detected / w.n:.1f}% likely failure"
     )
-    d = inc.distinct
-    if d is not None and d.percent is not None:
-        res += f" ({d.percent:.1f}% of {d.patterns:,} distinct site patterns, information)"
     alt = inc.bulge_alternative
     if alt is not None and abs(alt - pct) >= 0.05:
         res += (f"; {alt:.1f}% if single-base run-length differences were "

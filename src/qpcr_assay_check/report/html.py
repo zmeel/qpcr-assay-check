@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import Any
 
 import yaml
@@ -23,14 +24,17 @@ from .grouping import (
     TIER_TITLE,
     amplicon_order,
     fragment_view,
+    gap_text,
     group_products,
     group_sites,
     oligo_view,
+    plain_tiers,
     shown_rows,
     site_changes,
     site_frequency,
     spec_overview,
     species_of,
+    tier_name,
 )
 from .ncbi_links import linkify, taxon_link
 from .summary import summary_rows
@@ -197,6 +201,27 @@ def floor_matrix(spec: Any) -> list[dict[str, Any]]:
     return out
 
 
+def floor_summary(floors: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The score-floor rows as one sentence for what most rows share (always reported up to,
+    list size limit, search space) and the rows that differ (third report review, 2026-11-25:
+    nine identical rows in the HSV-1 record). Every row stays in the workbook."""
+    if not floors:
+        return None
+
+    def key(r: dict[str, Any]) -> tuple[Any, ...]:
+        return (r["mismatches"], r["list_full"], r["source"], bool(r["unknown"]))
+
+    common = Counter(map(key, floors)).most_common(1)[0][0]
+    same = [r for r in floors if key(r) == common]
+    scores = sorted(s for r in same for s in r["scores"])
+    score = "–" if not scores else str(scores[0]) if scores[0] == scores[-1] else (
+        f"{scores[0]}–{scores[-1]}")  # fmt: skip
+    return {
+        "n": len(same), "total": len(floors), "mismatches": common[0], "list_full": common[1],
+        "source": common[2], "score": score, "exceptions": [r for r in floors if key(r) != common],
+    }  # fmt: skip
+
+
 def floor_per_search(spec: Any) -> dict[str, str]:
     """Per tier of several searches: each search's taxa and floors (F6), as one sentence."""
     from ..specificity.reach import _per_search
@@ -338,6 +363,14 @@ LIMITS_SHOWN = [
 ]  # fmt: skip
 
 
+def _by_group(limits: list[tuple[str, str, str]]) -> list[tuple[str, list[tuple[str, str]]]]:
+    """The limits one row per group, in their order (third report review: 40 one-value rows)."""
+    out: dict[str, list[tuple[str, str]]] = {}
+    for group, key, value in limits:
+        out.setdefault(group, []).append((key, value))
+    return list(out.items())
+
+
 def limits_applied(config: dict[str, Any]) -> list[tuple[str, str, str]]:
     """``(group, setting, value)`` for the limits of :data:`LIMITS_SHOWN` present in the
     record's configuration."""
@@ -373,6 +406,7 @@ def differing_settings(result: RunResult) -> list[tuple[str, str, str, str]]:
     return out
 
 
+_LIMIT = re.compile(r"(?:outside the )?limit [^;]+")
 _RESTATES_CELL = re.compile(r"outside the (?:preferred range|limit)")
 
 
@@ -389,19 +423,6 @@ _SITE_KINDS = ("primer_critical_product", "primer_critical_no_product",
                "primer_warning_product", "primer_warning_no_product",
                "probe_critical", "probe_warning")  # fmt: skip
 _PRODUCT_KINDS = ("products_detected", "products_not_detected")
-
-
-def gap_text(short: str, about: list[str]) -> str:
-    """A gap's short wording with what it is about: in place of ``{about}`` ("A, B and C"),
-    else in brackets after it."""
-    if "{about}" in short:
-        names = (
-            ", ".join(about[:-1]) + (" and " if len(about) > 1 else "") + about[-1]
-            if about
-            else "?"
-        )
-        return short.replace("{about}", names)
-    return f"{short} ({', '.join(about)})" if about else short
 
 
 def _worst(findings: list[Any]) -> str | None:
@@ -466,7 +487,11 @@ def tier_table(spec: Any, overview: list[Any], site_by_id: dict[str, Any]) -> di
     other = [f for f in findings
              if not f.kind and not f.short and f.message != spec.scope]  # fmt: skip
     other.sort(key=lambda f: _SEV_RANK[f.severity])
+    # a record made before warning sites were split by amplicon counts them all (third report
+    # review, 2026-11-25): say so under the table instead of a wrong "without amplicon"
+    old_warning = any(f.kind == "primer_warning" for f in findings)
     return {"rows": rows, "notes": notes, "all_tiers": leftover, "other": other,
+            "old_warning": old_warning,
             "status_all": _worst([f for f in findings if f.short and not f.tier])}  # fmt: skip
 
 
@@ -505,10 +530,14 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
     }
     for c in qc.checks:
         if c.status.value == "FAIL":
-            # name the oligo: "Tm of 72.5 °C is outside the limit" alone does not say whose
+            # name the oligo: "Tm of 72.5 °C is outside the limit" alone does not say whose;
+            # and the limit itself (third report review, 2026-11-25)
             who = names.get(c.subject, c.name) if c.message else c.name
-            text = c.message or f"{c.display} {c.unit}".strip()
-            out.append(("FAIL", f"{who}: {text}"))
+            text = (c.message or f"{c.display} {c.unit}".strip()).rstrip(".")
+            limit = _LIMIT.search(c.rule or "")
+            out.append(
+                ("FAIL", f"{who}: {text}; {limit.group(0) if limit else c.rule}".rstrip("; "))
+            )
     for s in qc.structures:
         if s.status.value == "FAIL":
             out.append(("FAIL", f"{s.label}: structure Tm {s.tm_c} °C"))
@@ -607,7 +636,8 @@ def _environment() -> Environment:
     env.filters["plain"] = _plain
     env.tests["search"] = lambda value, text: text in str(value)
     env.tests["adding"] = adds_to_cell
-    env.filters["tier_name"] = lambda tier: TIER_TITLE.get(tier, tier)
+    env.filters["tier_name"] = tier_name
+    env.filters["plain_tiers"] = plain_tiers
     return env
 
 
@@ -634,23 +664,8 @@ def render_report(result: RunResult, cfg: Config) -> str:
         if items:
             groups.append((title, items))
 
+    # the Tm figure stands in Part A only (third report review, 2026-11-25: printed twice)
     charts: list[dict[str, Any]] = []
-    if cfg.report.include_charts:
-        strip = figures.tm_strip(result, cfg)
-        if strip:
-            charts.append(
-                {
-                    "title": "Melting temperatures",
-                    "html": strip,
-                    "caption": (
-                        "Nearest-neighbour Tm per oligo: a dot, or a line over the range of a "
-                        "degenerate oligo's variants (a triangle when its Tm check is outside the "
-                        "limit; probes hollow, as the primer bands do not apply to them). Shaded: "
-                        "the preferred primer range; solid lines: the primer limits; dashed: the "
-                        "annealing temperature. The values are in the checks below."
-                    ),
-                }
-            )
 
     spec = result.specificity
     shown: list[Any] = []
@@ -696,7 +711,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
             "window": figures.window_meter(result, cfg),
             "coverage": figures.coverage_steps(result, cfg),
             "years": figures.year_bars(result, cfg),
-            **{f"tier:{t}": g for t, g in figures.site_glyphs(result).items()},
+            **{f"tier:{t}": g for t, g in figures.site_glyphs(result, cfg).items()},
         }
     overview = spec_overview(spec, result.assay, rows_of_searches) if spec else []
     template = _environment().get_template("report.html.j2")
@@ -704,6 +719,10 @@ def render_report(result: RunResult, cfg: Config) -> str:
         figures=figs,
         chart_defs=Markup(svg.defs()) if figs else "",  # noqa: S704 - constant SVG
         site_maps=figures.site_maps(result) if cfg.report.include_charts else [],
+        year_panels=figures.year_panels(result, cfg) if cfg.report.include_charts else None,
+        level_map=figures.site_level_map(result, cfg) if cfg.report.include_charts else None,
+        structure_strip=figures.structure_strip(result, cfg) if cfg.report.include_charts else None,
+        coverage_figure=figures.coverage_accounting(result) if cfg.report.include_charts else None,
         attention_shown=ATTENTION_ON_PAGE_ONE,
         oligo_totals=oligo_totals,
         qc_rows=qc_matrix(result),
@@ -714,6 +733,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
             ),
         ),
         limits=limits_applied(result.config),
+        limits_by_group=_by_group(limits_applied(result.config)),
         differing=differing_settings(result),
         incomplete_queries=[
             q
@@ -722,6 +742,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
         ],
         site_by_id={s.id: s for s in spec.sites} if spec else {},
         floors=floor_matrix(spec) if spec else [],
+        floor_sum=floor_summary(floor_matrix(spec)) if spec else None,
         floor_searches=floor_per_search(spec) if spec else {},
         r=result,
         product_groups=product_groups,

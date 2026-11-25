@@ -163,7 +163,7 @@ def test_the_product_table_names_the_tier_and_the_probe_signal_in_words():
 
     env = _environment()
     assert env.filters["tier_name"]("near_neighbours") == "Near neighbours"
-    assert env.filters["tier_name"]("custom") == "custom"
+    assert env.filters["tier_name"]("custom") == "Custom"
     src = env.loader.get_source(env, "report.html.j2")[0]
     assert "'amplified_not_detected': 'amplified, not detected'" in src
     assert "<td>{{ g.tier | tier_name }}</td>" in src

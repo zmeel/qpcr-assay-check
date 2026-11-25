@@ -55,7 +55,12 @@ def test_the_report_shows_the_assay_s_own_settings():
     assay = make_assay(settings={"search": {"background_taxids": []}})
     cfg = load_config(None, assay.settings)
     html = render_report(evaluate(assay, cfg, qc_only=True), cfg)
-    assert "Settings from the assay file" in html and "background_taxids: []" in html
+    # one table: the setting, its value, the default and where it came from (the YAML copy of the
+    # assay's settings repeated it; third report review, 2026-11-25)
+    i = html.index("Settings that differ from the defaults")
+    table = html[i : html.index("</table>", i)]
+    assert "<code>search.background_taxids</code>" in table and "assay file" in table
+    assert "Settings from the assay file" not in html
 
 
 def test_a_run_budget_in_the_assay_does_not_count_as_a_change():

@@ -60,7 +60,7 @@ def test_an_oligo_check_beyond_its_limit_names_the_oligo_on_the_sign_off(tmp_pat
     lines = [text for sev, text in decision_lines(result, []) if sev == "FAIL"]
     who = next(o for o in qc.oligos if (o.name or o.role) == check.subject)
     named = who.name if who.name and who.name != who.role else "Forward primer"
-    assert f"{named}: Tm of 72.5 °C is outside" in lines
+    assert f"{named}: Tm of 72.5 °C is outside; limit 54–70 °C" in lines  # the limit named
 
 
 def test_the_decision_box_keeps_its_note_and_the_ncbi_line_is_in_the_header(tmp_path):

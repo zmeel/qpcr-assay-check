@@ -57,6 +57,32 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Third report review, built** (user, 2026-11-25: everything except M3, the combination
+  chart).
+  - **Print:** long tables break between rows and repeat their header; headings stay with
+    their content.
+  - **Sign-off:**
+    - One count basis for primer sites.
+    - Incomplete rows name their gap; rows without an amplicon name their closest primer site.
+    - Exceeds-limit lines name the limit.
+    - The Tm figure marks the worst variant and names its bands.
+    - The coverage figure draws the status window apart.
+    - Plain inclusivity shares, and tier names instead of keys.
+  - **Cuts:**
+    - "What the searches could report" is one sentence plus exceptions (sheet "Hits per
+      query" keeps every row).
+    - The second Tm figure, the duplicate Amplicon table, the YAML copy of the assay settings
+      and the off-target heading chips are dropped.
+    - The Rationale shows only when the status is not No flags.
+    - The incomplete queries are one line, and Limits applied is one row per group.
+  - **New figures:**
+    - Year panels by release and by collection year, replacing the per-year tables.
+    - An off-target site-level map (each organism once, at its closest primer site, filled
+      with its level), replacing the per-species table, with a matching dot in Part A's
+      off-target rows.
+    - A hairpin and dimer strip; only flagged structures keep their drawing.
+    - A coverage accounting figure, with zero-count coverage rows folded into one line.
+  - **Without charts**, the tables remain. On the sample record: 13 pages to 11, sign-off 2.
 - **The tier table counts primer sites without an amplicon** (user, 2026-11-25). The column
   "critical, in an amplicon" is gone: it was roughly twice the amplicon count. The other two site
   columns are now one, "Primer sites without amplicon: critical / warning". These are the leads
