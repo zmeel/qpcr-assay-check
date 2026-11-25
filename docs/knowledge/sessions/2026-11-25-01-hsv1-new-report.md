@@ -83,3 +83,6 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   "Specificity, <tier>: N amplicons, none detected by the probe", or the site counts when there is
   no amplicon (`SummaryRow.brief`), and the "(details in Part B)" suffix is dropped. The findings
   list is printed a little smaller. Simulated on that record: a 2-page sign-off, 19 pages in all.
+- **HSV-1 with `partner_scan_max_windows: 2000`** (13:33Z, commit 5a38aac): 19 pages, with a
+  2-page sign-off. The opposite-primer check is complete: 1,906 sites, 17 sites added, no new
+  amplicon. The human background, cut at `max_sites_per_query`, is the only gap left.
