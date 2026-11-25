@@ -111,7 +111,8 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   [decision](decisions/2026-11-25-findings-condensed.md)). The user's run of 08:21Z confirmed
   19 pages, with a 2-page sign-off. Three small faults found in it are fixed (the closest site
   can now only be a site at warning or critical level, no repeated information lines, words
-  instead of raw labels). HSV-2 and VZV are not yet rerun on this code.
+  instead of raw labels), confirmed by the user's run of 09:18Z. HSV-2 and VZV are not yet
+  rerun on this code.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 

@@ -39,3 +39,13 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   - The two information lines under "Other specificity findings" repeated the products
     paragraph.
   - The product table showed raw tier names and chip labels.
+- **The HSV-1 record with these fixes** (09:18Z, commit c2dd9cd): 19 pages, with a 2-page
+  sign-off, and Part A identical to the 08:21Z run apart from the run stamps. All three fixes
+  hold:
+  - the clinical list's closest site is CP139307.1 (*T. pallidum*: 4 mismatches, 18 clean 3′
+    nt), in the table and in Part A's glyph;
+  - "Other specificity findings" no longer appears;
+  - the product and site tables say "Near neighbours" and "amplified, not detected".
+
+  Left as it is: in the near-neighbour tier the forward and the reverse site tie (0 mismatches,
+  22 clean 3′ nt), and Part A's glyph shows the reverse while the table shows the forward.
