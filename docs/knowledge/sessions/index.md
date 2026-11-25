@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [HSV-1 on the new code](2026-11-25-01-hsv1-new-report.md) - Session log of 2026-11-25.
 * [Advisor review of the search tiers](2026-11-20-01-tiers-review.md) - Session log of 2026-11-20.
 * [The status page corrected; the first HSV-2 run](2026-11-19-01-hsv2-first-run.md) - Session log of 2026-11-19.
 * [Whole-project code review: seven fixes](2026-11-17-01-code-review-fixes.md) - Session log of 2026-11-17.

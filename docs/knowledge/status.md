@@ -71,7 +71,7 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
 | Entamoeba histolytica | [2026-10-05 12:49Z](runs/entamoeba-2026-10-05-complete.md) | Exceeds limit: products in other Entamoeba species; target 86.4% of 81 records; all 2,345 records assessed, inclusivity Incomplete (few dated records) |
 | Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
 | VZV (ORF38) | [2026-11-17 14:31Z](runs/vzv-2026-11-17.md) | coverage complete (2,831 assessed, 1 unavailable); 99.7% of 599 with the region detectable; no off-target product; Exceeds limit on oligo QC only (probe G-form hairpin); inclusivity Incomplete (75 collected 2023-2026) |
-| HSV-1 (gG) | [2026-11-19 11:41Z](runs/hsv1-2026-11-19.md) | near neighbours and release axis: Exceeds limit on oligo QC only; inclusivity No flags (96.0% of 223 genomes released 2023-2026); HSV-2 amplified, not detected (500 records, the cap, near-neighbour tier Incomplete); no product in the exclusivity list or human DNA (background Incomplete, 2,000-site cap) |
+| HSV-1 (gG) | [2026-11-25 07:33Z](runs/hsv1-2026-11-25.md) | code after the tiers review and the new report: as before, Exceeds limit on oligo QC only (primer Tm, worst of 8 variants); sign-off 2 A4 pages, record 22. Previous [2026-11-19 11:41Z](runs/hsv1-2026-11-19.md): near neighbours and release axis, Exceeds limit on oligo QC only; inclusivity No flags (96.0% of 223 genomes released 2023-2026); HSV-2 amplified, not detected (500 records, the cap, near-neighbour tier Incomplete); no product in the exclusivity list or human DNA (background Incomplete, 2,000-site cap) |
 | HSV-2 (gD) | [2026-11-19 10:45Z](runs/hsv2-2026-11-19b.md) | near neighbours and release axis: Review, from off-target primer sites without a product only (*Listeria*, human); near neighbours No flags (HSV-1 probe sites only, not amplified); inclusivity No flags, 100.0% of 181 genomes released 2023-2026; oligo QC No flags. First run [09:19Z](runs/hsv2-2026-11-19.md): Incomplete |
 | Influenza A (matrix) | [2026-11-18 08:15Z](runs/influenza-a-2026-11-18b.md) | v2.2.0 with the re-alignment fix: Exceeds limit, a 141 bp product on ON845595.1 read as detected (a record labelled influenza B whose M fragment is 95% identical to influenza A: most likely mislabelled); inclusivity No flags (99.5% of 72,698) |
 
@@ -104,9 +104,9 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   (2026-11-20; [report](components/report.md)). The HSV-1 record of 16:52Z: 22 pages, nothing
   cut off, but a three-page sign-off. Since then specificity gaps are short lines, the site maps
   are in Part B and oligos are listed forward, probe, reverse
-  ([decision](decisions/2026-11-20-sign-off-two-pages-amplicon-order.md)). Measured on that
-  record's HTML with the changes applied, the sign-off is two pages. Rebuild the GUI and rerun to
-  confirm it on a real record.
+  ([decision](decisions/2026-11-20-sign-off-two-pages-amplicon-order.md)). Confirmed on the
+  user's HSV-1 run of 2026-11-25: sign-off 2 pages, record 22
+  ([run](runs/hsv1-2026-11-25.md)). HSV-2 and VZV not yet rerun on this code.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 
