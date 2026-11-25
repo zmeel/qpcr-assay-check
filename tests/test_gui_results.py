@@ -69,6 +69,10 @@ def test_report_is_served_locked_down(client: TestClient, work: Path) -> None:
     assert "frame-ancestors 'self'" in csp and r.headers["x-frame-options"] == "SAMEORIGIN"
     assert '<base target="_blank">' in r.text
     assert '<base target="_blank">' not in (rec / "report.html").read_text()  # file unchanged
+    # a jump within the report stays in the frame: a new tab would need a new login
+    jumps = re.findall(r'<a [^>]*href="#[^"]*"[^>]*>', r.text)
+    assert jumps and all('target="_self"' in a for a in jumps)
+    assert 'target="_self"' not in (rec / "report.html").read_text()
     assert "does not replace experimental validation" in r.text
     # the GUI's own pages keep their stricter policy
     assert client.get("/results").headers["x-frame-options"] == "DENY"

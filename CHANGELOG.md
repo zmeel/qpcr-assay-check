@@ -130,6 +130,12 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   them first and always, and they are read cautiously (`cautious_tiers`, above).
 
 ### Fixed
+- **GUI: a jump within the report stays in the report** (user, 2026-11-25). The GUI adds
+  `<base target="_blank">` to the report so that NCBI links open in a new tab, but this also sent
+  the jumps in the "What was checked" table (to `#specificity` and so on) to a new tab. That tab,
+  opened from the sandboxed frame, does not carry the GUI login, so it showed the login page.
+  Links within the report now get `target="_self"` when the GUI serves it. The file on disk is
+  unchanged.
 - **Wide tables were cut off at the page edge in print** (second report review): seven tables of
   the HSV-1 record were wider than A4, and the reverse primer's 3' end did not print; they wrap
   now. "Hit list full" meant two things in two tables: now "List reached its size limit" and

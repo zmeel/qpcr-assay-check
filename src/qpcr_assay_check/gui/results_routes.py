@@ -4,11 +4,13 @@ shown in the page, and the record's files to download.
 The report is the record's own ``report.html``, unchanged on disk. The GUI serves it with a
 policy of its own: it may only be framed by the GUI, may run no script and load nothing from
 elsewhere (it needs none: the report is self-contained), and its links (to NCBI) open in a new
-tab. The frame is sandboxed as well, so the report cannot reach the GUI's session.
+tab while its jumps within the report stay in the frame. The frame is sandboxed as well, so the
+report cannot reach the GUI's session.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -24,6 +26,7 @@ RECORD_FILES = {
     "results.xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "hits.tsv": "text/tab-separated-values; charset=utf-8",
 }
+_IN_PAGE_LINK = re.compile(r"<a\b(?=[^>]*\shref=\"#)")
 REPORT_CSP = (
     "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'; "
     "form-action 'none'"
@@ -94,8 +97,12 @@ def register_results_routes(
             raise _NoRecord()
         if name == "report.html" and not download:
             html = path.read_text(encoding="utf-8")
-            # links open in a new tab; the file on disk stays as written
+            # links (to NCBI) open in a new tab, jumps within the report stay in it: a new tab
+            # opened from the sandboxed frame does not carry the GUI login, so a jump in the
+            # summary table led to the login page (user, 2026-11-25). The file on disk stays as
+            # written.
             html = html.replace("<head>", '<head><base target="_blank">', 1)
+            html = _IN_PAGE_LINK.sub('<a target="_self"', html)
             return HTMLResponse(html, headers={
                 "Content-Security-Policy": REPORT_CSP, "X-Frame-Options": "SAMEORIGIN",
             })  # fmt: skip

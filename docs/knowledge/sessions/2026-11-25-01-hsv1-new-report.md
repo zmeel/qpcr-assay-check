@@ -52,3 +52,9 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   make them pick the same site") both now use one choice, `figures.closest_by_tier`: warning or
   critical sites, the fewest mismatches and gaps, the longest clean 3′ end, then the lowest
   site id.
+- **GUI fix.** The user reported that the links in "What was checked" opened a new tab that asked
+  for the GUI login. The cause: the `<base target="_blank">` the GUI adds for NCBI links also
+  applied to jumps within the report. A tab opened from the sandboxed frame does not carry the
+  login. The GUI now gives links within the report `target="_self"`. Checked in Chromium with a
+  frame sandboxed as in the GUI: before, a new tab; after, the frame jumps to the section. NCBI
+  links still open a new tab.
