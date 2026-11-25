@@ -10,6 +10,7 @@ decisions: this file records how they compare and what was taken up.
 | `2026-11-17-whole-project-advisor.md` | independent advisor (molecular diagnostics, scientific software), whole project | 2026-11-17 |
 | `2026-11-20-report-advisor-round2.md` | the same advisor, on the user's five comments on the first HSV-1 report in the new layout | 2026-11-20 |
 | `2026-11-20-report-advisor.md` | independent advisor (molecular diagnostics, quality systems, data visualisation, report design), the HTML report | 2026-11-20 |
+| `2026-11-25-report-advisor-round3.md` | the same advisor, on the latest report changes, further simplifications and figures (HSV-1 record of 13:33Z) | 2026-11-25 |
 | `2026-11-20-tiers-advisor.md` | independent advisor (molecular diagnostics, in silico qPCR evaluation, scientific software), the off-target search tiers | 2026-11-20 |
 
 Both assessed the theoretical background of the tool at the same time, independently, from the

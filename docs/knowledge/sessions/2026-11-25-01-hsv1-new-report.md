@@ -98,3 +98,13 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   - User: "Build simplest". The table now has "Amplicons: detected / amplified" and "Primer sites
     without amplicon: critical / warning". Warning sites are split by amplicon, as critical sites
     were, so each site counts once.
+- **Third report review.** The user asked the advisor to review the latest changes and look for
+  more simplifications, figures preferred. The review is kept verbatim
+  ([review](../../reviews/2026-11-25-report-advisor-round3.md)).
+  - Measured on the 13:33Z record: 19 pages to 17 with a CSS-only print fix, to 12 with all its
+    proposals; Part A stays at 2 pages.
+  - Checked against the code before reporting: the Tm triangle sits at the midpoint of the
+    variant range; the clinical list's Part A row has no reason; the background row's reason
+    does not name its gap; tables may not break across pages in print, and `h4` headings may be
+    left alone at a page foot.
+  - Nothing built yet: the user decides.
