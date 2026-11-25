@@ -206,7 +206,10 @@ class PartnerScanner:
                 continue
             partner_role = "reverse" if anchor.role == "forward" else "forward"
             facing: Literal["+", "-"] = "-" if anchor.orientation == "+" else "+"
-            note = f"found by the partner scan next to {anchor.id}; not reported by BLAST"
+            note = (
+                f"found by the check for the opposite primer next to {anchor.id}; not reported "
+                "by BLAST"
+            )
             for labels in self._by_oligo(partner_role):  # the best variant of each oligo
                 found = [
                     s for s in (
@@ -266,7 +269,7 @@ class PartnerScanner:
             if product is None:
                 continue
             anchor = by_id[a.left_site]
-            note = f"found by re-aligning the probe inside product {a.id}; not reported by BLAST"
+            note = f"found by re-aligning the probe inside amplicon {a.id}; not reported by BLAST"
             for labels in self._by_oligo("probe"):  # the best variant of each probe
                 found = [
                     s for s in (

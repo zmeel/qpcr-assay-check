@@ -34,14 +34,14 @@ def test_an_unreported_reverse_primer_is_found_next_to_the_forward_primer(tmp_pa
     assert (amp.start, amp.end, amp.classification) == (F_START, R_START + 23, "likely_detected")
     rev = next(s for s in res.sites if s.id == amp.right_site)
     assert rev.source == "scanned" and rev.orientation == "-" and rev.n_mismatch == 2
-    assert rev.subject_start == R_START and "partner scan" in rev.note
+    assert rev.subject_start == R_START and "opposite primer" in rev.note
     assert rev.organism == "Bacterium exemplum" and rev.tm_c is not None
     assert res.verdict is Verdict.FAIL
     scan = res.partner_scan
     assert (scan.primer_sites, scan.windows, scan.primer_sites_added) == (1, 1, 1)
     (call,) = [c for c in fake.efetch_calls if int(c["seq_start"]) == F_START]
     assert int(call["seq_stop"]) == len(w.genomes[ACC]["seq"])  # the record's end, not +1999
-    assert any(f.message.startswith("Partner scan:") for f in res.findings)
+    assert any(f.message.startswith("Check for the opposite primer:") for f in res.findings)
 
 
 def test_an_unreported_probe_is_re_aligned_inside_the_product(tmp_path):
@@ -152,9 +152,9 @@ def test_product_fetches_have_a_budget_of_their_own(tmp_path):
         "near_neighbours": 1
     }
     # near neighbours are a cautious tier: a gapped probe site could bind, so not bounded
-    (f,) = [f for f in res.findings if "Probe re-alignment incomplete" in f.message]
+    (f,) = [f for f in res.findings if "Probe check incomplete" in f.message]
     assert f.severity == "INCOMPLETE" and f.message.startswith("Tier 'near_neighbours'")
-    assert "not bounded: a probe site with a gap can bind" in f.message
+    assert "a probe site with a gap still counts as able to bind" in f.message
 
 
 def test_a_tier_whose_product_list_was_cut_is_not_scanned(tmp_path):
@@ -174,8 +174,8 @@ def test_the_limitations_say_whether_the_scan_ran(tmp_path):
     add_all(w)
     on, _, _ = run(w, tmp_path / "on", **SCAN)
     off, _, _ = run(w, tmp_path / "off")
-    assert any("partner scan narrows that gap" in x for x in on.limitations)
-    assert any("partner scan was switched off" in x for x in off.limitations)
+    assert any("check for the opposite primer narrows that gap" in x for x in on.limitations)
+    assert any("check for the opposite primer was switched off" in x for x in off.limitations)
 
 
 def test_a_run_of_n_is_not_a_partner_site(tmp_path):

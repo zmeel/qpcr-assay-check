@@ -82,7 +82,7 @@ def test_the_re_alignment_and_the_partner_scan_show_their_counts() -> None:
     ]
     p = progress_of("\n".join(log))
     assert p.stage == 2 and p.percent == 37
-    assert p.detail == "Partner scan: 52 / 139 primer sites"
+    assert p.detail == "Check for the opposite primer: 52 / 139 primer sites"
 
 
 def test_a_new_stage_drops_the_last_stage_count() -> None:

@@ -142,14 +142,14 @@ def test_summary_findings_said_in_the_products_paragraph_are_not_listed_again(tm
     result = run_report_result(tmp_path)
     said = [
         Finding(severity="INFO", topic="amplicons", kind="primer_only_summary",
-                message="2174 primer site(s) at warning or critical level formed no product."),
+                message="2174 primer site(s) at warning or critical level formed no amplicon."),
         Finding(severity="INFO", topic="amplicons", kind="partner_scan_summary",
                 message="Partner scan: 1000 window(s) next to 1485 unpaired sites."),
     ]  # fmt: skip
     spec = _spec(result, [*FINDINGS, *said]).model_copy(update={"n_primer_only": 2174})
     html = render_report(result.model_copy(update={"specificity": spec}), load_config())
     assert "2174 primer site(s) at warning or critical level" not in html
-    assert "2174 primer site(s) that can prime formed no product." in html  # the paragraph
+    assert "2174 primer site(s) that can prime formed no amplicon." in html  # the paragraph
 
 
 def test_the_product_table_names_the_tier_and_the_probe_signal_in_words():

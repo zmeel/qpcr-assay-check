@@ -58,3 +58,18 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   login. The GUI now gives links within the report `target="_self"`. Checked in Chromium with a
   frame sandboxed as in the GUI: before, a new tab; after, the frame jumps to the section. NCBI
   links still open a new tab.
+- **Explained:** the user asked what "Near neighbours: product list cut at max_amplicons, not
+  bounded" means. Answer: 500 HSV-2 products were listed (the limit), and the proof that the
+  unlisted ones cannot be detected fails, because near neighbours are read cautiously. The way
+  to close it: raise `max_amplicons` for HSV-1, for example to 1,000.
+- **Rephrasing:** the user asked for a rephrasing without building. Three options were given,
+  with the other gaps in the same style. The user preferred "amplicon" to "product" and found
+  "partner primer" uncommon. The user approved the proposal ("Yes build as you propose"), and it
+  was built ([decision](../decisions/2026-11-25-plain-words-amplicon-opposite-primer.md)):
+  - "amplicon" and "check for the opposite primer" throughout the report, the findings, the
+    workbook (sheet "Predicted amplicons"), the GUI progress labels and the user documentation;
+  - every gap rewritten as what stopped, at which setting, and what that leaves unknown, with a
+    plain note;
+  - "not bounded" is gone, and "bounded" now reads "proven".
+
+  Setting names, results.json fields and log lines are unchanged.

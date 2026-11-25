@@ -68,7 +68,10 @@ def probe_bound(
     it holds and, if not, the first condition that fails.
     """
     if gapped_can_bind:
-        return False, "a probe site with a gap can bind in this tier, and BLAST need not report one"
+        return False, (
+            "in this tier a probe site with a gap still counts as able to bind, and BLAST does "
+            "not reliably report such sites"
+        )
     by_label = {e.query: e for e in entries if e.tier == tier}
     for label, (seq, mgb) in sorted(probes.items()):
         limit = 1 if mgb else 2
@@ -181,7 +184,7 @@ def floor_findings(entries: list[ScoreFloor], expect: float) -> list[Finding]:
                 message=(
                     f"Tier '{tier}': with the E-value cut-off {expect:g} this search reports only "
                     f"alignments scoring at least: {'; '.join(parts)}. Sites with more mismatches "
-                    "or a gap can be missing unless found by the partner scan."
+                    "or a gap can be missing unless found by the check for the opposite primer."
                     + _per_search(members)
                 ),
                 topic="search",

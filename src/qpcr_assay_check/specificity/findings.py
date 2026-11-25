@@ -57,7 +57,7 @@ def _patterns(members: list[AmpliconResult], site_by_id: dict[str, SiteResult]) 
     if len(members) < 2:
         return ""
     n = distinct_patterns(members, site_by_id)
-    return f"; {n} distinct product pattern(s) by the sequences under the oligos"
+    return f"; {n} distinct amplicon pattern(s) by the sequences under the oligos"
 
 
 def distinct_patterns(members: list[AmpliconResult], site_by_id: dict[str, SiteResult]) -> int:
@@ -69,6 +69,16 @@ def distinct_patterns(members: list[AmpliconResult], site_by_id: dict[str, SiteR
         return s.s_aln if s else ""
 
     return len({(aln(a.left_site), aln(a.right_site), aln(a.probe_site)) for a in members})
+
+
+def amplicon_cut_message(tier: str, limit: int) -> str:
+    """The plain words for a tier whose amplicon list reached ``max_amplicons`` (user,
+    2026-11-25: "product list cut at max_amplicons, not bounded" was not clear)."""
+    return (
+        f"Tier '{tier}': the search found more amplicons than the limit of {limit:,} "
+        f"(specificity.max_amplicons, per tier), so only the first {limit:,} were listed and "
+        "checked for the probe."
+    )
 
 
 def _closest(sites: list[SiteResult]) -> SiteResult:
@@ -159,7 +169,8 @@ def build_findings(
                     "taxa per search or raise the hit-list size."
                 ),
                 topic="search",
-                short="BLAST hit list saturated",
+                short="BLAST hit list full for {about}; relevant hits may be missing "
+                "(search.hitlist_size)",
                 tier=tier,
                 about=", ".join(sorted(labels)),
             )
@@ -175,7 +186,8 @@ def build_findings(
                         "(max_sites_per_query)."
                     ),
                     topic="search",
-                    short="relevant alignments cut at max_sites_per_query",
+                    short=f"Only the {c.sites_assessed:,} strongest alignments checked for "
+                    "{about} (max_sites_per_query); weaker ones not assessed",
                     tier=c.tier,
                     about=c.query,
                 )
@@ -216,13 +228,13 @@ def build_findings(
     for (tier, kind, level, product), members in sorted(groups.items()):
         if kind == "primer" and level == "critical":
             severity = sev.primer_site_critical if product else sev.primer_site_critical_no_product
-            what = "in a predicted product" if product else "forming no predicted product"
+            what = "in a predicted amplicon" if product else "forming no predicted amplicon"
             label = f"{level} {kind} site(s) {what}"
         elif kind == "primer":
             severity, label = sev.primer_site_warning, f"{level} {kind} site(s)"
         else:
             severity = sev.probe_site_critical if level == "critical" else "INFO"
-            label = f"{level} {kind} site(s) (a probe gives signal only inside a product)"
+            label = f"{level} {kind} site(s) (a probe gives signal only inside an amplicon)"
         closest = _closest(members)
         if kind == "primer" and level == "critical":
             what_kind = "primer_critical_product" if product else "primer_critical_no_product"
@@ -261,7 +273,7 @@ def build_findings(
                 Finding(
                     severity=judged(tier, sev.amplicon_likely_detected),
                     message=(
-                        f"Tier '{tier}': {len(members)} predicted off-target product(s) that both "
+                        f"Tier '{tier}': {len(members)} predicted off-target amplicon(s) that both "
                         f"primers and the probe should give signal for{detail}."
                     ),
                     topic="amplicons",
@@ -275,7 +287,7 @@ def build_findings(
                 Finding(
                     severity=judged(tier, sev.amplicon_not_detected),
                     message=(
-                        f"Tier '{tier}': {len(members)} predicted off-target product(s) "
+                        f"Tier '{tier}': {len(members)} predicted off-target amplicon(s) "
                         "amplified by both primers but unlikely to be detected by the probe"
                         f"{detail}."
                     ),
@@ -293,11 +305,11 @@ def build_findings(
         out.append(
             Finding(
                 severity=judged(tier, "INCOMPLETE"),
-                message=f"Tier '{tier}': the list of predicted products was cut at "
-                "max_amplicons (per tier).",
+                message=amplicon_cut_message(tier, rules.max_amplicons),
                 topic="amplicons",
-                short="product list cut at max_amplicons",
+                short=f"Amplicon list stopped at {rules.max_amplicons:,} (max_amplicons)",
                 tier=tier,
+                kind="amplicon_list_cut",
             )
         )
     if n_primer_only:
@@ -306,7 +318,7 @@ def build_findings(
                 severity="INFO",
                 message=(
                     f"{n_primer_only} primer site(s) at warning or critical level formed no "
-                    "product (no facing partner within the maximum amplicon size)."
+                    "amplicon (no facing primer site within the maximum amplicon size)."
                 ),
                 topic="amplicons",
                 kind="primer_only_summary",  # the products paragraph says it

@@ -115,6 +115,15 @@ def test_cut_lists_and_saturated_hit_lists_carry_the_short_wording():
         amplicons_truncated={"near_neighbours"}, rules=cfg.specificity,
     )  # fmt: skip
     short = {(f.tier, f.short, f.about) for f in found if f.short}
-    assert ("background", "relevant alignments cut at max_sites_per_query", "P") in short
-    assert ("exclusivity", "BLAST hit list saturated", "RP") in short
-    assert ("near_neighbours", "product list cut at max_amplicons", "") in short
+    assert (
+        "background",
+        "Only the 2,000 strongest alignments checked for {about} "
+        "(max_sites_per_query); weaker ones not assessed",
+        "P",
+    ) in short
+    assert (
+        "exclusivity",
+        "BLAST hit list full for {about}; relevant hits may be missing (search.hitlist_size)",
+        "RP",
+    ) in short
+    assert ("near_neighbours", "Amplicon list stopped at 500 (max_amplicons)", "") in short

@@ -42,6 +42,9 @@ sources:
   - id: condensed
     resource: ../decisions/2026-11-25-findings-condensed.md
     title: "Findings condensed: no repeated list, specificity as a table per tier"
+  - id: plain
+    resource: ../decisions/2026-11-25-plain-words-amplicon-opposite-primer.md
+    title: "Plain words: amplicon, the opposite primer, and gaps that say what is unknown"
   - id: code6
     resource: ../../../src/qpcr_assay_check/results.py
     title: "src/qpcr_assay_check/results.py"
@@ -76,6 +79,9 @@ parts, printable on A4:
   settings that differ from the defaults, limitations, required statements in full. The full
   configuration and every query's hits are workbook sheets ("Configuration", "Hits per query").
 
+The report says "amplicon" (not "product") and "check for the opposite primer" (not "partner
+scan"); each evidence gap names what stopped, at which setting, and what that leaves unknown.[^plain]
+
 Oligos are listed in their order on the amplicon, forward, probe, reverse (`Assay.amplicon_list`),
 in the report and the workbook alike; the searches keep `Assay.oligo_list`.[^twopages]
 
@@ -105,4 +111,5 @@ per-oligo tables per year moved to the workbook.
 [^merged]: "Variants per oligo merged into the whole-fragment table"
 [^twopages]: "Sign-off on two pages: short gap lines, site maps in Part B, oligos in amplicon order"
 [^condensed]: "Findings condensed: no repeated list, specificity as a table per tier"
+[^plain]: "Plain words: amplicon, the opposite primer, and gaps that say what is unknown"
 [^code6]: src/qpcr_assay_check/results.py

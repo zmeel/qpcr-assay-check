@@ -390,6 +390,19 @@ _SITE_KINDS = ("primer_critical_product", "primer_critical_no_product", "primer_
 _PRODUCT_KINDS = ("products_detected", "products_not_detected")
 
 
+def gap_text(short: str, about: list[str]) -> str:
+    """A gap's short wording with what it is about: in place of ``{about}`` ("A, B and C"),
+    else in brackets after it."""
+    if "{about}" in short:
+        names = (
+            ", ".join(about[:-1]) + (" and " if len(about) > 1 else "") + about[-1]
+            if about
+            else "?"
+        )
+        return short.replace("{about}", names)
+    return f"{short} ({', '.join(about)})" if about else short
+
+
 def _worst(findings: list[Any]) -> str | None:
     return min((f.severity for f in findings), key=_SEV_RANK.__getitem__, default=None)
 
@@ -420,8 +433,7 @@ def tier_table(spec: Any, overview: list[Any], site_by_id: dict[str, Any]) -> di
         out = []
         for short, fs in by_tier.pop(tier, []):
             notes.append(" ".join(f.message for f in fs))
-            about = ", ".join(f.about for f in fs if f.about)
-            out.append({"text": f"{short} ({about})" if about else short,
+            out.append({"text": gap_text(short, [f.about for f in fs if f.about]),
                         "severity": _worst(fs), "note": len(notes)})  # fmt: skip
         return out
 
@@ -513,8 +525,7 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
                 about.append(f.about)
         for (severity, tier, text), about in merged.items():
             where = f", {TIER_TITLE.get(tier, tier)}" if tier else ""
-            listed = f" ({', '.join(about)})" if about else ""
-            out.append((severity, f"Specificity{where}: {text}{listed}"))
+            out.append((severity, f"Specificity{where}: {gap_text(text, about)}"))
     for row in summary:
         if row.anchor == "specificity" or row.anchor == "oligo-qc":
             continue  # their findings are listed above

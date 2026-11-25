@@ -214,12 +214,19 @@ def test_a_bounded_tier_reads_not_detected_instead_of_incomplete():
     scan = PartnerScan(primer_sites=0, windows=0, products_not_scanned=500,
                        products_not_scanned_by_tier={"near_neighbours": 500})  # fmt: skip
     (_, f) = scan_findings(scan, 1000, lambda tier: (True, ""), 1000)
-    assert f.severity == "INFO" and "Not detected (bounded)" in f.message
+    assert f.severity == "INFO" and "Not detected (proven)" in f.message
     (_, g) = scan_findings(scan, 1000, lambda tier: (False, "why not"), 1000)
-    assert g.severity == "INCOMPLETE" and "(not bounded: why not)" in g.message
+    assert g.severity == "INCOMPLETE" and "this cannot be ruled out: why not." in g.message
     # the sign-off's short wording: tier and gap, without the explanation (user, 2026-11-20)
     assert g.tier == "near_neighbours"
-    assert g.short == "probe re-alignment incomplete: 500 product(s) not searched"
+    assert g.short == (
+        "probe not checked in 500 amplicons (probe_scan_max_products); a detectable amplicon "
+        "cannot be ruled out"
+    )
     scan = PartnerScan(primer_sites=1483, windows=1000, not_scanned=483)
     (_, p) = scan_findings(scan, 1000, lambda tier: (False, ""), 1000)
-    assert p.short == "Partner scan incomplete: 483 primer site(s) not scanned" and not p.tier
+    assert p.short == (
+        "483 off-target primer sites not checked for the opposite primer binding nearby "
+        "(partner_scan_max_windows); an amplicon formed there could be missing"
+    )
+    assert not p.tier and "partner" not in p.message.replace("partner_scan", "")

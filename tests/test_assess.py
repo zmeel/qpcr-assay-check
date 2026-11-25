@@ -100,7 +100,7 @@ def test_an_off_target_product_that_primers_and_probe_would_detect_fails(tmp_pat
     # a mismatched duplex is less stable than a perfect one
     assert sites["forward"].tm_c is not None and sites["forward"].delta_tm_c < 0
     msgs = " ".join(res.rationale)
-    assert "predicted off-target product" in msgs and "Bacterium exemplum" in msgs
+    assert "predicted off-target amplicon" in msgs and "Bacterium exemplum" in msgs
 
 
 def test_a_partial_hit_is_completed_by_fetching_and_re_aligning_the_window(tmp_path):
@@ -176,7 +176,7 @@ def test_no_relevant_off_target_hit_passes_for_the_searched_tiers_only(tmp_path)
     add_target_hits(w)
     res, _, _ = run(w, tmp_path)
     assert res.verdict is Verdict.PASS and res.n_sites["minor"] == 1
-    assert "No off-target site or product reached warning level" in res.rationale[0]
+    assert "No off-target site or amplicon reached warning level" in res.rationale[0]
     assert "not searched" not in res.scope and "planned for" not in res.scope
     # with the exclusivity tier required but not searched, the gap is Incomplete evidence
     # (tiers review 2026-11-20, F7), and the scope says so honestly
@@ -196,7 +196,7 @@ def test_a_lone_critical_primer_site_warns_and_counts_as_primer_only(tmp_path):
     res, _, _ = run(w, tmp_path)
     assert res.amplicons == [] and res.n_primer_only == 1
     assert res.verdict_sites is Verdict.WARN and res.verdict_amplicons is Verdict.PASS
-    assert any("forming no predicted product" in f.message for f in res.findings)
+    assert any("forming no predicted amplicon" in f.message for f in res.findings)
 
 
 def test_products_longer_than_the_limit_are_ignored_and_the_limit_is_inclusive(tmp_path):
@@ -535,32 +535,38 @@ def test_a_cut_product_list_is_bounded_when_no_detectable_product_can_hide_beyon
     res, _, _ = run(
         _three_products(), tmp_path, specificity__max_amplicons=1, specificity__cautious_tiers=[]
     )
-    (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
-    assert cut.severity == "INFO" and "Bounded" in cut.message
+    (cut,) = [f for f in res.findings if "more amplicons than the limit" in f.message]
+    assert cut.severity == "INFO" and "cannot be detected by the probe (proven)" in cut.message
     assert res.verdict is Verdict.WARN  # a product the probe does not detect: Review
     # a probe site that binds on a record beyond the cut: a detectable product may hide there
     res, _, _ = run(
         _three_products(probe_on="OT000003.1"), tmp_path / "b", specificity__max_amplicons=1,
         specificity__cautious_tiers=[],
     )  # fmt: skip
-    (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
-    assert cut.severity == "INCOMPLETE" and "beyond it (e.g. OT000003.1)" in cut.message
+    (cut,) = [f for f in res.findings if "more amplicons than the limit" in f.message]
+    assert cut.severity == "INCOMPLETE" and "beyond the limit (e.g. OT000003.1)" in cut.message
     assert (
         cut.short
-        == "product list cut at max_amplicons, a probe site that can give signal lies beyond it"
+        == "Amplicon list stopped at 1 (max_amplicons); a probe site that can give signal lies "
+        "on a record beyond it"
     )
     # in a cautious tier a gapped probe site could bind unreported: not bounded
     res, _, _ = run(_three_products(), tmp_path / "c", specificity__max_amplicons=1)
-    (cut,) = [f for f in res.findings if "was cut at max_amplicons" in f.message]
-    assert cut.severity == "INCOMPLETE" and "not bounded: a probe site with a gap" in cut.message
-    assert cut.short == "product list cut at max_amplicons, not bounded"
+    (cut,) = [f for f in res.findings if "more amplicons than the limit" in f.message]
+    assert cut.severity == "INCOMPLETE"
+    assert "a probe site with a gap still counts as able to bind" in cut.message
+    assert cut.short == (
+        "Amplicon list stopped at 1 (max_amplicons); amplicons beyond it are not checked and "
+        "cannot be ruled out as detected"
+    )
+    assert "cannot be ruled out" in cut.message and "not bounded" not in cut.message
 
 
 def test_products_are_also_counted_as_distinct_patterns(tmp_path):
     res, _, _ = run(_three_products(), tmp_path)
-    (f,) = [f for f in res.findings if "predicted off-target product(s)" in f.message]
-    assert "3 predicted off-target product(s)" in f.message
-    assert "1 distinct product pattern(s)" in f.message
+    (f,) = [f for f in res.findings if "predicted off-target amplicon(s)" in f.message]
+    assert "3 predicted off-target amplicon(s)" in f.message
+    assert "1 distinct amplicon pattern(s)" in f.message
 
 
 def test_the_genomic_dna_note_follows_the_lineage(tmp_path):

@@ -124,11 +124,11 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
         warn = sum(s.level == "warning" for s in primer)
         if t.products:
             res = (
-                f"{_plural(t.products, 'predicted product')}, {t.detected} of them detectable "
+                f"{_plural(t.products, 'predicted amplicon')}, {t.detected} of them detectable "
                 "by the probe"
             )
         else:
-            res = "no predicted product"
+            res = "no predicted amplicon"
         res += f"; {crit} critical and {warn} warning primer sites"
         scope = _plural(t.n_taxa, "taxon", "taxa")
         if t.tier == "exclusivity" and result.exclusivity is not None:
@@ -141,11 +141,11 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
         reason = ""
         if amps:
             a = amps[0]
-            reason = f"product {a.length} bp on {a.accession} ({a.organism or 'unknown'})"
+            reason = f"amplicon {a.length} bp on {a.accession} ({a.organism or 'unknown'})"
             if len(amps) > 1:
                 reason += f" and {len(amps) - 1} more"
         elif crit:
-            reason = "critical primer sites, but no two facing each other (no product)"
+            reason = "critical primer sites, but no two facing each other (no amplicon)"
         info = t.tier == "out_of_scope"
         rows.append(
             _fig(

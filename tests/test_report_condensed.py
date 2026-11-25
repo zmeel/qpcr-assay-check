@@ -301,7 +301,7 @@ def test_perfect_primer_sites_with_a_product_do_not_say_no_product_is_predicted(
                       "saturation": [], "restriction": None}],
     })  # fmt: skip
     html = render_report(result.model_copy(update={"specificity": spec}), load_config())
-    assert "1 predicted product" in html
+    assert "1 predicted amplicon" in html
     assert "no product is predicted" not in html
 
 

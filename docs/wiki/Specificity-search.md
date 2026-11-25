@@ -63,7 +63,7 @@ for E-values of 1,000, 10,000 and 100,000, and the lowest scores NCBI actually r
 8 and 7. A site with one internal mismatch (score 13) is reported there; one with two (score 9)
 can be missing. A search space 1,000 times larger raises the floor by 5 points. Raising the
 E-value is no remedy: at 100,000 the same small search nearly filled its 5,000-hit list. The
-report shows the floor per tier and oligo ("Reported down to"); the partner scan below closes
+report shows the floor per tier and oligo ("Reported down to"); the check for the opposite primer below closes
 the gap where it matters most.
 
 **A full hit list is only a problem when it is still relevant.** When a query returns the maximum
@@ -89,7 +89,7 @@ Each site is graded **critical**, **warning** or **minor** by configurable limit
 primer site is critical with at most 3 mismatches, no gap and at least 5 matching bases at the
 3′ end; warning with at most 5 mismatches, 1 gap and 3 matching 3′ bases.
 
-## Predicted products
+## Predicted amplicons
 
 A product is predicted when a forward-type and a reverse-type primer site, both at least
 *warning*, **face each other on the same record within 2,000 bases**. A probe site at
@@ -99,7 +99,7 @@ channels whose probes bind inside them. For an RNA assay, a product on a genomic
 eukaryote (human by default) carries a note: it matters only if the specimen contains genomic
 DNA and no intron separates the primer sites.
 
-**Partner scan.** A product needs two primer sites, but BLAST need not report both: the second
+**Check for the opposite primer** (in the settings: the *check for the opposite primer*, `partner_scan_max_windows`). An amplicon needs two primer sites, but BLAST need not report both: the second
 may score below the search's floor. So for every off-target primer site of at least *warning*
 level that forms no product from the reported sites, the sequence a product could span (2,000
 bases in the direction the primer extends) is fetched, and every primer of the partner role is

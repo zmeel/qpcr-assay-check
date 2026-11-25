@@ -145,7 +145,7 @@ each is `qpcr-assay-check run <assay> -o work/results --yes -v` in its own proce
 stands for the confirmation given in the browser), so it writes the same record and log as
 `scripts/run_assay.sh` (`work/runs/<run>.log`). Runs started outside the GUI are not known to
 its queue: avoid starting both at once. A run's page shows the stages and the latest count read
-from the log, with a progress bar (windows re-aligned, primer sites done by the partner scan,
+from the log, with a progress bar (windows re-aligned, primer sites checked for the opposite primer,
 genomes scanned in this year's batch), and the log as it grows. **Cancel**
 stops a run as Ctrl-C would (then harder after 30 and 60 seconds); **Start again** queues the
 same confirmed file, and a stopped or interrupted run then continues where it was: stored
@@ -211,7 +211,7 @@ Because BLAST reports only alignments above a score set by the E-value cut-off a
 the search, the report states per tier and oligo the smallest score reported and how many
 mismatches a site may carry and still always be found ("Reported down to"). Next to every
 off-target primer site that forms no product, the tool fetches the sequence a product could span
-and aligns the partner primers in it (the *partner scan*), and it re-aligns the probes inside
+and aligns the partner primers in it (the *check for the opposite primer*, `partner_scan_max_windows`), and it re-aligns the probes inside
 every product without a reported probe site, so a partner or probe site that BLAST's cut-off
 hid is still found (`specificity.partner_scan_max_windows`, default 1,000 partner windows, 0
 switches it off; the products have a budget of their own, `specificity.probe_scan_max_products`,
@@ -236,7 +236,7 @@ To skip the human background search (it takes about an hour), set `search.backgr
 in a `--config` file. The search plan then warns, and the report's rationale states that
 off-target binding to human DNA was not evaluated.
 Forward/reverse hits on the same accession, facing each other within `specificity.max_amplicon_size`,
-are paired into predicted products, and classified as likely detected / amplified but not detected /
+are paired into predicted amplicons, and classified as likely detected / amplified but not detected /
 primer-only depending on whether the probe also binds. Amplicon pairing only expands the *primary*
 record of a BLAST hit group; sequences merged into one hit by core_nt (see below) are not.
 
@@ -329,7 +329,7 @@ A full `run` also resolves every organism name in a **clinical organism list** t
 taxonomy ID (Entrez Taxonomy, cached; never guessed — ambiguous or unresolved names are reported,
 not silently dropped or picked at random) and searches it as its own **exclusivity** tier, exactly
 like the near-neighbour and background tiers. The report gets a per-organism table (organism,
-resolution, sites, best site, predicted product) and a species/genus/family breakdown of every
+resolution, sites, best site, predicted amplicon) and a species/genus/family breakdown of every
 off-target hit across all tiers.
 
 ```bash
@@ -495,7 +495,7 @@ reference_amplicons:       # optional; one per lineage, or a single reference_am
 - QC checks every oligo, every dimer across the whole mix (including two alternatives), and the Tm
   spread of each role's alternatives. Each oligo is placed in the reference amplicon it fits best;
   an alternative that fits no reference is a warning when another oligo of its role fits.
-- Specificity searches every oligo under its own name; predicted products pair any forward with
+- Specificity searches every oligo under its own name; predicted amplicons pair any forward with
   any reverse primer. Variant tables name the alternative seen in each row.
 - Multi-copy targets: every stored copy of the region is assessed with every oligo, and each
   genome is judged by the copy the assay binds best (a PCR needs one copy it can amplify). The
@@ -562,7 +562,7 @@ target:
 
 - Both roles are left out of the target search, inclusivity and the variant analysis (Entrez
   `NOT`), and **every oligo is still searched against them**.
-- `must_not_detect`: searched as near neighbours; a predicted product there counts against the
+- `must_not_detect`: searched as near neighbours; a predicted amplicon there counts against the
   specificity verdict, as for any off-target organism.
 - `out_of_scope`: searched in their own tier and listed as what the assay *also detects*,
   information only, not part of the verdict (e.g. a pan-enterovirus assay amplifying pig
@@ -804,5 +804,5 @@ pruning logic changes, rather than treating this one result as permanent proof.
   SARS-CoV-2 alongside a SARS-CoV-2 assay's other targets, say), that entry is automatically
   excluded from the exclusivity search rather than reported as an off-target hit against itself —
   found and fixed from the user's first full live run, then confirmed fixed on a second live run
-  (predicted off-target products dropped from 500 to 0). See "Exclusivity" above and
+  (predicted off-target amplicons dropped from 500 to 0). See "Exclusivity" above and
   `docs/ARCHITECTURE.md`.

@@ -13,7 +13,7 @@ database to install or keep up to date.
                     │                                                              │
                     ├─► 4 Specificity: tiered remote BLAST of every oligo          │
                     │      └─ re-align every relevant hit, pair primer sites,      │
-                    │         predict off-target products                          │
+                    │         predict off-target amplicons                          │
                     │                                                              │
                     └─► 5 Variant analysis: every genome of the target             │
                            ├─ list genomes (NCBI Datasets or Nucleotide)            │

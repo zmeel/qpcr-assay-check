@@ -57,6 +57,17 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Plain words** (user, 2026-11-25):
+  - **Amplicon, not product.** The report, the findings, the workbook (sheet "Predicted
+    amplicons"), the GUI and the user guide now say "amplicon" instead of "product".
+  - **"Check for the opposite primer", not "partner scan".**
+  - **Each gap says what stopped, at which setting, and what that leaves unknown.** For example:
+    "Amplicon list stopped at 500 (max_amplicons); amplicons beyond it are not checked and
+    cannot be ruled out as detected".
+  - **Plain-language notes.** Each gap's full note explains it and says how to close it.
+    "Bounded" and "not bounded" are gone: "Not detected (bounded)" now reads "(proven)".
+  - **Unchanged:** the setting names, the results.json fields and the log lines. Records made
+    before this change keep their old wording.
 - **Findings condensed** (user, 2026-11-25). "All findings behind the summary" is gone: every
   line in it was printed again elsewhere in Part B. The full list stays in the workbook sheet
   "Findings" and in results.json, and Part A points there. Lines that no Part B section shows,

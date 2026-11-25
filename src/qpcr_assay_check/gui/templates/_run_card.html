@@ -9,7 +9,7 @@
     <a class="btn" href="/runs/{{ current.id }}">Open run</a>
   </div>
   <div class="row-between small muted">
-    <span>{% if progress and progress.stage >= 0 %}Stage {{ progress.stage + 1 }} of 5 · {{ ["Oligo QC", "Specificity searches", "Re-alignment and partner scan", "Genome listing and scan", "Report"][progress.stage] }}{% else %}Starting{% endif %}{% if current.qc_only %} · QC only{% endif %}</span>
+    <span>{% if progress and progress.stage >= 0 %}Stage {{ progress.stage + 1 }} of 5 · {{ ["Oligo QC", "Specificity searches", "Re-alignment and check for the opposite primer", "Genome listing and scan", "Report"][progress.stage] }}{% else %}Starting{% endif %}{% if current.qc_only %} · QC only{% endif %}</span>
     {% if progress and progress.detail %}<span class="mono">{{ progress.detail }}</span>{% endif %}
   </div>
   {% if progress and progress.percent is not none %}<progress class="bar" max="100" value="{{ progress.percent }}">{{ progress.percent }}%</progress>{% endif %}

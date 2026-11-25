@@ -53,11 +53,11 @@ LIMITATIONS = [
     "Duplex Tm and ΔG are nearest-neighbour estimates of stability. A mismatch at the 3'-terminal "
     "base is treated as an unpaired overhang and barely lowers Tm although it usually prevents "
     "extension; priming is judged from the mismatch and 3'-end columns.",
-    "Products are predicted from the primary record of each BLAST hit group; identical sequences "
-    "merged into one hit are not expanded, so a product on a merged record can be missed.",
-    "Products are predicted from a forward and a reverse primer facing each other. A product from "
-    "one primer binding both strands (forward-forward or reverse-reverse) is not predicted; for a "
-    "primer that binds an off-target organism perfectly this is unlikely but not excluded.",
+    "Amplicons are predicted from the primary record of each BLAST hit group; identical sequences "
+    "merged into one hit are not expanded, so an amplicon on a merged record can be missed.",
+    "Amplicons are predicted from a forward and a reverse primer facing each other. An amplicon "
+    "from one primer binding both strands (forward-forward or reverse-reverse) is not predicted; "
+    "for a primer that binds an off-target organism perfectly this is unlikely but not excluded.",
     "Only the tiers named in the scope statement were searched; a passing result says nothing "
     "about organisms outside them. Primer-BLAST remains a useful manual cross-check.",
     "The searches run against the database named under Searches (core_nt by default). core_nt "
@@ -69,13 +69,13 @@ LIMITATIONS = [
 
 
 SCAN_LIMITATION = (
-    "The partner scan narrows that gap for the second primer and the probe of a product once "
-    "BLAST has reported one primer site; a product of which BLAST reported neither primer site "
-    "is not found."
+    "The check for the opposite primer narrows that gap for the second primer and the probe of an "
+    "amplicon once BLAST has reported one primer site; an amplicon of which BLAST reported neither "
+    "primer site is not found."
 )
 NO_SCAN_LIMITATION = (
-    "The partner scan was switched off (specificity.partner_scan_max_windows: 0): a product "
-    "whose second primer site or probe site BLAST did not report is not found."
+    "The check for the opposite primer was switched off (specificity.partner_scan_max_windows: "
+    "0): an amplicon whose second primer site or probe site BLAST did not report is not found."
 )
 
 
@@ -395,7 +395,7 @@ def assess_specificity(
     rationale = [f.message for f in findings if f.severity in ("FAIL", "INCOMPLETE", "WARN")]
     if not rationale:
         rationale = [
-            "No off-target site or product reached warning level in the searched tiers "
+            "No off-target site or amplicon reached warning level in the searched tiers "
             f"({', '.join(off_tiers_seen)})."
         ]
     scope = next((f.message for f in findings if f.topic == "search" and f.severity == "INFO"), "")
@@ -457,7 +457,7 @@ def _bounded_cuts(
     unreported."""
     out = []
     for f in findings:
-        tier = next((t for t in cut if f.message == _cut_message(t)), None)
+        tier = f.tier if f.kind == "amplicon_list_cut" and f.tier in cut else None
         if tier is None:
             out.append(f)
             continue
@@ -469,37 +469,46 @@ def _bounded_cuts(
             and s.accession not in done
         })  # fmt: skip
         ok, why = bound(tier)
+        limit = f"{rules.max_amplicons:,}"
         if ok and not beyond:
             out.append(
-                Finding(
-                    severity="INFO",
-                    message=(
-                        f"Tier '{tier}': the list of predicted products was cut at max_amplicons "
-                        f"({rules.max_amplicons}, per tier). Bounded: no probe site that could "
-                        "give signal lies on a record beyond the cut, and every such site would "
-                        "have been reported by this tier's searches, so the cut hides only "
-                        "products the probe does not detect."
-                    ),
-                    topic="amplicons",
-                )
+                f.model_copy(
+                    update={
+                        "severity": "INFO",
+                        "message": (
+                            f"{f.message} The amplicons beyond the limit cannot be detected by the "
+                            "probe (proven): no probe site that could give signal lies on a record "
+                            "beyond it, and this tier's searches would have reported every such "
+                            "site."
+                        ),
+                        "short": "",
+                        "kind": "",  # information, listed with the tier's other findings
+                    }
+                )  # fmt: skip
             )
             continue
-        reason = (
-            f"a probe site that could give signal lies on {len(beyond)} record(s) beyond it "
-            f"(e.g. {', '.join(beyond[:3])})"
-            if beyond
-            else f"not bounded: {why}"
-        )
-        short = "a probe site that can give signal lies beyond it" if beyond else "not bounded"
+        if beyond:
+            more = (
+                f" A probe site that could give signal lies on {len(beyond)} record(s) beyond "
+                f"the limit (e.g. {', '.join(beyond[:3])}), so a detectable amplicon may be "
+                "among those not listed."
+            )
+            short = f"{f.short}; a probe site that can give signal lies on a record beyond it"
+        else:
+            more = (
+                " The tool cannot prove that the amplicons it did not list cannot be detected "
+                f"either: {why}. A detectable amplicon among them therefore cannot be ruled out."
+            )
+            short = (
+                f"{f.short}; amplicons beyond it are not checked and cannot be ruled out as "
+                "detected"
+            )
         out.append(f.model_copy(update={
-            "message": f"{f.message[:-1]}; {reason}.",
-            "short": f"{f.short}, {short}" if f.short else "",
+            "message": f"{f.message}{more} To close this gap, raise specificity.max_amplicons "
+                       f"(now {limit}) above the number of amplicons.",
+            "short": short if f.short else "",
         }))  # fmt: skip
     return out
-
-
-def _cut_message(tier: str) -> str:
-    return f"Tier '{tier}': the list of predicted products was cut at max_amplicons (per tier)."
 
 
 def _is_mgb(assay: Assay, label: str) -> bool:
@@ -528,47 +537,65 @@ def scan_findings(
     bound: Callable[[str], tuple[bool, str]] | None = None,
     product_limit: int | None = None,
 ) -> list[Finding]:
-    """What the partner scan covered and added; INCOMPLETE when it could not cover every
-    off-target primer site that can prime, or every product without a probe site whose
-    "not detected" is not bounded (``bound(tier)``, :func:`.reach.probe_bound`)."""
+    """What the check for the opposite primer (the partner scan) covered and added; INCOMPLETE
+    when it could not cover every off-target primer site that can prime, or every amplicon
+    without a probe site whose "not detected" cannot be proven (``bound(tier)``,
+    :func:`.reach.probe_bound`)."""
     out = [
         Finding(
             severity="INFO",
             message=(
-                f"Partner scan: {scan.windows} window(s) next to {scan.primer_sites} unpaired "
-                "off-target primer site(s) searched for partner primers, and the probes "
-                "re-aligned inside the products without a reported probe site "
-                f"({scan.product_windows} product(s) fetched); {scan.primer_sites_added} primer "
-                f"and {scan.probe_sites_added} probe site(s) of at least warning level that "
-                "BLAST had not reported were added."
+                f"Check for the opposite primer: the sequence next to {scan.windows} of "
+                f"{scan.primer_sites} off-target primer site(s) without a facing primer was "
+                "searched for the opposite primer, and the probes were re-aligned inside the "
+                f"amplicons without a reported probe site ({scan.product_windows} amplicon(s) "
+                f"fetched); {scan.primer_sites_added} primer and {scan.probe_sites_added} probe "
+                "site(s) of at least warning level that BLAST had not reported were added."
             ),
             topic="amplicons",
-            kind="partner_scan_summary",  # the products paragraph says it (user, 2026-11-25)
+            kind="partner_scan_summary",  # the amplicons paragraph says it (user, 2026-11-25)
         )
     ]
+    # plain words (user, 2026-11-25): "partner scan" and "partner primer" are no common terms
     primer_gaps, primer_short = [], []
     if scan.not_scanned:
-        primer_short.append(f"{scan.not_scanned} primer site(s) not scanned")
+        primer_short.append(f"{scan.not_scanned:,} off-target primer sites")
         primer_gaps.append(
-            f"{scan.not_scanned} primer site(s) beyond the limit of {limit} fetches "
-            "(specificity.partner_scan_max_windows) were not scanned"
+            f"{scan.not_scanned:,} off-target primer site(s) were not checked: the check is "
+            f"limited to {limit:,} sites (specificity.partner_scan_max_windows)"
         )
     if scan.windows_failed:
-        primer_short.append(f"{scan.windows_failed} window(s) not fetched")
-        primer_gaps.append(f"{scan.windows_failed} window(s) could not be fetched")
+        primer_short.append(f"{scan.windows_failed:,} sites whose sequence could not be fetched")
+        primer_gaps.append(
+            f"the sequence next to {scan.windows_failed:,} site(s) could not be fetched"
+        )
     if scan.no_accession:
-        primer_short.append(f"{scan.no_accession} site(s) without accession")
-        primer_gaps.append(f"{scan.no_accession} primer site(s) lie on a record without accession")
+        primer_short.append(f"{scan.no_accession:,} sites on a record without accession")
+        primer_gaps.append(f"{scan.no_accession:,} site(s) lie on a record without accession")
     if primer_gaps:
+        if scan.not_scanned and len(primer_short) == 1:
+            short = (
+                f"{scan.not_scanned:,} off-target primer sites not checked for the opposite "
+                "primer binding nearby (partner_scan_max_windows); an amplicon formed there "
+                "could be missing"
+            )
+        else:
+            short = (
+                f"{'; '.join(primer_short)}: not checked for the opposite primer binding "
+                "nearby; an amplicon formed there could be missing"
+            )
         out.append(
             Finding(
                 severity="INCOMPLETE",
                 message=(
-                    f"Partner scan incomplete: {'; '.join(primer_gaps)}. A product whose second "
-                    "primer BLAST did not report can be missing there."
+                    "Check for the opposite primer incomplete: "
+                    f"{'; '.join(primer_gaps)}. Next to each off-target primer site without a "
+                    "facing primer, the tool looks for the opposite primer within amplicon "
+                    "distance, because BLAST can miss its site; where that was not done, an "
+                    "off-target amplicon formed there could be missing."
                 ),
                 topic="amplicons",
-                short=f"Partner scan incomplete: {', '.join(primer_short)}",
+                short=short,
             )
         )
     product_limit = limit if product_limit is None else product_limit
@@ -585,11 +612,11 @@ def scan_findings(
         probe_gaps = []
         if not_scanned:
             probe_gaps.append(
-                f"{not_scanned} product(s) beyond the limit of {product_limit} product fetches "
-                "(specificity.probe_scan_max_products) were not searched"
+                f"{not_scanned:,} amplicon(s) beyond the limit of {product_limit:,} "
+                "(specificity.probe_scan_max_products) were not checked"
             )
         if failed:
-            probe_gaps.append(f"{failed} product(s) could not be fetched")
+            probe_gaps.append(f"{failed:,} amplicon(s) could not be fetched")
         where = f"Tier '{tier}': " if tier else ""
         ok, why = bound(tier) if bound is not None and tier else (False, "")
         if ok:
@@ -597,11 +624,10 @@ def scan_findings(
                 Finding(
                     severity="INFO",
                     message=(
-                        f"{where}probe re-alignment not done for every product "
-                        f"({'; '.join(probe_gaps)}). "
-                        "Not detected (bounded): every probe site that could give signal in this "
-                        "tier (up to 2 mismatches, 1 for an MGB probe, no gap) would have been "
-                        "reported by its searches, and none was."
+                        f"{where}the probe was not re-aligned in every amplicon "
+                        f"({'; '.join(probe_gaps)}). Not detected (proven): every probe site "
+                        "that could give signal in this tier (up to 2 mismatches, 1 for an MGB "
+                        "probe, no gap) would have been reported by its searches, and none was."
                     ),
                     topic="amplicons",
                 )
@@ -611,21 +637,24 @@ def scan_findings(
             Finding(
                 severity="INCOMPLETE",
                 message=(
-                    f"{where}Probe re-alignment incomplete: {'; '.join(probe_gaps)}. A probe site "
-                    "BLAST did not report can be missing there, so such a product may be detected "
+                    f"{where}Probe check incomplete: {'; '.join(probe_gaps)}. A probe site BLAST "
+                    "did not report can be missing there, so such an amplicon may be detected "
                     "although it is listed as not detected"
-                    + (f" (not bounded: {why})." if why else ".")
+                    + (f"; this cannot be ruled out: {why}." if why else ".")
                 ),
                 topic="amplicons",
-                short="probe re-alignment incomplete: "
-                + ", ".join(
+                short="probe not checked in "
+                + " and ".join(
                     x
                     for x in (
-                        f"{not_scanned} product(s) not searched" if not_scanned else "",
-                        f"{failed} not fetched" if failed else "",
+                        f"{not_scanned:,} amplicons (probe_scan_max_products)"
+                        if not_scanned
+                        else "",
+                        f"{failed:,} amplicons that could not be fetched" if failed else "",
                     )
                     if x
-                ),  # fmt: skip
+                )
+                + "; a detectable amplicon cannot be ruled out",  # fmt: skip
                 tier=tier,
             )
         )

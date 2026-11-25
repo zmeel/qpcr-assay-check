@@ -164,10 +164,10 @@ def evaluate(
         sections.append(
             SectionResult(
                 key="amplicon_prediction",
-                title="Predicted off-target products",
+                title="Predicted off-target amplicons",
                 state="evaluated",
                 verdict=specificity.verdict_amplicons,
-                note=f"{len(specificity.amplicons)} predicted product(s).",
+                note=f"{len(specificity.amplicons)} predicted amplicon(s).",
             )
         )
         tier_searched = bool(search_outcome) and any(
@@ -213,7 +213,7 @@ def evaluate(
     else:
         for key, title in (
             ("specificity", "Specificity: off-target primer and probe sites"),
-            ("amplicon_prediction", "Predicted off-target products"),
+            ("amplicon_prediction", "Predicted off-target amplicons"),
             ("exclusivity", "Exclusivity against the clinical organism list"),
         ):
             sections.append(

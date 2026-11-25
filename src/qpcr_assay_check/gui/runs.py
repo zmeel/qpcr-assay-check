@@ -342,7 +342,7 @@ def read_from(path: Path, offset: int, limit: int = 64_000) -> tuple[str, int]:
 
 # --- what the log says about progress ----------------------------------------------------
 
-STAGES = ("Oligo QC", "Specificity searches", "Re-alignment and partner scan",
+STAGES = ("Oligo QC", "Specificity searches", "Re-alignment and check for the opposite primer",
           "Genome listing and scan", "Report")  # fmt: skip
 _STAGE_MARKS = [
     (0, re.compile(r"Oligo QC for")),
@@ -395,9 +395,11 @@ def progress_of(text: str) -> Progress:
         elif m := _REALIGNED.search(line):
             _count(p, "Re-alignment", int(m.group(1)), int(m.group(2)), "windows")
         elif m := _SCAN_START.search(line):
-            _count(p, "Partner scan", 0, int(m.group(1)), "primer sites")
+            _count(p, "Check for the opposite primer", 0, int(m.group(1)), "primer sites")
         elif m := _SCAN.search(line):
-            _count(p, "Partner scan", int(m.group(1)), int(m.group(2)), "primer sites")
+            _count(
+                p, "Check for the opposite primer", int(m.group(1)), int(m.group(2)), "primer sites"
+            )
         m = _SCANNED.search(line)
         if m:
             p.done, p.total = int(m.group(1)), int(m.group(2))

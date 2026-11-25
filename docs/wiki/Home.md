@@ -26,7 +26,7 @@ Excel workbook, each with the tool version and a SHA-256 hash of every input.
 | [How it works](How-it-works) | The workflow from assay file to report, step by step |
 | [Finding the target in a genome](Finding-the-target-in-a-genome) | How the region of the assay is located in every genome: seeds, blocks, chains and the copy rule |
 | [Judging primer and probe sites](Judging-primer-and-probe-sites) | How each oligo is aligned to each copy, the graded mismatch classes, and how a genome and a channel are judged |
-| [Specificity search](Specificity-search) | The tiered remote BLAST search for off-target binding and predicted off-target products |
+| [Specificity search](Specificity-search) | The tiered remote BLAST search for off-target binding and predicted off-target amplicons |
 | [Data storage and cache](Data-storage-and-cache) | What is stored where, what is kept for how long, and why later runs are fast |
 | [Limits and validation](Limits-and-validation) | What the tool cannot tell you, and what was measured to set its rules |
 

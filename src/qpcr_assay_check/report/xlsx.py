@@ -239,7 +239,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
         )  # fmt: skip
         _sheet(
             wb,
-            "Predicted products",
+            "Predicted amplicons",
             ["ID", "Tier", "Accession", "Organism", "Start", "End", "Length (bp)", "Primers",
              "Class", "Probe site", "Channels", "Record", "Note"],
             [
@@ -288,7 +288,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             wb,
             "Exclusivity",
             ["Organism", "Resolution", "Taxonomy ID", "Sites", "Best site", "Best level",
-             "Predicted product"],
+             "Predicted amplicon"],
             [
                 [row.organism,
                  "target (excluded)" if row.is_target

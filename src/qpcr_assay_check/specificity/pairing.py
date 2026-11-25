@@ -173,11 +173,11 @@ def _note(
         return ""
     if rtype == "genomic":
         return (
-            "Genomic record of a eukaryote: this product matters to an RNA assay only if the "
+            "Genomic record of a eukaryote: this amplicon matters to an RNA assay only if the "
             "specimen contains genomic DNA and no intron separates the primer sites."
         )
     if rtype == "transcript":
-        return "Transcript record: this product would also arise from RNA."
+        return "Transcript record: this amplicon would also arise from RNA."
     return ""
 
 

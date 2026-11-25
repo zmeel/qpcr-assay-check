@@ -14,7 +14,7 @@ anything you must not detect is now predicted to amplify.
   with the organism types, release years and example accessions.
 - **Specificity per search tier**: the taxa you must not detect, a clinical organism list and the
   human background, by remote taxon-restricted BLAST with full-length re-alignment and predicted
-  off-target products.
+  off-target amplicons.
 - **A record for your quality system**: an HTML report, JSON record and Excel workbook with the
   tool version and a SHA-256 hash of the inputs.
   NCBI is only used remotely; there is no local database to maintain.
@@ -132,7 +132,7 @@ Details: [docs/USER_GUIDE.md](docs/USER_GUIDE.md#browser-interface-v210) and the
 - **Inclusivity**: the status uses the whole fragment over the last 3 years plus the current one;
   per year the whole fragment and each oligo, against the number of records NCBI
   lists for that year.
-- **Specificity**: per search tier whether any off-target product is predicted, which primer
+- **Specificity**: per search tier whether any off-target amplicon is predicted, which primer
   carries the discrimination and its closest site, and whether anything was left unassessed; the
   products and closest sites per species follow.
 - **Oligo quality control** (Tm, GC, hairpins and dimers), folded near the end: it depends only

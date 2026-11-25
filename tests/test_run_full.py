@@ -75,7 +75,9 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
     env.install(world_with(f=[10], r=[5], p=[8]))
     r = invoke(env, "--yes")
     assert r.exit_code == 20, r.output
-    assert "Review status: Exceeds limit" in r.output and "predicted off-target product" in r.output
+    assert (
+        "Review status: Exceeds limit" in r.output and "predicted off-target amplicon" in r.output
+    )
     d = run_dir(env)
     data = json.loads((d / "results.json").read_text())
     spec = data["specificity"]
@@ -89,7 +91,7 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
 
     html = (d / "report.html").read_text()
     for needle in (
-        "Predicted off-target products", "Closest off-target sites", "likely_detected",
+        "Predicted off-target amplicons", "Closest off-target sites", "detected",
         "Homo sapiens", "In silico analysis does not replace experimental validation",
         "sent the oligo sequences to NCBI", "Taxon restriction check",
     ):  # fmt: skip
@@ -105,7 +107,7 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
     assert not re.search(r"<(script|link|img|iframe)\b[^>]*\b(src|href)=[\"']?(https?:)?//", html)
 
     wb = load_workbook(d / "results.xlsx")
-    assert {"Off-target sites", "Predicted products", "Searches", "Findings"} <= set(wb.sheetnames)
+    assert {"Off-target sites", "Predicted amplicons", "Searches", "Findings"} <= set(wb.sheetnames)
 
 
 def test_a_clean_assay_gives_an_incomplete_specificity_and_overall_verdict(env):
@@ -203,7 +205,7 @@ def test_exclusivity_end_to_end_with_a_real_organism_list(env, tmp_path):
     # a critical primer-only site in the exclusivity tier forms no product: WARN, not FAIL
     # (primer_site_critical_no_product); the run is INCOMPLETE for other reasons here
     assert r.exit_code != 20, r.output
-    assert "forming no predicted product" in r.output
+    assert "forming no predicted amplicon" in r.output
 
     data = json.loads((run_dir(env) / "results.json").read_text())
     excl = data["exclusivity"]
@@ -244,7 +246,7 @@ def test_exclusivity_uses_the_assay_s_own_list_by_default(env, tmp_path):
     # a critical primer-only site in the exclusivity tier forms no product: WARN, not FAIL
     # (primer_site_critical_no_product); the run is INCOMPLETE for other reasons here
     assert r.exit_code != 20, r.output
-    assert "forming no predicted product" in r.output
+    assert "forming no predicted amplicon" in r.output
 
     data = json.loads((run_dir(env) / "results.json").read_text())
     excl = data["exclusivity"]
@@ -418,7 +420,7 @@ def test_the_report_shows_the_score_floor_and_a_product_found_by_the_partner_sca
     floor = next(f for f in spec["score_floors"] if f["tier"] == "background")
     assert (floor["min_score"], floor["max_mismatches_reported"]) == (10, 1)  # 20-nt primer
     html = (d / "report.html").read_text()
-    assert "Reported down to (score)" in html and "partner scan" in html
+    assert "Reported down to (score)" in html and "opposite primer" in html
     floors = html[html.index("<h3>What the searches could report</h3>") :]
     assert '<td class="num">10</td><td class="num">1 mismatch(es), no gap</td>' in floors
 
