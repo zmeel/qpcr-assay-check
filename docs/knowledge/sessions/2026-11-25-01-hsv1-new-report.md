@@ -73,3 +73,13 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   - "not bounded" is gone, and "bounded" now reads "proven".
 
   Setting names, results.json fields and log lines are unchanged.
+- **HSV-1 rerun with `max_amplicons: 1000`** (11:07Z,
+  [run](../runs/hsv1-2026-11-25.md)): near neighbours is now Review (634 amplicons, none
+  detected). The opposite-primer check now also covers that tier and leaves 906 sites unchecked;
+  the user adds `partner_scan_max_windows: 2000`. The near-neighbour Review line pushed the
+  decision box to page 3.
+
+  At the user's choice the sign-off's Review lines are now short. An off-target tier reads
+  "Specificity, <tier>: N amplicons, none detected by the probe", or the site counts when there is
+  no amplicon (`SummaryRow.brief`), and the "(details in Part B)" suffix is dropped. The findings
+  list is printed a little smaller. Simulated on that record: a 2-page sign-off, 19 pages in all.

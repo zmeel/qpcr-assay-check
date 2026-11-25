@@ -57,6 +57,12 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Shorter Review lines on the sign-off** (user, 2026-11-25, after HSV-1 with
+  `max_amplicons: 1000`). An off-target tier now reads, for example, "Specificity, Near
+  neighbours: 634 amplicons, none detected by the probe", where it used to name one example
+  amplicon. The "(details in Part B)" suffix is gone: the line under the list already points to
+  Part B. The findings list prints a little more compactly. With six findings, the sign-off is 2
+  A4 pages again.
 - **Plain words** (user, 2026-11-25):
   - **Amplicon, not product.** The report, the findings, the workbook (sheet "Predicted
     amplicons"), the GUI and the user guide now say "amplicon" instead of "product".

@@ -70,7 +70,7 @@ def test_the_decision_box_keeps_its_note_and_the_ncbi_line_is_in_the_header(tmp_
     head = html[html.index("<header>") : html.index("</header>")]
     assert "NCBI" in head
     css = html[html.index("@media print") : html.index("</style>")]
-    assert "svg.fig.years" in css and "td.write" in css
+    assert "svg.fig.years" in css and "td.write" in css and "ul.decide" in css
 
 
 def test_site_maps_open_part_b_in_amplicon_order_and_part_a_keeps_the_totals(tmp_path):
@@ -127,3 +127,45 @@ def test_cut_lists_and_saturated_hit_lists_carry_the_short_wording():
         "RP",
     ) in short
     assert ("near_neighbours", "Amplicon list stopped at 500 (max_amplicons)", "") in short
+
+
+def test_an_off_target_review_line_on_the_sign_off_is_one_short_line(tmp_path):
+    """HSV-1, 2026-11-25 11:07Z: "Off-target: Near neighbours: amplicon 166 bp on AF141854.1
+    (Human alphaherpesvirus 2) and 633 more (details in Part B)" wrapped onto two lines."""
+    from types import SimpleNamespace as NS
+
+    result = run_report_result(tmp_path)
+    rows = [
+        NS(anchor="specificity", css="WARN", check="Off-target: Near neighbours", result="r",
+           reason="amplicon 166 bp on AF141854.1 (Human alphaherpesvirus 2) and 633 more",
+           brief="Specificity, Near neighbours: 634 amplicons, none detected by the probe"),
+        NS(anchor="oligo-qc", css="WARN", check="Oligo design", result="r", reason="GC", brief=""),
+    ]  # fmt: skip
+    lines = [t for sev, t in decision_lines(result, rows) if sev == "WARN"]
+    assert lines == [
+        "Specificity, Near neighbours: 634 amplicons, none detected by the probe",
+        "Oligo design: GC",
+    ]
+    assert not any("details in Part B" in t for t in lines)
+
+
+def test_the_summary_row_of_a_tier_carries_its_short_line(tmp_path):
+    from qpcr_assay_check.report.grouping import spec_overview as overview_of
+    from qpcr_assay_check.report.summary import summary_rows
+
+    from .test_exclusivity import site
+
+    result = run_report_result(tmp_path)
+    spec = result.specificity.model_copy(update={
+        "sites": [site(1, "reverse", "warning", tier="exclusivity", site_id="W")],
+        "amplicons": [],
+        "searches": [{"tier": "exclusivity", "taxids": [1], "rid": None, "n_hits": {},
+                      "saturation": [], "restriction": None}],
+    })  # fmt: skip
+    result = result.model_copy(update={"specificity": spec})
+    rows = [{"tier": "exclusivity", "taxids": [1], "saturated": []}]
+    summary = summary_rows(result, load_config(), overview_of(spec, result.assay, rows))
+    (row,) = [r for r in summary if r.figure == "tier:exclusivity"]
+    assert row.brief == (
+        "Specificity, Clinical organism list: no amplicon; 0 critical and 1 warning primer sites"
+    )

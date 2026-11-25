@@ -533,7 +533,9 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
             out.append((row.css, f"{row.check}: {row.reason or row.result}"))
     for row in summary:
         if row.css == "WARN":
-            out.append(("WARN", f"{row.check}: {row.reason or row.result} (details in Part B)"))
+            # one short line each; the evidence is in the row's section of Part B, as the line
+            # under the list says (user, 2026-11-25: wrapped lines pushed the box to page 3)
+            out.append(("WARN", row.brief or f"{row.check}: {row.reason or row.result}"))
     return out
 
 

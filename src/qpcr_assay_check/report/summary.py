@@ -39,6 +39,7 @@ class SummaryRow:
     reason: str = ""
     anchor: str = ""
     figure: str = ""  # which small figure the row shows: tm, window, coverage or tier:<tier>
+    brief: str = ""  # the sign-off's line for a row that needs review (empty: check + reason)
 
 
 def _fig(key: str, row: SummaryRow) -> SummaryRow:
@@ -147,6 +148,17 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
         elif crit:
             reason = "critical primer sites, but no two facing each other (no amplicon)"
         info = t.tier == "out_of_scope"
+        # the sign-off's short line (user, 2026-11-25: "amplicon 166 bp on AF141854.1 (...) and
+        # 633 more (details in Part B)" wrapped, and the decision box went to a third page)
+        if t.products:
+            n = f"{t.products:,} amplicon{'' if t.products == 1 else 's'}"
+            seen = "none" if not t.detected else f"{t.detected:,}"
+            brief = f"Specificity, {t.title}: {n}, {seen} detected by the probe"
+        else:
+            brief = (
+                f"Specificity, {t.title}: no amplicon; {crit:,} critical and {warn:,} warning "
+                "primer sites"
+            )
         rows.append(
             _fig(
                 f"tier:{t.tier}",
@@ -161,6 +173,7 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
                 ),
             )
         )
+        rows[-1].brief = brief
         if info:
             rows[-1].css = "INFO"
     searched = {t.tier for t in overview}
