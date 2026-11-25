@@ -73,6 +73,9 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   - The closest primer site is now chosen among sites at warning or critical level, in the tier
     table and in Part A's glyph. Before, a minor site could be shown, such as 2 mismatches but
     only 2 clean 3′ nt. Such a site cannot prime, and the row's counts leave it out.
+    Part A's glyph and the table now always show the same site: on a tie the one with the
+    lower site id is picked, where before the glyph and the table could each pick a different
+    one.
   - The partner-scan summary and the count of primer sites forming no product are no longer
     repeated under "Other specificity findings". They are already in the products paragraph,
     which is now also printed when no product is predicted.

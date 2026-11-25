@@ -47,5 +47,8 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   - "Other specificity findings" no longer appears;
   - the product and site tables say "Near neighbours" and "amplified, not detected".
 
-  Left as it is: in the near-neighbour tier the forward and the reverse site tie (0 mismatches,
-  22 clean 3′ nt), and Part A's glyph shows the reverse while the table shows the forward.
+  In the near-neighbour tier the forward and the reverse site tie (0 mismatches, 22 clean 3′
+  nt): Part A's glyph showed the reverse, the table the forward. At the user's request ("Yes
+  make them pick the same site") both now use one choice, `figures.closest_by_tier`: warning or
+  critical sites, the fewest mismatches and gaps, the longest clean 3′ end, then the lowest
+  site id.

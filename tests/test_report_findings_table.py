@@ -161,3 +161,19 @@ def test_the_product_table_names_the_tier_and_the_probe_signal_in_words():
     src = env.loader.get_source(env, "report.html.j2")[0]
     assert "'amplified_not_detected': 'amplified, not detected'" in src
     assert "<td>{{ g.tier | tier_name }}</td>" in src
+
+
+def test_the_table_and_the_part_a_glyph_pick_the_same_site_on_a_tie(tmp_path):
+    """HSV-1, 2026-11-25: forward and reverse tied (0 mismatches, 22 clean 3' nt); the glyph
+    showed the reverse, the table the forward."""
+    from qpcr_assay_check.report.figures import closest_by_tier
+
+    result = run_report_result(tmp_path)
+    fwd = site(1, "forward", "critical", tier="near_neighbours", site_id="S9")
+    rev = site(1, "reverse", "critical", tier="near_neighbours", site_id="S2")
+    spec = _spec(result, FINDINGS, sites=[fwd, rev])
+    rows = [{"tier": "near_neighbours", "taxids": [1, 2], "saturated": []}]
+    overview = spec_overview(spec, result.assay, rows)
+    (row,) = tier_table(spec, overview, {s.id: s for s in spec.sites})["rows"]
+    assert row["closest"] is closest_by_tier(spec.sites)["near_neighbours"]
+    assert row["closest"].id == "S2"  # a tie goes to the lower site id, in both places

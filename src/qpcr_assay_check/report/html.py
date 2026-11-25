@@ -429,6 +429,7 @@ def tier_table(spec: Any, overview: list[Any], site_by_id: dict[str, Any]) -> di
         hit = [f for f in fs if f.kind in kinds]
         return {"n": sum(f.count for f in hit), "severity": _worst(hit)}
 
+    closest = figures.closest_by_tier(spec.sites)
     rows = []
     for t in overview:
         fs = [f for f in findings if f.tier == t.tier]
@@ -443,10 +444,7 @@ def tier_table(spec: Any, overview: list[Any], site_by_id: dict[str, Any]) -> di
             "critical_no_product": cell(fs, "primer_critical_no_product"),
             "warning": cell(fs, "primer_warning"),
             "probe": cell(fs, "probe_critical", "probe_warning"),
-            "closest": min(
-                (t.closest[r] for r in ("forward", "reverse") if t.closest.get(r)),
-                key=lambda x: (x.n_mismatch + x.n_gap, -x.clean_3prime_nt), default=None,
-            ),
+            "closest": closest.get(t.tier),  # the same site as Part A's glyph
             "gaps": gap_cells(t.tier),
             "status": _worst([f for f in fs if f.severity != "INFO"]) or "PASS",
             "overview": t,
