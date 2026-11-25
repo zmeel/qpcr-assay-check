@@ -149,7 +149,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 </head>
 <body>
 <main>
-{% macro chip(status) %}<span class="chip s-{{ status }} status-{{ status }}">{% set ico = {'PASS': '○', 'WARN': '△', 'FAIL': '▲', 'INCOMPLETE': '◌'}.get(status) %}{% if ico %}<span class="ico" aria-hidden="true">{{ ico }}</span>{% endif %}{{ {'PASS': 'No flags', 'WARN': 'Review', 'FAIL': 'Exceeds limit', 'INCOMPLETE': 'Incomplete', 'INFO': 'Info'}.get(status, status) }}</span>{% endmacro %}
+{% macro chip(status) %}<span class="chip s-{{ status }} status-{{ status }}">{% set ico = {'PASS': '○', 'WARN': '△', 'FAIL': '▲', 'INCOMPLETE': '◌'}.get(status) %}{% if ico %}<span class="ico" aria-hidden="true">{{ ico }}</span>{% endif %}{{ {'PASS': 'No flags', 'WARN': 'Review', 'FAIL': 'Exceeds limit', 'INCOMPLETE': 'Incomplete', 'INFO': 'Info', 'likely_detected': 'detected', 'amplified_not_detected': 'amplified, not detected'}.get(status, status) }}</span>{% endmacro %}
 {% macro qc_chip(status) %}<span class="chip s-{{ status }}">{{ {'PASS': 'within', 'WARN': 'outside preferred', 'FAIL': 'outside limit', 'INFO': 'info'}.get(status, status) }}</span>{% endmacro %}
 {% macro match(row, primer) %}{% if row.grade %}<span class="chip {{ grade_css(row.grade) }}" title="{{ row.grade_note }}">{{ row.grade | replace('_', ' ') }}</span><br>{% endif %}{% if row.note %}<strong>{{ row.note }}</strong><br>{% endif %}{% if row.n_mismatch == 0 and row.n_gap == 0 %}perfect match{% else %}{{ row.n_mismatch }} mismatch{{ 'es' if row.n_mismatch != 1 }}{% if row.n_gap %}, {{ row.n_gap }} gap{{ 's' if row.n_gap != 1 }}{% endif %}{% if primer %}<br><span class="meta">{% if row.clean_3prime_nt >= 5 %}3′ end intact ({{ row.clean_3prime_nt }} matching nt){% else %}<strong>mismatch in the 3′ end</strong> ({{ row.clean_3prime_nt }} matching nt){% endif %}</span>{% endif %}{% endif %}{% endmacro %}
 {% macro dtm(v) %}{% if v.delta_tm_c is not none and v.grade != 'perfect' %}{% if v.tm_not_modelled %}<span class="meta" title="computed with the nearest-neighbour model for unmodified DNA: ΔTm {{ '%+.1f' % v.delta_tm_c }} °C, which does not apply to {{ v.tm_not_modelled | join(', ') }} chemistry">ΔTm not applicable ({{ v.tm_not_modelled | join(', ') }})</span>{% else %}<span class="meta" title="duplex Tm {{ '%.1f' % v.tm_c }} °C, ΔG {{ '%.1f' % v.dg_kcal }} kcal/mol with this template; nearest-neighbour estimate for unmodified DNA (a 3′-terminal mismatch barely changes it); information only, the class is the judgement">ΔTm {{ '%+.1f' % v.delta_tm_c }} °C</span>{% if v.tm_at_or_below_annealing %} <strong class="meta" title="the predicted duplex Tm ({{ '%.1f' % v.tm_c }} °C) is at or below the annealing temperature ({{ r.config.reaction.annealing_temp_C }} °C): information only, the class is the judgement">Tm ≤ annealing</strong>{% endif %}{% endif %}{% endif %}{% endmacro %}
@@ -526,7 +526,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
   <thead><tr><th>Tier</th><th>Species</th><th>Products</th><th>Probe signal</th><th>Closest product</th><th>Length</th><th>Primer pairs</th></tr></thead>
   <tbody>
   {% for g in groups %}
-  <tr><td>{{ g.tier }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
+  <tr><td>{{ g.tier | tier_name }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
     <td class="num">{{ g.n_products }}<br><span class="meta">{{ g.n_records }} record{{ '' if g.n_records == 1 else 's' }}</span></td>
     <td>{% if g.n_detected %}{{ chip('likely_detected') }} {{ g.n_detected }}{% if assay.channels | length > 1 and g.channels %}<br><span class="meta">{% for ch, c in g.channels.most_common() %}{{ ch }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}{% endif %}{% if g.n_products - g.n_detected %}{% if g.n_detected %}<br>{% endif %}{{ chip('amplified_not_detected') }} {{ g.n_products - g.n_detected }}{% endif %}</td>
     <td>{{ g.best_mismatches }} primer mismatch{{ '' if g.best_mismatches == 1 else 'es' }}<br><span class="meta">{{ g.best.accession | ncbi }} {{ g.best.start }}–{{ g.best.end }}</span></td>
@@ -546,6 +546,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 {{ product_table(oos) }}{% endif %}
 {% else %}
 <p>No product was predicted from primer sites of at least warning level in the searched tiers.</p>
+<p class="meta">{{ spec.n_primer_only }} primer site(s) that can prime formed no product.{% if spec.partner_scan %} Partner scan: {{ spec.partner_scan.windows }} window(s), {{ spec.partner_scan.primer_sites_added }} primer and {{ spec.partner_scan.probe_sites_added }} probe site(s) BLAST had not reported.{% endif %}</p>
 {% if assay.target.must_not_detect_taxids %}<p><strong>No product predicted in the taxa the assay must not detect</strong> ({{ assay.target.must_not_detect_taxids | length }} taxa, searched as near neighbours).</p>{% endif %}
 {% endif %}{% endif %}
 {% if r.taxonomy_breakdown %}
@@ -554,7 +555,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
   <thead><tr><th>Tier</th><th>Species</th><th>Sites</th><th>Critical / warning</th><th>Closest site</th></tr></thead>
   <tbody>
   {% for g in groups %}
-  <tr><td>{{ g.tier }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
+  <tr><td>{{ g.tier | tier_name }}</td><td>{{ g.species }}{% if g.names | length > 1 %}<br><span class="meta">{% for n, c in g.names.most_common(3) %}{{ n }} ({{ c }}){{ ', ' if not loop.last }}{% endfor %}{% if g.names | length > 3 %} and {{ g.names | length - 3 }} more{% endif %}</span>{% endif %}</td>
     <td class="num">{{ g.n_sites }}<br><span class="meta">{{ g.n_records }} record{{ '' if g.n_records == 1 else 's' }}</span></td>
     <td class="num">{{ g.levels['critical'] }} / {{ g.levels['warning'] }}</td>
     <td>{{ g.best.query }}: {{ g.best.n_mismatch }} mismatch{{ '' if g.best.n_mismatch == 1 else 'es' }}{% if g.best.n_gap %} + {{ g.best.n_gap }} gap{% endif %}, {{ g.best.clean_3prime_nt }} clean 3′ nt<br><span class="meta">{{ g.best.accession | ncbi }}</span></td></tr>

@@ -44,6 +44,16 @@ sources:
   stable" or the reference-amplicon mismatch.
 
 Simulated on the user's HSV-1 HTML: 19 printed pages instead of 22, with a 2-page sign-off.
+The user's run of 2026-11-25 08:21Z confirmed it: 19 pages, with a 2-page sign-off.
+
+That run showed three faults, fixed at the user's request ("Yes, fix all 3"):
+
+- **The closest primer site could be a minor site.** It is now chosen among sites at warning or
+  critical level, in the table and in Part A's glyph.
+- **Two information lines were printed twice.** They are also in the products paragraph and are
+  no longer listed separately.
+- **Raw labels in the product and site tables.** The tier and the probe signal are now named in
+  words.
 
 # Who and why
 

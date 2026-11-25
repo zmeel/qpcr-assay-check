@@ -31,3 +31,11 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
   before this change keep the old list. In print the table fits A4 (two text columns at a
   minimum width, critical sites in two columns). Simulated on the user's HSV-1 HTML: 19 pages
   instead of 22, with a 2-page sign-off.
+- **The condensed HSV-1 record** (08:21Z, commit b69a478): 19 pages, with a 2-page sign-off.
+  Nothing is wider than the page, and only two QC messages are left. Three faults were found and
+  fixed (user: "Yes, fix all 3"):
+  - The closest primer site could be a minor site. The clinical list showed CP073535.2 (2
+    mismatches, 2 clean 3′ nt); the closest site among its 577 warning sites is CP139307.1.
+  - The two information lines under "Other specificity findings" repeated the products
+    paragraph.
+  - The product table showed raw tier names and chip labels.

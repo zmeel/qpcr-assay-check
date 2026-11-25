@@ -173,11 +173,14 @@ def mismatch_rows(result: RunResult) -> list[list[object]]:
 
 
 def closest_by_tier(sites: list[Any]) -> dict[str, Any]:
-    """Per tier, the closest primer site: fewest mismatches and gaps, then the longest clean 3'
-    end (worst-case partial sites, without a full alignment, left out)."""
+    """Per tier, the closest primer site that can prime (warning or critical level): fewest
+    mismatches and gaps, then the longest clean 3' end (worst-case partial sites, without a full
+    alignment, left out)."""
     best: dict[str, Any] = {}
     for s in sites:
         if s.role == "probe" or s.source == "blast_partial_worst_case" or not s.q_aln:
+            continue
+        if s.level not in ("warning", "critical"):  # a minor site cannot prime
             continue
         key = (s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id)
         if s.tier not in best or key < (

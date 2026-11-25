@@ -309,6 +309,7 @@ def build_findings(
                     "product (no facing partner within the maximum amplicon size)."
                 ),
                 topic="amplicons",
+                kind="primer_only_summary",  # the products paragraph says it
             )
         )
     if target_searched:

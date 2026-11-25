@@ -543,6 +543,7 @@ def scan_findings(
                 "BLAST had not reported were added."
             ),
             topic="amplicons",
+            kind="partner_scan_summary",  # the products paragraph says it (user, 2026-11-25)
         )
     ]
     primer_gaps, primer_short = [], []

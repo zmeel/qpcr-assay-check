@@ -69,6 +69,15 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   specificity findings". This table replaces the per-tier notes and the "Findings" list. Records
   made before this change keep the old list. Specificity findings gained `kind`, `count` and
   `site` for this; the not-searched and fetch-failure gaps gained a short wording.
+- **Fixes after the first condensed HSV-1 record** (user, 2026-11-25):
+  - The closest primer site is now chosen among sites at warning or critical level, in the tier
+    table and in Part A's glyph. Before, a minor site could be shown, such as 2 mismatches but
+    only 2 clean 3′ nt. Such a site cannot prime, and the row's counts leave it out.
+  - The partner-scan summary and the count of primer sites forming no product are no longer
+    repeated under "Other specificity findings". They are already in the products paragraph,
+    which is now also printed when no product is predicted.
+  - The product and site tables name the tier ("Near neighbours") and the probe signal in words
+    ("amplified, not detected").
 - **QC messages only where they add something**: a message that only restates the cell ("…is
   outside the preferred range…") is no longer printed under the QC matrix or the pair and
   amplicon table. Messages such as the 3′-end G/C warning and the reference-amplicon mismatch

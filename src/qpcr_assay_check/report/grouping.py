@@ -463,7 +463,11 @@ def spec_overview(spec: Any, assay: Any, search_rows: list[dict[str, Any]]) -> l
         }
         closest: dict[str, Any] = {}
         for role in _ROLES:
-            sites = [s for s in spec.sites if s.tier == tier and s.role == role]
+            # only sites that can prime or bind (warning or critical): a minor site is closer
+            # by mismatches at times but cannot act, and the tier's counts leave it out (user,
+            # 2026-11-25: a 2-clean-3'-nt site was shown as the clinical list's closest)
+            sites = [s for s in spec.sites if s.tier == tier and s.role == role
+                     and s.level in ("warning", "critical")]  # fmt: skip
             closest[role] = min(sites, key=_closeness) if sites else None
         by_design = [r for r in _ROLES if closest[r] is not None and _perfect_site(closest[r])]
         cut = {c.query for c in spec.counts if c.tier == tier and c.truncated}

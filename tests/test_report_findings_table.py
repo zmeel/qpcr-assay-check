@@ -116,3 +116,48 @@ def test_findings_shown_elsewhere_are_not_listed_again(tmp_path):
     assert other_findings(result) == [extra]
     html = render_report(result, load_config())
     assert '<h2 id="findings">Other findings</h2>' in html and extra in html
+
+
+def test_the_closest_primer_site_is_one_that_can_prime(tmp_path):
+    """HSV-1, 2026-11-25: a minor reverse site (2 mismatches, 2 clean 3' nt) was shown as the
+    clinical list's closest, while the row counts only warning and critical sites."""
+    from qpcr_assay_check.report.figures import closest_by_tier
+
+    result = run_report_result(tmp_path)
+    minor = site(1, "reverse", "minor", tier="exclusivity", site_id="M").model_copy(
+        update={"n_mismatch": 2, "clean_3prime_nt": 2}
+    )
+    warn = site(1, "reverse", "warning", tier="exclusivity", site_id="W").model_copy(
+        update={"n_mismatch": 4, "clean_3prime_nt": 18}
+    )
+    spec = result.specificity.model_copy(update={"sites": [minor, warn]})
+    rows = [{"tier": "exclusivity", "taxids": [1], "saturated": []}]
+    (t,) = spec_overview(spec, result.assay, rows)
+    assert t.closest["reverse"].id == "W"
+    assert closest_by_tier([minor, warn])["exclusivity"].id == "W"
+    assert "exclusivity" not in closest_by_tier([minor])
+
+
+def test_summary_findings_said_in_the_products_paragraph_are_not_listed_again(tmp_path):
+    result = run_report_result(tmp_path)
+    said = [
+        Finding(severity="INFO", topic="amplicons", kind="primer_only_summary",
+                message="2174 primer site(s) at warning or critical level formed no product."),
+        Finding(severity="INFO", topic="amplicons", kind="partner_scan_summary",
+                message="Partner scan: 1000 window(s) next to 1485 unpaired sites."),
+    ]  # fmt: skip
+    spec = _spec(result, [*FINDINGS, *said]).model_copy(update={"n_primer_only": 2174})
+    html = render_report(result.model_copy(update={"specificity": spec}), load_config())
+    assert "2174 primer site(s) at warning or critical level" not in html
+    assert "2174 primer site(s) that can prime formed no product." in html  # the paragraph
+
+
+def test_the_product_table_names_the_tier_and_the_probe_signal_in_words():
+    from qpcr_assay_check.report.html import _environment
+
+    env = _environment()
+    assert env.filters["tier_name"]("near_neighbours") == "Near neighbours"
+    assert env.filters["tier_name"]("custom") == "custom"
+    src = env.loader.get_source(env, "report.html.j2")[0]
+    assert "'amplified_not_detected': 'amplified, not detected'" in src
+    assert "<td>{{ g.tier | tier_name }}</td>" in src

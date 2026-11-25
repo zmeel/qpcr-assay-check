@@ -595,6 +595,7 @@ def _environment() -> Environment:
     env.filters["plain"] = _plain
     env.tests["search"] = lambda value, text: text in str(value)
     env.tests["adding"] = adds_to_cell
+    env.filters["tier_name"] = lambda tier: TIER_TITLE.get(tier, tier)
     return env
 
 
