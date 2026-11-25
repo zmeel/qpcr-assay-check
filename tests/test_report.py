@@ -175,6 +175,6 @@ def test_the_sign_off_lists_limits_and_gaps_in_full_and_review_once_per_check(n1
     assert len([x for x in lines if x[1].startswith("Specificity: ")]) == len(spec_fail)
     html = render_report(result, cfg)
     assert html.index("<h3>Findings that need a decision</h3>") < html.index("Reviewer's decision")
-    assert html.index('<h2 id="findings">All findings behind the summary</h2>') > html.index(
-        '<div class="part-b">'
-    )
+    # the full list is the workbook's; each finding stands in its own section (user, 2026-11-25)
+    assert "All findings behind the summary" not in html
+    assert 'workbook sheet "Findings"' in html[: html.index('<div class="part-b">')]

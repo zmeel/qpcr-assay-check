@@ -56,13 +56,19 @@ def _patterns(members: list[AmpliconResult], site_by_id: dict[str, SiteResult]) 
     review 2026-11-20, F4). Empty for a single product."""
     if len(members) < 2:
         return ""
+    n = distinct_patterns(members, site_by_id)
+    return f"; {n} distinct product pattern(s) by the sequences under the oligos"
+
+
+def distinct_patterns(members: list[AmpliconResult], site_by_id: dict[str, SiteResult]) -> int:
+    """Products counted by the sequences under the oligos (both primer sites and the probe site
+    as aligned): many records of one lineage are one pattern (F4)."""
 
     def aln(i: str | None) -> str:
         s = site_by_id.get(i) if i else None
         return s.s_aln if s else ""
 
-    n = len({(aln(a.left_site), aln(a.right_site), aln(a.probe_site)) for a in members})
-    return f"; {n} distinct product pattern(s) by the sequences under the oligos"
+    return len({(aln(a.left_site), aln(a.right_site), aln(a.probe_site)) for a in members})
 
 
 def _closest(sites: list[SiteResult]) -> SiteResult:
@@ -117,6 +123,8 @@ def build_findings(
                     "(specificity.off_target_tiers); what they cover is not assessed."
                 ),
                 topic="search",
+                short="configured tier(s) not searched",
+                about=", ".join(not_searched),
             )
         )
     for tier, why in sorted(rules.tier_waivers.items()):
@@ -134,6 +142,7 @@ def build_findings(
                 severity="INCOMPLETE",
                 message="No off-target tier was searched, so specificity cannot be assessed.",
                 topic="search",
+                short="no off-target tier searched",
             )
         )
 
@@ -180,6 +189,7 @@ def build_findings(
                     "assessed with worst-case assumptions and should be re-checked."
                 ),
                 topic="search",
+                short=f"{n_fetch_failed} sequence window(s) not fetched, assessed worst case",
             )
         )
     if n_fetch_failed_out_of_scope:
@@ -213,14 +223,22 @@ def build_findings(
         else:
             severity = sev.probe_site_critical if level == "critical" else "INFO"
             label = f"{level} {kind} site(s) (a probe gives signal only inside a product)"
+        closest = _closest(members)
+        if kind == "primer" and level == "critical":
+            what_kind = "primer_critical_product" if product else "primer_critical_no_product"
+        else:
+            what_kind = f"{kind}_{level}"
         out.append(
             Finding(
                 severity=judged(tier, severity),
                 message=(
-                    f"Tier '{tier}': {len(members)} {label}; closest: "
-                    f"{describe_site(_closest(members))}."
+                    f"Tier '{tier}': {len(members)} {label}; closest: {describe_site(closest)}."
                 ),
                 topic="sites",
+                tier=tier,
+                kind=what_kind,
+                count=len(members),
+                site=closest.id,
             )
         )
 
@@ -247,6 +265,9 @@ def build_findings(
                         f"primers and the probe should give signal for{detail}."
                     ),
                     topic="amplicons",
+                    tier=tier,
+                    kind="products_detected",
+                    count=len(members),
                 )
             )
         else:
@@ -259,6 +280,9 @@ def build_findings(
                         f"{detail}."
                     ),
                     topic="amplicons",
+                    tier=tier,
+                    kind="products_not_detected",
+                    count=len(members),
                 )
             )
     cut = (

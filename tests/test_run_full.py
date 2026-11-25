@@ -95,7 +95,11 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
     ):  # fmt: skip
         assert needle in html, needle
     # specificity at a glance (advisor 2026-09-25): per tier, products yes or no
-    assert "<strong>Background</strong>" in html and "1 predicted product</strong>" in html
+    # one row per tier, the product count in the colour of its finding (user, 2026-11-25)
+    i = html.index('<table class="tiers">')
+    tiers = html[i : html.index("</table>", i)]
+    assert '<th scope="row">Background<br>' in tiers
+    assert '<span class="chip s-FAIL">1 / 1</span>' in tiers
     assert 'class="aln"' in html and 'class="mm' in html  # alignment with highlighted mismatches
     # self-contained: no tag loads a remote script, stylesheet, image or font
     assert not re.search(r"<(script|link|img|iframe)\b[^>]*\b(src|href)=[\"']?(https?:)?//", html)

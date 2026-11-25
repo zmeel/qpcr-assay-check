@@ -13,6 +13,7 @@ from ..config import Config
 from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..oligo.grade import site_string
 from ..results import CheckResult, RunResult
+from ..specificity.findings import distinct_patterns
 from ..specificity.variants import group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
@@ -248,7 +249,7 @@ def qc_matrix(result: RunResult) -> dict[str, Any]:
         rows.append({
             "label": labels[key], "cells": [by.get(n) for n in names], "limit": limit,
             "flagged": [(n, c) for n, c in by.items()
-                        if c.status.value in ("WARN", "FAIL") and c.message],
+                        if c.status.value in ("WARN", "FAIL") and adds_to_cell(c)],
         })  # fmt: skip
     kinds = {"forward": "Forward", "reverse": "Reverse", "probe": "Probe"}
     others = []
@@ -372,6 +373,113 @@ def differing_settings(result: RunResult) -> list[tuple[str, str, str, str]]:
     return out
 
 
+_RESTATES_CELL = re.compile(r"outside the (?:preferred range|limit)")
+
+
+def adds_to_cell(c: CheckResult) -> bool:
+    """Whether a flagged check's message says more than its table cell (value, range of the
+    variants, Within / Outside preferred / Outside limit). "GC content of 68.2% is outside the
+    preferred range (the worst of 8 variants...)" only restates it; "the 3' end may be too stable
+    (mispriming risk)" does not (user, 2026-11-25: condense the report)."""
+    return bool(c.message) and not _RESTATES_CELL.search(c.message)
+
+
+_SEV_RANK = {"FAIL": 0, "INCOMPLETE": 1, "WARN": 2, "INFO": 3}
+_SITE_KINDS = ("primer_critical_product", "primer_critical_no_product", "primer_warning",
+               "probe_critical", "probe_warning")  # fmt: skip
+_PRODUCT_KINDS = ("products_detected", "products_not_detected")
+
+
+def _worst(findings: list[Any]) -> str | None:
+    return min((f.severity for f in findings), key=_SEV_RANK.__getitem__, default=None)
+
+
+def tier_table(spec: Any, overview: list[Any], site_by_id: dict[str, Any]) -> dict[str, Any]:
+    """The specificity findings as one table, a row per searched tier (user, 2026-11-25: eleven
+    sentences, each repeated in "All findings", condensed): products detected / amplified,
+    primer sites by level, probe sites, the closest primer sites, the evidence missing (short
+    wording, the full message as a numbered note) and the tier's status. Each count carries the
+    severity of its finding. Findings that fit no column stay a list (``other``). Empty
+    (``rows`` = []) for a record whose findings predate the structured fields: the template then
+    lists the findings as before."""
+    findings = [f for f in spec.findings if "with the E-value cut-off" not in f.message]
+    if not any(f.kind for f in findings) and any(
+        f.topic in ("sites", "amplicons") for f in findings if f.severity != "INFO"
+    ):
+        return {"rows": [], "notes": [], "other": []}  # fmt: skip
+    gaps: dict[tuple[str, str], list[Any]] = {}
+    for f in findings:
+        if f.short:
+            gaps.setdefault((f.tier, f.short), []).append(f)
+    notes: list[str] = []  # numbered in the order the table shows them
+    by_tier: dict[str, list[tuple[str, list[Any]]]] = {}
+    for (tier, short), fs in gaps.items():
+        by_tier.setdefault(tier, []).append((short, fs))
+
+    def gap_cells(tier: str) -> list[dict[str, Any]]:
+        out = []
+        for short, fs in by_tier.pop(tier, []):
+            notes.append(" ".join(f.message for f in fs))
+            about = ", ".join(f.about for f in fs if f.about)
+            out.append({"text": f"{short} ({about})" if about else short,
+                        "severity": _worst(fs), "note": len(notes)})  # fmt: skip
+        return out
+
+    def cell(fs: list[Any], *kinds: str) -> dict[str, Any]:
+        hit = [f for f in fs if f.kind in kinds]
+        return {"n": sum(f.count for f in hit), "severity": _worst(hit)}
+
+    rows = []
+    for t in overview:
+        fs = [f for f in findings if f.tier == t.tier]
+        amps = [a for a in spec.amplicons if a.tier == t.tier]
+        products = cell(fs, *_PRODUCT_KINDS)
+        rows.append({
+            "title": t.title, "tier": t.tier, "n_taxa": t.n_taxa,
+            "detected": t.detected, "amplified": t.products,
+            "patterns": distinct_patterns(amps, site_by_id) if len(amps) > 1 else 0,
+            "products_severity": products["severity"],
+            "critical_product": cell(fs, "primer_critical_product"),
+            "critical_no_product": cell(fs, "primer_critical_no_product"),
+            "warning": cell(fs, "primer_warning"),
+            "probe": cell(fs, "probe_critical", "probe_warning"),
+            "closest": min(
+                (t.closest[r] for r in ("forward", "reverse") if t.closest.get(r)),
+                key=lambda x: (x.n_mismatch + x.n_gap, -x.clean_3prime_nt), default=None,
+            ),
+            "gaps": gap_cells(t.tier),
+            "status": _worst([f for f in fs if f.severity != "INFO"]) or "PASS",
+            "overview": t,
+        })  # fmt: skip
+    leftover = [g for tier in list(by_tier) for g in gap_cells(tier)]  # gaps of no listed tier
+    other = [f for f in findings
+             if not f.kind and not f.short and f.message != spec.scope]  # fmt: skip
+    other.sort(key=lambda f: _SEV_RANK[f.severity])
+    return {"rows": rows, "notes": notes, "all_tiers": leftover, "other": other,
+            "status_all": _worst([f for f in findings if f.short and not f.tier])}  # fmt: skip
+
+
+def other_findings(result: RunResult) -> list[str]:
+    """Lines of the run's findings (results.json ``overall.rationale``, workbook sheet
+    "Findings") that no section of Part B shows: the oligo checks are in the QC matrix and the
+    hairpin table, the specificity findings in the tier table, the inclusivity lines in its
+    rationale (user, 2026-11-25: "All findings behind the summary" repeated all of them)."""
+    qc = result.oligo_qc
+    shown = {f"{c.name}: {c.message}" for c in qc.checks if c.message}
+    shown |= {
+        f"{s.label}: structure with Tm {s.tm_c:.1f} °C at {s.temp_c:g} °C "
+        f"({'outside the limit' if s.status.value == 'FAIL' else 'outside the preferred range'})."
+        for s in qc.structures
+        if s.tm_c is not None
+    }
+    if result.specificity is not None:
+        shown |= {f"Specificity: {f.message}" for f in result.specificity.findings}
+    if result.inclusivity is not None:
+        shown |= {f"Inclusivity: {line}" for line in result.inclusivity.rationale}
+    shown.add("No oligo QC check was outside the preferred range or the limit.")
+    return [line for line in result.overall.rationale if line not in shown]
+
+
 def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str]]:
     """``(status, text)`` for the sign-off: every finding that exceeds a limit or leaves
     evidence missing in full, then one line per check that needs review (report review
@@ -486,6 +594,7 @@ def _environment() -> Environment:
     env.filters["taxon"] = taxon_link
     env.filters["plain"] = _plain
     env.tests["search"] = lambda value, text: text in str(value)
+    env.tests["adding"] = adds_to_cell
     return env
 
 
@@ -576,6 +685,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
             "years": figures.year_bars(result, cfg),
             **{f"tier:{t}": g for t, g in figures.site_glyphs(result).items()},
         }
+    overview = spec_overview(spec, result.assay, rows_of_searches) if spec else []
     template = _environment().get_template("report.html.j2")
     return template.render(
         figures=figs,
@@ -619,7 +729,9 @@ def render_report(result: RunResult, cfg: Config) -> str:
         hidden_variants=hidden,
         hidden_variant_sites=hidden_sites,
         search_rows=rows_of_searches,
-        spec_overview=spec_overview(spec, result.assay, rows_of_searches) if spec else [],
+        spec_overview=overview,
+        tiers=tier_table(spec, overview, {x.id: x for x in spec.sites}) if spec else None,
+        other_findings=other_findings(result),
         pending=[s for s in result.sections if s.state != "evaluated"],
         charts=charts,
         assay_settings_yaml=(

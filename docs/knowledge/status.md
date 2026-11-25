@@ -106,7 +106,10 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   are in Part B and oligos are listed forward, probe, reverse
   ([decision](decisions/2026-11-20-sign-off-two-pages-amplicon-order.md)). Confirmed on the
   user's HSV-1 run of 2026-11-25: sign-off 2 pages, record 22
-  ([run](runs/hsv1-2026-11-25.md)). HSV-2 and VZV not yet rerun on this code.
+  ([run](runs/hsv1-2026-11-25.md)). The findings have since been condensed (no repeated list,
+  specificity as one table per tier, shorter QC messages;
+  [decision](decisions/2026-11-25-findings-condensed.md)): simulated on that record, 19
+  pages. Rebuild the GUI and rerun to confirm. HSV-2 and VZV are not yet rerun on this code.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 

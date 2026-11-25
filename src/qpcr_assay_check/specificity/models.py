@@ -112,6 +112,13 @@ class Finding(BaseModel):
     short: str = ""
     tier: str = ""
     about: str = ""
+    # what a site or product finding counts, for the report's tier table (user, 2026-11-25):
+    # primer_critical_product, primer_critical_no_product, primer_warning, probe_critical,
+    # probe_warning, products_detected, products_not_detected; with the number of sites or
+    # products and the closest site's id. Empty for every other finding.
+    kind: str = ""
+    count: int = 0
+    site: str = ""
 
 
 class TierCount(BaseModel):

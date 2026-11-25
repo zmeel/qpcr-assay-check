@@ -279,7 +279,9 @@ def test_spec_overview_flags_perfect_sites_of_both_primers_without_a_product(tmp
     })  # fmt: skip
     html = render_report(result.model_copy(update={"specificity": spec}), load_config())
     assert "Both primers have a perfect site in this tier" in html
-    assert "Closest forward site:" in html and "Closest reverse site:" in html
+    i = html.index('<table class="tiers">')
+    table = html[i : html.index("</table>", i)]  # the closest primer sites of the tier
+    assert "0 mm, 20 clean 3′" in table
 
 
 def test_perfect_primer_sites_with_a_product_do_not_say_no_product_is_predicted(tmp_path):

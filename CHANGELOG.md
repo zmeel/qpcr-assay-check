@@ -57,6 +57,22 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Findings condensed** (user, 2026-11-25). "All findings behind the summary" is gone: every
+  line in it was printed again elsewhere in Part B. The full list stays in the workbook sheet
+  "Findings" and in results.json, and Part A points there. Lines that no Part B section shows,
+  such as unsearched tiers or a missing human background, are listed under "Other findings".
+- **Specificity findings as one table**, with a row per tier. The columns are products (detected
+  / amplified, with distinct patterns), primer sites (critical in a product, critical with no
+  product, warning), probe sites, the closest primer site, the evidence missing and the status.
+  Each count is shown in the colour of its finding. Each gap is a short line in the table; its
+  full message is a numbered note below it. Findings that fit no column are listed under "Other
+  specificity findings". This table replaces the per-tier notes and the "Findings" list. Records
+  made before this change keep the old list. Specificity findings gained `kind`, `count` and
+  `site` for this; the not-searched and fetch-failure gaps gained a short wording.
+- **QC messages only where they add something**: a message that only restates the cell ("…is
+  outside the preferred range…") is no longer printed under the QC matrix or the pair and
+  amplicon table. Messages such as the 3′-end G/C warning and the reference-amplicon mismatch
+  remain.
 - **The sign-off fits on two A4 pages, decision box included** (user, on the HSV-1 record of
   2026-11-20). Specificity gaps are one short line per tier and kind, e.g. "Specificity,
   Background: relevant alignments cut at max_sites_per_query (FP_v8, P)", with the full

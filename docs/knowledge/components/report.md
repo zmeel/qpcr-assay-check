@@ -39,6 +39,9 @@ sources:
   - id: twopages
     resource: ../decisions/2026-11-20-sign-off-two-pages-amplicon-order.md
     title: "Sign-off on two pages: short gap lines, site maps in Part B, oligos in amplicon order"
+  - id: condensed
+    resource: ../decisions/2026-11-25-findings-condensed.md
+    title: "Findings condensed: no repeated list, specificity as a table per tier"
   - id: code6
     resource: ../../../src/qpcr_assay_check/results.py
     title: "src/qpcr_assay_check/results.py"
@@ -60,10 +63,12 @@ parts, printable on A4:
   mismatch maps themselves open Part B); the first "Needs attention" rows, in their coloured
   layout (user decision);[^decision] the findings that need a decision, where specificity gaps
   are one short line per tier and kind;[^twopages] the reviewer's decision box, kept on one page.
-- **Part B, evidence:** all findings behind the summary; assay; target detection (coverage, copies,
+- **Part B, evidence:** the findings no section below shows ("Other findings"; the full list is the
+  workbook's sheet "Findings");[^condensed] assay; target detection (coverage, copies,
   the mismatch maps per oligo, the whole-fragment tables, in which each site shows its rule and changes and folded rows name
   the site variants no listed row shows; inclusivity per year and by collection year,
-  rationale); off-target specificity (tier notes, findings, products, sites per species, closest
+  rationale); off-target specificity (one table with a row per tier: products, primer sites by level, probe
+  sites, closest primer site, evidence missing with numbered notes, status;[^condensed] products, sites per species, closest
   sites with binding-identical variants merged, organism table with the organisms without a site
   on one line, searches and a score-floor table); oligo design (a matrix: a row per check, a
   column per oligo, the limit once).
@@ -99,4 +104,5 @@ per-oligo tables per year moved to the workbook.
 [^decision]: "Needs attention keeps its coloured site rows"
 [^merged]: "Variants per oligo merged into the whole-fragment table"
 [^twopages]: "Sign-off on two pages: short gap lines, site maps in Part B, oligos in amplicon order"
+[^condensed]: "Findings condensed: no repeated list, specificity as a table per tier"
 [^code6]: src/qpcr_assay_check/results.py
