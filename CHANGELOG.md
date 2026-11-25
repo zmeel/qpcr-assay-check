@@ -57,6 +57,12 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **The tier table counts primer sites without an amplicon** (user, 2026-11-25). The column
+  "critical, in an amplicon" is gone: it was roughly twice the amplicon count. The other two site
+  columns are now one, "Primer sites without amplicon: critical / warning". These are the leads
+  the check for the opposite primer follows. Warning sites are now split by amplicon too, as
+  critical sites were (findings `primer_warning_product` and `primer_warning_no_product`), so a
+  site in an amplicon is counted once, by the amplicons.
 - **Shorter Review lines on the sign-off** (user, 2026-11-25, after HSV-1 with
   `max_amplicons: 1000`). An off-target tier now reads, for example, "Specificity, Near
   neighbours: 634 amplicons, none detected by the probe", where it used to name one example

@@ -385,7 +385,8 @@ def adds_to_cell(c: CheckResult) -> bool:
 
 
 _SEV_RANK = {"FAIL": 0, "INCOMPLETE": 1, "WARN": 2, "INFO": 3}
-_SITE_KINDS = ("primer_critical_product", "primer_critical_no_product", "primer_warning",
+_SITE_KINDS = ("primer_critical_product", "primer_critical_no_product",
+               "primer_warning_product", "primer_warning_no_product",
                "probe_critical", "probe_warning")  # fmt: skip
 _PRODUCT_KINDS = ("products_detected", "products_not_detected")
 
@@ -452,9 +453,9 @@ def tier_table(spec: Any, overview: list[Any], site_by_id: dict[str, Any]) -> di
             "detected": t.detected, "amplified": t.products,
             "patterns": distinct_patterns(amps, site_by_id) if len(amps) > 1 else 0,
             "products_severity": products["severity"],
-            "critical_product": cell(fs, "primer_critical_product"),
             "critical_no_product": cell(fs, "primer_critical_no_product"),
-            "warning": cell(fs, "primer_warning"),
+            # "primer_warning": records made on 2026-11-25 before warning sites were split
+            "warning": cell(fs, "primer_warning_no_product", "primer_warning"),
             "probe": cell(fs, "probe_critical", "probe_warning"),
             "closest": closest.get(t.tier),  # the same site as Part A's glyph
             "gaps": gap_cells(t.tier),

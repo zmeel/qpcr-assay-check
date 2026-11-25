@@ -86,3 +86,15 @@ generated: { by: claude-code/agent, at: 2026-11-25T09:00:00Z }
 - **HSV-1 with `partner_scan_max_windows: 2000`** (13:33Z, commit 5a38aac): 19 pages, with a
   2-page sign-off. The opposite-primer check is complete: 1,906 sites, 17 sites added, no new
   amplicon. The human background, cut at `max_sites_per_query`, is the only gap left.
+- **The tier table's site columns, explained and then simplified.**
+  - The user pointed out that "critical, in an amplicon" (1,268) is roughly twice the 634
+    amplicons, and asked why primer sites without an amplicon matter. Answer: they are leads for
+    missed amplicons, which the check for the opposite primer follows; they show where
+    discrimination rests; and lone priming has a small, indirect effect. They also raise Review
+    under the default severity, which is a policy the laboratory can change.
+  - The warning level was explained: at most 5 mismatches, 1 gap and at least 3 clean 3′ nt,
+    with the R1–R9 classes on top. Warning sites can form amplicons, and the column counted all
+    of them.
+  - User: "Build simplest". The table now has "Amplicons: detected / amplified" and "Primer sites
+    without amplicon: critical / warning". Warning sites are split by amplicon, as critical sites
+    were, so each site counts once.

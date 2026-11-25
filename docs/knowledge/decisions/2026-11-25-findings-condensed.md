@@ -23,9 +23,9 @@ sources:
   "not evaluated".
 - **Specificity findings as one table, a row per tier.** The table has these columns:
   - products, detected / amplified, with the number of distinct patterns;
-  - primer sites, critical in a product;
-  - primer sites, critical with no product;
-  - primer sites, warning;
+  - primer sites without amplicon, critical / warning (one column since 2026-11-25: "critical in
+    a product" was roughly twice the amplicon count, and warning sites are now split by amplicon
+    as critical ones are);
   - probe sites;
   - the closest primer site;
   - the evidence missing;

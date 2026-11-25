@@ -48,8 +48,12 @@ def _spec(result, findings, sites=None):
 
 FINDINGS = [
     Finding(severity="INFO", topic="search", message="Off-target tiers assessed: near_neighbours."),
-    Finding(severity="WARN", topic="sites", tier="near_neighbours", kind="primer_warning",
-            count=820, site="S2", message="Tier 'near_neighbours': 820 warning primer site(s)."),
+    Finding(severity="WARN", topic="sites", tier="near_neighbours",
+            kind="primer_warning_no_product", count=820, site="S2",
+            message="Tier 'near_neighbours': 820 warning primer site(s) forming no amplicon."),
+    Finding(severity="WARN", topic="sites", tier="near_neighbours",
+            kind="primer_warning_product", count=12, site="S2",
+            message="Tier 'near_neighbours': 12 warning primer site(s) in an amplicon."),
     Finding(severity="WARN", topic="sites", tier="near_neighbours",
             kind="primer_critical_no_product", count=8607, site="S1",
             message="Tier 'near_neighbours': 8607 critical primer site(s) forming no product."),
@@ -74,7 +78,7 @@ def test_the_specificity_findings_become_one_row_per_tier(tmp_path):
     (row,) = t["rows"]
     assert row["warning"] == {"n": 820, "severity": "WARN"}
     assert row["critical_no_product"] == {"n": 8607, "severity": "WARN"}
-    assert row["critical_product"] == {"n": 0, "severity": None}
+    assert "critical_product" not in row  # the amplicons count the sites in them
     assert row["status"] == "INCOMPLETE"
     assert [g["text"] for g in row["gaps"]] == ["product list cut at max_amplicons, not bounded"]
     assert [g["text"] for g in t["all_tiers"]] == [
@@ -90,7 +94,9 @@ def test_the_specificity_findings_become_one_row_per_tier(tmp_path):
     html = render_report(result.model_copy(update={"specificity": spec}), load_config())
     i = html.index('<table class="tiers">')
     table = html[i : html.index("</table>", i)]
-    assert '<span class="chip s-WARN">8,607</span>' in table and "All tiers" in table
+    assert '<span class="chip s-WARN">8,607</span> / <span class="chip s-WARN">820</span>' in table
+    assert "Primer sites without amplicon" in table and "critical, in an amplicon" not in table
+    assert "All tiers" in table
     assert "<h3>Findings</h3>" not in html  # the sentences are gone ...
     assert "second primer BLAST did not report" in html  # ... but each gap keeps its note
     assert "<h3>Other specificity findings</h3>" in html
@@ -177,3 +183,26 @@ def test_the_table_and_the_part_a_glyph_pick_the_same_site_on_a_tie(tmp_path):
     (row,) = tier_table(spec, overview, {s.id: s for s in spec.sites})["rows"]
     assert row["closest"] is closest_by_tier(spec.sites)["near_neighbours"]
     assert row["closest"].id == "S2"  # a tie goes to the lower site id, in both places
+
+
+def test_warning_primer_sites_are_split_by_amplicon_as_critical_ones_are():
+    from qpcr_assay_check.specificity.findings import build_findings
+    from qpcr_assay_check.specificity.models import AmpliconResult
+
+    cfg = load_config()
+    in_amp = site(1, "forward", "warning", tier="exclusivity", site_id="A")
+    partner = site(1, "reverse", "critical", tier="exclusivity", site_id="B")
+    lone = site(1, "reverse", "warning", tier="exclusivity", site_id="C")
+    amp = AmpliconResult(
+        id="P1", tier="exclusivity", accession="AB000001.1", taxid=1, organism="x", start=1,
+        end=100, length=100, left_site="A", right_site="B", roles="forward/reverse",
+        classification="amplified_not_detected", record_type="genomic",
+    )  # fmt: skip
+    found = build_findings(
+        sites=[in_amp, partner, lone], amplicons=[amp], site_by_id={}, counts=[], saturated=[],
+        off_tiers_seen=["exclusivity"], intended_target={}, target_searched=False,
+        n_primer_only=0, n_fetch_failed=0, amplicons_truncated=False, rules=cfg.specificity,
+    )  # fmt: skip
+    kinds = {f.kind: f.count for f in found if f.kind.startswith("primer_")}
+    assert kinds == {"primer_warning_product": 1, "primer_warning_no_product": 1,
+                     "primer_critical_product": 1}  # fmt: skip

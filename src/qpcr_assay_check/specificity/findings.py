@@ -223,7 +223,9 @@ def build_findings(
         if s.level == "minor":
             continue
         kind = "probe" if s.role == "probe" else "primer"
-        product = kind == "primer" and s.level == "critical" and s.id in in_product
+        # warning sites split by amplicon too, as critical ones are (user, 2026-11-25: the
+        # report counts primer sites without an amplicon, the amplicons count the others)
+        product = kind == "primer" and s.id in in_product
         groups[(s.tier, kind, s.level, product)].append(s)
     for (tier, kind, level, product), members in sorted(groups.items()):
         if kind == "primer" and level == "critical":
@@ -231,13 +233,14 @@ def build_findings(
             what = "in a predicted amplicon" if product else "forming no predicted amplicon"
             label = f"{level} {kind} site(s) {what}"
         elif kind == "primer":
-            severity, label = sev.primer_site_warning, f"{level} {kind} site(s)"
+            what = "in a predicted amplicon" if product else "forming no predicted amplicon"
+            severity, label = sev.primer_site_warning, f"{level} {kind} site(s) {what}"
         else:
             severity = sev.probe_site_critical if level == "critical" else "INFO"
             label = f"{level} {kind} site(s) (a probe gives signal only inside an amplicon)"
         closest = _closest(members)
-        if kind == "primer" and level == "critical":
-            what_kind = "primer_critical_product" if product else "primer_critical_no_product"
+        if kind == "primer":
+            what_kind = f"primer_{level}_product" if product else f"primer_{level}_no_product"
         else:
             what_kind = f"{kind}_{level}"
         out.append(
