@@ -135,6 +135,16 @@ class OverallResult(BaseModel):
     required_sections: list[str]
 
 
+class OligoDesignSource(BaseModel):
+    """The earlier record whose oligo design a run carries over (user, 2026-11-26: once known,
+    oligo design need not be evaluated in every run)."""
+
+    run_id: str
+    generated_at: str
+    version: str = ""
+    commit: str = ""
+
+
 class RunResult(BaseModel):
     """A complete evaluation record."""
 
@@ -149,6 +159,16 @@ class RunResult(BaseModel):
     assay: Assay
     config: dict[str, Any]
     oligo_qc: QCReport
+    oligo_design_hash: str = Field(
+        default="",
+        description="SHA-256 over the oligos, reference amplicons, reaction conditions "
+        "and limits: what the oligo design depends on",
+    )
+    oligo_design_from: OligoDesignSource | None = Field(
+        default=None,
+        description="set when the oligo design was carried over from this record "
+        "instead of being evaluated in this run",
+    )
     specificity: SpecificityResult | None = None
     exclusivity: ExclusivityResult | None = None
     taxonomy_breakdown: list[TaxonCount] = Field(

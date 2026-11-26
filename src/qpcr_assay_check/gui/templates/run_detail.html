@@ -6,7 +6,7 @@
   <div class="stack-4">
     <a class="back" href="/runs">← Runs</a>
     <h1>{{ job.assay_name }}</h1>
-    <span class="small muted">Run <span class="mono">{{ job.id }}</span> · {{ job.assay }}{% if job.qc_only %} · QC only{% endif %}{% if job.started %} · started {{ job.started[:16] | replace("T", " ") }} UTC{% endif %}{% if job.ended %} · ended {{ job.ended[:16] | replace("T", " ") }}{% endif %}</span>
+    <span class="small muted">Run <span class="mono">{{ job.id }}</span> · {{ job.assay }}{% if job.qc_only %} · QC only{% endif %}{% if job.skip_oligo_design %} · oligo design carried over{% endif %}{% if job.started %} · started {{ job.started[:16] | replace("T", " ") }} UTC{% endif %}{% if job.ended %} · ended {{ job.ended[:16] | replace("T", " ") }}{% endif %}</span>
   </div>
   <div class="actions">
     {% include "_job_state.html" %}

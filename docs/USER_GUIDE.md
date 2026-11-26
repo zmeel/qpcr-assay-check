@@ -186,7 +186,19 @@ qpcr-assay-check run my-assay/assay.yaml -o results
 
 # show exactly what a full run would send, without sending anything or needing credentials
 qpcr-assay-check run my-assay/assay.yaml --dry-run
+
+# a later run: oligo design is known, so carry it over instead of evaluating it again
+qpcr-assay-check run my-assay/assay.yaml -o results --skip-oligo-design
 ```
+
+`--skip-oligo-design` takes the oligo design over from the newest earlier record of the assay
+in the same results folder whose oligos, reference amplicons, reaction conditions and oligo limits
+are the same. It is not evaluated again, but its status still counts. The report names the
+record it came from, and Part B shows a notice instead of the QC tables. The workbook and
+results.json still hold every check. When no such record exists, oligo design is evaluated as
+usual. In the GUI this is the **Evaluate oligo design** option on the new-run page. It is
+ticked by default: untick it for later runs. The plan page then says which record the oligo
+design will come from. `scripts/run_assay.sh` passes the option on like any other run option.
 
 Each run writes `results/<assay>/<run-id>/` containing:
 

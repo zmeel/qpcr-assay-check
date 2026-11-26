@@ -92,6 +92,7 @@ def register_run_routes(
         name = str(form.get("assay", ""))
         qc_only = form.get("qc_only") == "1"
         resubmit = form.get("resubmit") == "1"
+        skip_design = form.get("oligo_design") != "1" and not qc_only
         if not csrf_ok(request, str(form.get("csrf", ""))):
             return new_page(request, 400, chosen=name, error="The form expired. Try again.")
         try:
@@ -112,8 +113,15 @@ def register_run_routes(
                 from ..search.planner import NOTHING_TO_EVALUATE
 
                 return new_page(request, 400, chosen=name, error=NOTHING_TO_EVALUATE)
+        carried = None
+        if skip_design:  # which record the oligo design would come from, if any
+            from ..pipeline import find_oligo_design
+
+            found = find_oligo_design(check.assay, check.cfg, work / "results")
+            carried = found[1] if found else None
         return page(request, "run_plan.html", active="newrun", name=name, check=check,
                     plan=plan, qc_only=qc_only, resubmit=resubmit, digest=digest(text),
+                    skip_design=skip_design, carried=carried,
                     current=runner.current(), queued=runner.queued())  # fmt: skip
 
     @app.post("/runs")
@@ -135,7 +143,8 @@ def register_run_routes(
             return new_page(request, 400, chosen=name, error="The assay file has problems.")
         job = store.create(
             Job(id=new_job_id(name), assay=name, assay_name=check.assay.assay_name,
-                qc_only=form.get("qc_only") == "1", resubmit=form.get("resubmit") == "1"),
+                qc_only=form.get("qc_only") == "1", resubmit=form.get("resubmit") == "1",
+                skip_oligo_design=form.get("skip_oligo_design") == "1"),
             text,
         )  # fmt: skip
         return RedirectResponse(f"/runs/{job.id}", status_code=303)
@@ -208,7 +217,8 @@ def register_run_routes(
         text = store.assay_path(old.id).read_text(encoding="utf-8")
         job = store.create(
             Job(id=new_job_id(old.assay), assay=old.assay, assay_name=old.assay_name,
-                qc_only=old.qc_only, resubmit=form.get("resubmit") == "1"),
+                qc_only=old.qc_only, resubmit=form.get("resubmit") == "1",
+                skip_oligo_design=old.skip_oligo_design),
             text,
         )  # fmt: skip
         return RedirectResponse(f"/runs/{job.id}", status_code=303)

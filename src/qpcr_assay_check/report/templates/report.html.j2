@@ -701,6 +701,10 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 
 {% endif %}
 <h2 id="oligo-design">Oligo design</h2>
+{% set od = r.oligo_design_from %}
+{% if od %}
+<div class="notice" id="oligo-qc"><p><strong>Carried over, not evaluated again.</strong> The oligos, reference amplicons, reaction conditions and oligo limits are the same as in record <code>{{ od.run_id }}</code> of {{ od.generated_at[:10] }}{% if od.version %} (qpcr-assay-check v{{ od.version }}{% if od.commit %}, commit {{ od.commit[:12] }}{% endif %}){% endif %}, so its oligo design is taken over as it was: its status counts in this record, its limits crossed stand in Part A, and every check and structure is in this record's workbook (sheets "Oligo QC" and "Structures") and results.json. The tables and drawings are in that record's report. Oligo design is evaluated again whenever the oligos, reaction conditions or limits change.</p></div>
+{% else %}
 <h3 id="oligo-qc">Oligo quality control</h3>
 {% set qc_states = (qc.checks | map(attribute='status.value') | list) + (qc.structures | map(attribute='status.value') | list) %}
 <p>{{ qc_states | select('equalto', 'FAIL') | list | length }} outside the limit and {{ qc_states | select('equalto', 'WARN') | list | length }} outside the preferred range, among {{ qc.checks | length }} checks and {{ qc.structures | length }} hairpin and dimer calculations; each is listed in the tables below. These checks depend only on the oligo sequences, so they stay the same from run to run and matter mainly when designing the PCR.</p>
@@ -795,6 +799,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
   <tr><th scope="row">{{ site.oligo | capitalize if site.oligo in ('forward', 'reverse', 'probe') else site.oligo }} site</th><td>{{ site.start }}–{{ site.end }} ({{ site.strand }}), {{ site.mismatches }} mismatch(es)</td></tr>
   {% endfor %}
 </tbody></table></div>
+{% endif %}
 {% endif %}
 
 </div>

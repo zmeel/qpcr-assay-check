@@ -5,10 +5,17 @@
   <div class="stack-4">
     <a class="back" href="/runs/new?assay={{ name }}">← New run</a>
     <h1>{{ check.assay.assay_name }}</h1>
-    <span class="mono small muted">{{ name }}{% if qc_only %} · QC only{% endif %}{% if resubmit %} · resubmit unfinished searches{% endif %}</span>
+    <span class="mono small muted">{{ name }}{% if qc_only %} · QC only{% endif %}{% if resubmit %} · resubmit unfinished searches{% endif %}{% if skip_design %} · oligo design carried over{% endif %}</span>
   </div>
 </header>
 
+{% if skip_design %}
+<section class="card stack-12">
+  <h2>Oligo design</h2>
+  {% if carried %}<p>Carried over from record <span class="mono">{{ carried.run_id }}</span> ({{ carried.generated_at[:10] }}{% if carried.version %}, version {{ carried.version }}{% endif %}): the oligos, reaction conditions and limits are the same. It is not evaluated again; its status counts in this record.</p>
+  {% else %}<p>No earlier record of this assay has the same oligos, reaction conditions and limits, so oligo design is evaluated in this run.</p>{% endif %}
+</section>
+{% endif %}
 {% if qc_only %}
 <section class="card stack-12">
   <h2>QC only</h2>
@@ -51,6 +58,7 @@
   <input type="hidden" name="digest" value="{{ digest }}">
   {% if qc_only %}<input type="hidden" name="qc_only" value="1">{% endif %}
   {% if resubmit %}<input type="hidden" name="resubmit" value="1">{% endif %}
+  {% if skip_design %}<input type="hidden" name="skip_oligo_design" value="1">{% endif %}
   <button class="btn btn-primary" type="submit">{% if qc_only %}Queue the QC run{% else %}Confirm and queue{% endif %}</button>
   <a class="btn" href="/runs/new?assay={{ name }}">Cancel</a>
   {% if current %}<span class="small muted">Starts after {{ queued | length + 1 }} run(s) ahead of it.</span>{% endif %}

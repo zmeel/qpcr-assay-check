@@ -22,7 +22,7 @@ from .config import (
 )
 from .errors import InputError, QpcrAssayCheckError
 from .models import Assay
-from .pipeline import evaluate, write_outputs
+from .pipeline import evaluate, find_oligo_design, write_outputs
 from .verdict import EXIT_CODES, EXIT_INPUT_ERROR, EXIT_NCBI_ERROR, STATUS_LABEL, Verdict
 
 app = typer.Typer(
@@ -151,6 +151,15 @@ def run(
         bool,
         typer.Option("--qc-only", help="Only oligo QC; the review status then covers QC alone."),
     ] = False,
+    skip_oligo_design: Annotated[
+        bool,
+        typer.Option(
+            "--skip-oligo-design",
+            help="Do not evaluate oligo design again: carry it over from the newest earlier "
+            "record of this assay with the same oligos, reaction conditions and limits (it is "
+            "evaluated as usual when there is none).",
+        ),
+    ] = False,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Show what would be sent to NCBI; send nothing.")
     ] = False,
@@ -217,10 +226,31 @@ def run(
         cfg = load_config(config, assay.settings)
         if resubmit:
             cfg.ncbi.resubmit_after_minutes = 0
+        oligo_design = None
+        if skip_oligo_design:
+            if qc_only:
+                raise InputError(
+                    "--skip-oligo-design with --qc-only leaves nothing to evaluate: a QC-only run "
+                    "is the oligo design."
+                )
+            oligo_design = find_oligo_design(assay, cfg, outdir)
+            if oligo_design is None:
+                log.warning(
+                    "No earlier record of %s with the same oligos, reaction conditions and "
+                    "limits: oligo design is evaluated in this run.",
+                    assay.slug,
+                )
+            else:
+                typer.echo(
+                    f"Oligo design carried over from record {oligo_design[1].run_id} "
+                    "(oligos, reaction conditions and limits unchanged)."
+                )
         if qc_only:
             result = evaluate(assay, cfg, qc_only=True)
         else:
-            result = _evaluate_with_search(assay, cfg, outdir, dry_run=dry_run, yes=yes)
+            result = _evaluate_with_search(
+                assay, cfg, outdir, dry_run=dry_run, yes=yes, oligo_design=oligo_design
+            )
             if result is None:  # dry run
                 return
         run_dir = write_outputs(result, outdir, cfg)
@@ -268,7 +298,9 @@ def init(
         typer.echo(f"Wrote {target}")
 
 
-def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: bool, yes: bool):
+def _evaluate_with_search(
+    assay: Assay, cfg: Config, outdir: Path, *, dry_run: bool, yes: bool, oligo_design: Any = None
+):
     """Full evaluation: remote searches, full-length assessment, verdicts.
 
     The exclusivity tier's taxonomy IDs are resolved from the organism list when the search
@@ -408,6 +440,7 @@ def _evaluate_with_search(assay: Assay, cfg: Config, outdir: Path, *, dry_run: b
         variant_coverage=exhaustive.coverage if exhaustive is not None else None,
         release_dates=exhaustive.release_dates if exhaustive is not None else None,
         variant_note=variant_note,
+        oligo_design=oligo_design,
     )
 
 

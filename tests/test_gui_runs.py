@@ -275,3 +275,22 @@ def test_a_plan_whose_only_search_is_the_unresolved_exclusivity_list_is_offered(
     r = client.post("/runs/plan", data={"csrf": token, "assay": "excl.yaml"})
     assert r.status_code == 200, r.text[:300]
     assert "the only search planned" in r.text
+
+
+def test_oligo_design_can_be_carried_over_from_the_plan(client: TestClient, work: Path) -> None:
+    """User, 2026-11-26: oligo design optional at the start of a run (ticked by default)."""
+    page = client.get("/runs/new").text
+    assert 'name="oligo_design" value="1" checked' in page
+    token = _csrf(page)
+    plan = client.post("/runs/plan", data={"csrf": token, "assay": "ng.yaml"}).text
+    # unticked, with no earlier record of this assay: evaluated all the same
+    assert "oligo design carried over" in plan and "No earlier record of this assay" in plan
+    assert 'name="skip_oligo_design" value="1"' in plan
+    ticked = client.post("/runs/plan", data={"csrf": token, "assay": "ng.yaml",
+                                             "oligo_design": "1"}).text  # fmt: skip
+    assert "skip_oligo_design" not in ticked
+    r = client.post("/runs", data={"csrf": token, "assay": "ng.yaml", "digest": _digest(plan),
+                                   "skip_oligo_design": "1"})  # fmt: skip
+    job_id = r.headers["location"].rsplit("/", 1)[1]
+    job = json.loads((work / "gui" / "jobs" / job_id / "job.json").read_text())
+    assert job["skip_oligo_design"] is True

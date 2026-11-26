@@ -17,6 +17,18 @@ tiers once, NOT the target where a tier contains it), so most searches are new B
 and near neighbours are read cautiously. Rerun an assay before comparing it with an older record.
 
 ### Added
+- **Oligo design can be carried over** (user, 2026-11-26: "After the first run oligo design is
+  known and therefore not to be repeated in each run").
+  - **How:** `run --skip-oligo-design`, or the **Evaluate oligo design** option in the GUI.
+  - **What happens:** the oligo design is taken from the newest earlier record of the assay
+    with the same oligos, reference amplicons, reaction conditions and oligo limits.
+    `RunResult.oligo_design_hash` fingerprints these; `oligo_design_from` names the source
+    record.
+  - **Status:** it still counts, so HSV-1 keeps "Exceeds limit" for its primer Tm.
+  - **Report:** Part A names the source record, and Part B shows a notice instead of the QC
+    tables. The workbook and results.json keep every check.
+  - **Fallback:** with no matching record, oligo design is evaluated as usual.
+  - **Not allowed with `--qc-only`.**
 - **A report in three parts, printable on A4** (advisor's report review of 2026-11-20, taken up
   in full by the user): a two-page sign-off (status sentence, the required statements in one
   line, "What was checked" with a small figure per row, target detection per year as stacked

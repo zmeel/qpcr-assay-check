@@ -58,6 +58,7 @@ class Job:
     assay_name: str
     qc_only: bool = False
     resubmit: bool = False
+    skip_oligo_design: bool = False  # carry it over from an earlier record (user, 2026-11-26)
     state: str = "queued"
     created: str = field(default_factory=_created)
     started: str = ""
@@ -158,6 +159,8 @@ def cli_command(job: Job, store: JobStore, config: Path | None) -> list[str]:
         cmd.append("--qc-only")
     if job.resubmit:
         cmd.append("--resubmit")
+    if job.skip_oligo_design and not job.qc_only:
+        cmd.append("--skip-oligo-design")
     return cmd
 
 

@@ -8,6 +8,7 @@ import logging
 import platform
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import primer3
 
@@ -16,7 +17,7 @@ from .inclusivity.models import InclusivityResult
 from .models import Assay, Status
 from .oligo.qc import TM_UNRELIABLE_TOKENS, run_oligo_qc
 from .provenance import tool_info
-from .results import OverallResult, RunResult, SectionResult
+from .results import OligoDesignSource, OverallResult, QCReport, RunResult, SectionResult
 from .search.orchestrate import SearchOutcome
 from .search.planner import HUMAN_TAXID
 from .specificity.duplex import site_duplex
@@ -47,6 +48,55 @@ def inputs_hash(assay: Assay, cfg: Config) -> str:
     }
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def oligo_design_hash(assay: Assay, config: dict[str, Any]) -> str:
+    """SHA-256 over what the oligo design depends on: the oligos (sequence, role, dye,
+    modifications), the reference amplicons, the reaction conditions and the oligo limits. Taken
+    from a record's own assay and configuration, so an earlier record can be matched even if it
+    predates this hash (user, 2026-11-26)."""
+    payload = {
+        "oligos": sorted(
+            [o.role, o.name, o.sequence.upper(), o.reporter or "", o.quencher or "",
+             sorted(o.modifications)]
+            for o in assay.oligo_list
+        ),
+        "reference_amplicons": sorted(r.sequence.upper() for r in assay.reference_amplicons),
+        "reaction": config.get("reaction"),
+        "thresholds": config.get("thresholds"),
+    }  # fmt: skip
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def find_oligo_design(
+    assay: Assay, cfg: Config, base_dir: Path
+) -> tuple[QCReport, OligoDesignSource] | None:
+    """The oligo design of the newest earlier record of this assay whose oligos, reference
+    amplicons, reaction conditions and limits are the same (:func:`oligo_design_hash`), with
+    the record it was evaluated in; None when there is none. A record that carried it over
+    itself names the record it came from."""
+    want = oligo_design_hash(assay, cfg.model_dump(mode="json"))
+    folder = base_dir / assay.slug
+    if not folder.is_dir():
+        return None
+    for run_dir in sorted((d for d in folder.iterdir() if d.is_dir()), reverse=True):
+        path = run_dir / "results.json"
+        if not path.is_file():
+            continue
+        try:
+            old = RunResult.model_validate_json(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError) as exc:  # an older or damaged record: not usable here
+            log.debug("Record %s not read for its oligo design: %s", run_dir.name, exc)
+            continue
+        if oligo_design_hash(old.assay, old.config) != want:
+            continue
+        source = old.oligo_design_from or OligoDesignSource(
+            run_id=old.run_id, generated_at=old.generated_at,
+            version=old.tool.get("version", ""), commit=old.tool.get("commit", ""),
+        )  # fmt: skip
+        return old.oligo_qc, source
+    return None
 
 
 def _inclusivity_title(inclusivity: InclusivityResult | None) -> str:
@@ -90,11 +140,15 @@ def evaluate(
     variant_coverage: ExhaustiveCoverage | None = None,
     release_dates: dict[str, str] | None = None,
     variant_note: str | None = None,
+    oligo_design: tuple[QCReport, OligoDesignSource] | None = None,
 ) -> RunResult:
-    """Run every analysis that exists in this version and assemble the evaluation record."""
+    """Run every analysis that exists in this version and assemble the evaluation record.
+
+    ``oligo_design``: the oligo design of an earlier record with the same oligos, reaction
+    conditions and limits (:func:`find_oligo_design`), carried over instead of evaluated."""
     now = (now or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
     digest = inputs_hash(assay, cfg)
-    qc = run_oligo_qc(assay, cfg)
+    qc = oligo_design[0] if oligo_design is not None else run_oligo_qc(assay, cfg)
 
     findings = [
         f"{c.name}: {c.message}"
@@ -121,6 +175,13 @@ def evaluate(
                 f"{sum(s.status is Status.FAIL for s in qc.structures)} outside the limit and "
                 f"{sum(s.status is Status.WARN for s in qc.structures)} outside the preferred "
                 f"range among {len(qc.structures)} hairpin and dimer calculations."
+                + (
+                    f" Carried over from record {oligo_design[1].run_id} "
+                    f"({oligo_design[1].generated_at[:10]}): the oligos, reaction conditions "
+                    "and limits are unchanged."
+                    if oligo_design is not None
+                    else ""
+                )
             ),
         )
     ]
@@ -441,6 +502,8 @@ def evaluate(
         assay=assay,
         config=cfg.model_dump(mode="json"),
         oligo_qc=qc,
+        oligo_design_hash=oligo_design_hash(assay, cfg.model_dump(mode="json")),
+        oligo_design_from=oligo_design[1] if oligo_design is not None else None,
         specificity=specificity,
         exclusivity=exclusivity,
         taxonomy_breakdown=taxonomy_breakdown or [],

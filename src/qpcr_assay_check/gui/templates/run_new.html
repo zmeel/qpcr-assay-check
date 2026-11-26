@@ -27,6 +27,7 @@
   </fieldset>
   <fieldset class="card stack-12">
     <legend>Options</legend>
+    <label class="choice"><input type="checkbox" name="oligo_design" value="1" checked><span>Evaluate oligo design. Untick it once the oligo design is known: it is then carried over from the last record of this assay with the same oligos, reaction conditions and limits (evaluated anyway if there is none).</span></label>
     <label class="choice"><input type="checkbox" name="qc_only" value="1"><span>QC only (seconds; nothing is sent to NCBI)</span></label>
     <label class="choice"><input type="checkbox" name="resubmit" value="1"><span>Submit unfinished BLAST searches anew instead of resuming them (<code>--resubmit</code>)</span></label>
     <p class="small muted">How many genomes one run scans is set in <code>work/config.yaml</code> or the assay's <code>settings:</code> (<code>variants.max_assemblies_per_run</code>).</p>

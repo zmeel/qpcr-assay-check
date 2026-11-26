@@ -1,6 +1,6 @@
 ---
 type: Session
-title: "Larger, clearer report figures"
+title: "Larger, clearer report figures; oligo design carried over"
 description: "Session log of 2026-11-26."
 tags: [session]
 session_date: 2026-11-26
@@ -24,3 +24,15 @@ generated: { by: claude-code/agent, at: 2026-11-26T10:00:00Z }
   (4 mm, 18 clean 3′ nt). Each organism now stands at its highest-level site first.
 - **Checked:** the figures were redrawn from the numbers in that record. In print no table is
   wider than the page.
+- **HSV-1 with the larger figures** (07:08Z, commit 2e55dba): 15 pages, with a 2-page
+  sign-off. *T. pallidum* now sits at its warning site (4 mm, 18 clean 3′ nt).
+- **Oligo design made optional** (user: "After the first run oligo design is known and therefore
+  not to be repeated in each run"). Asked how a skipped oligo design should count, the user
+  chose to carry the earlier result over
+  ([decision](../decisions/2026-11-26-oligo-design-carried-over.md)).
+  - **Built:** `--skip-oligo-design`, and the GUI option "Evaluate oligo design" (ticked by
+    default), whose plan page names the source record.
+  - **Matching:** `oligo_design_hash` covers the oligos, reference amplicons, reaction
+    conditions and limits; `find_oligo_design` returns the newest matching record.
+  - **Report:** Part A names the source record, and Part B shows a notice instead of the QC
+    tables.

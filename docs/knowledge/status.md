@@ -116,7 +116,9 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   ([decision](decisions/2026-11-25-report-round3-built.md)): rerun HSV-1 to see the figures and
   count its pages. First record with them (2026-11-25 17:00Z): 15 pages. The figures were then
   made larger at the user's request (2026-11-26), and the map now places each organism at its
-  highest-level site.
+  highest-level site. Since 2026-11-26 a run can carry the oligo design over from an earlier
+  record (`--skip-oligo-design`; GUI option "Evaluate oligo design";
+  [decision](decisions/2026-11-26-oligo-design-carried-over.md)).
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 

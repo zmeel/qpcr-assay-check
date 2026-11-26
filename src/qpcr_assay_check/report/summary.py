@@ -97,7 +97,12 @@ def _qc_row(result: RunResult) -> SummaryRow:
         "tm",
         _row(
             "Oligo design (Tm, GC, runs, hairpins, dimers)",
-            f"{_plural(len(qc.oligos), 'oligo')}, {len(qc.checks)} checks",
+            f"{_plural(len(qc.oligos), 'oligo')}, {len(qc.checks)} checks"
+            + (
+                f"; carried over from the record of {result.oligo_design_from.generated_at[:10]}"
+                if result.oligo_design_from
+                else ""
+            ),
             res,
             section.verdict,
             reason,
