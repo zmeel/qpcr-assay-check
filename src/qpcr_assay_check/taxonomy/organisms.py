@@ -46,13 +46,6 @@ class OrganismList(BaseModel):
                 seen.setdefault(name, None)
         return list(seen)
 
-    def category_of(self, name: str) -> str | None:
-        """The first category listing ``name``, or None."""
-        for category in self.categories:
-            if name in category.organisms:
-                return category.name
-        return None
-
 
 def default_organism_list_text() -> str:
     """The packaged starter organism list, as text."""

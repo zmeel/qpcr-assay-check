@@ -36,7 +36,11 @@ def test_every_figure_is_well_formed_xml_with_a_text_label():
         ),  # fmt: skip
         charts.year_bars([YearRow("2024", Counts(10, 1, 0, 0, 2), True)]),
         charts.site_map("F", "ACGTACGTAC", 20, {3: SiteColumn({"tolerated": 4}, gaps=1)}, 5),
-        charts.site_glyph("ACGTACGT", "ACCTNCGT", 5, "closest site"),
+        charts.site_dot(
+            charts.MapPoint("x", "background", 2, 20, 0, "critical", "t"),
+            charts.Zones(3, 0, 5, 5, 1, 3),
+            22,
+        ),
     ]
     for svg in figs:
         root = parse(svg)

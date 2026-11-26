@@ -8,8 +8,9 @@ from typing import Any
 from markupsafe import Markup
 
 from ..config import Config
-from ..inclusivity.models import FragmentYear, fragment_window, status_last_year, status_years
+from ..inclusivity.models import fragment_window, status_last_year, status_years
 from ..results import RunResult
+from ..specificity.closest import closest_key, drawable_primer_site
 from . import charts
 from .grouping import amplicon_order
 
@@ -83,76 +84,65 @@ def coverage_steps(result: RunResult, cfg: Config) -> Markup | None:
     return _markup(charts.coverage_steps(steps, span))
 
 
-def year_bars(result: RunResult, cfg: Config) -> Markup | None:
-    """Outcome per year on the status axis, the window bracketed (P2)."""
+def _year_rows(result: RunResult, cfg: Config, axis: str) -> list[charts.YearRow]:
+    """The bars of one year figure: per release year, or per collection year with first, in time
+    order, the records without a usable date and those collected before the window (not years,
+    so not drawn pale). The status axis carries the window bracket. One builder for Part A and
+    Part B (code review 2026-11-26: two copies had drifted)."""
     inc = result.inclusivity
     w = window(result, cfg)
     if inc is None or w is None:
-        return None
+        return []
     few_below = cfg.inclusivity.min_genomes_per_year
-    rows = [
-        charts.YearRow(
-            label=str(y.year),
-            counts=_counts(y),
-            in_window=w.first <= y.year <= w.last,
-            few=_counts(y).judged < few_below,
-        )  # fmt: skip
-        for y in status_years(inc)
-    ]
-    axis = "collection" if inc.status_axis == "collection" else "release"
-    if axis == "collection" and inc.collection is not None:  # dates that place no genome
-        extras = [
-            charts.YearRow(label=name, counts=_counts(extra))  # not a year: not drawn pale
-            for extra, name in ((inc.collection.undated, "no usable date"),
-                                (inc.collection.earlier, f"before {inc.collection.first_year}"))
-            if isinstance(extra, FragmentYear) and (extra.with_region or extra.possible_deletion)
-        ]  # fmt: skip
-        rows = [*extras, *rows]  # first, as in Part B (user, 2026-11-26)
-    return _markup(charts.year_bars(rows, title=f"Outcome per {axis} year"))
-
-
-PANEL_W = 600  # two fit side by side on screen (user, 2026-11-26); stacked in print
-
-
-def year_panels(result: RunResult, cfg: Config) -> dict[str, Any] | None:
-    """Part B's two year figures, full width one under the other (third report review,
-    2026-11-25; user, 2026-11-26: side by side they were too small): by release year and by
-    collection year, the status axis bracketed; in the collection figure the records collected
-    before the window and those without a usable date come first, as bars of their own (not
-    years, so not drawn pale). The numbers: workbook, sheet "Inclusivity"."""
-    inc = result.inclusivity
-    w = window(result, cfg)
-    if inc is None or w is None or not inc.fragment_years:
-        return None
-    few_below = cfg.inclusivity.min_genomes_per_year
-    by_collection = inc.status_axis == "collection"
-
-    def rows(years: list[FragmentYear], status: bool) -> list[charts.YearRow]:
-        return [
-            charts.YearRow(label=str(y.year), counts=_counts(y),
-                           in_window=status and w.first <= y.year <= w.last,
-                           few=_counts(y).judged < few_below)
-            for y in years
-        ]  # fmt: skip
-
-    release = charts.year_bars(rows(inc.fragment_years, not by_collection), width=PANEL_W,
-                               title="By release year")  # fmt: skip
-    collection = ""
+    status = (inc.status_axis == "collection") == (axis == "collection")
     ca = inc.collection
-    if ca is not None:
-        # chronological (user, 2026-11-26): no date first, then before the window, then the years
+    years = inc.fragment_years if axis == "release" else (ca.years if ca is not None else [])
+    rows = [
+        charts.YearRow(label=str(y.year), counts=_counts(y),
+                       in_window=status and w.first <= y.year <= w.last,
+                       few=_counts(y).judged < few_below)
+        for y in years
+    ]  # fmt: skip
+    if axis == "collection" and ca is not None:
         extra = [
             charts.YearRow(label=name, counts=_counts(y))
             for y, name in ((ca.not_read, "date not read"), (ca.undated, "no usable date"),
                             (ca.earlier, f"before {ca.first_year}"))
             if y.with_region or y.possible_deletion
         ]  # fmt: skip
-        collection = charts.year_bars([*extra, *rows(ca.years, by_collection)], width=PANEL_W,
-                                      title="By collection year")  # fmt: skip
+        rows = [*extra, *rows]
+    return rows
+
+
+def year_bars(result: RunResult, cfg: Config) -> Markup | None:
+    """Part A: the outcome per year on the status axis, the window bracketed (P2)."""
+    inc = result.inclusivity
+    if inc is None or window(result, cfg) is None:
+        return None
+    axis = "collection" if inc.status_axis == "collection" else "release"
+    return _markup(
+        charts.year_bars(_year_rows(result, cfg, axis), title=f"Outcome per {axis} year")
+    )
+
+
+PANEL_W = 600  # two fit side by side on screen (user, 2026-11-26); stacked in print
+
+
+def year_panels(result: RunResult, cfg: Config) -> dict[str, Any] | None:
+    """Part B's two year figures, side by side on screen (user, 2026-11-26): by release year and
+    by collection year, the status axis bracketed. The numbers: workbook, sheet "Inclusivity"."""
+    inc = result.inclusivity
+    w = window(result, cfg)
+    if inc is None or w is None or not inc.fragment_years:
+        return None
+    release = charts.year_bars(_year_rows(result, cfg, "release"), width=PANEL_W,
+                               title="By release year")  # fmt: skip
+    rows = _year_rows(result, cfg, "collection") if inc.collection is not None else []
+    collection = charts.year_bars(rows, width=PANEL_W, title="By collection year") if rows else ""
     return {
         "release": Markup(release),  # noqa: S704 - SVG from numbers, labels escaped
         "collection": Markup(collection) if collection else None,  # noqa: S704
-        "status": "collection" if by_collection else "release",
+        "status": "collection" if inc.status_axis == "collection" else "release",
         "window": w,
     }
 
@@ -223,21 +213,14 @@ def mismatch_rows(result: RunResult) -> list[list[object]]:
 
 
 def closest_by_tier(sites: list[Any]) -> dict[str, Any]:
-    """Per tier, the closest primer site that can prime (warning or critical level): fewest
-    mismatches and gaps, then the longest clean 3' end, then the site id, so that Part A's glyph
-    and the tier table always show the same site (user, 2026-11-25); worst-case partial sites,
-    without a full alignment, left out."""
+    """Per tier, the closest primer site that can prime (warning or critical level), by the one
+    rule of :func:`..specificity.closest.closest_key`: the tier table, Part A's dot, the
+    off-target map and the per-species table all name the same site."""
     best: dict[str, Any] = {}
     for s in sites:
-        if s.role == "probe" or s.source == "blast_partial_worst_case" or not s.q_aln:
+        if not drawable_primer_site(s) or s.level not in ("warning", "critical"):
             continue
-        if s.level not in ("warning", "critical"):  # a minor site cannot prime
-            continue
-        key = (s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id)
-        if s.tier not in best or key < (
-            best[s.tier].n_mismatch + best[s.tier].n_gap, -best[s.tier].clean_3prime_nt,
-            best[s.tier].id,
-        ):  # fmt: skip
+        if s.tier not in best or closest_key(s) < closest_key(best[s.tier]):
             best[s.tier] = s
     return best
 
@@ -264,14 +247,6 @@ def _point(s: Any, label: str) -> charts.MapPoint:
 
 
 MAP_POINTS = 40  # marks in the off-target site map; the rest in the workbook
-_LEVEL_RANK = {"critical": 0, "warning": 1, "minor": 2}
-
-
-def _site_rank(s: Any) -> tuple[Any, ...]:
-    """An organism's closest site: the highest level first, then the fewest mismatches and gaps
-    and the longest clean 3' end (user, 2026-11-26: by mismatches alone a minor site with no
-    clean 3' end stood for an organism with 577 warning sites)."""
-    return (_LEVEL_RANK.get(s.level, 3), s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id)
 
 
 def site_level_map(result: RunResult, cfg: Config) -> dict[str, Any] | None:
@@ -294,11 +269,11 @@ def site_level_map(result: RunResult, cfg: Config) -> dict[str, Any] | None:
         if s.role == "probe" and s.level == "minor":
             continue
         old = into.get((s.tier, name))
-        if old is None or _site_rank(s) < _site_rank(old):
+        if old is None or closest_key(s) < closest_key(old):
             into[(s.tier, name)] = s
     if not best and not probes:
         return None
-    ranked = sorted(best.items(), key=lambda kv: (_site_rank(kv[1]), kv[0]))
+    ranked = sorted(best.items(), key=lambda kv: (closest_key(kv[1]), kv[0]))
     shown = ranked[:MAP_POINTS]
     points = [_point(s, name) for (_tier, name), s in shown]
     for n, pt in enumerate(points, 1):

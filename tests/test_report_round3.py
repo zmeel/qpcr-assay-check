@@ -183,3 +183,27 @@ def test_an_organism_is_placed_at_its_highest_level_site_first(tmp_path):
     result = result.model_copy(update={"specificity": spec, "taxonomy_breakdown": tb})
     (row,) = site_level_map(result, cfg)["key"]
     assert (row["n"], row["level"], row["mismatches"], row["clean3"]) == (1, "warning", 4, 18)
+
+
+def test_every_table_and_figure_names_the_same_closest_site(tmp_path):
+    """Code review 2026-11-26: about seven copies of the rule had drifted; the per-species table
+    (charts off) picked by mismatches alone, the map by level first."""
+    from qpcr_assay_check.report.figures import closest_by_tier, site_level_map
+    from qpcr_assay_check.report.grouping import group_sites
+    from qpcr_assay_check.taxonomy.rollup import TaxonCount
+
+    result, cfg = run_report_result(tmp_path), load_config()
+    crit = site(3, "reverse", "critical", tier="exclusivity", site_id="C").model_copy(
+        update={"n_mismatch": 3, "clean_3prime_nt": 10}
+    )
+    warn = site(3, "forward", "warning", tier="exclusivity", site_id="W").model_copy(
+        update={"n_mismatch": 1, "n_gap": 1, "clean_3prime_nt": 12}
+    )
+    spec = result.specificity.model_copy(update={"sites": [warn, crit]})
+    tb = [TaxonCount(taxid=3, scientific_name="X", species="X", n_sites=2)]
+    result = result.model_copy(update={"specificity": spec, "taxonomy_breakdown": tb})
+    (group,) = group_sites(spec.sites, {3: "X"})
+    assert group.best.id == "C"  # the critical site, though the warning one has fewer mismatches
+    assert closest_by_tier(spec.sites)["exclusivity"].id == "C"
+    (row,) = site_level_map(result, cfg)["key"]
+    assert row["level"] == "critical" and row["mismatches"] == 3

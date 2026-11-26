@@ -488,11 +488,6 @@ def grade_fields(q_aln: str, s_aln: str, role: str, *, mgb: bool) -> dict[str, s
     return {"grade": g.cls, "grade_rule": g.rule, "grade_note": g.note}
 
 
-def is_mgb(modifications: list[str]) -> bool:
-    """MGB among declared modifications (an oligo's dye names count too: ``Oligo.has_mgb``)."""
-    return any(m.upper() == "MGB" for m in modifications)
-
-
 # ------------------------------------------------------------------ genome outcome
 OUTCOMES = ("likely failure", "at risk", "undetermined", "detectable")  # most concerning first
 

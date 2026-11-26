@@ -22,7 +22,7 @@ from ..results import RunResult
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL, Verdict
 from . import figures
-from .grouping import TIER_TITLE, gap_text
+from .grouping import gap_text, tier_name
 
 _SEVERITY = {"FAIL": Verdict.FAIL, "INCOMPLETE": Verdict.INCOMPLETE, "WARN": Verdict.WARN}
 _RANK = {Verdict.PASS: 0, Verdict.WARN: 1, Verdict.INCOMPLETE: 2, Verdict.FAIL: 3}
@@ -212,14 +212,14 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
         why = cfg.specificity.tier_waivers.get(tier)
         if why:
             rows.append(
-                _row(f"Off-target: {TIER_TITLE.get(tier, tier)}", "configured tier, waived",
+                _row(f"Off-target: {tier_name(tier)}", "configured tier, waived",
                      f"not searched: {why}", Verdict.PASS, "", "specificity", label="Waived")
             )  # fmt: skip
             rows[-1].css = "INFO"
             continue
         rows.append(
             _row(
-                f"Off-target: {TIER_TITLE.get(tier, tier)}",
+                f"Off-target: {tier_name(tier)}",
                 "configured tier",
                 "not searched in this run",
                 None,

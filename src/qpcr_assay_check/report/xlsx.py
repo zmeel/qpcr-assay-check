@@ -275,9 +275,9 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
              for q in hits_per_query(spec)],
             None,
         )  # fmt: skip
-        _sheet(
+        _sheet(  # its own name: a second "Findings" became "Findings1" (code review 2026-11-26)
             wb,
-            "Findings",
+            "Specificity findings",
             ["Severity", "Topic", "Message"],
             [[f.severity, f.topic, f.message] for f in spec.findings],
             0,

@@ -69,6 +69,26 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **One rule for "closest site"** (code review, 2026-11-26). Each table and figure applies the
+  same rule: the highest level first, then the fewest mismatches and gaps, then the longest
+  clean 3′ end (`specificity/closest.py`). This covers the off-target tier table, Part A's dot,
+  the off-target map, the per-species table (charts off) and the findings' "closest:" text.
+  Before, the per-species table could name a different site than the map.
+- **Part A's and Part B's year figures share one builder.** Part A now also shows a "date not
+  read" bar. Its caption no longer points to a table that is only printed when charts are off.
+- **Dead code removed** (code review, 2026-11-26), about 300 lines:
+  - **Templates:** the leftover `panel.html.j2`, an empty chart loop, CSS rules that matched
+    nothing and an unreachable template branch.
+  - **Report code:** seven values passed to the template but never used, the per-oligo
+    variant view the merged table replaced, the old Part A glyph, an unused legend strip and
+    the unused "compact" year-figure option.
+  - **Functions** nothing called: `detectable_percent`, `is_mgb`, `load_outcome`,
+    `category_of`, `STATES` and `_SITE_KINDS`.
+  - **Repeated calculations:** several values in `render_report` are now computed once.
+  - **Tier names** come from one function everywhere.
+
+  Kept on purpose: the tables shown when charts are off, the branches for records made before a
+  field existed, and every results.json field.
 - **Year figures side by side, in time order** (user, 2026-11-26, on HSV-2):
   - **Size and placement:** each is 600 px wide, so release and collection year sit side by
     side on screen; in print they stay one under the other, so they remain legible on A4.
@@ -212,6 +232,12 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   them first and always, and they are read cautiously (`cautious_tiers`, above).
 
 ### Fixed
+- **Two workbook sheets were both named "Findings"** (code review, 2026-11-26). The second was
+  silently renamed "Findings1", so the report's pointer to sheet "Findings" led to the
+  specificity findings only. The specificity sheet is now "Specificity findings"; "Findings"
+  holds every finding of the run.
+- **A carried-over oligo design named no commit**: the source commit was read from a key that
+  does not exist (`commit` instead of `git_commit`).
 - **GUI: a jump within the report stays in the report** (user, 2026-11-25). The GUI adds
   `<base target="_blank">` to the report so that NCBI links open in a new tab, but this also sent
   the jumps in the "What was checked" table (to `#specificity` and so on) to a new tab. That tab,

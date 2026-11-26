@@ -281,23 +281,16 @@ class YearRow:
     few: bool = False
 
 
-def legend_strip(width: int = 640) -> str:
-    """The outcome classes as one row of swatches (for figures drawn without their own)."""
-    return _svg(width, 12, "Outcome classes", [legend(list(ORDER), 0, 1)], "fig legend")
-
-
-def year_bars(rows: list[YearRow], width: int = 640, title: str = "", compact: bool = False) -> str:
+def year_bars(rows: list[YearRow], width: int = 640, title: str = "") -> str:
     """One 100% bar per year, split into the outcome classes, its count and named problem
     classes printed beside it; the status window bracketed; years with few judged genomes drawn
-    pale and labelled. Undetermined genomes are a segment of their own, never hidden.
-    ``compact``: a panel of two side by side (third report review, 2026-11-25), without its own
-    legend, the window bracket next to the bars."""
+    pale and labelled. Undetermined genomes are a segment of their own, never hidden."""
     if not rows:
         return ""
-    row, left, right = (15, 92, 104) if compact else (16, 104, 190)
+    row, left, right = 16, 104, 190
     bar_w = width - left - right
-    top = 2 if compact else 18
-    body = [] if compact else [legend(list(ORDER), left, 0)]
+    top = 18
+    body = [legend(list(ORDER), left, 0)]
     for i, r in enumerate(rows):
         y = top + i * row
         c = r.counts
@@ -320,14 +313,10 @@ def year_bars(rows: list[YearRow], width: int = 640, title: str = "", compact: b
         if note:
             text += f" · {note}"
         if r.few:
-            text += " · few" if compact else " · few records"
+            text += " · few records"
         body.append(f'<text x="{left + bar_w + 6}" y="{y + 11}" fill="{INK}">{escape(text)}</text>')
     win = [i for i, r in enumerate(rows) if r.in_window]
-    if win and compact:
-        y0, y1 = top + win[0] * row + 1, top + (win[-1] + 1) * row - 1
-        body.append(f'<path d="M{left - 2} {y0}h-3V{y1}h3" fill="none" stroke="{INK}" '
-                    'stroke-width="1.2"><title>status window</title></path>')  # fmt: skip
-    elif win:
+    if win:
         y0, y1 = top + win[0] * row + 1, top + (win[-1] + 1) * row - 1
         body.append(f'<path d="M58 {y0}h-4V{y1}h4" fill="none" stroke="{INK}" stroke-width="1.2"/>'
                     f'<text x="50" y="{(y0 + y1) / 2 + 3:.1f}" text-anchor="end" font-size="9" '
@@ -337,8 +326,7 @@ def year_bars(rows: list[YearRow], width: int = 640, title: str = "", compact: b
         f"{r.label} {r.counts.total:,}" + (f" ({_note(r.counts)})" if _note(r.counts) else "")
         for r in rows
     )
-    return _svg(width, top + row * len(rows) + 2, label, body,
-                "fig years panel" if compact else "fig years")  # fmt: skip
+    return _svg(width, top + row * len(rows) + 2, label, body, "fig years")
 
 
 @dataclass
@@ -354,7 +342,7 @@ class SiteColumn:
 
 
 _SITE_FILL = {
-    "tolerated": "#2F6FA8", "perfect": "#2F6FA8", "at_risk": "url(#q-risk)",
+    "tolerated": "#2F6FA8", "at_risk": "url(#q-risk)",
     "likely_failure": "url(#q-fail)", "indeterminate": "url(#q-und)",
 }  # fmt: skip
 _SITE_ORDER = ("tolerated", "at_risk", "likely_failure", "indeterminate")
@@ -423,30 +411,6 @@ def site_map(
         or "none"
     )
     return _svg(left + n * col + 16, top + plot_h + 28, label, body, "fig sitemap")
-
-
-def site_glyph(q_aln: str, s_aln: str, tail: int, label: str) -> str:
-    """One cell per oligo base: a match light, a mismatch black, an unread base (N) grey, a gap
-    hatched; the primer 3' end underlined. The bases themselves are in the alignment tables."""
-    cells = [(q, s) for q, s in zip(q_aln, s_aln, strict=False) if q != "-"]
-    if not cells:
-        return ""
-    n, w = len(cells), 6
-    body: list[str] = []
-    for i, (q, s) in enumerate(cells):
-        if s in "-.":
-            fill = "url(#q-und)"
-        elif s.upper() == "N":
-            fill = "#A8B3BD"
-        elif s.upper() != q.upper():
-            fill = INK
-        else:
-            fill = "#E6EAEE"
-        body.append(f'<rect x="{i * w}" y="0" width="{w - 1}" height="9" fill="{fill}"/>')
-    if 0 < tail < n:
-        body.append(f'<line x1="{(n - tail) * w}" x2="{n * w - 1}" y1="11" y2="11" stroke="{INK}" '
-                    'stroke-width="1.2"/>')  # fmt: skip
-    return _svg(n * w, 12, label, body, "fig glyph")
 
 
 # ---------------------------------------------------------------- off-target site levels

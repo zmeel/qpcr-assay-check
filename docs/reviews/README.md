@@ -200,3 +200,16 @@ M1/M1b, M4, M5 and M6 are built (decision `docs/knowledge/decisions/2026-11-25-r
 One deviation from the review: the off-target map fills each mark with the site's own level,
 not by the zone it falls in, because the R1–R9 classes can set a site apart from its zone.
 Not built: M3 (the merged-variants decision stands) and the mismatch-class diagram.
+
+## Code review for redundant code (2026-11-26): what was taken up
+
+The user agreed with the suggested selection:
+- **Fixed:** the two bugs (the duplicate "Findings" sheet name; the carried-over oligo design's
+  commit key).
+- **Merged:** the closest-site rules into one (item 5; `variants`' grouping key, the exclusivity
+  "best site" and the check for the opposite primer keep their own orderings, since they serve
+  other purposes); the two year-figure builders (item 6); the tier-name mapping (item 14).
+- **Removed:** the dead code of items 2, 3, 4, 7, 8, 9 (in part), 10 and 17 (the never-used
+  functions; the test-only ones stay).
+- **Kept:** the old-record branches (item 11) and the results.json fields (item 12).
+- **Not done:** items 13, 15, 16 and 19.

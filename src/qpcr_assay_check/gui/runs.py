@@ -33,7 +33,6 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 JOB_ID = re.compile(r"^[0-9]{8}T[0-9]{6}Z-[a-z0-9-]{1,60}$")
-STATES = ("queued", "running", "done", "failed", "cancelled", "interrupted")
 FINISHED = ("done", "failed", "cancelled", "interrupted")
 REVIEW_EXIT_CODES = {0: "No flags", 10: "Review", 20: "Exceeds limit", 30: "Incomplete"}
 TERM_AFTER_S = 30.0  # after Ctrl-C (SIGINT), then SIGTERM

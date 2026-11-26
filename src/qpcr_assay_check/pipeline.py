@@ -93,7 +93,7 @@ def find_oligo_design(
             continue
         source = old.oligo_design_from or OligoDesignSource(
             run_id=old.run_id, generated_at=old.generated_at,
-            version=old.tool.get("version", ""), commit=old.tool.get("commit", ""),
+            version=old.tool.get("version", ""), commit=old.tool.get("git_commit", ""),
         )  # fmt: skip
         return old.oligo_qc, source
     return None

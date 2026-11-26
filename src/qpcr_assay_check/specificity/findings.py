@@ -14,6 +14,7 @@ from collections.abc import Iterable
 from ..config import SpecificitySettings
 from ..search.planner import OUT_OF_SCOPE_TIER
 from ..verdict import Verdict
+from .closest import closest_key
 from .models import AmpliconResult, Finding, SiteResult, TierCount
 
 
@@ -82,7 +83,7 @@ def amplicon_cut_message(tier: str, limit: int) -> str:
 
 
 def _closest(sites: list[SiteResult]) -> SiteResult:
-    return min(sites, key=lambda s: (s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id))
+    return min(sites, key=closest_key)  # one rule with the report (code review 2026-11-26)
 
 
 def build_findings(

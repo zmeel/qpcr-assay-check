@@ -18,6 +18,7 @@ from typing import Any, TypeVar
 
 from ..oligo import iupac
 from ..oligo.grade import OUTCOMES, combination_outcome
+from ..specificity.closest import closest_key
 from ..specificity.models import AmpliconResult, SiteResult
 
 TIER_ORDER = {"near_neighbours": 0, "exclusivity": 1, "background": 2, "out_of_scope": 9}
@@ -112,8 +113,9 @@ class SiteGroup:
         return self.levels["critical"]
 
 
-def _closeness(s: SiteResult) -> tuple[int, int]:
-    return (s.n_mismatch + s.n_gap, -s.clean_3prime_nt)
+def _closeness(s: SiteResult) -> tuple[Any, ...]:
+    """The shared rule (:mod:`..specificity.closest`): highest level, then the closest."""
+    return closest_key(s)
 
 
 def group_sites(sites: list[SiteResult], species: dict[int, str]) -> list[SiteGroup]:
@@ -195,7 +197,7 @@ def _hidden(
     for f in folded:
         for role, v in (("forward", f.forward), ("probe", f.probe), ("reverse", f.reverse)):
             k = (role, v.q_aln, v.s_aln)
-            if k not in shown and k in by_key and not _perfect(by_key[k]):
+            if k not in shown and k in by_key and not is_perfect_row(by_key[k]):
                 keys[k] = None
     rows = sorted(((k[0], by_key[k]) for k in keys),
                   key=lambda x: (_CLASS_ORDER.get(x[1].grade, 3), -x[1].count))  # fmt: skip
@@ -360,54 +362,10 @@ def site_changes(row: Any) -> str:
     return ", ".join(out) or "none"
 
 
-def _perfect(row: Any) -> bool:
+def is_perfect_row(row: Any) -> bool:
+    """A variant row that binds perfectly (a graded record, or an ungraded one without a
+    mismatch or gap)."""
     return row.grade == "perfect" or (row.grade is None and not row.n_mismatch and not row.n_gap)
-
-
-@dataclass
-class OligoView:
-    role: str
-    total: int
-    n_perfect: int
-    rows: list[Any]  # listed variants
-    lumped: int  # tolerated variants in the summary row
-    lumped_records: int
-    # variants that are not tolerated but seen in a single record: one row per class, with
-    # (class, variants, their most frequent organisms)
-    singles: list[tuple[str | None, int, list[tuple[str, int]]]] = field(default_factory=list)
-
-
-def oligo_view(o: Any, *, top_tolerated: int = 5, min_records: int = 2) -> OligoView:
-    """Advisor subagent, 2026-09-25: the whole-fragment table is the main view; per oligo only
-    the variants that are not perfect, worst class first, then by records. Variants at risk,
-    likely to fail, indeterminate or without a class are listed when seen in at least
-    ``min_records`` records; those seen once are one row per class (user, 2026-09-25: most of
-    them occur in one record). Tolerated variants: the ``top_tolerated`` most frequent, the rest
-    in one summary row. Every variant stays in the workbook."""
-    other = sorted(
-        [r for r in o.rows if not _perfect(r)],
-        key=lambda r: (_CLASS_ORDER.get(r.grade, 3), -r.count),
-    )
-    tolerated = [r for r in other if r.grade == "tolerated"]
-    lumped = tolerated[top_tolerated:]
-    single = [r for r in other if r.grade != "tolerated" and r.count < min_records]
-    classes: dict[str | None, list[Any]] = defaultdict(list)
-    for r in single:
-        classes[r.grade].append(r)
-    singles = []
-    for grade, rs in sorted(classes.items(), key=lambda x: _CLASS_ORDER.get(x[0], 3)):
-        orgs: Counter = Counter(r.example_organism or "unknown organism" for r in rs)
-        singles.append((grade, len(rs), orgs.most_common(3)))
-    skip = {id(r) for r in (*lumped, *single)}
-    return OligoView(
-        role=o.role,
-        total=o.total_measured,
-        n_perfect=sum(r.count for r in o.rows if _perfect(r)),
-        rows=[r for r in other if id(r) not in skip],
-        lumped=len(lumped),
-        lumped_records=sum(r.count for r in lumped),
-        singles=singles,
-    )
 
 
 def site_frequency(oligos: list[Any]) -> dict[tuple[str, str, str], float]:
@@ -508,7 +466,7 @@ def spec_overview(spec: Any, assay: Any, search_rows: list[dict[str, Any]]) -> l
         cut = {c.query for c in spec.counts if c.tier == tier and c.truncated}
         incomplete = sorted(cut | set(row["saturated"]))
         discriminating = [r for r in ("forward", "reverse") if r not in by_design]
-        title = TIER_TITLE.get(tier, tier)
+        title = tier_name(tier)
         if tier == "near_neighbours" and assay.target.must_not_detect_taxids:
             title = "Must not detect"
         out.append(

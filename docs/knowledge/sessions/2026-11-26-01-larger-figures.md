@@ -58,3 +58,11 @@ generated: { by: claude-code/agent, at: 2026-11-26T10:00:00Z }
     - `rows_shown`, `tolerated_shown` and `assay_settings_yaml` are passed to the report
       template but never used.
   - Nothing has been changed yet: the user decides.
+- **Code review taken up.** The user agreed with my suggestion: fix the two bugs, merge the
+  closest-site rules and the year-figure builders, remove the dead code, and keep the
+  old-record branches and the results.json fields.
+  - Built: `specificity/closest.py` and `figures._year_rows`; about 300 lines removed.
+  - Tests added: the closest site is the same in every table and figure; the carried-over
+    record names its commit; the sheets are "Findings" and "Specificity findings".
+  - Checks: 1334 tests pass. The sample report renders unchanged (11 pages, a 2-page sign-off,
+    nothing too wide).

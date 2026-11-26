@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -213,8 +212,3 @@ def _new_job(ps: PlannedSearch) -> Job:
         params={k: v for k, v in ps.params.items() if k != "QUERY"},
         query_labels=ps.labels,
     )
-
-
-def load_outcome(path: Path) -> SearchOutcome:
-    """Read a previously written ``search.json``."""
-    return SearchOutcome.model_validate(json.loads(path.read_text(encoding="utf-8")))

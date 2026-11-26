@@ -13,21 +13,6 @@ from ..specificity.models import SiteResult
 from .models import WindowStats
 
 
-def detectable_percent(w: WindowStats) -> float | None:
-    """Share of the window's records that the oligo is expected to detect: the graded classes
-    perfect + tolerated, or (records made before the classes) 0-1 mismatch, clean 3' end.
-    Undetermined records are left out; None when no record is left (or the window is empty)."""
-    if w.sample_size == 0:
-        return None
-    if w.n_detectable is not None:
-        good = w.n_detectable
-        base = w.sample_size - w.n_undetermined
-        return 100.0 * good / base if base > 0 else None
-    else:
-        good = max(0, w.n_perfect + w.n_one_mismatch - w.n_three_prime_mismatch)
-    return 100.0 * good / w.sample_size
-
-
 def _stats(
     sites: list[SiteResult], year: int, population: int | None, oligo_len: int
 ) -> WindowStats:

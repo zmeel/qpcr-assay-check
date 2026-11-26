@@ -107,7 +107,9 @@ def test_an_off_target_product_in_the_background_fails_the_run_and_is_documented
     assert not re.search(r"<(script|link|img|iframe)\b[^>]*\b(src|href)=[\"']?(https?:)?//", html)
 
     wb = load_workbook(d / "results.xlsx")
-    assert {"Off-target sites", "Predicted amplicons", "Searches", "Findings"} <= set(wb.sheetnames)
+    names = set(wb.sheetnames)
+    assert {"Off-target sites", "Predicted amplicons", "Searches", "Findings"} <= names
+    assert {"Specificity findings"} <= names and "Findings1" not in names  # one name each
 
 
 def test_a_clean_assay_gives_an_incomplete_specificity_and_overall_verdict(env):

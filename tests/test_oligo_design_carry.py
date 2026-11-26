@@ -91,3 +91,12 @@ def test_the_gui_passes_the_choice_to_the_command(tmp_path):
     assert "--skip-oligo-design" in cli_command(job(), store, None)
     qc = job(qc_only=True)  # a QC-only run is the oligo design itself
     assert "--skip-oligo-design" not in cli_command(qc, store, None)
+
+
+def test_the_source_record_names_its_commit(tmp_path):
+    """Code review 2026-11-26: the commit was read from a key that does not exist."""
+    assay, cfg = make_assay(), load_config()
+    first = evaluate(assay, cfg, qc_only=True, now=NOW)
+    write_outputs(first, tmp_path, cfg)
+    _qc, source = find_oligo_design(assay, cfg, tmp_path)
+    assert source.commit == first.tool.get("git_commit", "")

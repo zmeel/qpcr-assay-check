@@ -6,7 +6,6 @@ import re
 from collections import Counter
 from typing import Any
 
-import yaml
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markupsafe import Markup, escape
 
@@ -21,13 +20,12 @@ from ..verdict import STATUS_LABEL
 from . import charts as svg
 from . import figures
 from .grouping import (
-    TIER_TITLE,
     amplicon_order,
     fragment_view,
     gap_text,
     group_products,
     group_sites,
-    oligo_view,
+    is_perfect_row,
     plain_tiers,
     shown_rows,
     site_changes,
@@ -39,7 +37,6 @@ from .grouping import (
 from .ncbi_links import linkify, taxon_link
 from .summary import summary_rows
 
-TOLERATED_VARIANTS_SHOWN = 5  # per oligo; the other tolerated variants: one row (all in workbook)
 GROUP_ROWS_SHOWN = 15  # further rows per grouped table (rows that can fail: always shown)
 CLOSEST_VARIANTS_SHOWN = 5  # closest off-target binding variants shown (all in the workbook)
 ATTENTION_ON_PAGE_ONE = 3  # "Needs attention" rows on the sign-off pages (all in Part B)
@@ -419,9 +416,6 @@ def adds_to_cell(c: CheckResult) -> bool:
 
 
 _SEV_RANK = {"FAIL": 0, "INCOMPLETE": 1, "WARN": 2, "INFO": 3}
-_SITE_KINDS = ("primer_critical_product", "primer_critical_no_product",
-               "primer_warning_product", "primer_warning_no_product",
-               "probe_critical", "probe_warning")  # fmt: skip
 _PRODUCT_KINDS = ("products_detected", "products_not_detected")
 
 
@@ -554,7 +548,7 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
             if f.short and f.about:
                 about.append(f.about)
         for (severity, tier, text), about in merged.items():
-            where = f", {TIER_TITLE.get(tier, tier)}" if tier else ""
+            where = f", {tier_name(tier)}" if tier else ""
             out.append((severity, f"Specificity{where}: {gap_text(text, about)}"))
     for row in summary:
         if row.anchor == "specificity" or row.anchor == "oligo-qc":
@@ -634,7 +628,6 @@ def _environment() -> Environment:
     env.filters["ncbi"] = linkify
     env.filters["taxon"] = taxon_link
     env.filters["plain"] = _plain
-    env.tests["search"] = lambda value, text: text in str(value)
     env.tests["adding"] = adds_to_cell
     env.filters["tier_name"] = tier_name
     env.filters["plain_tiers"] = plain_tiers
@@ -652,21 +645,6 @@ def _channel_table(result: RunResult, cfg: Config) -> list[tuple[Any, Any, str]]
 
 def render_report(result: RunResult, cfg: Config) -> str:
     """Render the evaluation record as one self-contained HTML document."""
-    groups: list[tuple[str, list[CheckResult]]] = []
-    kinds = {"forward": "Forward primer", "reverse": "Reverse primer", "probe": "Probe"}
-    oligo_groups = [
-        (o.name or o.role, kinds[o.role] if not o.name or o.name == o.role
-         else f"{kinds[o.role]} {o.name}")
-        for o in amplicon_order(result.oligo_qc.oligos)
-    ]  # fmt: skip
-    for key, title in [*oligo_groups, ("mix", "Reaction mix"), *_GROUPS[3:]]:
-        items = [c for c in result.oligo_qc.checks if c.subject == key]
-        if items:
-            groups.append((title, items))
-
-    # the Tm figure stands in Part A only (third report review, 2026-11-25: printed twice)
-    charts: list[dict[str, Any]] = []
-
     spec = result.specificity
     shown: list[Any] = []
     hidden = hidden_sites = 0
@@ -676,9 +654,8 @@ def render_report(result: RunResult, cfg: Config) -> str:
         shown, hidden = grouped[:limit], max(0, len(grouped) - limit)
         hidden_sites = sum(g.max_sites for g in grouped[limit:])
     species = species_of(result.taxonomy_breakdown)
-    product_groups = (
-        group_products(spec.amplicons, {s.id: s for s in spec.sites}, species) if spec else []
-    )
+    site_by_id = {s.id: s for s in spec.sites} if spec else {}
+    product_groups = group_products(spec.amplicons, site_by_id, species) if spec else []
     site_groups = group_sites(spec.sites, species) if spec else []
     vs = result.variant_summary
     fragments = (
@@ -697,13 +674,15 @@ def render_report(result: RunResult, cfg: Config) -> str:
                 if r.oligo_name == e.oligo and site_string(r.q_aln, r.s_aln) == e.variant))
         for e in result.assay.evidence
     ]  # fmt: skip
-    oligo_totals: list[tuple[Any, Any, dict[str, int]]] = []  # (view, oligo, counts per class)
+    # per oligo: its records, how many bind perfectly, and the others per class (Part A line)
+    oligo_totals: list[tuple[dict[str, int], Any, dict[str, int]]] = []
     for o in amplicon_order(vs.oligos if vs else []):
         counts: dict[str, int] = {}
         for row in o.rows:
             if row.grade and row.grade != "perfect":
                 counts[row.grade] = counts.get(row.grade, 0) + row.count
-        oligo_totals.append((oligo_view(o, top_tolerated=TOLERATED_VARIANTS_SHOWN), o, counts))
+        perfect = sum(r.count for r in o.rows if is_perfect_row(r))
+        oligo_totals.append(({"total": o.total_measured, "n_perfect": perfect}, o, counts))
     figs: dict[str, Any] = {}
     if cfg.report.include_charts:
         figs = {
@@ -714,6 +693,8 @@ def render_report(result: RunResult, cfg: Config) -> str:
             **{f"tier:{t}": g for t, g in figures.site_glyphs(result, cfg).items()},
         }
     overview = spec_overview(spec, result.assay, rows_of_searches) if spec else []
+    summary = summary_rows(result, cfg, overview)
+    floors = floor_matrix(spec) if spec else []
     template = _environment().get_template("report.html.j2")
     return template.render(
         figures=figs,
@@ -726,13 +707,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
         attention_shown=ATTENTION_ON_PAGE_ONE,
         oligo_totals=oligo_totals,
         qc_rows=qc_matrix(result),
-        decisions=decision_lines(
-            result,
-            summary_rows(
-                result, cfg, spec_overview(spec, result.assay, rows_of_searches) if spec else []
-            ),
-        ),
-        limits=limits_applied(result.config),
+        decisions=decision_lines(result, summary),
         limits_by_group=_by_group(limits_applied(result.config)),
         differing=differing_settings(result),
         incomplete_queries=[
@@ -740,42 +715,30 @@ def render_report(result: RunResult, cfg: Config) -> str:
             for q in (hits_per_query(spec) if spec else [])
             if q["possibly_cut"] or q["cut_by_cap"]
         ],
-        site_by_id={s.id: s for s in spec.sites} if spec else {},
-        floors=floor_matrix(spec) if spec else [],
-        floor_sum=floor_summary(floor_matrix(spec)) if spec else None,
+        site_by_id=site_by_id,
+        floor_sum=floor_summary(floors) if spec else None,
         floor_searches=floor_per_search(spec) if spec else {},
         r=result,
         product_groups=product_groups,
         fragments=fragments,
         site_groups=site_groups,
-        rows_shown=GROUP_ROWS_SHOWN,
         products_shown=shown_rows(product_groups, "n_detected", GROUP_ROWS_SHOWN),
         sites_shown=shown_rows(site_groups, "n_critical", GROUP_ROWS_SHOWN),
         grade_caveat=GRADE_CAVEAT,
         site_pct=site_frequency(vs.oligos) if vs else {},
-        tolerated_shown=TOLERATED_VARIANTS_SHOWN,
         evidence_rows=evidence_rows,
         qc=result.oligo_qc,
         assay=result.assay,
-        groups=groups,
         spec=spec,
         shown_variants=shown,
         hidden_variants=hidden,
         hidden_variant_sites=hidden_sites,
         search_rows=rows_of_searches,
         spec_overview=overview,
-        tiers=tier_table(spec, overview, {x.id: x for x in spec.sites}) if spec else None,
+        tiers=tier_table(spec, overview, site_by_id) if spec else None,
         other_findings=other_findings(result),
         pending=[s for s in result.sections if s.state != "evaluated"],
-        charts=charts,
-        assay_settings_yaml=(
-            yaml.safe_dump(result.assay.settings, sort_keys=False, allow_unicode=True)
-            if result.assay.settings
-            else ""
-        ),
         status_label=STATUS_LABEL[result.overall.verdict],
         channel_table=_channel_table(result, cfg),
-        summary=summary_rows(
-            result, cfg, spec_overview(spec, result.assay, rows_of_searches) if spec else []
-        ),
+        summary=summary,
     )
