@@ -46,3 +46,15 @@ generated: { by: claude-code/agent, at: 2026-11-26T10:00:00Z }
 - **HSV-2 again** (11:40Z, commit b19ffa2): 12 pages, with a 2-page sign-off, and Part A the
   same as at 11:04Z apart from the near-neighbour row's wording. The year figures stand side by
   side and in time order. The figure titles now use the heading font.
+- **Code review for redundant code.** The user asked for one; the reviewer's report is kept
+  verbatim ([review](../../reviews/2026-11-26-code-review-redundancy.md)). It found 19 items:
+  9 to merge, 8 to remove and 2 for the user to decide, plus a group of deliberate fallbacks
+  to keep.
+  - **Checked against the code before reporting:**
+    - two workbook sheets are both named "Findings", so the second becomes "Findings1" and the
+      report's pointer goes to the specificity-only sheet;
+    - a carried-over oligo design reads `tool["commit"]`, while the key is `git_commit`;
+    - `panel.html.j2` is rendered by nothing;
+    - `rows_shown`, `tolerated_shown` and `assay_settings_yaml` are passed to the report
+      template but never used.
+  - Nothing has been changed yet: the user decides.
