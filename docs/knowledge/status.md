@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-20T23:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-26T15:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -57,8 +57,24 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
   print), shorter prose, mismatch maps per oligo, the Needs-attention rows in their coloured
   layout (user decision).
 
-The influenza A rerun of 2026-11-18 08:15Z and the HSV runs of 2026-11-19 ran on code from before
-the tiers review (commit `4b5f4f0`); every specificity result since needs a rerun on the new code.
+- The report since 2026-11-20, in four review rounds and the user's own comments
+  ([report](components/report.md)):
+  - **Findings:** condensed, the specificity findings as one table per tier.
+  - **Wording:** plain words ("amplicon", "check for the opposite primer").
+  - **Figures:** year figures by release and collection year side by side, an off-target map
+    with numbered organisms, a hairpin/dimer strip, a coverage accounting figure.
+  - **Print:** long tables break between rows.
+  - **Length:** HSV-1 from 30 to about 15 pages, with a 2-page sign-off.
+- A run can carry the oligo design over from an earlier record with the same oligos, reaction
+  conditions and limits (`--skip-oligo-design`; GUI option "Evaluate oligo design").
+- A code review for redundant code (2026-11-26) was taken up:
+  - two bugs fixed: the workbook sheets "Findings" and "Specificity findings" were both named
+    "Findings", and a carried-over oligo design did not record its source commit;
+  - one rule for "closest site";
+  - about 300 lines of dead code removed.
+
+HSV-1 and HSV-2 have been rerun on the new code (2026-11-25/26). VZV, influenza A and the older
+assays ran on code from before the tiers review, so their specificity results need a rerun.
 
 # Latest runs
 
@@ -72,7 +88,7 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
 | Giardia lamblia | [2026-10-09 09:45Z](runs/giardia-2026-10-09.md) | complete: all 2,791 records. Exceeds limit, the probe detects G. microti and G. psittaci; 96.0% of 202 records collected 2023-2026, Incomplete on undated records |
 | VZV (ORF38) | [2026-11-17 14:31Z](runs/vzv-2026-11-17.md) | coverage complete (2,831 assessed, 1 unavailable); 99.7% of 599 with the region detectable; no off-target product; Exceeds limit on oligo QC only (probe G-form hairpin); inclusivity Incomplete (75 collected 2023-2026) |
 | HSV-1 (gG) | [2026-11-25 13:33Z](runs/hsv1-2026-11-25.md) | `max_amplicons: 1000`, `partner_scan_max_windows: 2000`: near neighbours Review (634 HSV-2 amplicons, none detected), the opposite-primer check complete; only gap left: human background cut at 2,000 sites; Exceeds limit on oligo QC only; sign-off 2 pages, record 19. Earlier that day 07:33Z: sign-off 2 A4 pages, record 22. Previous [2026-11-19 11:41Z](runs/hsv1-2026-11-19.md): near neighbours and release axis, Exceeds limit on oligo QC only; inclusivity No flags (96.0% of 223 genomes released 2023-2026); HSV-2 amplified, not detected (500 records, the cap, near-neighbour tier Incomplete); no product in the exclusivity list or human DNA (background Incomplete, 2,000-site cap) |
-| HSV-2 (gD) | [2026-11-19 10:45Z](runs/hsv2-2026-11-19b.md) | near neighbours and release axis: Review, from off-target primer sites without a product only (*Listeria*, human); near neighbours No flags (HSV-1 probe sites only, not amplified); inclusivity No flags, 100.0% of 181 genomes released 2023-2026; oligo QC No flags. First run [09:19Z](runs/hsv2-2026-11-19.md): Incomplete |
+| HSV-2 (gD) | [2026-11-26 11:40Z](runs/hsv2-2026-11-26.md) | newest code, oligo design carried over: Review from off-target primer sites without an amplicon only (clinical list, human); near neighbours, inclusivity (100.0% of 181 released 2023-2026) and coverage No flags; 12 pages. Previous [2026-11-19 10:45Z](runs/hsv2-2026-11-19b.md): | near neighbours and release axis: Review, from off-target primer sites without a product only (*Listeria*, human); near neighbours No flags (HSV-1 probe sites only, not amplified); inclusivity No flags, 100.0% of 181 genomes released 2023-2026; oligo QC No flags. First run [09:19Z](runs/hsv2-2026-11-19.md): Incomplete |
 | Influenza A (matrix) | [2026-11-18 08:15Z](runs/influenza-a-2026-11-18b.md) | v2.2.0 with the re-alignment fix: Exceeds limit, a 141 bp product on ON845595.1 read as detected (a record labelled influenza B whose M fragment is 95% identical to influenza A: most likely mislabelled); inclusivity No flags (99.5% of 72,698) |
 
 # Next, waiting on the user
@@ -82,15 +98,19 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   among them) folds into a hairpin: worth a wet-lab check on an Oka template. Since 2026-11-19
   `status_axis: release` (user, in the GUI; mirrored in the assay file: 109 records released
   2023-2026, 75 collected) and near neighbours named; not yet rerun.
-- HSV-2 detection (gD): rerun 2026-11-19 10:45Z with near neighbours and the release axis
-  ([run](runs/hsv2-2026-11-19b.md)): Review, from off-target primer sites without a product only;
-  every other row No flags. For the laboratory to review and sign. VZV names its near
-  neighbours too, not yet rerun; its GUI copy needs the repository file.
-- HSV-1 detection (gG, Ryncarz 1999 oligos): rerun 2026-11-19 11:41Z with near neighbours and
-  the release axis ([run](runs/hsv1-2026-11-19.md)): Exceeds limit on oligo QC only, inclusivity
-  No flags, HSV-2 amplified but not detected. The GUI's copy matches the repository file. Check
-  the forward primer's 2nd base (C in the paper, T in both reference genomes) against the
-  laboratory's order sheet.
+- HSV-2 detection (gD): rerun 2026-11-26 on the newest code ([run](runs/hsv2-2026-11-26.md)):
+  Review, from off-target primer sites without an amplicon only; every other row No flags. For
+  the laboratory to review and sign.
+- HSV-1 detection (gG, Ryncarz 1999 oligos): rerun on the newest code
+  ([run](runs/hsv1-2026-11-25.md)), with `max_amplicons: 1000` and
+  `partner_scan_max_windows: 2000`.
+  - **Exceeds limit:** on primer Tm only.
+  - **Near neighbours:** Review (634 HSV-2 amplicons, none detected).
+  - **Inclusivity:** No flags.
+  - **Only gap:** the human background, where two queries are cut at 2,000 sites. Raise
+    `max_sites_per_query`, or accept the gap in the reviewer's decision.
+  - **Still to check:** the forward primer's 2nd base (C in the paper, T in both reference
+    genomes) against the laboratory's order sheet.
 
 - Tiers review taken up in full (2026-11-20). Rerun HSV-1, HSV-2 and VZV on the new code (the
   NAS needs `git pull` and the GUI `scripts/build_gui.sh`). Expected for HSV-1: the 500 HSV-2
