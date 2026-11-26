@@ -103,12 +103,15 @@ def year_bars(result: RunResult, cfg: Config) -> Markup | None:
     if axis == "collection" and inc.collection is not None:  # dates that place no genome
         extras = [
             charts.YearRow(label=name, counts=_counts(extra))  # not a year: not drawn pale
-            for extra, name in ((inc.collection.earlier, f"before {inc.collection.first_year}"),
-                                (inc.collection.undated, "no usable date"))
+            for extra, name in ((inc.collection.undated, "no usable date"),
+                                (inc.collection.earlier, f"before {inc.collection.first_year}"))
             if isinstance(extra, FragmentYear) and (extra.with_region or extra.possible_deletion)
         ]  # fmt: skip
         rows = [*extras, *rows]  # first, as in Part B (user, 2026-11-26)
     return _markup(charts.year_bars(rows, title=f"Outcome per {axis} year"))
+
+
+PANEL_W = 600  # two fit side by side on screen (user, 2026-11-26); stacked in print
 
 
 def year_panels(result: RunResult, cfg: Config) -> dict[str, Any] | None:
@@ -132,18 +135,19 @@ def year_panels(result: RunResult, cfg: Config) -> dict[str, Any] | None:
             for y in years
         ]  # fmt: skip
 
-    release = charts.year_bars(rows(inc.fragment_years, not by_collection), width=900,
+    release = charts.year_bars(rows(inc.fragment_years, not by_collection), width=PANEL_W,
                                title="By release year")  # fmt: skip
     collection = ""
     ca = inc.collection
     if ca is not None:
+        # chronological (user, 2026-11-26): no date first, then before the window, then the years
         extra = [
             charts.YearRow(label=name, counts=_counts(y))
-            for y, name in ((ca.earlier, f"before {ca.first_year}"), (ca.undated, "no usable date"),
-                            (ca.not_read, "date not read"))
+            for y, name in ((ca.not_read, "date not read"), (ca.undated, "no usable date"),
+                            (ca.earlier, f"before {ca.first_year}"))
             if y.with_region or y.possible_deletion
         ]  # fmt: skip
-        collection = charts.year_bars([*extra, *rows(ca.years, by_collection)], width=900,
+        collection = charts.year_bars([*extra, *rows(ca.years, by_collection)], width=PANEL_W,
                                       title="By collection year")  # fmt: skip
     return {
         "release": Markup(release),  # noqa: S704 - SVG from numbers, labels escaped

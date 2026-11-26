@@ -36,3 +36,10 @@ generated: { by: claude-code/agent, at: 2026-11-26T10:00:00Z }
     conditions and limits; `find_oligo_design` returns the newest matching record.
   - **Report:** Part A names the source record, and Part B shows a notice instead of the QC
     tables.
+- **HSV-2 on the newest code** (11:04Z, commit 198650d): 12 pages, with a 2-page sign-off.
+  Oligo design was carried over from the record of 2026-11-19; the status is Review (clinical
+  list and background primer sites, no amplicon).
+- **Year figures:** at the user's request they now stand side by side (600 px each), and the
+  collection-year figure runs in time order: no usable date, then before the window, then the
+  years. In print they stay stacked. The near-neighbour row without primer sites now has the
+  same wording as the other rows.

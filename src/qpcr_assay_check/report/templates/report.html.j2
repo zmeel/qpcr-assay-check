@@ -42,6 +42,9 @@ div.review { break-inside: avoid; }
 /* the wide figures of Part B scale down to the page, never up (user, 2026-11-26: too small) */
 svg.fig.levels, svg.fig.structs, figure svg.fig.years { max-width: 100%; height: auto; }
 p.fig-title { margin: .6rem 0 .1rem; font-size: .95em; }
+/* the two year figures side by side where the page is wide enough (user, 2026-11-26) */
+.year-panels { display: flex; flex-wrap: wrap; gap: .4rem 2rem; align-items: flex-start; }
+.year-panels > div { flex: 1 1 32rem; max-width: 600px; }
 table.tiers td:nth-child(5), table.tiers td:nth-child(6) { min-width: 8rem; }  /* closest site, gaps */  /* the box, its heading and note on one page */
 h2.first { border-top: 0; margin-top: 1.5rem; }
 .chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 3px; white-space: nowrap; }
@@ -131,6 +134,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
   /* the sign-off on two A4 pages, decision box included (user, 2026-11-20) */
   svg.fig.years { width: 85%; height: auto; }
   table.review-box td.write { height: 4rem; } table.review-box td.write-line { height: 1.9rem; }
+  .year-panels { display: block; } .year-panels > div { max-width: none; }  /* stacked: legible on A4 */
   td.types { hyphens: auto; }
   td.oligo-name { overflow-wrap: normal; word-break: keep-all; }  /* an oligo name stays whole */  /* organism names break at syllables where they must break */
   ul.decide { font-size: 8.5pt; line-height: 1.3; margin: .2rem 0; } ul.decide li { margin: .1rem 0; }
@@ -439,11 +443,12 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 {% set yp = year_panels %}
 {% if yp %}{% set w = yp.window %}{% set ca = r.inclusivity.collection %}
 <figure>
+<div class="year-panels"><div>
 <p class="fig-title"><strong>By release year</strong>{% if yp.status == 'release' %} (the status uses this one){% else %} (information only){% endif %}</p>
-{{ yp.release }}
-{% if yp.collection %}<p class="fig-title"><strong>By collection year</strong>{% if yp.status == 'collection' %} (the status uses this one){% else %} (information only){% endif %}</p>
-{{ yp.collection }}{% endif %}
-<figcaption>Each genome's outcome as in the whole-fragment table, per release year (top) and, for the same {{ 'records' if nuc else 'genomes' }}, per collection year as the submitter recorded it in {{ 'the collection_date source qualifier' if nuc else 'the BioSample collection_date' }} (below{% if ca %}; first the {{ 'records' if nuc else 'genomes' }} that have no year of the window: {{ ca.earlier.with_region }} collected before {{ ca.first_year }}, {{ ca.undated.with_region }} without a usable collection date{% if ca.not_read.with_region %}, {{ ca.not_read.with_region }} not read yet{% endif %}{% endif %}). The status uses the {{ yp.status }} panel, pooled over the bracketed window {{ w.first }}–{{ w.last }}: {{ w.n }} judged, {{ w.detectable }} detectable, {{ w.at_risk }} at risk, {{ w.not_detected }} likely failure, {{ w.undetermined }} undetermined (not counted); the other panel is information only. Pale bars: fewer than {{ r.config.inclusivity.min_genomes_per_year | default(30) }} judged, shown but not judged alone; when the pooled figure has no flags, a single year of the window with at least that many below the FAIL limit gives Review. The window is the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete years and the current one, never the last year with data. Every count, per oligo too: workbook, sheet "Inclusivity".</figcaption></figure>
+{{ yp.release }}</div>
+{% if yp.collection %}<div><p class="fig-title"><strong>By collection year</strong>{% if yp.status == 'collection' %} (the status uses this one){% else %} (information only){% endif %}</p>
+{{ yp.collection }}</div>{% endif %}</div>
+<figcaption>Each genome's outcome as in the whole-fragment table, per release year (left) and, for the same {{ 'records' if nuc else 'genomes' }}, per collection year as the submitter recorded it in {{ 'the collection_date source qualifier' if nuc else 'the BioSample collection_date' }} (right, in time order: first those without a usable date, then those collected before the window, then the years{% if ca %}: {{ ca.earlier.with_region }} collected before {{ ca.first_year }}, {{ ca.undated.with_region }} without a usable collection date{% if ca.not_read.with_region %}, {{ ca.not_read.with_region }} not read yet{% endif %}{% endif %}). The status uses the {{ yp.status }} panel, pooled over the bracketed window {{ w.first }}–{{ w.last }}: {{ w.n }} judged, {{ w.detectable }} detectable, {{ w.at_risk }} at risk, {{ w.not_detected }} likely failure, {{ w.undetermined }} undetermined (not counted); the other panel is information only. Pale bars: fewer than {{ r.config.inclusivity.min_genomes_per_year | default(30) }} judged, shown but not judged alone; when the pooled figure has no flags, a single year of the window with at least that many below the FAIL limit gives Review. The window is the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete years and the current one, never the last year with data. Every count, per oligo too: workbook, sheet "Inclusivity".</figcaption></figure>
 {% else %}
 <p class="meta">The status uses this outcome, pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete {{ 'collection years (the table by collection year below; setting inclusivity.status_axis)' if by_coll else 'release years' }} and the current one (the latest release year listed; never the last year with data, so a target no longer sequenced is not judged on old years; see Rationale below); when the pooled figure has no flags, a single year in that window with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives Review; smaller years are marked "few records" and only shown. Each genome's outcome as in the whole-fragment table. Percentages leave the undetermined out, as the status does. Per oligo and year: workbook, sheet "Inclusivity".</p>
 <div class="scroll"><table>

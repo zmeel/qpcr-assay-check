@@ -69,6 +69,13 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Year figures side by side, in time order** (user, 2026-11-26, on HSV-2):
+  - **Size and placement:** each is 600 px wide, so release and collection year sit side by
+    side on screen; in print they stay one under the other, so they remain legible on A4.
+  - **Order of the collection-year figure:** "no usable date", then "before <year>", then the
+    years.
+  - **Same wording in every row:** an off-target row without primer sites now also reads
+    "0 critical / 0 warning primer sites without amplicon".
 - **Larger, clearer figures** (user, 2026-11-26, on the first HSV-1 record with them: "The goal
   is to give meaningful explanations, not fewer pages").
   - **Year figures:** release year and collection year are now full width, one under the

@@ -116,3 +116,7 @@ def test_the_report_shows_the_collection_axis(tmp_path):
         'aria-label="By collection year' in html and "the other panel is information only" in html
     )
     assert "no usable date" in html and "BioSample collection_date" in html
+    # in time order (user, 2026-11-26): no usable date, before the window, then the years
+    i = html.index('aria-label="By collection year')
+    panel = html[i : html.index("</svg>", i)]
+    assert panel.index(">no usable date<") < panel.index(">before ") < panel.index(">20")

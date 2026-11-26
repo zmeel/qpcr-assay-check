@@ -137,16 +137,16 @@ def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[Summ
         mine = [f for f in spec.findings if f.tier == t.tier]
         split = {"primer_critical_no_product", "primer_critical_product",
                  "primer_warning_no_product", "primer_warning_product"}  # fmt: skip
-        if any(f.kind in split for f in mine) and not any(f.kind == "primer_warning" for f in mine):
+        old_record = any(f.kind == "primer_warning" for f in mine) or (
+            primer and not any(f.kind in split for f in mine)
+        )  # made before the site findings carried their kind
+        if not old_record:
             crit_no = sum(f.count for f in mine if f.kind == "primer_critical_no_product")
             warn_no = sum(f.count for f in mine if f.kind == "primer_warning_no_product")
             sites = f"{crit_no:,} critical / {warn_no:,} warning primer sites without amplicon"
-        elif mine or primer:
+        else:
             crit_no, warn_no = crit, warn
             sites = f"{crit:,} critical and {warn:,} warning primer sites"
-        else:
-            crit_no = warn_no = 0
-            sites = "no primer site at warning level or above"
         if t.products:
             seen = "none" if not t.detected else f"{t.detected:,}"
             amps_txt = f"{_plural(t.products, 'amplicon')}, {seen} detected by the probe"
