@@ -466,6 +466,7 @@ class MapPoint:
     gaps: int
     level: str  # the site's own level: the zones show the count limits, the fill the outcome
     title: str
+    number: int = 0  # its row in the table under the figure
 
 
 @dataclass
@@ -494,16 +495,18 @@ def _mark(shape: str, x: float, y: float, fill: str, title: str, r: float = 4.5)
     return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r}" {st}>{t}</circle>'
 
 
-def site_level_map(points: list[MapPoint], zones: Zones, top_clean: int, width: int = 640) -> str:
+def site_level_map(points: list[MapPoint], zones: Zones, top_clean: int, width: int = 900) -> str:
     """Each organism's closest primer site placed by its mismatches (x) and clean 3' end (y)
     on the zones of the critical and warning levels; the tier is the shape, the site's own level
     the fill (the R1-R9 classes can move a site out of the zone its counts put it in). Sites
     with more gaps than the warning level allows stand in a column of their own. One mark per
-    organism: database redundancy does not weigh (third report review, 2026-11-25)."""
+    organism: database redundancy does not weigh (third report review, 2026-11-25). Each mark
+    carries the number of its organism in the table under the figure (user, 2026-11-26: names
+    beside the marks ran into each other)."""
     if not points:
         return ""
-    left, top, ph, cw = 46, 30, 210, 50
-    gap_x = left + cw * 7 + 40
+    left, top, ph, cw = 56, 40, 300, 88
+    gap_x = left + cw * 7 + 70
     top_clean = max(top_clean, 6)
 
     def x_of(p: MapPoint) -> float:
@@ -521,89 +524,75 @@ def site_level_map(points: list[MapPoint], zones: Zones, top_clean: int, width: 
         f'height="{y_of(zones.crit_clean - 0.5) - y_of(top_clean):.1f}" fill="url(#z-crit)">'
         f"<title>critical: up to {zones.crit_mm} mismatches, {zones.crit_gaps} gap(s), at least "
         f"{zones.crit_clean} clean 3′ nt</title></rect>",
-        f'<rect x="{gap_x - 38}" y="{y_of(top_clean):.1f}" width="76" '
-        f'height="{y_of(0) - y_of(top_clean) + 6:.1f}" fill="#F2F4F6"/>',
-        f'<text x="{left + 2}" y="{top - 16}" font-size="9" fill="#8E2422">critical: '
-        f"≤{zones.crit_mm} mm, {zones.crit_gaps} gap, ≥{zones.crit_clean} clean 3′</text>",
-        f'<text x="{left + cw * (zones.crit_mm + 1) + 2}" y="{top - 5}" font-size="9" '
-        f'fill="#6B4A00">warning: ≤{zones.warn_mm} mm, ≤{zones.warn_gaps} gap, '
-        f"≥{zones.warn_clean} clean 3′</text>",
-        f'<text x="{gap_x}" y="{top - 5}" font-size="9" text-anchor="middle" fill="{MUTED}">'
+        f'<rect x="{gap_x - 50}" y="{y_of(top_clean):.1f}" width="100" '
+        f'height="{y_of(0) - y_of(top_clean) + 8:.1f}" fill="#F2F4F6"/>',
+        f'<text x="{left + 4}" y="{top - 22}" font-size="12" font-weight="600" fill="#8E2422">'
+        f"critical zone: ≤{zones.crit_mm} mismatches, {zones.crit_gaps} gap, ≥{zones.crit_clean} "
+        "clean 3′ nt</text>",
+        f'<text x="{left + cw * (zones.crit_mm + 1) + 4}" y="{top - 6}" font-size="12" '
+        f'font-weight="600" fill="#6B4A00">warning zone: ≤{zones.warn_mm} mismatches, '
+        f"≤{zones.warn_gaps} gap, ≥{zones.warn_clean} clean 3′ nt</text>",
+        f'<text x="{gap_x}" y="{top - 6}" font-size="12" text-anchor="middle" fill="{MUTED}">'
         f"&gt;{zones.warn_gaps} gap{'s' if zones.warn_gaps != 1 else ''}</text>",
     ]
-    y0 = y_of(0) + 8
-    b.append(f'<line x1="{left}" x2="{gap_x + 38}" y1="{y0:.1f}" y2="{y0:.1f}" stroke="{INK}"/>')
+    y0 = y_of(0) + 10
+    b.append(f'<line x1="{left}" x2="{gap_x + 50}" y1="{y0:.1f}" y2="{y0:.1f}" stroke="{INK}"/>')
     for mm in range(7):
-        b.append(f'<text x="{left + cw * (mm + 0.5):.1f}" y="{y0 + 12:.1f}" font-size="9" '
+        b.append(f'<text x="{left + cw * (mm + 0.5):.1f}" y="{y0 + 16:.1f}" font-size="12" '
                  f'text-anchor="middle" fill="{MUTED}">'
                  f'{mm if mm < 6 else "6+"}</text>')  # fmt: skip
-    b.append(f'<text x="{left + cw * 3.5:.1f}" y="{y0 + 24:.1f}" font-size="9" '
-             f'text-anchor="middle" fill="{MUTED}">mismatches (mm) of the closest primer site; '
-             "0 = binds perfectly</text>")  # fmt: skip
+    b.append(f'<text x="{left + cw * 3.5:.1f}" y="{y0 + 34:.1f}" font-size="12" '
+             f'text-anchor="middle" fill="{MUTED}">mismatches of the closest primer site '
+             "(0 = binds perfectly)</text>")  # fmt: skip
     step = 5 if top_clean <= 30 else 10
     for c in range(0, top_clean + 1, step):
-        b.append(f'<text x="{left - 4}" y="{y_of(c) + 3:.1f}" font-size="9" text-anchor="end" '
+        b.append(f'<text x="{left - 6}" y="{y_of(c) + 4:.1f}" font-size="12" text-anchor="end" '
                  f'fill="{MUTED}">{c}</text><line x1="{left}" x2="{left + cw * 7}" '
                  f'y1="{y_of(c):.1f}" y2="{y_of(c):.1f}" stroke="{RULE}" '
                  'stroke-width="0.5"/>')  # fmt: skip
     mid = y_of(top_clean / 2)
-    b.append(f'<text x="12" y="{mid:.1f}" font-size="9" fill="{MUTED}" text-anchor="middle" '
-             f'transform="rotate(-90 12 {mid:.1f})">clean 3′ nt</text>')  # fmt: skip
-    # one mark per position; organisms at the same spot share it and its label
+    b.append(f'<text x="14" y="{mid:.1f}" font-size="12" fill="{MUTED}" text-anchor="middle" '
+             f'transform="rotate(-90 14 {mid:.1f})">clean 3′ nt (matched run at the 3′ end)'
+             "</text>")  # fmt: skip
+    # one mark per position; organisms at the same spot share it, their numbers beside it
     spots: dict[tuple[float, float], list[MapPoint]] = {}
     for p in points:
         spots.setdefault((round(x_of(p), 1), round(y_of(min(p.clean3, top_clean)), 1)), []).append(
             p
         )
-    bottom: dict[float, list[str]] = {}
     placed: dict[float, list[float]] = {}
     for (x, y), ps in sorted(spots.items(), key=lambda kv: (kv[0][0], kv[0][1])):
         p = min(ps, key=lambda q: ("critical", "warning", "minor").index(q.level))
         b.append(_mark(TIER_SHAPE.get(p.tier, "circle"), x, y, LEVEL_FILL.get(p.level, "#FFFFFF"),
-                       "; ".join(q.title for q in ps)))  # fmt: skip
-        names = [q.label + (f" ({q.gaps} gaps)" if q.gaps > zones.warn_gaps else "") for q in ps]
-        name = ", ".join(names[:2]) + (f" +{len(names) - 2}" if len(names) > 2 else "")
-        if p.clean3 == 0 and p.gaps <= zones.warn_gaps:
-            bottom.setdefault(x, []).append(name)
-            continue
-        ly = y + 3.5
-        for other in placed.get(x, []):  # labels of one column kept 11 px apart
-            if abs(other - ly) < 11:
-                ly = other + 11
+                       "; ".join(f"{q.number}. {q.title}" for q in ps), 6))  # fmt: skip
+        ly = y + 4.5
+        for other in placed.get(x, []):  # number labels of one column kept 15 px apart
+            if abs(other - ly) < 15:
+                ly = other + 15
         placed.setdefault(x, []).append(ly)
-        anchor = "middle" if p.gaps > zones.warn_gaps else "start"
-        lx = x if anchor == "middle" else x + 8
-        ly = ly + 10 if anchor == "middle" else ly
-        b.append(f'<text x="{lx:.1f}" y="{ly:.1f}" font-size="9" text-anchor="{anchor}" '
-                 f'fill="{INK}">{escape(name)}</text>')  # fmt: skip
-    rows = 0
-    for x, names in sorted(bottom.items()):
-        for k, name in enumerate(names):
-            ly = y0 + 38 + (rows + k) * 11
-            b.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{y_of(0) + 5:.1f}" y2="{ly - 8:.1f}" '
-                     f'stroke="{MUTED}" stroke-width="0.5" stroke-dasharray="2 2"/>'
-                     f'<text x="{x + 3:.1f}" y="{ly:.1f}" font-size="9" fill="{INK}">'
-                     f"{escape(name)} (0 clean 3′)</text>")  # fmt: skip
-        rows += len(names)
+        nums = ", ".join(str(q.number) for q in sorted(ps, key=lambda q: q.number))
+        b.append(f'<text x="{x + 10:.1f}" y="{ly:.1f}" font-size="12.5" font-weight="600" '
+                 f'fill="{INK}">{escape(nums)}</text>')  # fmt: skip
     # key: shape = tier, fill = level
-    kx, ky = gap_x + 48, top
-    b.append(f'<text x="{kx}" y="{ky}" font-size="9" fill="{MUTED}">shape: tier</text>')
+    kx, ky = gap_x + 66, top + 4
+    b.append(f'<text x="{kx}" y="{ky}" font-size="12" fill="{MUTED}">shape: tier</text>')
     for i, (tier, name) in enumerate((("near_neighbours", "near neighbours"),
                                       ("background", "background"),
                                       ("exclusivity", "clinical list"))):  # fmt: skip
-        b.append(_mark(TIER_SHAPE[tier], kx + 5, ky + 12 + 14 * i, INK, name, 4)
-                 + f'<text x="{kx + 14}" y="{ky + 15 + 14 * i}" font-size="9" fill="{INK}">'
+        b.append(_mark(TIER_SHAPE[tier], kx + 6, ky + 16 + 18 * i, INK, name, 5)
+                 + f'<text x="{kx + 17}" y="{ky + 20 + 18 * i}" font-size="12" fill="{INK}">'
                  f"{name}</text>")  # fmt: skip
-    b.append(f'<text x="{kx}" y="{ky + 62}" font-size="9" fill="{MUTED}">fill: its level</text>')
+    b.append(f'<text x="{kx}" y="{ky + 82}" font-size="12" fill="{MUTED}">fill: its level</text>')
     for i, lvl in enumerate(("critical", "warning", "minor")):
-        b.append(_mark("circle", kx + 5, ky + 74 + 14 * i, LEVEL_FILL[lvl], lvl, 4)
-                 + f'<text x="{kx + 14}" y="{ky + 77 + 14 * i}" font-size="9" fill="{INK}">'
+        b.append(_mark("circle", kx + 6, ky + 98 + 18 * i, LEVEL_FILL[lvl], lvl, 5)
+                 + f'<text x="{kx + 17}" y="{ky + 102 + 18 * i}" font-size="12" fill="{INK}">'
                  f"{lvl}</text>")  # fmt: skip
     label = "Closest primer site per off-target organism: " + "; ".join(
-        f"{p.label} ({p.tier}) {p.mismatches} mm, {p.gaps} gap(s), {p.clean3} clean 3′, {p.level}"
+        f"{p.number}. {p.label} ({p.tier}) {p.mismatches} mm, {p.gaps} gap(s), {p.clean3} clean "
+        f"3′, {p.level}"
         for p in points
     )
-    return _svg(width, y0 + 38 + rows * 11 + 4, label, b, "fig levels")
+    return _svg(max(width, kx + 120), y0 + 44, label, b, "fig levels")
 
 
 def site_dot(p: MapPoint, zones: Zones, top_clean: int) -> str:
@@ -642,15 +631,15 @@ class StructRow:
     found: bool = True
 
 
-def structure_strip(rows: list[StructRow], warn_tm: float, fail_tm: float, width: int = 640) -> str:
+def structure_strip(rows: list[StructRow], warn_tm: float, fail_tm: float, width: int = 900) -> str:
     """Each hairpin and dimer as a dot on a Tm axis against the review zone (from ``warn_tm``)
     and the limit zone (from ``fail_tm``, the annealing temperature by default); a flagged one is
     a triangle. "none" and "< 0" stand in a gutter, not plotted as 0 °C (third report review,
     2026-11-25, M5: fourteen of fifteen table rows said "within")."""
     if not rows:
         return ""
-    row, gutter = 14, 46
-    left = 78 + int(5.6 * max(len(r.label) for r in rows))
+    row, gutter = 21, 64
+    left = 104 + int(7.0 * max(len(r.label) for r in rows))
     x0 = left + gutter
     hi = max([fail_tm + 5] + [r.tm + 4 for r in rows if r.tm is not None])
     plot = width - x0 - 30
@@ -658,7 +647,7 @@ def structure_strip(rows: list[StructRow], warn_tm: float, fail_tm: float, width
     def x(v: float) -> float:
         return x0 + plot * max(0.0, v) / hi
 
-    top = 14
+    top = 20
     h = top + row * len(rows)
     body = [
         f'<rect x="{x(warn_tm):.1f}" y="{top}" width="{x(fail_tm) - x(warn_tm):.1f}" '
@@ -667,31 +656,31 @@ def structure_strip(rows: list[StructRow], warn_tm: float, fail_tm: float, width
         f'<rect x="{x(fail_tm):.1f}" y="{top}" width="{x(hi) - x(fail_tm):.1f}" '
         f'height="{h - top}" fill="url(#z-crit)"><title>outside the limit from {fail_tm:g} °C'
         "</title></rect>",
-        f'<text x="{x(warn_tm) + 2:.1f}" y="10" font-size="9" fill="#6B4A00">≥{warn_tm:g} °C '
+        f'<text x="{x(warn_tm) + 2:.1f}" y="14" font-size="12" fill="#6B4A00">≥{warn_tm:g} °C '
         "review</text>",
-        f'<text x="{x(fail_tm) + 2:.1f}" y="10" font-size="9" fill="#8E2422">'
+        f'<text x="{x(fail_tm) + 2:.1f}" y="14" font-size="12" fill="#8E2422">'
         f"≥{fail_tm:g} °C</text>",
-        f'<text x="{left + gutter / 2:.1f}" y="10" font-size="9" text-anchor="middle" '
+        f'<text x="{left + gutter / 2:.1f}" y="14" font-size="12" text-anchor="middle" '
         f'fill="{MUTED}">none / &lt;0</text>',
     ]
     last = ""
     for i, r in enumerate(rows):
         y = top + i * row + row / 2
         if r.group != last:
-            body.append(f'<text x="0" y="{y + 3.5:.1f}" font-size="9.5" fill="{MUTED}">'
+            body.append(f'<text x="0" y="{y + 4.5:.1f}" font-size="12.5" fill="{MUTED}">'
                         f"{escape(r.group)}</text>")  # fmt: skip
             if i:
                 body.append(f'<line x1="0" x2="{width - 30}" y1="{y - row / 2:.1f}" '
                             f'y2="{y - row / 2:.1f}" stroke="{RULE}" '
                             'stroke-width="0.5"/>')  # fmt: skip
             last = r.group
-        body.append(f'<text x="72" y="{y + 3.5:.1f}" font-size="9.5" fill="{INK}">'
+        body.append(f'<text x="96" y="{y + 4.5:.1f}" font-size="12.5" fill="{INK}">'
                     f"{escape(r.label)}</text>")  # fmt: skip
         title = f"{r.group} {r.label}: " + (
             "no structure" if not r.found or r.tm is None else f"Tm {r.tm:.1f} °C"
         )
         if not r.found or r.tm is None or r.tm < 0:
-            body.append(f'<text x="{left + gutter / 2:.1f}" y="{y + 3.5:.1f}" font-size="9" '
+            body.append(f'<text x="{left + gutter / 2:.1f}" y="{y + 4.5:.1f}" font-size="12" '
                         f'text-anchor="middle" fill="{MUTED}">'
                         f"{'none' if not r.found or r.tm is None else '&lt;0'}"
                         f"<title>{escape(title)}</title></text>")  # fmt: skip
@@ -699,26 +688,26 @@ def structure_strip(rows: list[StructRow], warn_tm: float, fail_tm: float, width
         body.append(f'<line x1="{x0}" x2="{x(r.tm):.1f}" y1="{y:.1f}" y2="{y:.1f}" '
                     f'stroke="{RULE}" stroke-width="1"/>')  # fmt: skip
         if r.status in ("WARN", "FAIL"):
-            body.append(f'<path d="M{x(r.tm):.1f} {y - 5:.1f}l5 8h-10z" fill="{INK}">'
+            body.append(f'<path d="M{x(r.tm):.1f} {y - 7:.1f}l7 11h-14z" fill="{INK}">'
                         f"<title>{escape(title)}, flagged</title></path>")  # fmt: skip
         else:
-            body.append(f'<circle cx="{x(r.tm):.1f}" cy="{y:.1f}" r="3" fill="{INK}">'
+            body.append(f'<circle cx="{x(r.tm):.1f}" cy="{y:.1f}" r="4.5" fill="{INK}">'
                         f"<title>{escape(title)}</title></circle>")  # fmt: skip
-        body.append(f'<text x="{x(r.tm) + 7:.1f}" y="{y + 3.5:.1f}" font-size="9" fill="{INK}">'
+        body.append(f'<text x="{x(r.tm) + 10:.1f}" y="{y + 4.5:.1f}" font-size="12" fill="{INK}">'
                     f"{r.tm:.1f}</text>")  # fmt: skip
     y1 = h + 2
     body.append(f'<line x1="{x0}" x2="{x(hi):.1f}" y1="{y1}" y2="{y1}" stroke="{INK}"/>')
     for v in range(0, int(hi) + 1, 10):
-        body.append(f'<text x="{x(v):.1f}" y="{y1 + 11}" font-size="9" text-anchor="middle" '
+        body.append(f'<text x="{x(v):.1f}" y="{y1 + 15}" font-size="12" text-anchor="middle" '
                     f'fill="{MUTED}">{v}</text>')  # fmt: skip
-    body.append(f'<text x="{x0 + plot / 2:.1f}" y="{y1 + 23}" font-size="9" text-anchor="middle" '
+    body.append(f'<text x="{x0 + plot / 2:.1f}" y="{y1 + 31}" font-size="12" text-anchor="middle" '
                 f'fill="{MUTED}">structure Tm (°C), worst degenerate variant; '
                 "▲ flagged</text>")  # fmt: skip
     label = "Hairpins and dimers, Tm: " + "; ".join(
         f"{r.group} {r.label} " + ("none" if not r.found or r.tm is None else f"{r.tm:.1f} °C")
         for r in rows
     )
-    return _svg(width, y1 + 27, label, body, "fig structs")
+    return _svg(width, y1 + 36, label, body, "fig structs")
 
 
 @dataclass

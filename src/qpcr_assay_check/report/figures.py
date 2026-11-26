@@ -101,18 +101,22 @@ def year_bars(result: RunResult, cfg: Config) -> Markup | None:
     ]
     axis = "collection" if inc.status_axis == "collection" else "release"
     if axis == "collection" and inc.collection is not None:  # dates that place no genome
-        for extra, name in ((inc.collection.earlier, f"before {inc.collection.first_year}"),
-                            (inc.collection.undated, "no date")):  # fmt: skip
-            if isinstance(extra, FragmentYear) and (extra.with_region or extra.possible_deletion):
-                rows.append(charts.YearRow(label=name, counts=_counts(extra), few=True))
+        extras = [
+            charts.YearRow(label=name, counts=_counts(extra))  # not a year: not drawn pale
+            for extra, name in ((inc.collection.earlier, f"before {inc.collection.first_year}"),
+                                (inc.collection.undated, "no usable date"))
+            if isinstance(extra, FragmentYear) and (extra.with_region or extra.possible_deletion)
+        ]  # fmt: skip
+        rows = [*extras, *rows]  # first, as in Part B (user, 2026-11-26)
     return _markup(charts.year_bars(rows, title=f"Outcome per {axis} year"))
 
 
 def year_panels(result: RunResult, cfg: Config) -> dict[str, Any] | None:
-    """Part B's two year panels side by side (third report review, 2026-11-25: they replace the
-    two per-year tables): by release year and by collection year, the status axis bracketed,
-    undated and earlier records drawn as bars of their own. The numbers: workbook, sheet
-    "Inclusivity"."""
+    """Part B's two year figures, full width one under the other (third report review,
+    2026-11-25; user, 2026-11-26: side by side they were too small): by release year and by
+    collection year, the status axis bracketed; in the collection figure the records collected
+    before the window and those without a usable date come first, as bars of their own (not
+    years, so not drawn pale). The numbers: workbook, sheet "Inclusivity"."""
     inc = result.inclusivity
     w = window(result, cfg)
     if inc is None or w is None or not inc.fragment_years:
@@ -128,21 +132,20 @@ def year_panels(result: RunResult, cfg: Config) -> dict[str, Any] | None:
             for y in years
         ]  # fmt: skip
 
-    release = charts.year_bars(rows(inc.fragment_years, not by_collection), width=345,
-                               title="By release year", compact=True)  # fmt: skip
+    release = charts.year_bars(rows(inc.fragment_years, not by_collection), width=900,
+                               title="By release year")  # fmt: skip
     collection = ""
     ca = inc.collection
     if ca is not None:
         extra = [
-            charts.YearRow(label=name, counts=_counts(y), few=True)
+            charts.YearRow(label=name, counts=_counts(y))
             for y, name in ((ca.earlier, f"before {ca.first_year}"), (ca.undated, "no usable date"),
                             (ca.not_read, "date not read"))
             if y.with_region or y.possible_deletion
         ]  # fmt: skip
-        collection = charts.year_bars([*rows(ca.years, by_collection), *extra], width=345,
-                                      title="By collection year", compact=True)  # fmt: skip
+        collection = charts.year_bars([*extra, *rows(ca.years, by_collection)], width=900,
+                                      title="By collection year")  # fmt: skip
     return {
-        "legend": Markup(charts.legend_strip(500)),  # noqa: S704 - constant SVG
         "release": Markup(release),  # noqa: S704 - SVG from numbers, labels escaped
         "collection": Markup(collection) if collection else None,  # noqa: S704
         "status": "collection" if by_collection else "release",
@@ -257,13 +260,21 @@ def _point(s: Any, label: str) -> charts.MapPoint:
 
 
 MAP_POINTS = 40  # marks in the off-target site map; the rest in the workbook
+_LEVEL_RANK = {"critical": 0, "warning": 1, "minor": 2}
+
+
+def _site_rank(s: Any) -> tuple[Any, ...]:
+    """An organism's closest site: the highest level first, then the fewest mismatches and gaps
+    and the longest clean 3' end (user, 2026-11-26: by mismatches alone a minor site with no
+    clean 3' end stood for an organism with 577 warning sites)."""
+    return (_LEVEL_RANK.get(s.level, 3), s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id)
 
 
 def site_level_map(result: RunResult, cfg: Config) -> dict[str, Any] | None:
     """Each off-target organism's closest primer site against the site levels (third report
     review, 2026-11-25, M1): one mark per tier and species, every level included, the probe sites
     as a line of text (no 3' rule applies to them)."""
-    from .grouping import species_of
+    from .grouping import species_of, tier_name
 
     spec = result.specificity
     if spec is None:
@@ -275,28 +286,34 @@ def site_level_map(result: RunResult, cfg: Config) -> dict[str, Any] | None:
         if s.source == "blast_partial_worst_case" or not s.q_aln:
             continue
         name = (species.get(s.taxid) if s.taxid else None) or s.organism or "unknown organism"
-        key = (s.n_mismatch + s.n_gap, -s.clean_3prime_nt, s.id)
         into = probes if s.role == "probe" else best
         if s.role == "probe" and s.level == "minor":
             continue
         old = into.get((s.tier, name))
-        if old is None or key < (old.n_mismatch + old.n_gap, -old.clean_3prime_nt, old.id):
+        if old is None or _site_rank(s) < _site_rank(old):
             into[(s.tier, name)] = s
     if not best and not probes:
         return None
-    ranked = sorted(best.items(), key=lambda kv: (kv[1].n_mismatch + kv[1].n_gap,
-                                                  -kv[1].clean_3prime_nt, kv[0]))  # fmt: skip
+    ranked = sorted(best.items(), key=lambda kv: (_site_rank(kv[1]), kv[0]))
     shown = ranked[:MAP_POINTS]
     points = [_point(s, name) for (_tier, name), s in shown]
+    for n, pt in enumerate(points, 1):
+        pt.number = n
+    key = [
+        {"n": n, "organism": name, "tier": s.tier, "query": s.query, "accession": s.accession,
+         "mismatches": s.n_mismatch, "gaps": s.n_gap, "clean3": s.clean_3prime_nt,
+         "level": s.level}
+        for n, ((_tier, name), s) in enumerate(shown, 1)
+    ]  # fmt: skip
     svg = charts.site_level_map(points, _zones(cfg), _primer_length(result)) if points else ""
     probe_line = "; ".join(
-        f"{name} ({s.tier.replace('_', ' ')}): {s.query}, {s.n_mismatch} mm"
+        f"{name} ({tier_name(s.tier)}): {s.query}, {s.n_mismatch} mm"
         + (f", {s.n_gap} gap(s)" if s.n_gap else "") + f", {s.level}"
         for (_tier, name), s in sorted(probes.items(), key=lambda kv: (kv[1].n_mismatch, kv[0]))
     )  # fmt: skip
     return {
         "svg": Markup(svg) if svg else None,  # noqa: S704 - SVG from numbers, names escaped
-        "n": len(points), "more": len(ranked) - len(shown), "probes": probe_line,
+        "n": len(points), "more": len(ranked) - len(shown), "probes": probe_line, "key": key,
     }  # fmt: skip
 
 

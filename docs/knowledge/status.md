@@ -114,7 +114,9 @@ the tiers review (commit `4b5f4f0`); every specificity result since needs a reru
   instead of raw labels), confirmed by the user's run of 09:18Z. HSV-2 and VZV are not yet
   rerun on this code. The third report review is built, except M3
   ([decision](decisions/2026-11-25-report-round3-built.md)): rerun HSV-1 to see the figures and
-  count its pages.
+  count its pages. First record with them (2026-11-25 17:00Z): 15 pages. The figures were then
+  made larger at the user's request (2026-11-26), and the map now places each organism at its
+  highest-level site.
 - VZV rerun with near neighbours and the release axis: failed twice on 2026-11-19 (NCBI returned
   an HTML page without a request ID); the user retries later.
 

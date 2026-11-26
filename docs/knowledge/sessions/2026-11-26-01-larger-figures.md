@@ -1,0 +1,26 @@
+---
+type: Session
+title: "Larger, clearer report figures"
+description: "Session log of 2026-11-26."
+tags: [session]
+session_date: 2026-11-26
+session_label: "2026-11-26"
+generated: { by: claude-code/agent, at: 2026-11-26T10:00:00Z }
+---
+
+# 2026-11-26: larger, clearer report figures
+
+- **The record checked.** The user's HSV-1 record of 2026-11-25 17:00Z, the first with the
+  third-review figures (commit 0258356): 15 A4 pages, with a 2-page sign-off.
+- **The user's verdict:** the year figure, the off-target map and the hairpin strip were too
+  small; in the map the species names ran into each other; "before 2017" and "no usable date"
+  belong at the top. "The goal is to give meaningful explanations, not fewer pages."
+- **Built** ([decision](../decisions/2026-11-25-report-round3-built.md)):
+  - the year figures full width, one under the other, the two non-year rows first and not pale;
+  - a larger off-target map with numbered marks and a table under it;
+  - a larger hairpin and dimer strip.
+- **A flaw found in the map:** an organism stood at its fewest-mismatch site even when that site
+  was minor. *T. pallidum* showed 2 mm and 2 clean 3′ nt (minor) instead of its warning sites
+  (4 mm, 18 clean 3′ nt). Each organism now stands at its highest-level site first.
+- **Checked:** the figures were redrawn from the numbers in that record. In print no table is
+  wider than the page.

@@ -57,6 +57,20 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Larger, clearer figures** (user, 2026-11-26, on the first HSV-1 record with them: "The goal
+  is to give meaningful explanations, not fewer pages").
+  - **Year figures:** release year and collection year are now full width, one under the
+    other. "before 2017" and "no usable date" come first and are no longer drawn pale as
+    "few".
+  - **Off-target site map:** larger, with a number beside each mark and a table below giving
+    organism, tier, closest primer site, mismatches, gaps, clean 3′ end and level. The names
+    used to run into each other.
+  - **Each organism's closest site is its highest-level one** (critical, then warning, then
+    the fewest mismatches). By mismatches alone, a minor site with no clean 3′ end stood for
+    *T. pallidum*, which has 577 warning sites.
+  - **Hairpin and dimer strip:** larger.
+  - **Small fixes:** oligo names no longer break in the closest-sites table, and the probe line
+    names tiers in plain words.
 - **Third report review, built** (user, 2026-11-25: everything except M3, the combination
   chart).
   - **Print:** long tables break between rows and repeat their header; headings stay with

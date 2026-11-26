@@ -69,9 +69,14 @@ def test_the_site_level_map_places_one_mark_per_organism_with_its_level():
         charts.MapPoint("H. ducreyi", "exclusivity", 0, 5, 4, "minor", "t3"),
         charts.MapPoint("N. meningitidis", "exclusivity", 5, 0, 0, "minor", "t4"),
     ]
+    for n, pt in enumerate(pts, 1):
+        pt.number = n
     svg = charts.site_level_map(pts, ZONES, 22)
     assert "url(#z-crit)" in svg and "url(#z-warn)" in svg and "&gt;1 gap" in svg
-    assert "H. ducreyi (4 gaps)" in svg and "N. meningitidis (0 clean 3′)" in svg
+    # numbers beside the marks, the names in the table under the figure (user, 2026-11-26)
+    nums = re.findall(r'font-size="12.5" font-weight="600" fill="#17222D">([\d, ]+)</text>', svg)
+    assert sorted(int(n) for x in nums for n in x.split(", ")) == [1, 2, 3, 4]
+    assert "H. ducreyi" not in svg.split("</title>", 1)[1].split("<title>")[0]
     assert svg.count(charts.LEVEL_FILL["critical"]) >= 2  # the HSV-2 mark and the key
     dot = charts.site_dot(pts[0], ZONES, 22)
     assert "0 mm" in dot and "22 clean 3′" in dot
@@ -147,3 +152,34 @@ def test_an_incomplete_tier_row_names_its_gap_and_a_review_row_its_closest_site(
     assert excl.reason == "closest primer site: reverse, 4 mm, 18 clean 3′ (Treponema pallidum)"
     (bg,) = [r for r in rows if r.figure == "tier:background"]
     assert bg.reason.startswith("Only the 2,000 strongest alignments checked for P")
+
+
+def test_the_collection_year_figure_starts_with_the_records_of_no_window_year():
+    # user, 2026-11-26: "before 2017" and "no usable date" belong at the top, and they are not
+    # years, so they are not drawn pale as "few"
+    rows = [charts.YearRow("no usable date", charts.Counts(detectable=291, at_risk=5)),
+            charts.YearRow("2017", charts.Counts(detectable=3, at_risk=1), few=True)]  # fmt: skip
+    svg = charts.year_bars(rows, width=900, title="By collection year")
+    assert svg.find("no usable date") < svg.find(">2017<")
+    assert "296 · 5 at risk</text>" in svg and "4 · 1 at risk · few records" in svg
+
+
+def test_an_organism_is_placed_at_its_highest_level_site_first(tmp_path):
+    """HSV-1, 2026-11-26: T. pallidum stood at a minor site (2 mm, 2 clean 3') in the map
+    although it has 577 warning sites (4 mm, 18 clean 3')."""
+    from qpcr_assay_check.report.figures import site_level_map
+    from qpcr_assay_check.taxonomy.rollup import TaxonCount
+
+    result, cfg = run_report_result(tmp_path), load_config()
+    warn = site(3, "reverse", "warning", tier="exclusivity", site_id="W").model_copy(
+        update={"n_mismatch": 4, "clean_3prime_nt": 18, "organism": "Treponema pallidum"}
+    )
+    minor = site(3, "reverse", "minor", tier="exclusivity", site_id="M").model_copy(
+        update={"n_mismatch": 2, "clean_3prime_nt": 2, "organism": "Treponema pallidum"}
+    )
+    spec = result.specificity.model_copy(update={"sites": [minor, warn]})
+    tb = [TaxonCount(taxid=3, scientific_name="Treponema pallidum", species="Treponema pallidum",
+                     n_sites=2)]  # fmt: skip
+    result = result.model_copy(update={"specificity": spec, "taxonomy_breakdown": tb})
+    (row,) = site_level_map(result, cfg)["key"]
+    assert (row["n"], row["level"], row["mismatches"], row["clean3"]) == (1, "warning", 4, 18)

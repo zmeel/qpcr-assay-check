@@ -73,6 +73,22 @@ Measured:
   pages.
 - The whole HSV-1 record needs a rerun to count.
 
+# Changed after the first record (2026-11-26)
+
+The user, on the HSV-1 record of 2026-11-25 17:00Z: the year figure, the off-target map and the
+hairpin strip were too small; in the map the species names ran into each other; "before 2017"
+and "no usable date" belong at the top. "The goal is to give meaningful explanations, not fewer
+pages."
+
+- **Year figures:** both are full width, one under the other. The two non-year rows come
+  first and are not pale.
+- **Off-target map:** a larger map, numbers beside the marks, and a table under it: number,
+  organism, tier, closest primer site, mismatches, gaps, clean 3′ end, level.
+- **Closest site per organism:** each organism now stands at its highest-level site. Before,
+  the fewest mismatches decided, and *T. pallidum* showed a minor site although it has 577
+  warning sites.
+- **Hairpin and dimer strip:** larger.
+
 # Who and why
 
 User, 2026-11-25: "Have the advisor look at the latest changes in the report and have the
