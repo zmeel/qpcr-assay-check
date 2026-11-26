@@ -43,3 +43,6 @@ generated: { by: claude-code/agent, at: 2026-11-26T10:00:00Z }
   collection-year figure runs in time order: no usable date, then before the window, then the
   years. In print they stay stacked. The near-neighbour row without primer sites now has the
   same wording as the other rows.
+- **HSV-2 again** (11:40Z, commit b19ffa2): 12 pages, with a 2-page sign-off, and Part A the
+  same as at 11:04Z apart from the near-neighbour row's wording. The year figures stand side by
+  side and in time order. The figure titles now use the heading font.
