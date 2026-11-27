@@ -159,7 +159,7 @@ def test_the_report_and_workbook_show_copies_coverage_escapes_and_homopolymers(t
     assert "not counted (strict)" in html and "if homopolymer bulges are tolerated" in html
     # graded classes: the columns and the explanation, although the first year (2017) is empty
     # (live 2026-09-25 they were hidden, as the template looked at the first year only)
-    assert 'aria-label="By release year' in html and "<h3>Mismatch classes</h3>" in html
+    assert 'aria-label="By release year' in html and "C2 Mismatch classes</h3>" in html
     assert "Homopolymer length variants" in html and "copies disagree" in html
     # layout (user 2026-09-25): wider page; one-line alignments in the whole-fragment table
     assert "max-width: 96rem" in html and '<pre class="aln compact">' in html

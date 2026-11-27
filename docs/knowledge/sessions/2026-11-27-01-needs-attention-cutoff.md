@@ -98,4 +98,12 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
     - the variant search of long records uses its own BLAST settings (word size 11, expect 10,
       hit list at least 500).
   - Nothing built yet: the user decides.
+- **Part C built** (user: "Yes build all"; [decision](../decisions/2026-11-27-part-c-rebuilt.md)):
+  - **Built:** the seven numbered blocks and all nine text corrections.
+  - **Not built:** the optional R2, R3 and R3b rows.
+  - **Checked:**
+    - the sample record: 2,445 to 2,403 words, still 11 A4 pages, no table wider than the page,
+      the screen view at full width;
+    - ruff, ruff format and `pytest -m "not live"` pass.
+  - **Open:** the user's next run, to see Part C on a real record.
 

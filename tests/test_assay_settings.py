@@ -57,7 +57,7 @@ def test_the_report_shows_the_assay_s_own_settings():
     html = render_report(evaluate(assay, cfg, qc_only=True), cfg)
     # one table: the setting, its value, the default and where it came from (the YAML copy of the
     # assay's settings repeated it; third report review, 2026-11-25)
-    i = html.index("Settings that differ from the defaults")
+    i = html.index("Setting that differs from the default")
     table = html[i : html.index("</table>", i)]
     assert "<code>search.background_taxids</code>" in table and "assay file" in table
     assert "Settings from the assay file" not in html

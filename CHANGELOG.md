@@ -83,6 +83,27 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Part C rebuilt** (advisor, 2026-11-27; user: "Yes build all"; decision
+  `docs/knowledge/decisions/2026-11-27-part-c-rebuilt.md`).
+  - **Structure:** seven numbered blocks, C1 terms, C2 mismatch classes, C3 what the search
+    could and could not find, C4 methods, C5 limits and settings, C6 other limitations, C7
+    required statements. Mostly tables at the full width (on screen the text was capped at
+    46rem), with each point once.
+  - **C2:** a classes table and a rules table with each source next to its rule.
+  - **C4:** the BLAST row is split into what NCBI received and the tool's own settings, and the
+    taxon check is a table with the RIDs.
+  - **Corrections to the text:**
+    - a single MGB mismatch is indeterminate only outside the 3′-most 7 nt;
+    - how a gap counts;
+    - "expert judgement" where a probe rule has no published basis;
+    - "read from the figure";
+    - R8 written "≥3 + ≥2, or ≥4 + ≥1";
+    - what is not modelled for modified probes;
+    - four cross-references that led nowhere;
+    - `tier_waivers` printed "none";
+    - the variant search's own BLAST parameters (word size 11, expect 10, hit list at least
+      500) in the Methods.
+  - **No rule, limit or number changed.**
 - **Part A layout** (influenza A, 2026-11-26: a 4-page sign-off).
   - The status table may break between rows.
   - With more than 3 oligo-design checks, the status cell only counts them; the sign-off list

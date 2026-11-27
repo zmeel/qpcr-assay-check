@@ -216,6 +216,16 @@ The user agreed with the suggested selection:
 - **Kept:** the old-record branches (item 11) and the results.json fields (item 12).
 - **Not done:** items 13, 15, 16 and 19.
 
+## Part C review (2026-11-27): what was taken up
+
+The user: "Yes build all". The seven blocks and the nine text corrections (5.1-5.9) are built
+(decision `docs/knowledge/decisions/2026-11-27-part-c-rebuilt.md`). Two deviations:
+- "Counted as" reads "not detectable (outcome at risk)" rather than "not detected", the words the
+  rest of the report uses;
+- the duplex Tm limitation stays in C3 when a record has no C2.
+
+Not built: the optional extra rules-table rows for R2, R3 and R3b.
+
 ## Needs-attention cut-off (2026-11-27): what was taken up
 
 The user: "Yes build as recommended". Everything was built: the listing rule, the folded rows,

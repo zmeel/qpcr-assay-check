@@ -75,6 +75,11 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
   08:46Z: 9 of 272 combinations listed, 16 pages (25 before). Since then the table fits A4, Part
   A shows 2 rows and the sign-off lines are shorter. Confirmed on the rerun of 09:20Z: 14 pages,
   the sign-off on 2 pages.
+- Part C rebuilt (advisor, 2026-11-27, [decision](decisions/2026-11-27-part-c-rebuilt.md)):
+  - numbered blocks C1-C7, mostly tables at the full width;
+  - nine corrections to its text, among them the MGB "indeterminate" definition, R8 as
+    "≥3 + ≥2, or ≥4 + ≥1", "expert judgement" where a probe rule has no published basis, and
+    the variant search's own BLAST parameters.
 - A code review for redundant code (2026-11-26) was taken up:
   - two bugs fixed: the workbook sheets "Findings" and "Specificity findings" were both named
     "Findings", and a carried-over oligo design did not record its source commit;

@@ -4,6 +4,7 @@ All records, taxids and alignments below are SYNTHETIC."""
 
 from __future__ import annotations
 
+import re
 from types import SimpleNamespace as NS
 
 from qpcr_assay_check.report.grouping import group_products, group_sites, species_of
@@ -398,10 +399,12 @@ def test_the_report_states_search_limits_rna_and_the_homopolymer_range(tmp_path)
     result, cfg = run_report_result(tmp_path), load_config()
     html = render_report(result, cfg)
     # 8: what BLAST cannot find, with the run's own word size and E-value
-    assert "What the search cannot find." in html and "an unbroken run of at least 7" in html
+    assert "C3 What the search could and could not find" in html
+    assert "an unbroken run of at least 7" in html
     assert "Ye et al. (BMC Bioinformatics 2012, 13:134)" in html and "30,000" in html
     # the probe rule sentence follows the position-aware MGB rule
-    assert "3′-most 7 nt (under the MGB) is a likely failure (Kutyavin" in html
+    assert re.search(r"1 mismatch in the 3′-most 7 nt \(under the MGB\)</td><td><span class=\"chip "
+                     r"s-FAIL\">likely failure</span></td><td>Kutyavin", html)  # fmt: skip
     assert "an MGB probe with 1 mismatch is undetermined and" not in html
 
     # 6: the RT note only for an RNA assay (the fixture, CDC N1, is one)

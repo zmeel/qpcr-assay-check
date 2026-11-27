@@ -109,6 +109,34 @@ table.qcm th[scope=row] { font-weight: 600; background: none; white-space: norma
 table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 .site-changes { display: block; font-size: .74rem; line-height: 1.25; white-space: normal; }
 .maps { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; align-items: flex-end; }
+/* Part C: tables at the full width, the prose left in short cards side by side, one type style
+   (advisor's Part C review, 2026-11-27: every paragraph was capped at 46rem on screen and the
+   rest was grey 7.4 pt prose in print) */
+.part-c { font-family: var(--sans); font-size: .9rem; line-height: 1.45; }
+.part-c p { max-width: none; }
+.part-c .toc { font-size: .82rem; color: var(--muted); margin: .2rem 0 1rem; }
+.part-c h3 { margin-top: 1.6rem; }
+.part-c table { width: 100%; margin: .4rem 0 .6rem; }
+.part-c th[scope=row] { width: 12rem; font-weight: 600; text-align: left; vertical-align: top; }
+.part-c tr.group th { text-align: left; background: var(--paper); }
+table.c2 td:nth-child(1) { width: 3.5rem; white-space: nowrap; }
+table.c2 td:nth-child(2) { width: 38%; } table.c2 td:nth-child(3) { width: 9.5rem; }
+table.c3 tr.hl td, table.c3 tr.hl th { background: var(--paper); }
+.where { color: var(--muted); font-size: .88em; white-space: nowrap; }
+.sub { color: var(--muted); font-size: .9em; }
+.diff { font-size: .72em; font-weight: 600; color: var(--warn); background: var(--warn-bg);
+  border-radius: 3px; padding: 0 .3em; margin-left: .3em; white-space: nowrap; }
+.part-c table.inner { width: 100%; margin: .1rem 0 .4rem; font-size: .95em; }
+.part-c table.inner td:first-child { overflow-wrap: normal; white-space: nowrap; }
+.split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); gap: 1rem;
+  align-items: start; }
+@media (max-width: 60rem) { .split { grid-template-columns: 1fr; } }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: .6rem 1rem; margin: .6rem 0 1rem; }
+.cards.one { grid-template-columns: 1fr; margin: .4rem 0; }
+.cards > div { background: var(--panel); border: 1px solid var(--rule);
+  border-left: 3px solid var(--muted); padding: .35rem .7rem; }
+.cards p { margin: .2rem 0; font-size: .86rem; }
 @page { size: A4; margin: 12mm; }
 @media print {
   html { background: #fff; } body { font-size: 11pt; } main { max-width: none; padding: 0; }
@@ -163,6 +191,25 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
   td { overflow-wrap: anywhere; } th { overflow-wrap: normal; }
 }
 @media print { table.floors td, table.floors th { white-space: normal; } }
+@media print {
+  .part-c { font-size: 7.6pt; line-height: 1.3; }
+  .part-c .toc { font-size: 7.2pt; margin: 0 0 .3rem; }
+  .part-c h3 { margin: .55rem 0 .15rem; }
+  .part-c table { margin: .15rem 0 .3rem; }
+  .part-c th[scope=row] { width: 24mm; }
+  table.c2 td:nth-child(1) { width: 9mm; } table.c2 td:nth-child(2) { width: 34%; }
+  table.c2 td:nth-child(3) { width: 27mm; }
+  .part-c th, .part-c td { padding: .1rem .3rem; }
+  .part-c tr.group th { padding: .05rem .3rem; font-size: 7.2pt; }
+  .part-c tr.group { break-after: avoid; }
+  .split { grid-template-columns: 3fr 2fr; gap: 3mm; }
+  .cards { grid-template-columns: 1fr 1fr; gap: 1.2mm 3mm; margin: .15rem 0 .3rem; }
+  .cards > div { padding: .05rem .45rem; break-inside: avoid; }
+  .cards p { font-size: 7.4pt; margin: .1rem 0; }
+  .part-c .chip { font-size: 6.4pt; padding: .02rem .3rem; }
+  .part-c .notice { padding: .25rem .6rem; }
+  .part-c p.meta { margin: .1rem 0 .3rem; }
+}
 </style>
 </head>
 <body>
@@ -334,7 +381,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 {% set judged_n = (cc.genomes - (0 if cc.from_parts_counted else cc.from_parts)) if cc else 0 %}
 {% if cc and cc.genomes %}
 <h3>Copies, coverage per oligo, and escapes</h3>
-<p class="meta">Every stored copy of the region is assessed with every oligo of the mix. A site is <em>detectable</em> when its graded mismatch class is <em>perfect</em> or <em>tolerated</em> (see "Mismatch classes" under Inclusivity; primers: Stadhouders 2010 and Lefever 2013; probes: at most 1 mismatch outside the last 5 nucleotides, and none for MGB probes){% if cc.homopolymer_bulges_detectable %}, or with no mismatch and only a gap from a single-base run of another length (a homopolymer bulge, e.g. poly-A 7&rarr;8; setting <code>variants.homopolymer_bulges_detectable: true</code>){% else %}; a primer site that differs only by the length of a single-base run (a homopolymer bulge, e.g. poly-A 7&rarr;8) is <em>at risk</em> when one base differs and the run stays out of the last 3 nucleotides, otherwise <em>likely failure</em> (rule R5b; no PCR study measured such bulges), and not counted as detectable (setting <code>variants.homopolymer_bulges_detectable: false</code>){% endif %}; a copy is detectable when every role is; each genome is judged by its best copy, as the PCR needs only one copy it can amplify. The variant tables below use that best copy.</p>
+<p class="meta">Every stored copy of the region is assessed with every oligo of the mix. A site is <em>detectable</em> when its graded mismatch class is <em>perfect</em> or <em>tolerated</em> (Part C2; primers: Stadhouders 2010 and Lefever 2013; probes: at most 1 mismatch outside the last 5 nucleotides, and none for MGB probes){% if cc.homopolymer_bulges_detectable %}, or with no mismatch and only a gap from a single-base run of another length (a homopolymer bulge, e.g. poly-A 7&rarr;8; setting <code>variants.homopolymer_bulges_detectable: true</code>){% else %}; a primer site that differs only by the length of a single-base run (a homopolymer bulge, e.g. poly-A 7&rarr;8) is <em>at risk</em> when one base differs and the run stays out of the last 3 nucleotides, otherwise <em>likely failure</em> (rule R5b; no PCR study measured such bulges), and not counted as detectable (setting <code>variants.homopolymer_bulges_detectable: false</code>){% endif %}; a copy is detectable when every role is; each genome is judged by its best copy, as the PCR needs only one copy it can amplify. The variant tables below use that best copy.</p>
 <div class="scroll"><table><tbody>
   <tr><th scope="row">Genomes assessed</th><td>{{ cc.genomes }}; {{ cc.multi_copy }} with more than one copy (at most {{ cc.max_copies }})</td></tr>
   {% if cc.best_copy_not_first %}  <tr><th scope="row">Best copy not the first found</th><td>{{ cc.best_copy_not_first }}<br><span class="meta">genomes whose best-binding copy differs from the copy found most confidently (earlier versions assessed only that one)</span></td></tr>{% endif %}
@@ -394,7 +441,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 {% if fragments %}
 {% set fv = fragments %}
 <p><strong>{{ '{:,}'.format(fv.total) }} records with all three sites:</strong>{% for o in ['detectable', 'at risk', 'likely failure', 'undetermined'] + (['possibly unassembled'] if fv.records.get('possibly unassembled') else []) + (['detectable from parts'] if fv.records.get('detectable from parts') else []) + (['not classified'] if fv.records.get('not classified') else []) %} {{ o }} {{ pct(100.0 * fv.records.get(o, 0) / fv.total) }}{{ ',' if not loop.last }}{% endfor %}.</p>
-<p class="meta">Which site variants occur together on one template, and so each genome's outcome: the worst class of its three sites, or likely failure by the primer-pair rule (R8, Part C). A dot is a matching base, a highlighted letter a mismatch, a grey letter a match through a degenerate code, '-' a gap; the primer 3′ end is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are; under the bases its changes, position from the 3′ end and oligo base–template base ("-9 Y=T": a degenerate position that still matches). Types are the organism names of the records (and assembly levels). The classes rest on published primer-mismatch data, not predicted Cq values (appendix, Mismatch classes).</p>
+<p class="meta">Which site variants occur together on one template, and so each genome's outcome: the worst class of its three sites, or likely failure by the primer-pair rule (R8, Part C2). A dot is a matching base, a highlighted letter a mismatch, a grey letter a base that matches only through a degenerate code (the oligo's own, or an ambiguity code in the genome: a match, but not the same base), '-' a gap; the primer 3′ end is underlined. {% for role in ['forward', 'probe', 'reverse'] %}{% set olis = assay.by_role(role) %}{% if olis | length > 1 %}{{ role | capitalize }}: {% for o in olis %}({{ loop.index }}) {{ o.name }}{{ ', ' if not loop.last else '. ' }}{% endfor %}{% endif %}{% endfor %}Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are; under the bases its changes, position from the 3′ end and oligo base–template base ("-9 Y=T": a degenerate position that still matches). Types are the organism names of the records (and assembly levels). The classes rest on published primer-mismatch data, not predicted Cq values (Part C2).</p>
 {% set n_att = fv.attention | length + (fv.attention_grouped | sum(attribute='n')) %}<h4>Needs attention ({{ '{:,}'.format(n_att) }} combination{{ '' if n_att == 1 else 's' }}, {{ fv.attention | length }} listed)</h4>
 {% set na = fv.rule %}{% if na %}<p class="meta">Listed: the {{ na.top_per_outcome }} most frequent combinations of each outcome, and any other in at least {{ na.min_records }} records and at or above {{ '%g' % na.min_percent }}% of the {{ '{:,}'.format(fv.total) }} records with all three sites (likely failure: {{ '%g' % na.likely_failure_min_percent }}%), at most {{ na.max_rows }} rows (<code>report.needs_attention</code>, Part C). The rest are counted per outcome below; every combination is in the workbook, sheet "Fragment variants", column "Listed in the report".</p>{% endif %}
 {% if fv.attention %}
@@ -451,7 +498,7 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 {{ yp.collection }}</div>{% endif %}</div>
 <figcaption>Each genome's outcome as in the whole-fragment table, per release year (left) and, for the same {{ 'records' if nuc else 'genomes' }}, per collection year as the submitter recorded it in {{ 'the collection_date source qualifier' if nuc else 'the BioSample collection_date' }} (right, in time order: first those without a usable date, then those collected before the window, then the years{% if ca %}: {{ ca.earlier.with_region }} collected before {{ ca.first_year }}, {{ ca.undated.with_region }} without a usable collection date{% if ca.not_read.with_region %}, {{ ca.not_read.with_region }} not read yet{% endif %}{% endif %}). The status uses the {{ yp.status }} panel, pooled over the bracketed window {{ w.first }}–{{ w.last }}: {{ w.n }} judged, {{ w.detectable }} detectable, {{ w.at_risk }} at risk, {{ w.not_detected }} likely failure, {{ w.undetermined }} undetermined (not counted); the other panel is information only. Pale bars: fewer than {{ r.config.inclusivity.min_genomes_per_year | default(30) }} judged, shown but not judged alone; when the pooled figure has no flags, a single year of the window with at least that many below the FAIL limit gives Review. The window is the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete years and the current one, never the last year with data. Every count, per oligo too: workbook, sheet "Inclusivity".</figcaption></figure>
 {% else %}
-<p class="meta">The status uses this outcome, pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete {{ 'collection years (the table by collection year below; setting inclusivity.status_axis)' if by_coll else 'release years' }} and the current one (the latest release year listed; never the last year with data, so a target no longer sequenced is not judged on old years; see Rationale below); when the pooled figure has no flags, a single year in that window with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives Review; smaller years are marked "few records" and only shown. Each genome's outcome as in the whole-fragment table. Percentages leave the undetermined out, as the status does. Per oligo and year: workbook, sheet "Inclusivity".</p>
+<p class="meta">The status uses this outcome, pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete {{ 'collection years (the table by collection year below; setting inclusivity.status_axis)' if by_coll else 'release years' }} and the current one (the status window, Part C1). Each genome's outcome as in the whole-fragment table. Percentages leave the undetermined out, as the status does. Per oligo and year: workbook, sheet "Inclusivity".</p>
 <div class="scroll"><table>
   <thead><tr><th>Year</th><th>{{ 'Records' if nuc else 'Assemblies' }}</th><th>With region</th><th>Detectable</th><th>At risk</th><th>Likely failure</th><th>Undetermined</th></tr></thead>
   <tbody>
@@ -802,82 +849,143 @@ table.qcm tr.msg td { border-top: 0; padding-top: 0; }
 <div class="part-c">
 <p class="part">Part C · Appendix</p>
 <h2 id="appendix">Methods, rules and limitations</h2>
-<h3>Rules applied</h3>
-<p class="meta"><strong>Predicted amplicons.</strong> An amplicon is predicted when two primer sites that can prime face each other on the same record within {{ r.config.specificity.max_amplicon_size }} bp{% if r.config.specificity.graded_off_target | default(false) %} (a site can prime unless its class under R1-R9 is likely failure; a perfect or tolerated site always can, an at-risk or undetermined one needs warning level or better; in the cautious tiers, {{ (r.config.specificity.cautious_tiers | default([])) | join(', ') or 'none' }}, an at-risk or undetermined site acts at warning level, a gapped probe site too){% else %} (sites of at least warning level){% endif %}; identical amplicons are counted once. Next to every off-target primer site that forms no amplicon, the sequence an amplicon could span is fetched and the partner primers aligned in it (check for the opposite primer), and probes are re-aligned inside amplicons without a reported probe site.</p>
-<p class="meta"><strong>Whole fragment.</strong> Only the whole-fragment table shows which site variants occur together on one template, and so the outcome for the genome: the worst class of its three sites, and the primer-pair rule (R8: 3 + &ge;2 or 4 + 1 mismatches across the two primers; as 3 in one primer are already a likely failure under R3, it rarely decides, and a pair with 2 + 2, which Lefever's Fig. 6 puts near 15 dCq, is flagged in the Rationale, its class unchanged). In the site columns a dot is a matching base, a letter a mismatch (highlighted), a grey letter a base that matches only through a degenerate code (the oligo's own, or an ambiguity code in the genome: a match, but not the same base), '-' a gap. Next to the class of a site that is not perfect: how often that site variant occurs among all records of the oligo, whatever the other two sites are. Classes present published primer-mismatch data (Stadhouders 2010, Lefever 2013), not predicted Cq values; in silico analysis does not replace experimental validation.</p>
-{% if r.inclusivity and r.inclusivity.fragment_years %}<p class="meta"><strong>Status window.</strong> The inclusivity status uses the whole-fragment outcome pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete {{ 'collection years (setting inclusivity.status_axis)' if r.inclusivity.status_axis == 'collection' else 'release years' }} and the current one (the latest release year listed; never the last year with data, so a target no longer sequenced is not judged on old years); when the pooled figure has no flags, a single year in that window with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives Review; smaller years are marked "few records" and only shown. Percentages are of the records with all three sites minus the undetermined ones; undetermined records are counted but not in a percentage. The tables per oligo and year (workbook) show each site on its own; they explain the status but do not decide it.</p>{% endif %}
-{% if r.inclusivity and r.inclusivity.distinct and r.inclusivity.distinct.patterns %}<p class="meta"><strong>Distinct site patterns.</strong> Clonal outbreaks sequenced many times weigh heavily in the genome count and once in the pattern count; neither figure is the share of strains in circulation.</p>{% endif %}
+{# advisor's Part C review, 2026-11-27, built at the user's request ("Yes build all"): numbered
+   blocks, tables at the full width, short cards for the prose left, each point once #}
+{% set show_c2 = r.inclusivity and r.inclusivity.oligos | map(attribute="windows") | map("rejectattr", "n_detectable", "none") | map("list") | select | list %}
+<p class="toc">C1 Terms and counting rules{% if show_c2 %} · C2 Mismatch classes{% endif %}{% if spec %} · C3 What the search could and could not find{% endif %} · C4 Methods · C5 Limits and settings · C6 Other limitations · C7 Required statements</p>
 
-{% if r.inclusivity and r.inclusivity.oligos | map(attribute="windows") | map("rejectattr", "n_detectable", "none") | map("list") | select | list %}
-<h3>Mismatch classes</h3>
-<p class="meta">Each oligo site on the target gets a class (docs/MISMATCH_CLASSES.md): <em>perfect</em>; <em>tolerated</em> (expected to cost little); <em>at risk</em> (a measurable delay is expected, worse near the limit of detection); <em>likely failure</em> (blocked or strongly delayed in the published data); <em>indeterminate</em> (no published basis: gaps together with mismatches that alone would not decide, ambiguity codes in the genome, a single mismatch in an MGB probe). <em>Detectable</em> = perfect or tolerated; the inclusivity limits apply to it. A single mismatch in an MGB probe outside its 3′-most 7 bases (one under the MGB is likely failure, Kutyavin 2000) and an ambiguity code in the genome that decides between detectable and not (graded both ways over a primer's 3′-most 16 nt and the whole probe) are <em>undetermined</em>: left out of the percentage (neither detected nor escaped). Gaps count as not detected. A primer site that differs only in the length of a single-base run (homopolymer bulge) is at risk for one base with the run outside the last 3 nt, otherwise likely failure (rule R5b; no PCR study measured such bulges; setting variants.homopolymer_bulges_detectable). Primers: single mismatches in the last 5 nt by type and position after Stadhouders et al., J Mol Diagn 2010 (Table 1, Taq polymerase on DNA); farther positions and the number of mismatches per primer and per primer pair after Lefever et al., Clin Chem 2013. A probe counts as MGB when MGB is declared as a modification or named in its reporter or quencher (e.g. MGBNFQ); LNA probes are graded as unmodified probes (no rule for them exists here), and the record says so. Probes: an MGB probe with 1 mismatch in its 3′-most 7 nt (under the MGB) is a likely failure (Kutyavin et al., Nucleic Acids Res 2000), with 1 mismatch further toward the 5′ end undetermined and with 2 or more a likely failure; a probe without MGB tolerates 1 mismatch outside the last 5 nt, is at risk with 1 in the last 5 or 2 anywhere, and is a likely failure from 3 mismatches on (the 2-mismatch step after Klungthong et al., J Clin Virol 2010, where an unmodified 30-mer probe with two mismatches still detected every sample but its Ct gap widened by about 3.7; the ceiling at 3 is expert judgement, no published rule). Deletions in a probe site follow Otwell et al. 2025, which measured 25–28 nt linear probes at 55 °C over 50 cycles and deletions of 1, 3, 4, 6, 7 and 8 bases: for a shorter or MGB probe, or a deletion of 2 or 5 bases, the site keeps its class and its note says the case was never measured.{% if assay.template_type == 'RNA' %} <strong>This assay detects RNA:</strong> the classes rest on PCR with Taq polymerase on DNA, and the reverse-transcription step is not graded. For RT-PCR, Christopherson et al. (Nucleic Acids Res 1997, 25:654) found 2 to 4 internal primer-template mismatches without significant effect on HIV-1 RNA, while 5 and 6 mismatches in 28- and 30-base primers cut amplicon yield about 22- and 100-fold; how a mismatch in the reverse-transcription primer acts depends on the enzyme, which the laboratory checks.{% endif %} {{ grade_caveat }} Next to the class, ΔTm is the estimated change in duplex melting temperature against the perfect match (nearest-neighbour model for unmodified DNA; a 3′-terminal mismatch barely changes it although it usually blocks extension). For oligos with MGB, LNA or similar modifications the model does not apply and the report says "ΔTm not applicable". "Tm ≤ annealing" marks a site of an unmodified oligo whose predicted duplex Tm drops to or below the annealing temperature ({{ r.config.reaction.annealing_temp_C }} °C) while the perfect match melts above it; where the perfect match itself melts at or below it in this model, as for primers designed with their Tm at the annealing temperature, there is no flag, since the comparison then says nothing about the variant. Both are information only; the class remains the judgement. The classes concern detection, not quantification: a single internal mismatch graded <em>tolerated</em> can still distort a copy number considerably (Bru et al. 2008: up to 1000-fold), so for an assay used to quantify, a <em>tolerated</em> variant is a reason to check the quantification in the laboratory.</p>
+<h3 id="c1">C1 Terms and counting rules</h3>
+<div class="scroll"><table class="rules">
+<tbody>
+<tr><th scope="row">Predicted amplicon</th><td>Two primer sites that can prime, facing each other on one record within {{ r.config.specificity.max_amplicon_size }} bp; identical amplicons are counted once. {% if r.config.specificity.graded_off_target | default(false) %}Can prime: a perfect or tolerated site always; an at-risk or undetermined one at warning level or better; a likely failure never (classes: C2). In the cautious tiers ({{ (r.config.specificity.cautious_tiers | default([])) | map('tier_name') | join(', ') or 'none' }}) an at-risk or undetermined site, and a gapped probe site, acts at warning level.{% else %}Can prime: a site of at least warning level.{% endif %} <span class="where">→ Part B, Off-target</span></td></tr>
+<tr><th scope="row">Check for the opposite primer</th><td>Beside every off-target primer site that forms no amplicon, the sequence an amplicon could span is fetched and the partner primers aligned in it; probes are re-aligned inside amplicons without a reported probe site. What it cannot find: C3. <span class="where">→ Part B, Off-target</span></td></tr>
+<tr><th scope="row">Whole-fragment outcome</th><td>Per template: the worst class of its three sites, and the primer-pair rule (R8, C2). Only the whole-fragment table shows which site variants occur together on one template, and so the outcome for the genome. <span class="where">→ Part B, Whole fragment</span></td></tr>
+<tr><th scope="row">Share beside a class</th><td>How often that site variant occurs among all records of the oligo, whatever the other two sites are. <span class="where">→ Part B, Whole fragment</span></td></tr>
+{% if r.inclusivity and r.inclusivity.fragment_years %}
+<tr><th scope="row">Status window</th><td>The inclusivity status uses the whole-fragment outcome pooled over the last {{ r.config.inclusivity.verdict_window_years | default(3) }} complete {{ 'collection years (setting inclusivity.status_axis)' if r.inclusivity.status_axis == 'collection' else 'release years' }} and the current one: the latest release year listed, never the last year with data, so a target no longer sequenced is not judged on old years. When the pooled figure has no flags, a single year in that window with at least {{ r.config.inclusivity.min_genomes_per_year | default(30) }} genomes below the FAIL limit gives Review; smaller years are marked "few records" and only shown. <span class="where">→ Part A; Part B, Inclusivity</span></td></tr>
+<tr><th scope="row">Percentages</th><td>Of the records with all three sites minus the undetermined ones; undetermined records are counted, but not in a percentage. The tables per oligo and year (workbook) show each site on its own: they explain the status but do not decide it. <span class="where">→ Parts A and B; workbook</span></td></tr>
 {% endif %}
+{% if r.inclusivity and r.inclusivity.distinct and r.inclusivity.distinct.patterns %}
+<tr><th scope="row">Distinct site patterns</th><td>Clonal outbreaks sequenced many times weigh heavily in the genome count and once in the pattern count; neither figure is the share of strains in circulation. <span class="where">→ Part B, Inclusivity</span></td></tr>
+{% endif %}
+</tbody></table></div>
+
+{% if show_c2 %}
+<h3 id="c2">C2 Mismatch classes</h3>
+<div class="split">
+<div class="scroll"><table class="classes">
+<thead><tr><th>Class</th><th>Meaning</th><th>Counted as</th></tr></thead>
+<tbody>
+<tr><td><span class="chip s-PASS">perfect</span></td><td>no mismatch, no gap</td><td rowspan="2"><strong>detectable</strong> (the inclusivity limits apply to it)</td></tr>
+<tr><td><span class="chip s-PASS">tolerated</span></td><td>expected to cost little</td></tr>
+<tr><td><span class="chip s-WARN">at risk</span></td><td>a measurable delay is expected, worse near the limit of detection</td><td>not detectable (outcome at risk)</td></tr>
+<tr><td><span class="chip s-FAIL">likely failure</span></td><td>blocked or strongly delayed in the published data</td><td>not detectable (outcome likely failure)</td></tr>
+<tr><td><span class="chip s-INCOMPLETE">indeterminate</span></td><td>no published basis: gaps together with mismatches that alone would not decide, ambiguity codes in the genome, a single mismatch in an MGB probe outside its 3′-most 7 nt</td><td>R6, R9: <strong>undetermined</strong>, left out of the percentage (neither detected nor escaped). A gap (R5): not detectable (outcome at risk)</td></tr>
+</tbody></table></div>
+<div class="cards one"><div><p><strong>What a class is.</strong> Published primer-mismatch data, not a predicted Cq value. {{ grade_caveat }} The full rules with their sources: docs/MISMATCH_CLASSES.md of this version.</p></div></div>
+</div>
+<div class="scroll"><table class="rules c2">
+<thead><tr><th>Rule</th><th>Site</th><th>Class</th><th>Basis</th></tr></thead>
+<tbody>
+<tr class="group"><th colspan="4">Primers</th></tr>
+<tr><td>R1</td><td>single mismatch in the last 5 nt</td><td>by mismatch type and position</td><td>Stadhouders et al., J Mol Diagn 2010, Table 1 (Taq polymerase on DNA)</td></tr>
+<tr><td>R2–R3</td><td>farther positions; the number of mismatches per primer</td><td>by position and number</td><td>Lefever et al., Clin Chem 2013</td></tr>
+<tr><td>R8</td><td>primer pair: ≥3 + ≥2, or ≥4 + ≥1 mismatches across the two primers</td><td><span class="chip s-FAIL">likely failure</span></td><td>Lefever 2013. Rarely decides, as 3 in one primer are already a likely failure under R3. A pair with 2 + 2, which Lefever's Fig. 6 puts near 15 dCq (read from the figure), keeps its class and is noted in the inclusivity rationale (results.json; printed in Part B when inclusivity has flags)</td></tr>
+<tr><td>R5b</td><td>homopolymer bulge (only the length of a single-base run differs): one base, the run outside the last 3 nt</td><td><span class="chip s-WARN">at risk</span></td><td rowspan="2">no PCR study measured such bulges; setting variants.homopolymer_bulges_detectable</td></tr>
+<tr><td>R5b</td><td>any other homopolymer bulge</td><td><span class="chip s-FAIL">likely failure</span></td></tr>
+<tr class="group"><th colspan="4">MGB probes (MGB declared as a modification or named in the reporter or quencher, e.g. MGBNFQ)</th></tr>
+<tr><td>R9</td><td>1 mismatch in the 3′-most 7 nt (under the MGB)</td><td><span class="chip s-FAIL">likely failure</span></td><td>Kutyavin et al., Nucleic Acids Res 2000</td></tr>
+<tr><td>R9</td><td>1 mismatch further toward the 5′ end</td><td><span class="chip s-INCOMPLETE">indeterminate</span></td><td>no published basis</td></tr>
+<tr><td>R9</td><td>2 or more mismatches</td><td><span class="chip s-FAIL">likely failure</span></td><td>expert judgement (a short MGB probe is not expected to form a stable duplex); no published rule</td></tr>
+<tr class="group"><th colspan="4">Probes without MGB (LNA probes are graded as these: no rule for them exists here, and the record says so)</th></tr>
+<tr><td>R9</td><td>1 mismatch outside the last 5 nt</td><td><span class="chip s-PASS">tolerated</span></td><td>expert judgement; no published rule</td></tr>
+<tr><td>R9</td><td>1 mismatch in the last 5 nt, or 2 anywhere</td><td><span class="chip s-WARN">at risk</span></td><td>2 mismatches: Klungthong et al., J Clin Virol 2010 (an unmodified 30-mer probe with two mismatches still detected every sample, its Ct gap about 3.7 wider). 1 mismatch in the last 5 nt: expert judgement</td></tr>
+<tr><td>R9</td><td>3 or more mismatches</td><td><span class="chip s-FAIL">likely failure</span></td><td>expert judgement; no published rule</td></tr>
+<tr class="group"><th colspan="4">Any oligo</th></tr>
+<tr><td>R5c</td><td>deletion in a probe site</td><td>from the measured cases</td><td>Otwell et al. 2025: 25–28 nt linear probes at 55 °C over 50 cycles, deletions of 1, 3, 4, 6, 7 and 8 bases. A shorter or MGB probe, or a deletion of 2 or 5 bases: the site keeps its class and its note says the case was never measured</td></tr>
+<tr><td>R5</td><td>gap, with mismatches that alone would not decide</td><td><span class="chip s-INCOMPLETE">indeterminate</span></td><td>no published basis</td></tr>
+<tr><td>R6</td><td>ambiguity code in the genome that decides between detectable and not (graded both ways over a primer's 3′-most 16 nt and the whole probe)</td><td><span class="chip s-INCOMPLETE">indeterminate</span></td><td>no published basis</td></tr>
+</tbody></table></div>
+<div class="cards">
+{% if assay.template_type == 'RNA' %}<div><p><strong>This assay detects RNA.</strong> The classes rest on PCR with Taq polymerase on DNA, and the reverse-transcription step is not graded. For RT-PCR, Christopherson et al. (Nucleic Acids Res 1997, 25:654) found 2 to 4 internal primer-template mismatches without significant effect on HIV-1 RNA, while 5 and 6 mismatches in 28- and 30-base primers cut amplicon yield about 22- and 100-fold. How a mismatch in the reverse-transcription primer acts depends on the enzyme, which the laboratory checks.</p></div>{% endif %}
+<div><p><strong>Detection, not quantification.</strong> A single internal mismatch graded <em>tolerated</em> can still distort a copy number considerably (Bru et al. 2008: up to 1000-fold), so for an assay used to quantify, a <em>tolerated</em> variant is a reason to check the quantification in the laboratory.</p></div>
+<div><p><strong>ΔTm.</strong> The estimated change in duplex melting temperature against the perfect match (nearest-neighbour model for unmodified DNA). A 3′-terminal mismatch, treated as an unpaired overhang, barely lowers it although it usually prevents extension: priming is judged from the mismatch and 3′-end columns. For oligos with MGB, LNA or similar modifications the model does not apply: "ΔTm not applicable". Information only; the class remains the judgement.</p></div>
+<div><p><strong>"Tm ≤ annealing"</strong> marks a site of an unmodified oligo whose predicted duplex Tm drops to or below the annealing temperature ({{ r.config.reaction.annealing_temp_C }} °C) while the perfect match melts above it. No flag where the perfect match itself melts at or below it in this model, as for primers designed with their Tm at the annealing temperature: the comparison then says nothing about the variant. Information only.</p></div>
+</div>
+{% endif %}
+
 {% if spec %}
-<h3>Queries with incomplete evidence</h3>
-{% if incomplete_queries %}<p>{% for q in incomplete_queries %}{{ q.tier | tier_name }} {{ q.query }}: {% if q.relevant is not none %}{{ '{:,}'.format(q.relevant) }} relevant alignments, {{ '{:,}'.format(q.assessed) }} assessed{% else %}{{ q.hits }} BLAST hits{% endif %}{% if q.possibly_cut %}; relevant hits possibly cut from the full hit list{% endif %}{{ '; ' if not loop.last else '.' }}{% endfor %} The gap and its note: the off-target table (Part B).</p>
-{% else %}<p>None: every relevant alignment of every query was assessed.</p>{% endif %}
-<p class="meta">Every query of every tier, with its hits, relevant alignments and what the search could report: workbook, sheet "Hits per query". "Relevant hits possibly cut": the hit list reached its size limit and even its weakest hit is still relevant. A list that merely reached its size limit with only irrelevant hits at its end loses nothing.</p>
-<p class="meta">Sites found over all tiers, probe sites included: {{ spec.n_sites.critical }} critical, {{ spec.n_sites.warning }} warning, {{ spec.n_sites.minor }} minor.
-  Levels follow the configured limits (mismatches, gaps and clean 3′ nucleotides). {{ spec.n_fetched }} sequence windows were used for full-length
-  re-alignment and the check for the opposite primer{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}.
-  Reported down to: the smallest alignment score the tier's least sensitive search could report with the E-value cut-off {{ r.config.search.expect }}, from NCBI's own search statistics, and the most mismatches (no gap) a full-length site can carry and still always be reported.</p>
-<p class="meta"><strong>What the search cannot find.</strong> BLAST only finds a site that shares an unbroken run of at least {{ r.config.search.word_size }} matching bases (the word size) with the oligo; a site whose matches are all in shorter runs is never reported, whatever its score. For word size 7, Ye et al. (BMC Bioinformatics 2012, 13:134) estimate that this misses about 0.5% of sites with 2 mismatches to a 20-base primer. The E-value cut-off of {{ r.config.search.expect }} is lower than Primer-BLAST's default of 30,000 for primers (same source), chosen because a higher cut-off fills the hit list (see Searches): this search is less sensitive than Primer-BLAST with its defaults. The check for the opposite primer finds the second primer and the probe of an amplicon once BLAST has reported one primer site.</p>
-
+{% set sp = r.config.search %}
+<h3 id="c3">C3 What the search could and could not find</h3>
+<div class="scroll"><table class="rules c3">
+<tbody>
+<tr class="hl"><th scope="row">Queries with incomplete evidence</th><td>{% if incomplete_queries %}{% for q in incomplete_queries %}{{ q.tier | tier_name }} {{ q.query }}: {% if q.relevant is not none %}{{ '{:,}'.format(q.relevant) }} relevant alignments, {{ '{:,}'.format(q.assessed) }} assessed{% else %}{{ q.hits }} BLAST hits{% endif %}{% if q.possibly_cut %}; relevant hits possibly cut from the full hit list{% endif %}{{ '; ' if not loop.last else '.' }}{% endfor %} The gap and its note: the off-target table (Part B).{% else %}<strong>None</strong>: every relevant alignment of every query was assessed.{% endif %}
+  Sites found over all tiers, probe sites included: {{ '{:,}'.format(spec.n_sites.critical) }} critical, {{ '{:,}'.format(spec.n_sites.warning) }} warning, {{ '{:,}'.format(spec.n_sites.minor) }} minor (levels: C5). {{ '{:,}'.format(spec.n_fetched) }} sequence windows used for full-length re-alignment and the check for the opposite primer{% if spec.n_fetch_failed %}; {{ spec.n_fetch_failed }} could not be fetched{% endif %}. <span class="where">→ workbook, sheet "Hits per query"</span></td></tr>
+<tr><th scope="row">Word size {{ sp.word_size }}</th><td>BLAST only reports a site that shares an unbroken run of at least {{ sp.word_size }} matching bases with the oligo{% if sp.word_size == 7 %} (the smallest word NCBI's remote BLAST allows for blastn){% endif %}; a site whose matches are all in shorter runs is never reported, whatever its score.{% if sp.word_size == 7 %} Ye et al. (BMC Bioinformatics 2012, 13:134) estimate that this misses about 0.5% of sites with 2 mismatches to a 20-base primer.{% endif %}</td></tr>
+<tr><th scope="row">E-value cut-off {{ sp.expect }}</th><td>Lower than Primer-BLAST's default of 30,000 for primers (Ye et al. 2012), because a higher cut-off fills the hit list: this search is less sensitive than Primer-BLAST with its defaults. The smallest reportable score depends on the size of each search (computed from NCBI's own search statistics); a site scoring less can be missing, so <strong>an absent hit is not proof of absent binding</strong>. Reported down to, per tier and oligo: the smallest alignment score the least sensitive search could report, and the most mismatches (no gap) a full-length site can carry and still always be reported. <span class="where">→ Part B, "What the searches could report"</span></td></tr>
+<tr><th scope="row">Hit list size {{ sp.hitlist_size }}</th><td>"Relevant hits possibly cut": the hit list reached its size limit and even its weakest hit is still relevant. A list that merely reached its size limit with only irrelevant hits at its end loses nothing. <span class="where">→ workbook, sheet "Hits per query"</span></td></tr>
+<tr><th scope="row">Check for the opposite primer</th><td>{% if scan_off %}{{ no_scan_limitation }}{% else %}Finds the second primer and the probe of an amplicon once BLAST has reported one primer site; an amplicon of which BLAST reported neither primer site is not found.{% endif %} <span class="where">→ C1</span></td></tr>
+<tr><th scope="row">Partial hits</th><td>Partial BLAST hits that were not re-aligned are assessed with the most risk-conservative assumption compatible with BLAST's scoring, and marked as worst case.</td></tr>
+{% if not show_c2 %}<tr><th scope="row">Duplex Tm and ΔG</th><td>Nearest-neighbour estimates of stability. A mismatch at the 3′-terminal base is treated as an unpaired overhang and barely lowers Tm although it usually prevents extension; priming is judged from the mismatch and 3′-end columns.</td></tr>{% endif %}
+<tr><th scope="row">Merged records</th><td>Amplicons are predicted from the primary record of each BLAST hit group; identical sequences merged into one hit are not expanded, so an amplicon on a merged record can be missed.</td></tr>
+<tr><th scope="row">One primer, both strands</th><td>An amplicon from one primer binding both strands (forward-forward or reverse-reverse) is not predicted; for a primer that binds an off-target organism perfectly this is unlikely but not excluded.</td></tr>
+<tr><th scope="row">Tiers</th><td>Only the tiers named in the scope statement were searched; a passing result says nothing about organisms outside them. Primer-BLAST remains a useful manual cross-check. <span class="where">→ Part A, scope</span></td></tr>
+<tr><th scope="row">Database {{ sp.database }}</th><td>core_nt holds no whole-genome-shotgun (WGS) draft assemblies, and the newest records reach it only after a delay (seen live on 2026-09-23: none of the 300 newest SARS-CoV-2 records had a hit there). For organisms known mostly from draft genomes, most bacteria among them, the off-target evidence covers only their complete genomes and other records in core_nt. <span class="where">→ C4</span></td></tr>
+{% for text in other_limitations %}<tr><th scope="row">Further limitation</th><td>{{ text | ncbi }}</td></tr>{% endfor %}
+</tbody></table></div>
 {% endif %}
-<h3>Methods</h3>
-<div class="scroll"><table><tbody>
-  <tr><th scope="row">Software</th><td>qpcr-assay-check {{ r.tool.version }}; {{ code_line(r.tool) }}; Python {{ r.environment.python }}; primer3-py {{ r.environment['primer3-py'] }}</td></tr>
-  <tr><th scope="row">Platform</th><td>{{ r.environment.platform }}</td></tr>
-  <tr><th scope="row">Melting temperature</th><td>{{ r.config.reaction.tm_method }} nearest-neighbour model, {{ r.config.reaction.salt_correction }} salt correction;
-    primers {{ r.config.reaction.primer_nM }} nM, probe {{ r.config.reaction.probe_nM }} nM</td></tr>
-  <tr><th scope="row">Structures</th><td>primer3 thermodynamic alignment (hairpin, homodimer, heterodimer, 3′-end) at {{ r.config.reaction.annealing_temp_C }} °C</td></tr>
-  <tr><th scope="row">3′ end stability</th><td>Sum of SantaLucia (1998) nearest-neighbour ΔG°37 over the last five nucleotides (informational)</td></tr>
-  <tr><th scope="row">Run mode</th><td>{{ r.mode }}</td></tr>
+
+<h3 id="c4">C4 Methods</h3>
+<div class="scroll"><table class="rules"><tbody>
+  <tr><th scope="row">Software</th><td>qpcr-assay-check {{ r.tool.version }}; {{ code_line(r.tool) }}; Python {{ r.environment.python }}; primer3-py {{ r.environment['primer3-py'] }}; {{ r.environment.platform }}; run mode {{ r.mode }}</td></tr>
+  <tr><th scope="row">Thermodynamics</th><td>Tm: {{ r.config.reaction.tm_method }} nearest-neighbour model, {{ r.config.reaction.salt_correction }} salt correction; primers {{ r.config.reaction.primer_nM }} nM, probe {{ r.config.reaction.probe_nM }} nM. Structures: primer3 thermodynamic alignment (hairpin, homodimer, heterodimer, 3′-end) at {{ r.config.reaction.annealing_temp_C }} °C. 3′ end stability: sum of SantaLucia (1998) nearest-neighbour ΔG°37 over the last five nucleotides (informational).</td></tr>
   {% if spec %}
-  {% set bp = spec.parameters.blast %}
-  <tr><th scope="row">Database searched</th><td>{{ spec.parameters.databases | join(', ') or 'not reported' }}; {{ spec.parameters.blast_versions | join(', ') }}</td></tr>
-  <tr><th scope="row">BLAST parameters</th><td>{{ bp | plain }}</td></tr>
+  <tr><th scope="row">BLAST</th><td>{{ spec.parameters.databases | join(', ') or 'database not reported' }}; {{ spec.parameters.blast_versions | join(', ') or 'version not reported' }}. {% if blast_sent %}<span class="sub">Sent with each search:</span> {% for k, v in blast_sent %}{{ k }} {{ v }}{{ ' · ' if not loop.last }}{% endfor %}. {% endif %}{% if blast_tool %}<span class="sub">Tool settings:</span> {% for k, v in blast_tool %}{{ k }} {{ v }}{{ ' · ' if not loop.last }}{% endfor %}.{% endif %}</td></tr>
+  {% endif %}
+  {% if variant_blast %}
+  <tr><th scope="row">Variant search</th><td>Nucleotide records of the target up to {{ '{:,}'.format(variant_blast.direct_max) }} bases are fetched whole and scanned; longer ones are searched by BLAST with the reference amplicon as query, in lists of at most {{ variant_blast.per_search }} accessions, with word_size 11 · expect 10 · hitlist_size at least 500 (5 per record); the other parameters as sent with each search{% if not spec %} ({{ r.config.search.program }}, {{ r.config.search.database }}){% endif %}.</td></tr>
+  {% endif %}
+  {% if spec %}
+  <tr><th scope="row">Re-alignment</th><td>Semi-global, affine gaps: match {{ spec.parameters.alignment.match }}, mismatch {{ spec.parameters.alignment.mismatch }}, gap {{ spec.parameters.alignment.gap_open }} + {{ spec.parameters.alignment.gap_extend }} per base; partial hits completed from sequence windows fetched with E-utilities efetch ({{ spec.parameters.window_padding_nt }} nt padding).</td></tr>
   {% set lin = spec.restriction_by_lineage or {} %}
-  <tr><th scope="row">Taxon restriction check</th><td>{% for t in search_rows %}{% set c = lin.get(t.tier) %}{% if c %}{{ t.tier | tier_name }}: {{ c.inside }} of {{ c.inside + c.set_aside + c.not_checkable }} relevant hits inside the tier's taxa by NCBI lineage, {{ c.set_aside }} set aside (outside them, or the target itself), {{ c.not_checkable }} not checkable{% else %}{{ t.tier | tier_name }}: {{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID exactly, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}<br>
+  <tr><th scope="row">Taxon restriction check</th><td>
+    <table class="inner"><thead><tr><th>Tier</th><th>Relevant hits inside the tier's taxa (NCBI lineage)</th><th>Set aside (outside them, or the target itself)</th><th>Not checkable</th><th>RID (issued)</th></tr></thead><tbody>
+    {% for t in search_rows %}{% set c = lin.get(t.tier) %}<tr><td>{{ t.tier | tier_name }}</td>{% if c %}<td class="num">{{ '{:,}'.format(c.inside) }} of {{ '{:,}'.format(c.inside + c.set_aside + c.not_checkable) }}</td><td class="num">{{ '{:,}'.format(c.set_aside) }}</td><td class="num">{{ '{:,}'.format(c.not_checkable) }}</td>{% else %}<td colspan="3">{{ t.in_requested }} of {{ t.descriptions }} hit descriptions carry a requested taxon ID exactly, {{ t.other }} another (possibly a descendant strain), {{ t.no_taxid }} none</td>{% endif %}<td>{% for rid, day in t.rids %}{{ rid }}{% if day %} ({{ day }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}</td></tr>{% endfor %}
+    </tbody></table>
     <span class="meta">The restriction (ENTREZ_QUERY on the organism index) is effective but not airtight, so every relevant hit is checked by the NCBI lineage of its organism and set aside when outside the tier's taxa; a hit without a taxid or lineage counts as inside. Where no lineage could be read, the counts compare exact taxon IDs only, and a hit filed under a descendant strain counts as “another”.</span></td></tr>
-  <tr><th scope="row">Re-alignment</th><td>Semi-global, affine gaps: match {{ spec.parameters.alignment.match }}, mismatch {{ spec.parameters.alignment.mismatch }},
-    gap {{ spec.parameters.alignment.gap_open }} + {{ spec.parameters.alignment.gap_extend }} per base; partial hits completed from sequence windows fetched with E-utilities efetch ({{ spec.parameters.window_padding_nt }} nt padding)</td></tr>
-  <tr><th scope="row">Search and RIDs</th><td>{% for t in search_rows %}{{ t.tier | tier_name }}: {% for rid, day in t.rids %}{{ rid }}{% if day %} ({{ day }}){% endif %}{{ ', ' if not loop.last }}{% endfor %}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
   <tr><th scope="row">Data sent to NCBI</th><td>The oligo sequences (forward, reverse, probe and any expanded degenerate variants) and the taxon restrictions above.</td></tr>
   {% else %}
-  <tr><th scope="row">Database, BLAST parameters, RIDs</th><td>Not applicable: no database search was performed</td></tr>
+  <tr><th scope="row">Off-target search</th><td>Not applicable: no off-target database search was performed.</td></tr>
   {% endif %}
 </tbody></table></div>
-<h3 id="limits">Limits applied</h3>
-<div class="scroll"><table class="limits">
-  <thead><tr><th>Group</th><th>Settings</th></tr></thead>
+
+<h3 id="limits">C5 Limits and settings</h3>
+<div class="scroll"><table class="rules limits">
   <tbody>
-  {% for group, items in limits_by_group %}<tr><td>{{ group }}</td><td>{% for key, value in items %}<code>{{ key }}</code> {{ value }}{{ ' · ' if not loop.last }}{% endfor %}</td></tr>{% endfor %}
+  {% for group, items in limits_by_group %}<tr><th scope="row">{{ group }}</th><td>{% for key, value, differs in items %}<code>{{ key }}</code> {{ value }}{% if differs %}<span class="diff">≠ default</span>{% endif %}{{ ' · ' if not loop.last }}{% endfor %}</td></tr>{% endfor %}
   </tbody>
 </table></div>
-<p class="meta">The oligo limits stand in the oligo quality control table (Part B).</p>
-<h3>Settings that differ from the defaults</h3>
+<p class="meta">Search settings: C4. Oligo limits: the oligo quality control table (Part B).</p>
 {% if differing %}
 <div class="scroll"><table>
-  <thead><tr><th>Setting</th><th>Value</th><th>Default</th><th>From</th></tr></thead>
+  <thead><tr><th>Setting that differs from the default</th><th>Value</th><th>Default</th><th>From</th></tr></thead>
   <tbody>
   {% for key, value, default, source in differing %}<tr><td><code>{{ key }}</code></td><td>{{ value }}</td><td>{{ default }}</td><td>{{ source }}</td></tr>{% endfor %}
   </tbody>
 </table></div>
-{% else %}<p>None: every setting is the default of this version (operational ones aside).</p>{% endif %}
-<p class="meta">The complete effective configuration, operational settings included: results.json (<code>config</code>) and workbook sheet "Configuration". The inputs hash above identifies it (operational settings left out).</p>
-<h3>Limitations</h3>
-<p>Default thresholds are starting points drawn from common TaqMan design guidance; they are not acceptance
-  criteria and must be reviewed by the laboratory. Melting temperatures and dimer energies are computational
-  estimates and depend on the reaction conditions entered. Structures are searched at the annealing temperature, so a
-  hairpin or dimer that forms only at lower temperatures (for example during reaction set-up) may not be reported, and
-  the same oligo can be flagged at one annealing temperature and not at another. Modified probes (MGB, LNA, ZEN and
-  similar) are not modelled. These results describe the oligo sequences only: nothing here says how the assay behaves
-  against real specimens or real off-target sequences.</p>
-{% if spec %}
-<ul>{% for text in spec.limitations %}<li>{{ text | ncbi }}</li>{% endfor %}</ul>
-{% endif %}
-<h3>Required statements</h3>
+{% else %}<p>Settings that differ from the defaults: none (operational ones aside).</p>{% endif %}
+<p class="meta">The complete effective configuration, operational settings included: results.json (<code>config</code>) and workbook sheet "Configuration". The inputs hash (Part A) identifies it, operational settings left out.</p>
+
+<h3 id="c6">C6 Other limitations</h3>
+<div class="scroll"><table class="rules"><tbody>
+<tr><th scope="row">Limits are defaults</th><td>Default thresholds are starting points drawn from common TaqMan design guidance; they are not acceptance criteria and must be reviewed by the laboratory.</td></tr>
+<tr><th scope="row">Tm and energies</th><td>Melting temperatures and dimer energies are computational estimates and depend on the reaction conditions entered.</td></tr>
+<tr><th scope="row">Structures</th><td>Searched at the annealing temperature, so a hairpin or dimer that forms only at lower temperatures (for example during reaction set-up) may not be reported, and the same oligo can be flagged at one annealing temperature and not at another.</td></tr>
+<tr><th scope="row">Modified probes</th><td>The Tm, structure and dimer estimates do not model modifications (MGB, LNA, ZEN and similar); the oligo quality control warns on a probe with a declared modification and asks for the vendor's Tm values. The mismatch classes do grade MGB probes (C2, R9).</td></tr>
+<tr><th scope="row">Sequences only</th><td>These results describe the oligo sequences only: nothing here says how the assay behaves against real specimens or real off-target sequences.</td></tr>
+</tbody></table></div>
+
+<h3 id="c7">C7 Required statements</h3>
 <div class="notice">
   <p><strong>In silico analysis does not replace experimental validation.</strong> The outcome of this evaluation
     must be interpreted together with wet-laboratory verification of the assay.</p>

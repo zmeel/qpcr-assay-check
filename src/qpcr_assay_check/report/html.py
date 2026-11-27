@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from collections.abc import Iterable
 from typing import Any
 
 from jinja2 import Environment, PackageLoader, select_autoescape
@@ -13,6 +14,7 @@ from ..config import Config
 from ..oligo.grade import CAVEAT as GRADE_CAVEAT
 from ..oligo.grade import site_string
 from ..results import CheckResult, RunResult
+from ..specificity.assess import LIMITATIONS, NO_SCAN_LIMITATION, SCAN_LIMITATION
 from ..specificity.findings import distinct_patterns
 from ..specificity.variants import group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
@@ -355,8 +357,6 @@ LIMITS_SHOWN = [
     ("Off-target status", "specificity.severity"),
     ("Off-target status", "specificity.off_target_tiers"),
     ("Off-target status", "specificity.tier_waivers"),
-    ("Search", "search.database"), ("Search", "search.expect"), ("Search", "search.word_size"),
-    ("Search", "search.hitlist_size"), ("Search", "search.background_taxids"),
     ("Search caps", "specificity.max_sites_per_query"),
     ("Search caps", "specificity.max_amplicon_size"), ("Search caps", "specificity.max_amplicons"),
     ("Search caps", "specificity.partner_scan_max_windows"),
@@ -365,16 +365,50 @@ LIMITS_SHOWN = [
 ]  # fmt: skip
 
 
-def _by_group(limits: list[tuple[str, str, str]]) -> list[tuple[str, list[tuple[str, str]]]]:
-    """The limits one row per group, in their order (third report review: 40 one-value rows)."""
-    out: dict[str, list[tuple[str, str]]] = {}
-    for group, key, value in limits:
-        out.setdefault(group, []).append((key, value))
+def _by_group(
+    limits: list[tuple[str, str, str]], differing: Iterable[str] = ()
+) -> list[tuple[str, list[tuple[str, str, bool]]]]:
+    """The limits one row per group, in their order (third report review: 40 one-value rows);
+    each ``(setting, value, differs from the default)`` (Part C review, 2026-11-27: a "≠ default"
+    tag ties a limit to the table of settings that differ)."""
+    changed = list(differing)
+    out: dict[str, list[tuple[str, str, bool]]] = {}
+    for group, path, value in limits:
+        differs = any(d == path or d.startswith(path + ".") for d in changed)
+        out.setdefault(group, []).append((path.split(".", 1)[1], value, differs))
     return list(out.items())
 
 
+#: the limitation texts Part C shows as its own rows (C3); any other text a record carries
+#: (an older version's) is printed as it stands
+KNOWN_LIMITATIONS = frozenset([*LIMITATIONS, SCAN_LIMITATION, NO_SCAN_LIMITATION])
+
+#: the BLAST parameters sent with each search (``build_put_params``; result_format with the
+#: Get request); the rest of ``parameters.blast.search`` are the tool's own settings
+BLAST_SENT = ("program", "database", "word_size", "expect", "filter", "reward", "penalty",
+              "gap_open", "gap_extend", "hitlist_size", "result_format")  # fmt: skip
+
+
+def blast_split(params: dict[str, Any]) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """``(sent with each search, tool settings)`` from the record's BLAST parameters (Part C
+    review, 2026-11-27: one row mixed what NCBI received with the tool's own limits). The
+    database and BLAST version stand apart in the row."""
+    sent: list[tuple[str, str]] = []
+    tool: list[tuple[str, str]] = []
+    for key, value in params.items():
+        if key == "blast_versions":
+            continue
+        if key == "search" and isinstance(value, dict):
+            for k, v in value.items():
+                if k != "database":
+                    (sent if k in BLAST_SENT else tool).append((k, _plain(v)))
+        else:
+            tool.append((key, _plain(value)))
+    return sent, tool
+
+
 def limits_applied(config: dict[str, Any]) -> list[tuple[str, str, str]]:
-    """``(group, setting, value)`` for the limits of :data:`LIMITS_SHOWN` present in the
+    """``(group, configuration path, value)`` for the limits of :data:`LIMITS_SHOWN` present in the
     record's configuration."""
     out = []
     for group, path in LIMITS_SHOWN:
@@ -382,7 +416,7 @@ def limits_applied(config: dict[str, Any]) -> list[tuple[str, str, str]]:
         for part in path.split("."):
             node = node.get(part) if isinstance(node, dict) else None
         if node is not None:
-            out.append((group, path.split(".", 1)[1], _plain(node)))
+            out.append((group, path, _plain(node)))
     return out
 
 
@@ -535,6 +569,18 @@ def _amplicon_line(spec: Any, f: Any) -> str:
     return text
 
 
+def _variant_blast(result: RunResult) -> dict[str, int] | None:
+    """The variant search's own BLAST, for the Methods (Part C review, 2026-11-27): with
+    ``variants.source: blast_partitioned`` records longer than ``direct_scan_max_length`` are
+    searched with word size 11, expect 10 and a hit list of at least 500
+    (``variants/partitioned.py``)."""
+    v = result.config.get("variants", {})
+    if v.get("source") != "blast_partitioned" or result.variant_summary is None:
+        return None
+    return {"direct_max": v.get("direct_scan_max_length", 0),
+            "per_search": v.get("blast_records_per_search", 0)}  # fmt: skip
+
+
 def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str]]:
     """``(status, text)`` for the sign-off: every finding that exceeds a limit or leaves
     evidence missing in full, then one line per check that needs review (report review
@@ -597,7 +643,8 @@ def _plain(value: Any) -> str:
     """A value as plain text: "key value; key value", lists comma-separated (not Python
     notation: the record is read by people, report review 2026-11-20, second round)."""
     if isinstance(value, dict):
-        return "; ".join(f"{k} {_plain(v)}" for k, v in value.items())
+        # an empty mapping reads "none", not a blank (Part C review, 2026-11-27: tier_waivers)
+        return "; ".join(f"{k} {_plain(v)}" for k, v in value.items()) or "none"
     if isinstance(value, list | tuple):
         return ", ".join(_plain(v) for v in value) or "none"
     if isinstance(value, bool):
@@ -741,8 +788,18 @@ def render_report(result: RunResult, cfg: Config) -> str:
         oligo_totals=oligo_totals,
         qc_rows=qc_matrix(result),
         decisions=decision_lines(result, summary),
-        limits_by_group=_by_group(limits_applied(result.config)),
+        limits_by_group=_by_group(
+            limits_applied(result.config), (d[0] for d in differing_settings(result))
+        ),
         differing=differing_settings(result),
+        blast_sent=blast_split(spec.parameters.get("blast") or {})[0] if spec else [],
+        blast_tool=blast_split(spec.parameters.get("blast") or {})[1] if spec else [],
+        variant_blast=_variant_blast(result),
+        scan_off=bool(spec) and NO_SCAN_LIMITATION in spec.limitations,
+        no_scan_limitation=NO_SCAN_LIMITATION,
+        other_limitations=[
+            t for t in (spec.limitations if spec else []) if t not in KNOWN_LIMITATIONS
+        ],
         incomplete_queries=[
             q
             for q in (hits_per_query(spec) if spec else [])
