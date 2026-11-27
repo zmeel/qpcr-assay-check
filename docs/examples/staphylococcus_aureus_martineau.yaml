@@ -1,0 +1,141 @@
+# Example assay: Staphylococcus aureus, realT Martineau primers with two alternative FAM/TAMRA
+# probes (Martineau, Martineau2).
+#
+# STATUS
+#   One amplified region of 112 bp, one primer pair, two linear FAM/TAMRA probes on the same
+#   site. Both probes carry FAM, so they are alternatives in one channel: for each genome the
+#   best-binding probe counts. No MGB or other Tm-raising modification, so the unmodified-probe
+#   ladder of R9 applies (docs/MISMATCH_CLASSES.md). No wet-lab evidence entries. No taxa inside
+#   S. aureus are left out of the target.
+#
+# PROVENANCE
+#   Sequences supplied by the user (2026-11-27), with the publication the PCR is based on:
+#   Martineau F, Picard FJ, Roy PH, Ouellette M, Bergeron MG. Species-specific and
+#   ubiquitous-DNA-based assays for rapid identification of Staphylococcus aureus. J Clin
+#   Microbiol 1998; 36: 618-623 (PMID 9508283). The user also supplied the paper's PDF, and the
+#   primers WERE checked against it (page 619, "PCR amplification"):
+#     Sa442-1  5'-AAT CTT TGT CGG TAC ACG ATA TTC TTC ACG-3'      positions 5-34 of Sa442
+#     Sa442-2  5'-CGT AAT GAG ATT TCA GTA GAT AAT ACA ACA-3'      positions 83-112 of Sa442
+#   Sa442 is a 442-bp S. aureus-specific chromosomal fragment of unknown function; the paper's
+#   assay is a conventional (gel) PCR with a 108-bp product, annealing at 55 C, and no probe.
+#   The user's oligos are a real-time ADAPTATION of it, not the paper's oligos:
+#     * realT-Martineau-F = 1 extra base (C) at the 5' end + Sa442-1 bases 1-25: the same site,
+#       one base further 5' and 4 bases shorter at the 3' end (ends ...ATATTCT, not ...TTCACG).
+#     * realT-Martineau-R = 3 extra bases (CAA) at the 5' end + Sa442-2 bases 1-29: one base
+#       shorter at the 3' end (ends ...ACAAC, not ...ACAACA). Product 112 bp instead of 108.
+#     * the probes Martineau and Martineau2 are not in the paper; their source is not known.
+#   The supplied reference is consistent with the paper's coordinates: Sa442-1 lies at 2-31 of
+#   it and the Sa442-2 site at 80-109, i.e. the reference is Sa442 positions 4-115. The paper's
+#   PDF does not print the Sa442 sequence itself, so the reference was not checked base by base.
+#   Oligo names as the user gave them ("realT Martineau forward/reverse", "Martineau",
+#   "Martineau2"), with spaces replaced by hyphens; "Martienau" in the user's reverse-primer
+#   name read as a typo for Martineau.
+#
+# WHAT WAS CHECKED (2026-11-27, offline, against the supplied reference only)
+#   * Reference (112 nt): forward primer at 1-26 exactly; reverse primer binding site at 81-112
+#     (reverse complement), 0 mismatches; probe Martineau at 28-58 exactly, sense strand.
+#     One base between the forward primer and the probe, so no primer-probe overlap.
+#   * Martineau2 binds the same site (28-58) with 2 mismatches against this reference:
+#     position 13 (G in the probe, A in the reference) and position 26 (A in the probe, G in
+#     the reference): the alternative probe for a divergent variant, as in the N. gonorrhoeae
+#     two-probe example.
+#   * NOT checked: no live NCBI run yet, so neither the reference's accession nor the taxids
+#     below were resolved live (see TIER GROUPS). Run `qpcr-assay-check validate` and a live
+#     run, and correct this header with what they find.
+#   * Template: DNA (not stated by the user; DNA for a bacterial target). Annealing: 60 C, the
+#     laboratory's real-time protocol (the user, 2026-11-27), which is the tool's default (the
+#     paper's conventional PCR annealed at 55 C, which does not apply to the adapted oligos).
+#   * The paper's own evidence (wet lab, 1998, conventional PCR with its primers, not these):
+#     195/195 S. aureus strains from 9 sources positive; 25 other staphylococcal species and
+#     the other Gram-positive and Gram-negative species of its Table 1 negative; detection
+#     limit about 500 genome copies. It predates 25+ years of genomes, so the variant analysis
+#     is the check of inclusivity today.
+#
+# TIER GROUPS, AND WHY (suggested 2026-11-27, the user's to change)
+#   1. Near neighbours (near_neighbour_taxids): the S. aureus complex, S. argenteus and
+#      S. schweitzeri, the closest relatives of S. aureus and easily misidentified as it. Both
+#      were described long after 1998, so the paper never tested them: the most important
+#      off-target question for this assay. They
+#      are shown first and always in the report. Taxids from Claude's knowledge, not resolved
+#      live: check them. Whether the laboratory wants these detected (reported as "S. aureus
+#      complex") or not detected is the user's decision; here they are treated as must-not-detect
+#      near neighbours.
+#   2. Coagulase-negative staphylococci: the main differential in blood cultures and skin and
+#      wound specimens, and the commonest co-colonisers.
+#   3. Other coagulase-positive or coagulase-variable staphylococci (mostly zoonotic, from
+#      animal bites and pets), which phenotypic tests can confuse with S. aureus.
+#   4. Other Gram-positive organisms of the same specimens (blood culture, skin, nose, wound),
+#      including former staphylococci now in Mammaliicoccus and the related Macrococcus.
+#   5. Gram-negatives and yeast commonly found with S. aureus in mixed specimens.
+#   Groups 2-4 overlap the paper's wet-lab panel (Table 1), which was negative for, among
+#   others, S. intermedius, S. delphini, S. schleiferi subsp. coagulans, S. sciuri and
+#   S. caseolyticus (now Mammaliicoccus sciuri and Macrococcus caseolyticus).
+#   Human DNA is searched as the default background.
+
+assay_name: Staphylococcus aureus (realT Martineau, two probes)
+forward: {name: realT-Martineau-F, sequence: CAATCTTTGTCGGTACACGATATTCT}
+reverse: {name: realT-Martineau-R, sequence: CAACGTAATGAGATTTCAGTAGATAATACAAC}
+probe:
+  - {name: Martineau, sequence: CACGACTAAATAAACGCTCATTCGCGATTTT, reporter: FAM, quencher: TAMRA}
+  - {name: Martineau2, sequence: CACGACTAAATAGACGCTCATTCGCAATTTT, reporter: FAM, quencher: TAMRA}
+template_type: DNA
+target:
+  taxid: 1280                    # Staphylococcus aureus
+reference_amplicons:             # as supplied by the user (accession not known)
+  - name: SA-Martineau-ref
+    sequence: CAATCTTTGTCGGTACACGATATTCTTCACGACTAAATAAACGCTCATTCGCGATTTTATAAATGAATGTTGATAACAATGTTGTATTATCTACTGAAATCTCATTACGTTG
+near_neighbour_taxids:           # 1. the S. aureus complex (taxids not resolved live: check)
+  - 985002                       # Staphylococcus argenteus
+  - 1654388                      # Staphylococcus schweitzeri
+exclusivity_organisms:
+  # 2. coagulase-negative staphylococci
+  - Staphylococcus epidermidis
+  - Staphylococcus haemolyticus
+  - Staphylococcus hominis
+  - Staphylococcus capitis
+  - Staphylococcus lugdunensis
+  - Staphylococcus saprophyticus
+  - Staphylococcus warneri
+  - Staphylococcus simulans
+  - Staphylococcus caprae
+  - Staphylococcus pettenkoferi
+  # 3. other coagulase-positive / coagulase-variable staphylococci
+  - Staphylococcus pseudintermedius
+  - Staphylococcus intermedius
+  - Staphylococcus delphini
+  - Staphylococcus schleiferi
+  - Staphylococcus hyicus
+  # 4. other Gram-positive organisms of the same specimens
+  - Mammaliicoccus sciuri          # formerly Staphylococcus sciuri
+  - Macrococcus caseolyticus
+  - Micrococcus luteus
+  - Rothia mucilaginosa
+  - Enterococcus faecalis
+  - Enterococcus faecium
+  - Streptococcus pyogenes
+  - Streptococcus agalactiae
+  - Streptococcus pneumoniae
+  - Corynebacterium striatum
+  - Cutibacterium acnes
+  - Bacillus cereus
+  # 5. Gram-negatives and yeast of mixed specimens
+  - Escherichia coli
+  - Klebsiella pneumoniae
+  - Pseudomonas aeruginosa
+  - Haemophilus influenzae
+  - Moraxella catarrhalis
+  - Candida albicans
+oligo_source: >-
+  Supplied by the user (2026-11-27) as "realT Martineau" primers and probes Martineau and
+  Martineau2: a real-time adaptation of the Sa442 PCR of Martineau F et al., J Clin Microbiol
+  1998; 36: 618-623 (PMID 9508283). Primers checked against the paper: shifted and shortened
+  versions of Sa442-1 and Sa442-2 (see PROVENANCE). The probes are not in the paper; their
+  source is not known.
+
+settings:                        # only what differs from the defaults, for this assay
+  reaction:
+    annealing_temp_C: 60         # the laboratory's protocol (user, 2026-11-27)
+  search:
+    background_taxids: [9606]    # human background search
+  variants:
+    source: datasets             # bacterium: every genome assembly (newest first, 20,000 per run)

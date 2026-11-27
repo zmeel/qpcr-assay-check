@@ -110,6 +110,11 @@ on code from before the tiers review, so their specificity results need a rerun.
 
 # Next, waiting on the user
 
+- S. aureus (realT Martineau, Sa442; [assay](assays/staphylococcus-aureus-martineau.md)): assay
+  file added 2026-11-27, primers checked against the paper, not yet run. Open: a first live run
+  (it also resolves the near-neighbour taxids), and whether *S. argenteus* and *S. schweitzeri*
+  should be detected or not.
+
 - VZV (ORF38): runs 2026-10-23 and 2026-11-17 ([latest](runs/vzv-2026-11-17.md)): 99.7% detectable, no
   off-target product. The probe's G form (Oka lineage, 10.5% of the records, the vaccine strain
   among them) folds into a hairpin: worth a wet-lab check on an Oka template. Since 2026-11-19

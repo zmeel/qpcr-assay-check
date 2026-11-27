@@ -2,6 +2,7 @@
 
 What each working session did, newest first (the former progress log).
 
+* [S. aureus assay file (realT Martineau)](2026-11-27-02-staphylococcus-aureus-assay.md) - Session log of 2026-11-27.
 * [A cut-off for the Needs-attention table](2026-11-27-01-needs-attention-cutoff.md) - Session log of 2026-11-27.
 * [Larger, clearer report figures; oligo design carried over](2026-11-26-01-larger-figures.md) - Session log of 2026-11-26.
 * [HSV-1 on the new code](2026-11-25-01-hsv1-new-report.md) - Session log of 2026-11-25.

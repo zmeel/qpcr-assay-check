@@ -17,6 +17,10 @@ tiers once, NOT the target where a tier contains it), so most searches are new B
 and near neighbours are read cautiously. Rerun an assay before comparing it with an older record.
 
 ### Added
+- **Example assay: Staphylococcus aureus, realT Martineau** (`docs/examples/staphylococcus_aureus_martineau.yaml`):
+  the laboratory's real-time adaptation of the Sa442 PCR of Martineau et al. 1998, two alternative
+  FAM/TAMRA probes, five tier groups with the *S. aureus* complex as near neighbours. Primers
+  checked against the paper; not yet run live.
 - **A cut-off for the Needs-attention table** (user and advisor, 2026-11-27, on the influenza A
   record: 272 combinations, 30 listed, most under 0.1%).
   - **Rule:** a combination that is not detectable gets its own row when it is one of the 3
