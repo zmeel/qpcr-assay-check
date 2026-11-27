@@ -83,3 +83,19 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
     between words, shares stay whole, the cell padding is narrower, and the separator is added.
   - **Checked:** the new stylesheet in the user's influenza A, HSV-1 and HSV-2 reports gives
     14, 15 and 12 pages, the decision box on page 2, and no table wider than the page.
+- **Part C.** The user: "There is a lot of text in the Methods, rules and limitations section
+  which also seems to be squeezed in 1 kolom. Ask advisor how to shorten this text (table?) and
+  use the whole width of the page". Advice kept verbatim
+  ([advice](../../reviews/2026-11-27-part-c-advisor.md)).
+  - **Proposal:** seven numbered blocks, mostly tables, with repeats removed; 2,533 to 2,188
+    words, about the same paper (2.74 to 2.64 A4 pages).
+  - **Corrections it flags:** nine points in the current text. Checked before reporting:
+    - the "indeterminate" definition includes a single MGB mismatch, which R9 grades as
+      likely failure;
+    - R8 is "≥3 with ≥2, or ≥4 with ≥1" in the code;
+    - the record says modified probes are "not modelled";
+    - `tier_waivers` prints empty;
+    - the variant search of long records uses its own BLAST settings (word size 11, expect 10,
+      hit list at least 500).
+  - Nothing built yet: the user decides.
+
