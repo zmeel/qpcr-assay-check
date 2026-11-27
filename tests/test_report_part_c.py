@@ -106,3 +106,23 @@ def test_search_limits_are_rows_and_an_unknown_old_text_is_kept(tmp_path):
                   "One primer, both strands", "Tiers", "Database"):  # fmt: skip
         assert re.search(rf'<th scope="row">{label}', c), label
     assert "Further limitation</th><td>" + old in c
+
+
+def test_text_and_tables_use_the_page_width_on_screen(tmp_path):
+    # user, 2026-11-27: "All text fields/tables should be page wide"
+    html = render_report(run_report_result(tmp_path), load_config())
+    css = html[html.index("<style>") : html.index("@media print")]
+    assert "max-width: 46rem" not in css and "margin: .5rem 0 1rem; max-width" not in css
+    assert "max-width: 52rem" not in css and "max-width: 600px" not in css
+    assert ".year-panels svg.fig.years { width: 100%; height: auto; }" in css
+
+
+def test_a_long_count_line_beside_a_year_bar_is_not_cut_off():
+    from qpcr_assay_check.report import charts
+
+    row = charts.YearRow("2019", charts.Counts(detectable=11_869, at_risk=88, likely_failure=1,
+                                               undetermined=2))  # fmt: skip
+    svg = charts.year_bars([row], width=600)
+    width = float(re.search(r'viewBox="0 0 ([\d.]+)', svg).group(1))
+    text = re.search(r'<text x="([\d.]+)"[^>]*>(11,9[^<]*)</text>', svg)
+    assert width >= float(text.group(1)) + 6.0 * len(text.group(2))

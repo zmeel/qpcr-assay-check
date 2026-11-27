@@ -106,4 +106,17 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
       the screen view at full width;
     - ruff, ruff format and `pytest -m "not live"` pass.
   - **Open:** the user's next run, to see Part C on a real record.
+- **Influenza A rerun** (2026-11-27 10:28Z): the new Part C on a real record.
+  - **The user:** text and tables were not page wide on screen ("All text fields/tables should
+    be page wide").
+  - **The caps removed:** paragraphs 46rem, the statement box 60rem, the decision box 52rem,
+    the year panels 600px each.
+  - **Also found:**
+    - the count beside a year bar was cut off on the right; the figure now grows to fit its
+      longest line;
+    - the record's footer stood alone on a 15th A4 page; Part C is now set slightly tighter in
+      print.
+  - **Checked:** the new stylesheet in the user's influenza A, HSV-1 and HSV-2 reports gives 14,
+    15 and 12 pages and no table wider than A4; on screen only the figures stay narrower than
+    the page.
 

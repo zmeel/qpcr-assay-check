@@ -25,7 +25,7 @@ h1, h2, h3, h4, table, .chip, .meta, p.fig-title { font-family: var(--sans); }
 h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .35rem; }
 h2 { font-size: 1.25rem; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
 h3 { font-size: 1rem; margin: 1.75rem 0 .5rem; }
-p { margin: .6rem 0; max-width: 46rem; }
+p { margin: .6rem 0; }  /* every text at the page width (user, 2026-11-27) */
 .meta { color: var(--muted); font-size: .85rem; }
 .meta code { font-family: var(--mono); font-size: .8rem; word-break: break-all; }
 
@@ -34,7 +34,7 @@ table.summary th[scope=row] { min-width: 12rem; font-weight: 600; background: no
 table.summary th[scope=row] a { color: inherit; }
 .status-line { font-family: var(--sans); font-size: 1rem; }
 .status-line .chip { font-size: .9rem; margin-right: .4rem; }
-table.review-box { max-width: 52rem; }
+table.review-box { width: 100%; }
 table.review-box th { width: 12rem; }
 table.review-box td.write { height: 5rem; }
 table.review-box td.write-line { height: 2.2rem; }
@@ -42,7 +42,8 @@ div.review { break-inside: avoid; }
 p.fig-title { margin: .6rem 0 .1rem; font-size: .95em; }
 /* the two year figures side by side where the page is wide enough (user, 2026-11-26) */
 .year-panels { display: flex; flex-wrap: wrap; gap: .4rem 2rem; align-items: flex-start; }
-.year-panels > div { flex: 1 1 32rem; max-width: 600px; }
+.year-panels > div { flex: 1 1 32rem; min-width: 0; }
+.year-panels svg.fig.years { width: 100%; height: auto; }
 table.tiers td:nth-child(5), table.tiers td:nth-child(6) { min-width: 8rem; }  /* closest site, gaps */  /* the box, its heading and note on one page */
 h2.first { border-top: 0; margin-top: 1.5rem; }
 .chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 3px; white-space: nowrap; }
@@ -97,7 +98,7 @@ table.frag td.num { white-space: normal; min-width: 5.5rem; } /* the notes under
 table.frag td.aln-cell { white-space: normal; min-width: 11rem; }
 table.frag .site-tm { display: block; font-size: .78rem; line-height: 1.3; margin-top: .1rem; }
 .statement { font-family: var(--sans); font-size: .85rem; border-left: 4px solid var(--ink);
-  padding: .35rem .75rem; background: var(--panel); margin: .5rem 0 1rem; max-width: 60rem; }
+  padding: .35rem .75rem; background: var(--panel); margin: .5rem 0 1rem; }
 table.summary td.glance { width: 240px; padding: .3rem .4rem; }
 svg.fig { display: block; max-width: 100%; height: auto; }
 svg.years, svg.sitemap { margin: .25rem 0; }
@@ -153,7 +154,7 @@ table.c3 tr.hl td, table.c3 tr.hl th { background: var(--paper); }
   details::details-content { content-visibility: visible; display: block; }
   .part-b, .part-c { break-before: page; }
   /* the sign-off on two A4 pages, decision box included (user, 2026-11-20) */
-  svg.fig.years { width: 85%; height: auto; }
+  svg.fig.years, .year-panels svg.fig.years { width: 85%; height: auto; }
   table.review-box td.write { height: 4rem; } table.review-box td.write-line { height: 1.9rem; }
   .year-panels { display: block; } .year-panels > div { max-width: none; }  /* stacked: legible on A4 */
   /* the organism column keeps whole words: squeezed by the alignments it split "Influen za"
@@ -192,14 +193,16 @@ table.c3 tr.hl td, table.c3 tr.hl th { background: var(--paper); }
 }
 @media print { table.floors td, table.floors th { white-space: normal; } }
 @media print {
-  .part-c { font-size: 7.6pt; line-height: 1.3; }
+  .part-c { font-size: 7.6pt; line-height: 1.25; }
   .part-c .toc { font-size: 7.2pt; margin: 0 0 .3rem; }
-  .part-c h3 { margin: .55rem 0 .15rem; }
+  .part-c h3 { margin: .45rem 0 .12rem; }
   .part-c table { margin: .15rem 0 .3rem; }
   .part-c th[scope=row] { width: 24mm; }
   table.c2 td:nth-child(1) { width: 9mm; } table.c2 td:nth-child(2) { width: 34%; }
   table.c2 td:nth-child(3) { width: 27mm; }
-  .part-c th, .part-c td { padding: .1rem .3rem; }
+  .part-c th, .part-c td { padding: .08rem .3rem; }
+  /* the record line stays whole and on the last page (influenza A, 2026-11-27: alone on a 15th) */
+  footer { margin-top: .4rem; padding-top: .2rem; break-inside: avoid; }
   .part-c tr.group th { padding: .05rem .3rem; font-size: 7.2pt; }
   .part-c tr.group { break-after: avoid; }
   .split { grid-template-columns: 3fr 2fr; gap: 3mm; }

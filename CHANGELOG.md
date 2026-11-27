@@ -83,6 +83,13 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Every text and table at the page width on screen** (user, 2026-11-27: "All text
+  fields/tables should be page wide"). Paragraphs were capped at 46rem, the statement box at
+  60rem, the decision box at 52rem, and the year panels at 600px each.
+  - The two year panels now share the width.
+  - The count beside a year bar is no longer cut off: the figure grows to fit its longest line.
+  - In print, Part C is set a little tighter, so the influenza A record ends on page 14 instead
+    of putting its footer alone on page 15.
 - **Part C rebuilt** (advisor, 2026-11-27; user: "Yes build all"; decision
   `docs/knowledge/decisions/2026-11-27-part-c-rebuilt.md`).
   - **Structure:** seven numbered blocks, C1 terms, C2 mismatch classes, C3 what the search

@@ -290,6 +290,18 @@ def year_bars(rows: list[YearRow], width: int = 640, title: str = "") -> str:
     row, left, right = 16, 104, 190
     bar_w = width - left - right
     top = 18
+    texts = []
+    for r in rows:
+        text = f"{r.counts.total:,}"
+        note = _note(r.counts)
+        if note:
+            text += f" · {note}"
+        if r.few:
+            text += " · few records"
+        texts.append(text)
+    # the figure grows to the right for its longest count line, the bars keep their width
+    # (influenza A, 2026-11-27: "… · 1 likely failure · 2 undetermined" was cut off)
+    width = left + bar_w + max(right, 12 + round(6.2 * max(map(len, texts))))
     body = [legend(list(ORDER), left, 0)]
     for i, r in enumerate(rows):
         y = top + i * row
@@ -308,13 +320,8 @@ def year_bars(rows: list[YearRow], width: int = 640, title: str = "") -> str:
             body.append(f'<rect x="{left}" y="{y + 2}" width="{bar_w}" height="{row - 4}" '
                         f'fill="none" stroke="{RULE}"/>')  # fmt: skip
         body.append("</g>")
-        text = f"{c.total:,}"
-        note = _note(c)
-        if note:
-            text += f" · {note}"
-        if r.few:
-            text += " · few records"
-        body.append(f'<text x="{left + bar_w + 6}" y="{y + 11}" fill="{INK}">{escape(text)}</text>')
+        body.append(f'<text x="{left + bar_w + 6}" y="{y + 11}" fill="{INK}">'
+                    f"{escape(texts[i])}</text>")  # fmt: skip
     win = [i for i, r in enumerate(rows) if r.in_window]
     if win:
         y0, y1 = top + win[0] * row + 1, top + (win[-1] + 1) * row - 1
