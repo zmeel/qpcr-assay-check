@@ -47,3 +47,20 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
     - ruff, ruff format and `pytest -m "not live"` pass.
   - **Open:** the user's influenza A rerun on this code, to confirm the row count (advisor's
     estimate: 9) and the Part A length.
+- **Influenza A rerun on this code** (2026-11-27 08:46Z, commit 28e93ed):
+  - **Listed:** 9 of 272 combinations (the advisor's estimate), 1,297 records (0.74%).
+  - **Statuses unchanged:** clinical list Exceeds limit (ON845595.1), background Review, near
+    neighbours not searched, inclusivity No flags (99.5% of 73,362), coverage No flags.
+  - **Length:** 16 A4 pages (25 before). The decision box alone went to page 3.
+  - **Found in it:**
+    - the variant table was 26 px wider than the page, so the browser printed everything 3.6%
+      smaller;
+    - "Influenza" broke as "Influen za" in the Types column;
+    - strain names without a space before the bracket, or "Influenza A Virus", were not
+      grouped.
+  - **Fixed:** all three. Checked by putting the new stylesheet into the user's three latest
+    reports: influenza A 15 pages at full size, HSV-1 15 and HSV-2 12 unchanged, no table
+    wider than the page.
+  - **Left to the user:** the decision box of influenza A is still on page 3. Getting it back
+    on page 2 takes a content choice (shorter sign-off lines, fewer years in the Part A figure,
+    or fewer rows), not layout.

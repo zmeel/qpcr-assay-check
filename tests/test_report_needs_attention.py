@@ -111,6 +111,21 @@ def test_strain_names_are_grouped_under_their_organism():
     ]
     assert strains(orgs) == [("Influenza A virus", 12, 2), ("Human alphaherpesvirus 1", 3, 0)]
     assert strains(strains(orgs)) == strains(orgs)  # an already merged list passes through
+    # NCBI writes some without a space before the bracket, and some "Virus" (influenza A,
+    # 2026-11-27): the same organism
+    odd = [("Influenza A virus(A/Penza/55/2008(H3N2))", 1), ("Influenza A Virus (A/x/1/2000)", 2),
+           ("Influenza A virus", 5)]  # fmt: skip
+    assert strains(odd) == [("Influenza A virus", 8, 2)]
+
+
+def test_the_variant_table_fits_the_page_without_splitting_organism_names(tmp_path):
+    # the influenza A table was 26 px wider than A4, so the browser printed the whole record
+    # 3.6% smaller, and "Influenza" broke as "Influen za" (2026-11-27)
+    html = render_report(run_report_result(tmp_path), load_config())
+    css = html[html.index("@media print") : html.index("</style>")]
+    assert "td.types { hyphens: manual; } table.frag td.types { min-width: 5rem; }" in css
+    assert "table.frag td.types { min-width: 0; }" not in css
+    assert "table.frag td:first-child .chip { white-space: normal; }" in css
 
 
 def test_a_long_oligo_design_list_moves_to_the_sign_off(tmp_path):

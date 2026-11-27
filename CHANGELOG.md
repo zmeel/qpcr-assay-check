@@ -92,6 +92,11 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   - The inclusivity shares print the count below 1%: "0.025% (18) likely failure", not
     "0.0%".
   - Thousands separators in the per-oligo totals.
+  - The variant table fits an A4 page (influenza A, 2026-11-27): it was 26 px too wide, so the
+    browser printed the whole record 3.6% smaller. The outcome chip may wrap, the alignments
+    are set at 6.5 pt, and the organism column keeps whole words ("Influen za" before).
+  - Strain names written without a space before the bracket, or as "Influenza A Virus", are
+    grouped with the rest.
 - **Shares below 1% print with two significant digits** (0.087%, not 0.1%), so a row and the
   0.1% bar compare in the same terms.
 - **One rule for "closest site"** (code review, 2026-11-26). Each table and figure applies the

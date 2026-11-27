@@ -219,7 +219,7 @@ def share(value: float) -> str:
     return f"{value:.1f}%"
 
 
-_STRAIN = re.compile(r"^([^()]+?)\s+\((.+)\)$")
+_STRAIN = re.compile(r"^([^()]+?)\s*\((.+)\)$")
 
 
 def strains(orgs: Iterable[tuple[Any, ...]]) -> list[tuple[str, int, int]]:
@@ -227,18 +227,26 @@ def strains(orgs: Iterable[tuple[Any, ...]]) -> list[tuple[str, int, int]]:
     "Influenza A virus (A/swine/Oklahoma/A01798209/2015(H1N1))" counts under "Influenza A virus
     (N strain names)" (user and advisor, 2026-11-27: the Types column of the influenza report
     wrapped letter by letter). ``(name, records, strain names merged)``; a list already merged
-    passes through. The full names stay in the workbook."""
+    passes through. NCBI writes the name both with and without a space before the bracket, and
+    "Influenza A Virus" too (influenza A, 2026-11-27): one name, case aside, shown as most of its
+    records write it. The full names stay in the workbook."""
     total: Counter = Counter()
+    spelt: dict[str, Counter] = defaultdict(Counter)
     named: dict[str, set[str]] = defaultdict(set)
     merged: Counter = Counter()
     for name, n, *k in orgs:
         m = _STRAIN.match(name)
-        base = m.group(1) if m else name
-        total[base] += n
-        merged[base] += k[0] if k else 0
+        base = (m.group(1) if m else name).strip()
+        key = base.casefold()
+        total[key] += n
+        spelt[key][base] += n
+        merged[key] += k[0] if k else 0
         if m:
-            named[base].add(name)
-    return [(b, n, len(named[b]) + merged[b]) for b, n in total.most_common()]
+            named[key].add(name)
+    return [
+        (spelt[key].most_common(1)[0][0], n, len(named[key]) + merged[key])
+        for key, n in total.most_common()
+    ]
 
 
 def _hidden(
