@@ -97,6 +97,13 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
     are set at 6.5 pt, and the organism column keeps whole words ("Influen za" before).
   - Strain names written without a space before the bracket, or as "Influenza A Virus", are
     grouped with the rest.
+  - Part A shows the first 2 Needs-attention rows (was 3); all listed rows stay in Part B.
+  - Shorter sign-off lines:
+    - an off-target amplicon finding reads "Specificity, Clinical organism list: 1 amplicon
+      detected by the probe (141 bp on ON845595.1, Influenza B virus)"; the full message opens
+      Part B;
+    - the oligo-design line names each check once with its oligos: "Tm (infa_fwd); longest
+      single-base run (infa_probe1, infa_probe2)".
 - **Shares below 1% print with two significant digits** (0.087%, not 0.1%), so a row and the
   0.1% bar compare in the same terms.
 - **One rule for "closest site"** (code review, 2026-11-26). Each table and figure applies the

@@ -146,7 +146,66 @@ def test_a_long_oligo_design_list_moves_to_the_sign_off(tmp_path):
         "5 checks outside the preferred range, named under Findings that need a decision"
     )
     (line,) = [t for sev, t in decision_lines(result, rows) if t.startswith("Oligo design")]
-    assert all(c.name in line for c in checks[:5])
+    # each check once, with its oligos (user, 2026-11-27)
+    assert line == (
+        "Oligo design, outside the preferred range: length (forward); GC content (forward); "
+        "Tm (forward); G/C in last 5 nt (3' end) (forward); 3' end stability (last 5 nt, "
+        "nearest-neighbour ΔG°37) (forward)"
+    )
+
+
+def test_checks_are_named_once_with_their_oligos():
+    from qpcr_assay_check.report.summary import grouped_checks
+
+    qc = NS(
+        oligos=[
+            NS(name="infa_fwd", role="forward"),
+            NS(name="infa_rev2", role="reverse"),
+            NS(name="infa_probe1", role="probe"),
+            NS(name="infa_probe2", role="probe"),
+        ]
+    )
+    checks = [NS(subject=s, name=n) for s, n in [
+        ("infa_fwd", "Forward primer infa_fwd Tm"),
+        ("infa_probe1", "Probe infa_probe1 longest single-base run"),
+        ("infa_probe2", "Probe infa_probe2 longest single-base run"),
+        ("pair", "Primer Tm difference (forward vs reverse)"),
+        ("infa_rev2", "Reverse infa_rev2 site in reference amplicon"),
+        ("infa_probe2", "Probe infa_probe2 site in reference amplicon"),
+    ]]  # fmt: skip
+    assert grouped_checks(qc, checks) == (
+        "Tm (infa_fwd); longest single-base run (infa_probe1, infa_probe2); Primer Tm difference "
+        "(forward vs reverse); site in reference amplicon (infa_rev2, infa_probe2)"
+    )
+
+
+def test_an_amplicon_finding_is_one_short_line_on_the_sign_off(tmp_path):
+    from qpcr_assay_check.report.html import decision_lines
+    from qpcr_assay_check.specificity.models import Finding
+
+    result = run_report_result(tmp_path)
+    amp = NS(tier="exclusivity", classification="likely_detected", length=141,
+             accession="ON845595.1", organism="Influenza B virus")  # fmt: skip
+    finding = Finding(severity="FAIL", topic="amplicons", tier="exclusivity",
+                      kind="products_detected", count=1,
+                      message="Tier 'exclusivity': 1 predicted off-target amplicon(s) that "
+                              "both primers and the probe should give signal for.")  # fmt: skip
+    spec = result.specificity.model_construct(
+        **{**dict(result.specificity), "amplicons": [amp], "findings": [finding]}
+    )
+    result = result.model_copy(update={"specificity": spec})
+    lines = [t for sev, t in decision_lines(result, []) if sev == "FAIL"]
+    assert (
+        "Specificity, Clinical organism list: 1 amplicon detected by the probe (141 bp on "
+        "ON845595.1, Influenza B virus)" in lines
+    )
+    assert not any("Tier 'exclusivity'" in t for t in lines)
+
+
+def test_part_a_shows_two_needs_attention_rows():
+    from qpcr_assay_check.report.html import ATTENTION_ON_PAGE_ONE
+
+    assert ATTENTION_ON_PAGE_ONE == 2  # user, 2026-11-27: all of them stay in Part B
 
 
 def test_part_a_shares_print_the_count_below_one_percent():

@@ -41,7 +41,9 @@ from .summary import summary_rows
 
 GROUP_ROWS_SHOWN = 15  # further rows per grouped table (rows that can fail: always shown)
 CLOSEST_VARIANTS_SHOWN = 5  # closest off-target binding variants shown (all in the workbook)
-ATTENTION_ON_PAGE_ONE = 3  # "Needs attention" rows on the sign-off pages (all in Part B)
+# "Needs attention" rows on the sign-off pages, all in Part B (user, 2026-11-27: three rows
+# pushed the influenza A decision box to a third page)
+ATTENTION_ON_PAGE_ONE = 2
 
 _GROUPS = [
     ("forward", "Forward primer"),
@@ -513,6 +515,26 @@ def other_findings(result: RunResult) -> list[str]:
     return [line for line in result.overall.rationale if line not in shown]
 
 
+_AMPLICON_LINE = {
+    "products_detected": ("likely_detected", "detected by the probe"),
+    "products_not_detected": ("amplified_not_detected", "amplified, not detected by the probe"),
+}
+
+
+def _amplicon_line(spec: Any, f: Any) -> str:
+    """ "1 amplicon detected by the probe (141 bp on ON845595.1, Influenza B virus)": the sign-off
+    line of an amplicon finding (user, 2026-11-27: the full message, with the tier key and the
+    mismatch counts, ran to two lines). The full message opens Part B."""
+    cls, what = _AMPLICON_LINE[f.kind]
+    n = f.count or 0
+    first = next((a for a in spec.amplicons if a.tier == f.tier and a.classification == cls), None)
+    text = f"{n:,} amplicon{'' if n == 1 else 's'} {what}"
+    if first is not None:
+        eg = "" if n == 1 else "e.g. "
+        text += f" ({eg}{first.length} bp on {first.accession}, {first.organism or 'unknown'})"
+    return text
+
+
 def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str]]:
     """``(status, text)`` for the sign-off: every finding that exceeds a limit or leaves
     evidence missing in full, then one line per check that needs review (report review
@@ -546,6 +568,10 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
         for f in spec.findings:
             if f.severity not in ("FAIL", "INCOMPLETE"):
                 continue
+            if f.kind in _AMPLICON_LINE and f.tier:  # one short line per tier and kind
+                out.append((f.severity, f"Specificity, {tier_name(f.tier)}: "
+                            + _amplicon_line(spec, f)))  # fmt: skip
+                continue
             key = (f.severity, f.tier, f.short) if f.short else (f.severity, "", f.message)
             about = merged.setdefault(key, [])
             if f.short and f.about:
@@ -553,6 +579,7 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
         for (severity, tier, text), about in merged.items():
             where = f", {tier_name(tier)}" if tier else ""
             out.append((severity, f"Specificity{where}: {gap_text(text, about)}"))
+
     for row in summary:
         if row.anchor == "specificity" or row.anchor == "oligo-qc":
             continue  # their findings are listed above

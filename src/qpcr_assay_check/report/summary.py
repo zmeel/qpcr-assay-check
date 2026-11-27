@@ -75,6 +75,34 @@ def _row(
 SHORT_CELL = 3  # names in the oligo-design status cell before it only counts them
 
 
+_KIND = {"forward": ("Forward primer", "Forward"), "reverse": ("Reverse primer", "Reverse"),
+         "probe": ("Probe", "Probe")}  # fmt: skip
+
+
+def grouped_checks(qc: Any, checks: list[Any]) -> str:
+    """Checks named once per kind, with their oligos: "Tm (infa_fwd); longest single-base run
+    (infa_probe1, infa_probe2)" instead of the oligo repeated before each (user, 2026-11-27: the
+    influenza A sign-off line ran to three lines and pushed the decision box to page 3)."""
+    oligos = {o.name or o.role: o for o in qc.oligos}
+    groups: dict[str, list[str]] = {}
+    for c in checks:
+        o = oligos.get(c.subject)
+        label, who = c.name, ""
+        if o is not None:
+            name = o.name if o.name and o.name != o.role else ""
+            long, short = _KIND.get(o.role, (o.role.capitalize(), o.role.capitalize()))
+            for prefix in (f"{long} {name}", f"{short} {name}", long, short):
+                if prefix.strip() and c.name.startswith(prefix.strip() + " "):
+                    label, who = c.name[len(prefix.strip()) + 1 :], name or o.role
+                    break
+        names = groups.setdefault(label, [])
+        if who and who not in names:
+            names.append(who)
+    return "; ".join(
+        f"{label} ({', '.join(who)})" if who else label for label, who in groups.items()
+    )
+
+
 def _share_of(n: int, total: int) -> str:
     """A share as in the report tables, with the count below 1% (influenza A, 2026-11-26: 18
     records printed as "0.0% likely failure")."""
@@ -106,7 +134,11 @@ def _qc_row(result: RunResult) -> SummaryRow:
         if len(fail or warn) > SHORT_CELL:
             # the names go to the sign-off list only (influenza A, 2026-11-26: eight names made
             # the status cell the tallest row of Part A)
-            brief = f"Oligo design: {reason}"
+            brief = (
+                "Oligo design, "
+                + ("outside the limit: " if fail else "outside the preferred range: ")
+                + grouped_checks(qc, fail or warn)
+            )
             reason = (f"{len(fail or warn)} checks "
                       + ("outside the limit" if fail else "outside the preferred range")
                       + ", named under Findings that need a decision")  # fmt: skip

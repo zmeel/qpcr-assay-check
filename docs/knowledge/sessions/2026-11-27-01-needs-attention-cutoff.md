@@ -64,3 +64,11 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
   - **Left to the user:** the decision box of influenza A is still on page 3. Getting it back
     on page 2 takes a content choice (shorter sign-off lines, fewer years in the Part A figure,
     or fewer rows), not layout.
+- **The user chose two of them** ("Yes build both"):
+  - **Built:** 2 Needs-attention rows in Part A; a one-line off-target amplicon finding on the
+    sign-off; the oligo-design line names each check once with its oligos.
+  - **Not chosen:** grouping the years in Part A's year figure.
+  - **Checked:** a simulation on the user's influenza A HTML (new stylesheet, two rows, the new
+    oligo-design line) gives 14 A4 pages at full size, with the decision box back on page 2.
+    It still had the old, longer amplicon line, so the real record has a line to spare. To be
+    confirmed on the next influenza A run.

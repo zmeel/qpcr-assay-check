@@ -58,6 +58,17 @@ Part A's layout changes in the same build:
 - the inclusivity shares print the count below 1% ("0.025% (18) likely failure", not "0.0%");
 - the per-oligo totals use thousands separators.
 
+After the influenza A rerun of 2026-11-27, whose decision box fell alone on page 3, the user
+chose two further changes ("Yes build both"):
+
+- Part A shows the first 2 Needs-attention rows instead of 3; Part B keeps all listed rows;
+- the sign-off lines are shorter: an off-target amplicon finding is one line ("1 amplicon
+  detected by the probe (141 bp on ON845595.1, Influenza B virus)"), and the oligo-design line
+  names each check once with its oligos.
+
+The other option offered, grouping the years outside the status window in Part A's year
+figure, was not chosen.
+
 # Who and why
 
 The user, on the influenza A record of 2026-11-26: "The Needs attention (272 combinations) is

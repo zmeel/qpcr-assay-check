@@ -72,8 +72,9 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
   from 0.1% and 2 records (likely failure 0.01%), at most 20 rows; the workbook says why each
   combination is listed or not. Part A: the status table breaks between rows, strain names are
   grouped, shares below 1% keep two digits. Confirmed on the influenza A rerun of 2026-11-27
-  08:46Z: 9 of 272 combinations listed, 16 pages (25 before); its decision box still falls on
-  page 3 (a content choice for the user).
+  08:46Z: 9 of 272 combinations listed, 16 pages (25 before). Since then the table fits A4, Part
+  A shows 2 rows and the sign-off lines are shorter; simulated on that record: 14 pages, the
+  decision box back on page 2. To be confirmed on the next influenza A run.
 - A code review for redundant code (2026-11-26) was taken up:
   - two bugs fixed: the workbook sheets "Findings" and "Specificity findings" were both named
     "Findings", and a carried-over oligo design did not record its source commit;
