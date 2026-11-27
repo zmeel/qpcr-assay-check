@@ -2,6 +2,7 @@
 
 Released versions (generated from CHANGELOG.md).
 
+* [v2.3.0 (2026-11-27)](v2.3.0.md) - The off-target search tiers and the report after the advisor's two reviews of 2026-11-20 (docs/reviews) and four rounds of the user's comments on real records.
 * [v2.2.0 (2026-11-17)](v2.2.0.md) - The analysis after two code reviews and an independent whole-project evaluation (2026-11-17).
 * [v2.1.0 (2026-10-02)](v2.1.0.md) - A browser interface for one user, behind a password, for a LAN or VPN (steps G1-G5 below): edit assay files with live checks, see the search plan and confirm it, run one assay at a time and follow its log, read the reports and download the records, and change the password and the configuration.
 * [v2.0.0 (2026-10-02)](v2.0.0.md) - A generic assay model and an exhaustive, genome-by-genome analysis replace the sampled inclusivity of 1.x.

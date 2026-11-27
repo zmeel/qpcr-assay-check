@@ -29,7 +29,14 @@ generated: { by: claude-code/agent, at: 2026-11-27T11:10:00Z }
   - a live run, which also resolves the near-neighbour taxids, not yet checked against NCBI;
   - the user's decision whether *S. argenteus* and *S. schweitzeri* should be detected or not.
 
+- **Release v2.3.0** (user: "I think it is time for a new release"): version 2.3.0, the
+  `[Unreleased]` CHANGELOG entries become the 2.3.0 entry with a summary and the code
+  fingerprint `a5386bff54b1ff767d2251366fb27abb458dfc8117d62ad09f62a2565f64f103`; status
+  updated. A minor version, as for 2.2.0, though specificity results change. The annotated tag
+  is the user's.
+
 # Related
 
 - [S. aureus, realT Martineau](../assays/staphylococcus-aureus-martineau.md)
 - [Current status](../status.md)
+- [Release v2.3.0](../releases/v2.3.0.md)

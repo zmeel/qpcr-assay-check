@@ -11,10 +11,22 @@ a release's, that installation is the release, unchanged, wherever it runs.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-27
+
 The off-target search tiers and the report after the advisor's two reviews of 2026-11-20
-(docs/reviews). **Specificity results change against 2.2.0**: tiers are searched differently (balanced searches, a taxon in two
-tiers once, NOT the target where a tier contains it), so most searches are new BLAST submissions,
-and near neighbours are read cautiously. Rerun an assay before comparing it with an older record.
+(docs/reviews) and four rounds of the user's comments on real records. Every searched tier is
+assessed, a tier left out needs a reason, tier taxa are checked against the target's lineage,
+searches are balanced and near neighbours are read cautiously. The report comes in three parts
+printable on A4: a two-page sign-off, the evidence, and Part C as numbered tables; the
+Needs-attention table has a cut-off, and oligo design can be carried over from an earlier run.
+The HSV-1, HSV-2 and VZV examples name their near neighbours and judge inclusivity by release
+year; a Staphylococcus aureus example is added. **Specificity results change against 2.2.0**:
+tiers are searched differently (balanced searches, a taxon in two tiers once, NOT the target
+where a tier contains it), so most searches are new BLAST submissions, and near neighbours are
+read cautiously. Rerun an assay before comparing it with an older record.
+
+Code fingerprint (`qpcr-assay-check fingerprint`):
+`a5386bff54b1ff767d2251366fb27abb458dfc8117d62ad09f62a2565f64f103`
 
 ### Added
 - **Example assay: Staphylococcus aureus, realT Martineau** (`docs/examples/staphylococcus_aureus_martineau.yaml`):

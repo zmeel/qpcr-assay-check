@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-27T14:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-27T11:20:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -25,73 +25,21 @@ session page (see [About this bundle](about.md)).
 
 # Released
 
+v2.3.0 (2026-11-27): the off-target search tiers and the report after the advisor's
+reviews of 2026-11-20 and the user's comments on real records (code fingerprint
+`a5386bff54b1ff767d2251366fb27abb458dfc8117d62ad09f62a2565f64f103`). Specificity results
+change against 2.2.0. The annotated tag is the user's to set and push.[^changelog]
+
 v2.2.0 (2026-11-17): the analysis after two code reviews and the whole-project evaluation of
 2026-11-17; every record names its code (code fingerprint
 `b68fa8fe6c8946a15c1bc1bc7a49362b868c1484327fbb56ad9c3d9348e44455`). Off-target and inclusivity
-results change against 2.1.0. Tags are set and pushed by the user.[^changelog]
+results change against 2.1.0.
 
 v2.1.0 (2026-10-02): the browser interface on top of the v2.0.0 analysis.
 
 # On main, not yet released
 
-Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
-
-- Fixed: a partial BLAST hit that can only stay "minor" by the mismatch counts is re-aligned
-  and graded after all when the graded classes decide (`specificity.sites.worth_realigning`,
-  formerly `can_reach_warning`); found on the influenza A run of 2026-11-18, confirmed by its
-  rerun. More windows are fetched per run (cached).
-- Fixed: the report's sentence on predicted products names the graded rule instead of "at least
-  warning level".
-- Changed: the HSV-1, HSV-2 and VZV examples set `inclusivity.status_axis: release`.
-- Changed: HSV-1, HSV-2 and VZV name their closest relatives as near neighbours
-  (`near_neighbour_taxids`), moved from the exclusivity list.
-- The search tiers after the advisor's review of 2026-11-20, all nine findings
-  ([search tiers](components/search-tiers.md), [review](../reviews/2026-11-20-tiers-advisor.md)):
-  every searched tier assessed, tier waivers with a reason, missing tiers Incomplete above Review,
-  tier taxa checked against the target's lineage and each other, balanced searches, lineage in
-  the exclusivity table and the restriction check, a probe budget of its own, "not detected
-  (bounded)" and a bounded cut at `max_amplicons`, near neighbours read cautiously, the eukaryote
-  note by lineage. **Specificity results change**: most searches are new submissions.
-- The report after the advisor's review of 2026-11-20: three parts (a two-page sign-off with
-  small figures, the evidence, an appendix), everything printable (closed sections did not
-  print), shorter prose, mismatch maps per oligo, the Needs-attention rows in their coloured
-  layout (user decision).
-
-- The report since 2026-11-20, in four review rounds and the user's own comments
-  ([report](components/report.md)):
-  - **Findings:** condensed, the specificity findings as one table per tier.
-  - **Wording:** plain words ("amplicon", "check for the opposite primer").
-  - **Figures:** year figures by release and collection year side by side, an off-target map
-    with numbered organisms, a hairpin/dimer strip, a coverage accounting figure.
-  - **Print:** long tables break between rows.
-  - **Length:** HSV-1 from 30 to about 15 pages, with a 2-page sign-off.
-- A run can carry the oligo design over from an earlier record with the same oligos, reaction
-  conditions and limits (`--skip-oligo-design`; GUI option "Evaluate oligo design").
-- The Needs-attention table has a cut-off (user and advisor, 2026-11-27,
-  [decision](decisions/2026-11-27-needs-attention-cutoff.md)): the top 3 per outcome, others
-  from 0.1% and 2 records (likely failure 0.01%), at most 20 rows; the workbook says why each
-  combination is listed or not. Part A: the status table breaks between rows, strain names are
-  grouped, shares below 1% keep two digits. Confirmed on the influenza A rerun of 2026-11-27
-  08:46Z: 9 of 272 combinations listed, 16 pages (25 before). Since then the table fits A4, Part
-  A shows 2 rows and the sign-off lines are shorter. Confirmed on the rerun of 09:20Z: 14 pages,
-  the sign-off on 2 pages.
-- Part C rebuilt (advisor, 2026-11-27, [decision](decisions/2026-11-27-part-c-rebuilt.md)):
-  - numbered blocks C1-C7, mostly tables at the full width;
-  - nine corrections to its text, among them the MGB "indeterminate" definition, R8 as
-    "≥3 + ≥2, or ≥4 + ≥1", "expert judgement" where a probe rule has no published basis, and
-    the variant search's own BLAST parameters.
-- A code review for redundant code (2026-11-26) was taken up:
-  - two bugs fixed: the workbook sheets "Findings" and "Specificity findings" were both named
-    "Findings", and a carried-over oligo design did not record its source commit;
-  - one rule for "closest site";
-  - about 300 lines of dead code removed.
-
-HSV-1, HSV-2 (2026-11-25/26) and influenza A (2026-11-26 15:21Z, report only:
-[session](sessions/2026-11-27-01-needs-attention-cutoff.md)) have been rerun on the new code.
-Influenza A on that run: the clinical organism list Exceeds limit (the ON845595.1 amplicon,
-read as detected), background Review, near neighbours not searched, inclusivity No flags
-(99.5% of 73,327 collected 2023-2026), coverage No flags; 25 pages. VZV and the older assays ran
-on code from before the tiers review, so their specificity results need a rerun.
+Nothing since v2.3.0.[^changelog]
 
 # Latest runs
 
