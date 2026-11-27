@@ -126,3 +126,15 @@ def test_a_long_count_line_beside_a_year_bar_is_not_cut_off():
     width = float(re.search(r'viewBox="0 0 ([\d.]+)', svg).group(1))
     text = re.search(r'<text x="([\d.]+)"[^>]*>(11,9[^<]*)</text>', svg)
     assert width >= float(text.group(1)) + 6.0 * len(text.group(2))
+
+
+def test_counts_in_the_year_texts_have_thousands_separators():
+    # influenza A, 2026-11-27: "73362 judged, 73017 detectable" beside "73,362" elsewhere
+    from importlib.resources import files
+
+    from qpcr_assay_check.report.html import _count
+
+    assert _count(73_362) == "73,362" and _count(True) is True and _count("2023") == "2023"
+    tpl = (files("qpcr_assay_check.report") / "templates" / "report.html.j2").read_text()
+    for count in ("w.n", "w.detectable", "ca.earlier.with_region", "dp.genomes", "n_all"):
+        assert "{{ " + count + " | n }}" in tpl and "{{ " + count + " }}" not in tpl

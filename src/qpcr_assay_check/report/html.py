@@ -639,6 +639,12 @@ def decision_lines(result: RunResult, summary: list[Any]) -> list[tuple[str, str
     return out
 
 
+def _count(value: Any) -> Any:
+    """A count with thousands separators (influenza A, 2026-11-27: "73362 judged" beside
+    "73,362" elsewhere); anything else as it is."""
+    return f"{value:,}" if isinstance(value, int) and not isinstance(value, bool) else value
+
+
 def _plain(value: Any) -> str:
     """A value as plain text: "key value; key value", lists comma-separated (not Python
     notation: the record is read by people, report review 2026-11-20, second round)."""
@@ -708,6 +714,7 @@ def _environment() -> Environment:
     env.tests["adding"] = adds_to_cell
     env.filters["tier_name"] = tier_name
     env.filters["share"] = share
+    env.filters["n"] = _count
     env.filters["strains"] = strains
     env.filters["plain_tiers"] = plain_tiers
     return env

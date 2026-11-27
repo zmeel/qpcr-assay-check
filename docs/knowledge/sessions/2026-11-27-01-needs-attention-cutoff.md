@@ -119,4 +119,9 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
   - **Checked:** the new stylesheet in the user's influenza A, HSV-1 and HSV-2 reports gives 14,
     15 and 12 pages and no table wider than A4; on screen only the figures stay narrower than
     the page.
+- **Influenza A rerun** (2026-11-27 10:50Z, commit 8f4ddb0): confirmed.
+  - 14 A4 pages, no table wider than the page.
+  - On screen every text and table is page wide; the year panels share the width.
+  - The year counts are no longer cut off.
+  - **One fix:** the counts in Part B's year texts got thousands separators.
 

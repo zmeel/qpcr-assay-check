@@ -90,6 +90,8 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   - The count beside a year bar is no longer cut off: the figure grows to fit its longest line.
   - In print, Part C is set a little tighter, so the influenza A record ends on page 14 instead
     of putting its footer alone on page 15.
+- **Thousands separators in the year texts of Part B** (influenza A, 2026-11-27 10:50Z):
+  "73362 judged" and "12254 collected before 2017" now read 73,362 and 12,254, as elsewhere.
 - **Part C rebuilt** (advisor, 2026-11-27; user: "Yes build all"; decision
   `docs/knowledge/decisions/2026-11-27-part-c-rebuilt.md`).
   - **Structure:** seven numbered blocks, C1 terms, C2 mismatch classes, C3 what the search
