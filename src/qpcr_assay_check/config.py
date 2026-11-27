@@ -517,10 +517,38 @@ class VariantsSettings(_Strict):
         return self
 
 
+class NeedsAttention(_Strict):
+    """Which combinations that are not detectable get their own row in the report (display
+    only: no status depends on it). User and advisor, 2026-11-27: influenza A listed 30 of 272
+    combinations, most under 0.1% of its 176,383 records."""
+
+    min_percent: float = 0.1  # of the records with all three sites
+    likely_failure_min_percent: float = 0.01
+    min_records: int = 2  # the share bars never list a combination seen in fewer records
+    top_per_outcome: int = 3  # always listed per outcome, whatever its share
+    max_rows: int = 20  # safety net
+
+    @model_validator(mode="after")
+    def _check(self) -> NeedsAttention:
+        if not (0 <= self.likely_failure_min_percent <= self.min_percent <= 100):
+            raise ValueError(
+                "report.needs_attention: need 0 <= likely_failure_min_percent <= min_percent <= 100"
+            )
+        if self.top_per_outcome < 1 or self.min_records < 1:
+            raise ValueError("report.needs_attention: top_per_outcome and min_records must be >= 1")
+        if self.max_rows < 4 * self.top_per_outcome:
+            raise ValueError(
+                "report.needs_attention.max_rows must be at least 4 x top_per_outcome (one top "
+                "group per outcome)"
+            )
+        return self
+
+
 class ReportSettings(_Strict):
     """Report rendering options."""
 
     include_charts: bool
+    needs_attention: NeedsAttention = NeedsAttention()
 
 
 class Config(_Strict):

@@ -23,7 +23,10 @@ def test_tables_break_between_rows_and_headings_stay_with_what_follows(tmp_path)
         "table { break-inside: auto; }" in css and "thead { display: table-header-group; }" in css
     )
     assert "h2, h3, h4 { break-after: avoid; }" in css
-    assert "table.summary, table.review-box, table.tiers { break-inside: avoid; }" in css
+    assert "table.review-box, table.tiers { break-inside: avoid; }" in css
+    # the status table may break between rows (influenza A, 2026-11-26: kept whole, it left
+    # page 1 nearly empty)
+    assert "table.summary," not in css
 
 
 def test_the_tm_mark_sits_at_the_worst_variant_and_the_bands_are_named():

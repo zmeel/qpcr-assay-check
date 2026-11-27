@@ -277,3 +277,12 @@ variants:
 
 report:
   include_charts: true                       # oligo Tm chart (inline SVG, a few kB)
+  needs_attention:                           # combinations that are not detectable with a row of
+                                             #   their own (display only; every one is in the
+                                             #   workbook): the most frequent of each outcome,
+                                             #   and any other at or above the bars
+    min_percent: 0.1                         # of the records with all three sites
+    likely_failure_min_percent: 0.01         # lower bar for likely failure
+    min_records: 2                           # the bars never list a combination in fewer records
+    top_per_outcome: 3                       # always listed per outcome, whatever its share
+    max_rows: 20                             # safety net (>= 4 x top_per_outcome)

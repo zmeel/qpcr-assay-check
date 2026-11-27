@@ -17,6 +17,20 @@ tiers once, NOT the target where a tier contains it), so most searches are new B
 and near neighbours are read cautiously. Rerun an assay before comparing it with an older record.
 
 ### Added
+- **A cut-off for the Needs-attention table** (user and advisor, 2026-11-27, on the influenza A
+  record: 272 combinations, 30 listed, most under 0.1%).
+  - **Rule:** a combination that is not detectable gets its own row when it is one of the 3
+    most frequent of its outcome, or in at least 2 records and at or above 0.1% of the records
+    with all three sites (likely failure: 0.01%). At most 20 rows. Before, every combination
+    was listed up to 30 rows.
+  - **Folded rows:** one per outcome. Each gives the records left out, the largest of them, the
+    rows over the cap, and where they fail per oligo.
+  - **Site variants seen only in folded combinations:** the same bar. Tolerated variants are
+    left off the Needs-attention lines.
+  - **Workbook:** sheet "Fragment variants" has a new column "Listed in the report", which says
+    whether each combination is listed and why.
+  - **Setting:** `report.needs_attention`, lab-wide and display only. It is shown in Part C
+    under "Limits applied".
 - **Oligo design can be carried over** (user, 2026-11-26: "After the first run oligo design is
   known and therefore not to be repeated in each run").
   - **How:** `run --skip-oligo-design`, or the **Evaluate oligo design** option in the GUI.
@@ -69,6 +83,17 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   the reporting floor is given **per search** as well as per tier (F6).
 
 ### Changed
+- **Part A layout** (influenza A, 2026-11-26: a 4-page sign-off).
+  - The status table may break between rows.
+  - With more than 3 oligo-design checks, the status cell only counts them; the sign-off list
+    names them.
+  - Strain names are grouped per organism, for example "Influenza A virus 6 (6 strain
+    names)"; the workbook keeps the full names.
+  - The inclusivity shares print the count below 1%: "0.025% (18) likely failure", not
+    "0.0%".
+  - Thousands separators in the per-oligo totals.
+- **Shares below 1% print with two significant digits** (0.087%, not 0.1%), so a row and the
+  0.1% bar compare in the same terms.
 - **One rule for "closest site"** (code review, 2026-11-26). Each table and figure applies the
   same rule: the highest level first, then the fewest mismatches and gaps, then the longest
   clean 3′ end (`specificity/closest.py`). This covers the off-target tier table, Part A's dot,

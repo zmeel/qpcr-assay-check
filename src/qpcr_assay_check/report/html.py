@@ -27,11 +27,13 @@ from .grouping import (
     group_sites,
     is_perfect_row,
     plain_tiers,
+    share,
     shown_rows,
     site_changes,
     site_frequency,
     spec_overview,
     species_of,
+    strains,
     tier_name,
 )
 from .ncbi_links import linkify, taxon_link
@@ -357,6 +359,7 @@ LIMITS_SHOWN = [
     ("Search caps", "specificity.max_amplicon_size"), ("Search caps", "specificity.max_amplicons"),
     ("Search caps", "specificity.partner_scan_max_windows"),
     ("Search caps", "specificity.probe_scan_max_products"),
+    ("Report listing (display only; no status depends on it)", "report.needs_attention"),
 ]  # fmt: skip
 
 
@@ -630,6 +633,8 @@ def _environment() -> Environment:
     env.filters["plain"] = _plain
     env.tests["adding"] = adds_to_cell
     env.filters["tier_name"] = tier_name
+    env.filters["share"] = share
+    env.filters["strains"] = strains
     env.filters["plain_tiers"] = plain_tiers
     return env
 
@@ -663,6 +668,7 @@ def render_report(result: RunResult, cfg: Config) -> str:
             vs.fragments,
             vs.fragment_total,
             cfg.variants.homopolymer_bulges_detectable,
+            rule=cfg.report.needs_attention,
             oligos=vs.oligos,
         )  # fmt: skip
         if vs and vs.fragments

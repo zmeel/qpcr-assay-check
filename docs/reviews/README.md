@@ -214,3 +214,10 @@ The user agreed with the suggested selection:
   functions; the test-only ones stay).
 - **Kept:** the old-record branches (item 11) and the results.json fields (item 12).
 - **Not done:** items 13, 15, 16 and 19.
+
+## Needs-attention cut-off (2026-11-27): what was taken up
+
+The user: "Yes build as recommended". Everything was built: the listing rule, the folded rows,
+the workbook column, the bar for the site-variant lines, the `report.needs_attention`
+setting, the two-digit shares and the five Part A layout fixes (decision
+`docs/knowledge/decisions/2026-11-27-needs-attention-cutoff.md`).

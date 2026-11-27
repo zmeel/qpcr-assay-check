@@ -176,11 +176,12 @@ def _variant_result(n1, *, n_rare: int = 0):
     )  # fmt: skip
 
 
-def test_a_rare_variant_shows_as_below_0_1_percent_not_zero(n1):
+def test_a_rare_variant_shows_its_share_not_zero(n1):
+    # two significant digits below 1% (user and advisor, 2026-11-27): 1 of 2,001 is 0.05%
     html = render_report(_variant_result(n1, n_rare=1), load_config())
     i = html.index("<h3>Whole fragment")
     frag = html[i : html.index("<h2", i)]
-    assert "&lt;0.1%" in frag and ">0.0%<" not in frag
+    assert "0.05%" in frag and ">0.0%<" not in frag and "&lt;0.1%" not in frag
 
 
 def test_only_primers_get_the_3prime_underline():

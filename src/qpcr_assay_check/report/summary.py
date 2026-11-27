@@ -22,7 +22,7 @@ from ..results import RunResult
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL, Verdict
 from . import figures
-from .grouping import gap_text, tier_name
+from .grouping import gap_text, share, tier_name
 
 _SEVERITY = {"FAIL": Verdict.FAIL, "INCOMPLETE": Verdict.INCOMPLETE, "WARN": Verdict.WARN}
 _RANK = {Verdict.PASS: 0, Verdict.WARN: 1, Verdict.INCOMPLETE: 2, Verdict.FAIL: 3}
@@ -72,6 +72,16 @@ def _row(
     )
 
 
+SHORT_CELL = 3  # names in the oligo-design status cell before it only counts them
+
+
+def _share_of(n: int, total: int) -> str:
+    """A share as in the report tables, with the count below 1% (influenza A, 2026-11-26: 18
+    records printed as "0.0% likely failure")."""
+    value = 100.0 * n / total if total else 0.0
+    return share(value) if n == 0 or value >= 1 else f"{share(value)} ({n:,})"
+
+
 def _plural(n: int, one: str, many: str | None = None) -> str:
     return f"{n:,} {one if n == 1 else (many or one + 's')}"
 
@@ -90,10 +100,18 @@ def _qc_row(result: RunResult) -> SummaryRow:
     reason = "; ".join(c.name for c in fail or warn)
     if not reason and flagged:
         reason = "; ".join(s.label for s in flagged)
+    brief = ""
     if fail or warn:
         reason = ("outside the limit: " if fail else "outside the preferred range: ") + reason
+        if len(fail or warn) > SHORT_CELL:
+            # the names go to the sign-off list only (influenza A, 2026-11-26: eight names made
+            # the status cell the tallest row of Part A)
+            brief = f"Oligo design: {reason}"
+            reason = (f"{len(fail or warn)} checks "
+                      + ("outside the limit" if fail else "outside the preferred range")
+                      + ", named under Findings that need a decision")  # fmt: skip
     section = next(s for s in result.sections if s.key == "oligo_qc")
-    return _fig(
+    row = _fig(
         "tm",
         _row(
             "Oligo design (Tm, GC, runs, hairpins, dimers)",
@@ -109,6 +127,8 @@ def _qc_row(result: RunResult) -> SummaryRow:
             "oligo-qc",
         ),
     )
+    row.brief = brief
+    return row
 
 
 def _tier_rows(result: RunResult, cfg: Config, overview: list[Any]) -> list[SummaryRow]:
@@ -268,8 +288,8 @@ def _inclusivity_row(result: RunResult, cfg: Config) -> SummaryRow:
     # plain shares that add up (third report review, 2026-11-25); the distinct-pattern figure
     # stays in Part B
     res = (
-        f"{pct:.1f}% detectable, {100.0 * w.at_risk / w.n:.1f}% at risk, "
-        f"{100.0 * w.not_detected / w.n:.1f}% likely failure"
+        f"{pct:.1f}% detectable, {_share_of(w.at_risk, w.n)} at risk, "
+        f"{_share_of(w.not_detected, w.n)} likely failure"
     )
     alt = inc.bulge_alternative
     if alt is not None and abs(alt - pct) >= 0.05:

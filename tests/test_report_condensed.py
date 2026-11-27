@@ -56,6 +56,7 @@ def test_folded_combinations_name_the_site_variants_no_listed_row_shows():
     count per class), tolerated ones the 5 most frequent."""
     from types import SimpleNamespace as NS
 
+    from qpcr_assay_check.config import NeedsAttention
     from qpcr_assay_check.report.grouping import fragment_view
 
     perfect = "ACGTACGTAC"
@@ -85,7 +86,10 @@ def test_folded_combinations_name_the_site_variants_no_listed_row_shows():
                     side_effect=lambda f, b=False: (
                         "detectable" if f.forward.grade in ("perfect", "tolerated")
                         else f.forward.grade.replace("_", " "), False)):  # fmt: skip
-        view = fragment_view([*detectable, *folded_bad], 200, top=2, cap=0, per_outcome=0,
+        nothing = NeedsAttention.model_construct(  # no row of its own: everything folded
+            min_percent=0.1, likely_failure_min_percent=0.01, min_records=2,
+            top_per_outcome=0, max_rows=0)  # fmt: skip
+        view = fragment_view([*detectable, *folded_bad], 200, top=2, rule=nothing,
                              oligos=oligos)  # fmt: skip
     det = view.hidden["detectable"]
     assert [r.count for _role, r in det.listed] == [9, 8, 7, 6, 3]  # 5 most frequent tolerated
@@ -133,7 +137,9 @@ def test_fragment_outcome_is_the_worst_site_and_the_pair_rule():
     assert fragment_outcome(_frag(three, ok, two, 1)) == ("likely failure", True)
 
 
-def test_fragment_view_lists_every_problem_and_lumps_only_detectable():
+def test_rows_at_or_above_the_bar_beyond_the_cap_are_counted_as_such():
+    """User and advisor, 2026-11-27: at most 20 rows; a combination at or above the bar that does
+    not fit is named in the folded row, never dropped silently."""
     from qpcr_assay_check.report.grouping import fragment_view
 
     ok, bad = _site("perfect"), _site("likely_failure", 1)
@@ -141,8 +147,14 @@ def test_fragment_view_lists_every_problem_and_lumps_only_detectable():
     frags += [_frag(bad, ok, ok, 2, org="EV-D68") for _ in range(35)]
     total = sum(f.count for f in frags)
     v = fragment_view(frags, total)
-    assert len(v.attention) == 30
-    assert v.attention_grouped == [("likely failure", [("EV-D68", 10)], 5, 10, 1)]
+    assert len(v.attention) == 20  # report.needs_attention.max_rows
+    (g,) = v.attention_grouped
+    assert (g.outcome, g.n, g.records, g.largest, g.over_cap) == ("likely failure", 15, 30, 2, 15)
+    assert g.fail_by_role == {"forward": 30} and g.kinds == [("EV-D68", 30, 0)]
+    assert sorted(set(v.listing.values())) == [
+        "no: over the row cap", "yes: at or above the bar",
+        "yes: one of the 3 most frequent of its outcome",
+    ]  # fmt: skip
     assert len(v.detectable_top) == 10 and v.detectable_rest == 5
     assert v.records["likely failure"] == 70 and v.records["detectable"] == total - 70
 
@@ -201,11 +213,12 @@ def test_a_frequent_problem_is_never_pushed_out_by_single_genome_failures():
     frags += [_frag(risk, ok, ok, 283, org="Poliovirus 2"), _frag(risk, ok, ok, 2, org="CVA6")]
     v = fragment_view(frags, sum(f.count for f in frags))
     listed = [(o, f.count) for f, o, _p in v.attention]
-    assert len(listed) == 30 and ("at risk", 283) in listed and ("at risk", 2) in listed
-    assert listed[0][0] == "likely failure"  # shown worst outcome first
-    # the 12 single-genome failures not listed: one row, with its main types
-    ((outcome, kinds, n, c, n_kinds),) = v.attention_grouped
-    assert (outcome, n, c, n_kinds, len(kinds)) == ("likely failure", 12, 12, 12, 3)
+    # the top 3 of each outcome always (2026-11-27); single genomes stay below the 2-record bar
+    assert listed == [("likely failure", 1)] * 3 + [("at risk", 283), ("at risk", 2)]
+    # the 37 single-genome failures not listed: one row, with its main types
+    (g,) = v.attention_grouped
+    assert (g.outcome, g.n, g.records, g.n_kinds, len(g.kinds), g.largest, g.over_cap) == (
+        "likely failure", 37, 37, 37, 3, 1, 0)  # fmt: skip
 
 
 def test_a_row_counts_as_perfect_by_its_class_or_without_a_mismatch():

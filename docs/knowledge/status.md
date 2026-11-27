@@ -4,7 +4,7 @@ title: Current status
 description: Where the project stands - what is released, what is on main, the latest runs, what is next and what waits on the user. Read first in every session.
 tags: [status]
 status: draft
-generated: { by: claude-code/agent, at: 2026-11-26T15:00:00Z }
+generated: { by: claude-code/agent, at: 2026-11-27T14:00:00Z }
 sources:
   - id: changelog
     resource: ../../CHANGELOG.md
@@ -67,14 +67,23 @@ Since v2.2.0 (CHANGELOG `[Unreleased]`):[^changelog]
   - **Length:** HSV-1 from 30 to about 15 pages, with a 2-page sign-off.
 - A run can carry the oligo design over from an earlier record with the same oligos, reaction
   conditions and limits (`--skip-oligo-design`; GUI option "Evaluate oligo design").
+- The Needs-attention table has a cut-off (user and advisor, 2026-11-27,
+  [decision](decisions/2026-11-27-needs-attention-cutoff.md)): the top 3 per outcome, others
+  from 0.1% and 2 records (likely failure 0.01%), at most 20 rows; the workbook says why each
+  combination is listed or not. Part A: the status table breaks between rows, strain names are
+  grouped, shares below 1% keep two digits. Waiting on the user's influenza A rerun.
 - A code review for redundant code (2026-11-26) was taken up:
   - two bugs fixed: the workbook sheets "Findings" and "Specificity findings" were both named
     "Findings", and a carried-over oligo design did not record its source commit;
   - one rule for "closest site";
   - about 300 lines of dead code removed.
 
-HSV-1 and HSV-2 have been rerun on the new code (2026-11-25/26). VZV, influenza A and the older
-assays ran on code from before the tiers review, so their specificity results need a rerun.
+HSV-1, HSV-2 (2026-11-25/26) and influenza A (2026-11-26 15:21Z, report only:
+[session](sessions/2026-11-27-01-needs-attention-cutoff.md)) have been rerun on the new code.
+Influenza A on that run: the clinical organism list Exceeds limit (the ON845595.1 amplicon,
+read as detected), background Review, near neighbours not searched, inclusivity No flags
+(99.5% of 73,327 collected 2023-2026), coverage No flags; 25 pages. VZV and the older assays ran
+on code from before the tiers review, so their specificity results need a rerun.
 
 # Latest runs
 

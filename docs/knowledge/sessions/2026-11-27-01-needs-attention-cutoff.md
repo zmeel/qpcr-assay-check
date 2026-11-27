@@ -25,3 +25,25 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
   - **Part A at 4 pages** comes from the layout: the status table is kept whole and moves to
     page 2, and the Types column breaks strain names.
   - Nothing built yet: the user decides.
+- **Built** (user: "Yes build as recommended";
+  [decision](../decisions/2026-11-27-needs-attention-cutoff.md)):
+  - **Listing rule:** the top 3 per outcome; others from 0.1% and 2 records, likely failure
+    from 0.01%; at most 20 rows. The folded row per outcome names the records left out, the
+    largest of them, the rows over the cap, and where they fail per oligo.
+  - **Site variants seen only in folded combinations:** the same bar. Tolerated variants are
+    left off the Needs-attention lines.
+  - **Workbook:** a column "Listed in the report" with the reason.
+  - **Settings:** `report.needs_attention`, shown under Limits applied as display-only.
+  - **Shares below 1%:** two significant digits.
+  - **Part A:**
+    - the status table breaks between rows;
+    - more than 3 oligo-design checks are named on the sign-off list only;
+    - strain names are grouped per organism;
+    - "0.025% (18)" instead of "0.0%";
+    - thousands separators.
+  - **Checked:**
+    - a SYNTHETIC flu-sized render (272 problem combinations): 6 rows listed, the rest in two
+      folded rows, Part A on 2 A4 pages;
+    - ruff, ruff format and `pytest -m "not live"` pass.
+  - **Open:** the user's influenza A rerun on this code, to confirm the row count (advisor's
+    estimate: 9) and the Part A length.

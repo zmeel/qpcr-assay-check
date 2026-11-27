@@ -15,7 +15,13 @@ from ..results import RunResult
 from ..specificity.variants import group_off_target_sites
 from ..variants.exhaustive import channel_verdict, channels_shown
 from ..verdict import STATUS_LABEL
-from .grouping import amplicon_order, fragment_outcome, site_changes, spec_overview
+from .grouping import (
+    amplicon_order,
+    fragment_outcome,
+    fragment_view,
+    site_changes,
+    spec_overview,
+)
 from .ncbi_links import accession_url, taxon_url
 
 _FILL = {
@@ -89,6 +95,20 @@ def _run_length_rows(rl: Any) -> list[list[object]]:
 def _section_status(result: RunResult, section: Any) -> str:
     """A section's status as the report names it."""
     return STATUS_LABEL[section.verdict] if section.verdict else "Not assessed"
+
+
+def _fragment_listing(vs: Any, bulges: bool, cfg: Config | None) -> dict[int, str]:
+    """Per combination (by ``id``): whether the report gives it a row of its own and why, by the
+    rule of ``report.needs_attention`` (user and advisor, 2026-11-27)."""
+    view = fragment_view(
+        vs.fragments, vs.fragment_total, bulges, rule=cfg.report.needs_attention if cfg else None
+    )
+    out = dict(view.listing)
+    for f, _o, _p in view.detectable_top:
+        out[id(f)] = "yes: one of the most frequent detectable"
+    for f in vs.fragments:
+        out.setdefault(id(f), "no: in the detectable summary row")
+    return out
 
 
 def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> None:
@@ -337,6 +357,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
             None,
         )  # fmt: skip
         bulges = bool(result.config.get("variants", {}).get("homopolymer_bulges_detectable"))
+        listed = _fragment_listing(vs, bulges, cfg)
         _sheet(
             wb,
             "Fragment variants",
@@ -344,7 +365,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
              "Fraction (%)", "Mismatches (F/P/R)", "ΔTm °C (F/P/R)", "Probe per channel", "Types",
              "Assembly levels",
              "Possibly unassembled", "Example accession",
-             "Example organism", "First release", "Last release"],
+             "Example organism", "First release", "Last release", "Listed in the report"],
             [
                 [*fragment_outcome(f, bulges), f.forward.s_aln, f.probe.s_aln, f.reverse.s_aln,
                  "/".join(s.grade or "" for s in (f.forward, f.probe, f.reverse)),
@@ -358,7 +379,7 @@ def write_workbook(result: RunResult, path: Path, cfg: Config | None = None) -> 
                  "; ".join(f"{n} {c}" for n, c in f.organisms),
                  "; ".join(f"{n} {c}" for n, c in f.levels), f.unassembled,
                  f.example_accession, f.example_organism or "",
-                 f.forward.first_seen or "", f.forward.last_seen or ""]
+                 f.forward.first_seen or "", f.forward.last_seen or "", listed.get(id(f), "")]
                 for f in vs.fragments
             ],
             None,
