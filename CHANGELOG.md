@@ -98,6 +98,9 @@ and near neighbours are read cautiously. Rerun an assay before comparing it with
   - Strain names written without a space before the bracket, or as "Influenza A Virus", are
     grouped with the rest.
   - Part A shows the first 2 Needs-attention rows (was 3); all listed rows stay in Part B.
+  - In the variant tables the class labels print at the table's size and break only between
+    words ("likel y fail ure" before); a share is kept whole; strain counts have thousands
+    separators.
   - Shorter sign-off lines:
     - an off-target amplicon finding reads "Specificity, Clinical organism list: 1 amplicon
       detected by the probe (141 bp on ON845595.1, Influenza B virus)"; the full message opens

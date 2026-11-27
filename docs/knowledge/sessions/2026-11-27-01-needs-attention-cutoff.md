@@ -72,3 +72,14 @@ generated: { by: claude-code/agent, at: 2026-11-27T10:00:00Z }
     oligo-design line) gives 14 A4 pages at full size, with the decision box back on page 2.
     It still had the old, longer amplicon line, so the real record has a line to spare. To be
     confirmed on the next influenza A run.
+- **Influenza A rerun** (2026-11-27 09:20Z, commit 103b95d): confirmed.
+  - **Length:** 14 A4 pages at full size; sign-off on 2 pages, decision box included; no table
+    wider than the page.
+  - **Found in it:**
+    - the outcome label broke letter by letter ("likel y fail ure");
+    - "0.0051 %" split from its percent sign;
+    - "24251 strain names" without a thousands separator.
+  - **Fixed:** the labels in the variant tables print at the table's size and break only
+    between words, shares stay whole, the cell padding is narrower, and the separator is added.
+  - **Checked:** the new stylesheet in the user's influenza A, HSV-1 and HSV-2 reports gives
+    14, 15 and 12 pages, the decision box on page 2, and no table wider than the page.

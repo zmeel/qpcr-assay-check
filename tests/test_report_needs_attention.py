@@ -126,6 +126,9 @@ def test_the_variant_table_fits_the_page_without_splitting_organism_names(tmp_pa
     assert "td.types { hyphens: manual; } table.frag td.types { min-width: 5rem; }" in css
     assert "table.frag td.types { min-width: 0; }" not in css
     assert "table.frag td:first-child .chip { white-space: normal; }" in css
+    # labels break between words only, at the table's size (influenza A, 2026-11-27 09:20Z)
+    assert "table.frag td:first-child .chip { overflow-wrap: normal; word-break: keep-all; }" in css
+    assert "table.frag .chip { font-size: 6.5pt;" in css
 
 
 def test_a_long_oligo_design_list_moves_to_the_sign_off(tmp_path):
